@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NH5 Lagerkapazitäts-Dashboard — elvinci.de GmbH</title>
+
+  <!-- CDN Libraries -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+  <!-- Dashboard CSS -->
+  <link rel="stylesheet" href="src/css/dashboard.css">
+</head>
+<body>
+  <div id="app">
+
+    <!-- ===== SIDEBAR: File Uploads ===== -->
+    <aside id="sidebar">
+      <div class="logo">elvinci.de</div>
+
+      <!-- Orange: AMM Spedition -->
+      <div class="upload-group orange">
+        <h3>AMM Spedition</h3>
+
+        <div class="upload-slot" id="slot-bestand">
+          <label>BESTAND CSV</label>
+          <input type="file" accept=".csv,.txt" data-type="bestand">
+          <button class="upload-btn" type="button">Datei wählen oder hierher ziehen</button>
+          <div class="upload-status"></div>
+        </div>
+
+        <div class="upload-slot" id="slot-we-ist">
+          <label>WE-IST CSV</label>
+          <input type="file" accept=".csv,.txt" data-type="we-ist">
+          <button class="upload-btn" type="button">Datei wählen oder hierher ziehen</button>
+          <div class="upload-status"></div>
+        </div>
+
+        <div class="upload-slot" id="slot-wa-ist">
+          <label>WA-IST CSV</label>
+          <input type="file" accept=".csv,.txt" data-type="wa-ist">
+          <button class="upload-btn" type="button">Datei wählen oder hierher ziehen</button>
+          <div class="upload-status"></div>
+        </div>
+      </div>
+
+      <!-- Blue: elvinci intern -->
+      <div class="upload-group blue">
+        <h3>elvinci intern</h3>
+
+        <div class="upload-slot" id="slot-we-pipe">
+          <label>WE Pipeline</label>
+          <input type="file" accept=".xlsx,.xls" data-type="we-pipe">
+          <button class="upload-btn" type="button">Datei wählen oder hierher ziehen</button>
+          <div class="upload-status"></div>
+        </div>
+
+        <div class="upload-slot" id="slot-wa-pipe">
+          <label>Fulfilment Pipeline</label>
+          <input type="file" accept=".xlsx,.xls" data-type="wa-pipe">
+          <button class="upload-btn" type="button">Datei wählen oder hierher ziehen</button>
+          <div class="upload-status"></div>
+        </div>
+
+        <div class="upload-slot" id="slot-auftrag-status">
+          <label>Auftrag Status</label>
+          <input type="file" accept=".xlsx,.xls" data-type="auftrag-status">
+          <button class="upload-btn" type="button">Datei wählen oder hierher ziehen</button>
+          <div class="upload-status"></div>
+        </div>
+
+        <div class="upload-slot" id="slot-planner">
+          <label>Planner</label>
+          <input type="file" accept=".xlsx,.xls" data-type="planner">
+          <button class="upload-btn" type="button">Datei wählen oder hierher ziehen</button>
+          <div class="upload-status"></div>
+        </div>
+      </div>
+
+      <button id="btn-settings" type="button" class="upload-btn" style="margin-top: auto;">Einstellungen</button>
+    </aside>
+
+    <!-- ===== MAIN CONTENT ===== -->
+    <main id="content">
+      <header>
+        <h1>NH5 Lagerkapazitäts-Dashboard</h1>
+        <span class="version">v1.0</span>
+        <span id="current-date"></span>
+      </header>
+
+      <!-- Capacity Section -->
+      <section id="capacity-section">
+        <div class="gauge-container">
+          <canvas id="gauge-canvas" width="320" height="200"></canvas>
+          <div class="gauge-value" id="gauge-pct">0%</div>
+          <div class="gauge-label">LAGER — Auslastung</div>
+          <div class="gauge-detail" id="gauge-detail" style="font-size:0.8rem;color:var(--text-muted);">0 / 0 Punkte</div>
+        </div>
+        <div class="stats-cards">
+          <div class="card">
+            <h4>LAGER (eingelagert)</h4>
+            <span class="value" id="val-lager">0</span>
+            <span class="unit">Punkte</span>
+          </div>
+          <div class="card orange">
+            <h4>VERSANDFLÄCHE</h4>
+            <span class="value" id="val-versand">0</span>
+            <span class="unit">Punkte</span>
+          </div>
+          <div class="card">
+            <h4>WE-Zone</h4>
+            <span class="value" id="val-we">0</span>
+            <span class="unit">Punkte</span>
+          </div>
+          <div class="card red">
+            <h4>QU-Bestand</h4>
+            <span class="value" id="val-qu">0</span>
+            <span class="unit">Punkte <span id="val-qu-pct" style="font-size:0.7rem"></span></span>
+          </div>
+          <div class="card green">
+            <h4>Geräte gesamt</h4>
+            <span class="value" id="val-geraete">0</span>
+            <span class="unit">Stück</span>
+          </div>
+          <div class="card">
+            <h4>Kapazität Lager</h4>
+            <span class="value" id="val-kapazitaet">7.781</span>
+            <span class="unit">Punkte (max)</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Forecast Section -->
+      <section id="forecast-section">
+        <h2>Prognose (5 Werktage)</h2>
+        <table id="forecast-table"></table>
+        <div style="max-height:300px; margin-top:1rem;">
+          <canvas id="forecast-chart"></canvas>
+        </div>
+      </section>
+
+      <!-- Blocker Section -->
+      <section id="blocker-section">
+        <h2>Blockierer &amp; Problemfälle</h2>
+        <div class="filter-bar">
+          <button class="filter active" data-filter="all" type="button">Alle</button>
+          <button class="filter" data-filter="kritisch" type="button">Kritisch</button>
+          <button class="filter" data-filter="blockierer" type="button">Blockierer</button>
+          <button class="filter" data-filter="ueberfaellig" type="button">Überfällig</button>
+        </div>
+        <table id="blocker-table">
+          <thead>
+            <tr>
+              <th>Priorität</th>
+              <th>Auftrag</th>
+              <th>Kunde</th>
+              <th>Status</th>
+              <th>Tage</th>
+              <th>Artikel</th>
+              <th>Details</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </section>
+
+      <!-- Efficiency Section -->
+      <section id="effizienz-section">
+        <h2>Effizienz-Tracker</h2>
+        <div class="effizienz-container">
+          <div class="effizienz-today">
+            <h4>Heute</h4>
+            <div class="effizienz-values">
+              <span>WE: <strong id="eff-we">0</strong></span>
+              <span>WA: <strong id="eff-wa">0</strong></span>
+              <span>Gesamt: <strong id="eff-total">0</strong></span>
+              <span>Ziel: 470 (<span id="eff-pct">0%</span>)</span>
+            </div>
+          </div>
+          <div style="flex:1; min-height:250px;">
+            <canvas id="effizienz-chart"></canvas>
+          </div>
+        </div>
+      </section>
+
+      <!-- Validation Section -->
+      <section id="validation-section">
+        <h2>Daten-Validierung</h2>
+        <button id="btn-validate" type="button" class="btn-primary" style="margin-bottom:1rem;">Validierung starten</button>
+        <div id="validation-results"></div>
+      </section>
+    </main>
+  </div>
+
+  <!-- ===== SETTINGS OVERLAY ===== -->
+  <div id="settings-overlay" class="hidden">
+    <div class="settings-panel">
+      <h2>Einstellungen</h2>
+
+      <!-- Password Gate — FIX #17 -->
+      <div id="password-gate">
+        <label for="admin-pw">Admin-Passwort</label>
+        <input type="password" id="admin-pw" placeholder="Passwort eingeben">
+        <button id="btn-pw-submit" type="button" class="btn-primary">Anmelden</button>
+      </div>
+
+      <!-- Settings Content (hidden until auth) -->
+      <div id="settings-content" class="hidden">
+        <h3 style="margin:1rem 0 0.5rem;">Kapazitäts-Parameter</h3>
+        <label>Fläche (qm)</label>
+        <input type="number" id="set-flaeche" step="1">
+        <label>Paletten / qm</label>
+        <input type="number" id="set-paletten" step="0.001">
+        <label>Punkte / Palette</label>
+        <input type="number" id="set-punkte" step="1">
+        <label>Regal Halle 1</label>
+        <input type="number" id="set-regal1" step="1">
+        <label>Regal Halle 2</label>
+        <input type="number" id="set-regal2" step="1">
+        <label>QU-Kapazität</label>
+        <input type="number" id="set-qu" step="1">
+
+        <div class="settings-actions">
+          <button id="btn-save-settings" type="button" class="btn-primary">Speichern</button>
+          <button id="btn-reset-defaults" type="button" class="btn-secondary">Zurücksetzen</button>
+          <button id="btn-clear-storage" type="button" class="btn-danger">Alle Daten löschen</button>
+          <button id="btn-close-settings" type="button" class="btn-secondary">Schließen</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== JAVASCRIPT SILOS (load order matters) ===== -->
+  <script src="src/js/utils/config.js"></script>
+  <script src="src/js/utils/dates.js"></script>
+  <script src="src/js/utils/storage.js"></script>
+  <script src="src/js/utils/dom.js"></script>
+  <script src="src/js/utils/gewichtung.js"></script>
+  <script src="src/js/upload/csv-reader.js"></script>
+  <script src="src/js/upload/xlsx-reader.js"></script>
+  <script src="src/js/upload/handler.js"></script>
+  <script src="src/js/capacity/capacity.js"></script>
+  <script src="src/js/forecast/forecast.js"></script>
+  <script src="src/js/blocker/blocker.js"></script>
+  <script src="src/js/effizienz/effizienz.js"></script>
+  <script src="src/js/charts/charts.js"></script>
+  <script src="src/js/admin/admin.js"></script>
+  <script src="src/js/app.js"></script>
+</body>
+</html>

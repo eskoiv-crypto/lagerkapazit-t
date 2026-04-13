@@ -1,0 +1,19 @@
+# Data files (uploaded by users, not committed)
+data/amm/*.CSV
+data/amm/*.csv
+data/elvinci/*.xlsx
+data/elvinci/*.xls
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
