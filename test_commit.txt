@@ -1,2 +1,0 @@
-This is a test commit to verify the local-to-GitHub pipeline works.
-Created: 2026-04-20
