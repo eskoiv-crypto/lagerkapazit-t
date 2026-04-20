@@ -4830,7 +4830,27 @@
             if (el) el.innerHTML = html;
             return el;
         }
-        
+
+        // P1-9 FIX (2026-04-20): HTML-Entity-Escape für user-controlled Strings.
+        // Aufgerufen in allen Render-Pfaden, die String-Felder aus CSV/Excel (Kundenname,
+        // Artikelname, Marke, Modell, …) in innerHTML-Templates interpolieren.
+        // Defense-in-depth: auch wenn Quellen heute als "trusted" gelten — File-Inhalt
+        // KANN Attack-Payloads enthalten (z.B. manipuliertes Angebots-XLSX).
+        function escapeHtml(value) {
+            if (value === null || value === undefined) return '';
+            const s = String(value);
+            // Alternative: DOM-Roundtrip, aber performant genug via Regex:
+            return s.replace(/[&<>"']/g, ch => ({
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#39;'
+            }[ch]));
+        }
+        // Shortcut-Alias für enge Template-Literale
+        const _h = escapeHtml;
+
         // Toast Notification System
         function showToast(type, title, message, duration = 5000) {
             const container = document.getElementById('toast-container');
@@ -5916,7 +5936,7 @@
                     return `
                         <tr>
                             <td><span class="seller-rank ${idx < 3 ? 'rank-' + (idx+1) : 'rank-other'}" style="width:22px;height:22px;font-size:0.65rem;">${idx+1}</span></td>
-                            <td><strong>${s.name}</strong></td>
+                            <td><strong>${_h(s.name)}</strong></td>
                             <td class="mono positive">${s.umsatz.toLocaleString('de-DE', {style:'currency',currency:'EUR',minimumFractionDigits:0,maximumFractionDigits:0})}</td>
                             <td class="mono">${s.profit.toLocaleString('de-DE', {style:'currency',currency:'EUR',minimumFractionDigits:0,maximumFractionDigits:0})}</td>
                             <td class="mono">${s.count.toLocaleString('de-DE')}</td>
@@ -6071,10 +6091,10 @@
                     return `
                         <tr>
                             <td><span class="analytics-score-badge ${scoreClass}">${item.score}</span></td>
-                            <td class="mono">${item.lager_number || '—'}</td>
-                            <td>${(item.model || '—').substring(0, 20)}</td>
-                            <td>${item.brand || '—'}</td>
-                            <td style="font-size:0.6rem;">${(item.product_group || '—').substring(0, 15)}</td>
+                            <td class="mono">${_h(item.lager_number || '—')}</td>
+                            <td>${_h((item.model || '—').substring(0, 20))}</td>
+                            <td>${_h(item.brand || '—')}</td>
+                            <td style="font-size:0.6rem;">${_h((item.product_group || '—').substring(0, 15))}</td>
                             <td class="mono ${item.product_life_days > 180 ? 'negative' : ''}">${item.product_life_days || 0}</td>
                             <td class="mono">${ek.toLocaleString('de-DE', {style:'currency',currency:'EUR'})}</td>
                             <td class="mono">${vk.toLocaleString('de-DE', {style:'currency',currency:'EUR'})}</td>
@@ -6269,7 +6289,7 @@
                     return `
                         <tr>
                             <td><span class="seller-rank ${rankClass}" style="width:24px;height:24px;font-size:0.6rem;">${idx+1}</span></td>
-                            <td><strong>${k.name.substring(0, 30)}${k.name.length > 30 ? '...' : ''}</strong></td>
+                            <td><strong>${_h(k.name.substring(0, 30))}${k.name.length > 30 ? '...' : ''}</strong></td>
                             <td class="mono positive">${k.umsatz.toLocaleString('de-DE', {style:'currency',currency:'EUR',minimumFractionDigits:0,maximumFractionDigits:0})}</td>
                             <td class="mono" style="color: var(--accent-cyan); font-weight: 600;">${umsatzAnteil}%</td>
                             <td class="mono">${k.profit.toLocaleString('de-DE', {style:'currency',currency:'EUR',minimumFractionDigits:0,maximumFractionDigits:0})}</td>
@@ -6278,8 +6298,8 @@
                             <td class="mono">${k.ordersCount}</td>
                             <td class="mono">${avgOrder.toLocaleString('de-DE', {style:'currency',currency:'EUR',minimumFractionDigits:0,maximumFractionDigits:0})}</td>
                             <td class="mono ${parseFloat(margePct) >= 40 ? 'positive' : parseFloat(margePct) >= 25 ? '' : 'warning'}">${margePct}%</td>
-                            <td style="font-size:0.55rem;">${k.topWG ? k.topWG[0].substring(0, 12) : '—'}</td>
-                            <td style="font-size:0.55rem;">${k.topBrand ? k.topBrand[0] : '—'}</td>
+                            <td style="font-size:0.55rem;">${k.topWG ? _h(k.topWG[0].substring(0, 12)) : '—'}</td>
+                            <td style="font-size:0.55rem;">${k.topBrand ? _h(k.topBrand[0]) : '—'}</td>
                         </tr>
                     `;
                 }).join('');
@@ -6401,7 +6421,7 @@
                 thead.innerHTML = `
                     <tr>
                         <th style="position: sticky; left: 0; background: var(--bg-secondary); z-index: 2;">${rowLabel}</th>
-                        ${topCols.map(col => `<th style="writing-mode: vertical-rl; text-orientation: mixed; max-width: 40px; font-size: 0.55rem;">${col.substring(0, 20)}</th>`).join('')}
+                        ${topCols.map(col => `<th style="writing-mode: vertical-rl; text-orientation: mixed; max-width: 40px; font-size: 0.55rem;">${_h(col.substring(0, 20))}</th>`).join('')}
                         <th style="background: var(--bg-elevated);">SUMME</th>
                     </tr>
                 `;
@@ -6423,7 +6443,7 @@
                     
                     return `
                         <tr>
-                            <td style="position: sticky; left: 0; background: var(--bg-primary); z-index: 1; font-size: 0.6rem; max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"><strong>${row.substring(0, 25)}</strong></td>
+                            <td style="position: sticky; left: 0; background: var(--bg-primary); z-index: 1; font-size: 0.6rem; max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"><strong>${_h(row.substring(0, 25))}</strong></td>
                             ${cells}
                             <td style="background: var(--bg-elevated); font-weight: 700; font-size: 0.65rem; font-family: var(--font-mono);">${formatVal(rowTotal)}</td>
                         </tr>
@@ -7236,7 +7256,7 @@
                 const profitAnteil = totalProfit > 0 ? ((r.profit / totalProfit) * 100).toFixed(1) : 0;
                 return `
                     <tr>
-                        <td><strong>${r.pg || '—'}</strong></td>
+                        <td><strong>${_h(r.pg || '—')}</strong></td>
                         <td class="mono">${r.lagerCount.toLocaleString('de-DE')}</td>
                         <td class="mono" style="color: var(--accent-green);">${r.availableCount.toLocaleString('de-DE')}</td>
                         <td class="mono" style="color: var(--accent-orange);">${r.reservedCount.toLocaleString('de-DE')}</td>
@@ -7317,7 +7337,7 @@
                 const profitAnteil = totalProfit > 0 ? ((r.profit / totalProfit) * 100).toFixed(1) : 0;
                 return `
                     <tr>
-                        <td><strong>${r.brand || '—'}</strong></td>
+                        <td><strong>${_h(r.brand || '—')}</strong></td>
                         <td class="mono">${r.lagerCount.toLocaleString('de-DE')}</td>
                         <td class="mono" style="color: var(--accent-green);">${r.availableCount.toLocaleString('de-DE')}</td>
                         <td class="mono" style="color: var(--accent-orange);">${r.reservedCount.toLocaleString('de-DE')}</td>
@@ -7436,7 +7456,7 @@
                     return `
                         <tr>
                             <td><span class="seller-rank ${rankClass}" style="width:24px;height:24px;font-size:0.6rem;">${idx+1}</span></td>
-                            <td><strong>${l.name}</strong></td>
+                            <td><strong>${_h(l.name)}</strong></td>
                             <td class="mono">${l.count.toLocaleString('de-DE')}</td>
                             <td class="mono" style="color: var(--accent-cyan);">${stueckAnteil}%</td>
                             <td class="mono">${formatCurr(l.umsatz)}</td>
@@ -7444,8 +7464,8 @@
                             <td class="mono ${l.profit < 0 ? 'negative' : 'positive'}">${formatCurr(l.profit)}</td>
                             <td class="mono" style="color: var(--accent-green); font-weight: 600;">${profitAnteil}%</td>
                             <td class="mono ${margeClass}">${l.marge.toFixed(1)}%</td>
-                            <td style="font-size:0.55rem;">${l.topWG ? l.topWG[0].substring(0, 12) : '—'}</td>
-                            <td style="font-size:0.55rem;">${l.topBrand ? l.topBrand[0] : '—'}</td>
+                            <td style="font-size:0.55rem;">${l.topWG ? _h(l.topWG[0].substring(0, 12)) : '—'}</td>
+                            <td style="font-size:0.55rem;">${l.topBrand ? _h(l.topBrand[0]) : '—'}</td>
                         </tr>
                     `;
                 }).join('');
@@ -7532,10 +7552,10 @@
                 const daysClass = item.lifeDays > 120 ? 'negative' : item.lifeDays > 90 ? 'warning' : '';
                 return `
                     <tr>
-                        <td class="mono">${item.lagerNr}</td>
-                        <td>${item.articleNumber || item.model || '—'}</td>
-                        <td>${item.brand || '—'}</td>
-                        <td>${item.pg || '—'}</td>
+                        <td class="mono">${_h(item.lagerNr)}</td>
+                        <td>${_h(item.articleNumber || item.model || '—')}</td>
+                        <td>${_h(item.brand || '—')}</td>
+                        <td>${_h(item.pg || '—')}</td>
                         <td class="mono ${daysClass}"><strong>${item.lifeDays}</strong></td>
                         <td class="mono">${formatCurr(item.ek)}</td>
                         <td class="mono">${formatCurr(item.vk)}</td>
@@ -8053,14 +8073,14 @@
             tbody.innerHTML = results.map(r => {
                 const scoreClass = r.totalScore >= 70 ? 'positive' : r.totalScore < 40 ? 'negative' : '';
                 const margeClass = r.histMargeAvg >= 45 ? 'positive' : r.histMargeAvg < 30 ? 'negative' : '';
-                const kundenStr = r.topKunden.length > 0 ? r.topKunden.slice(0, 2).join(', ') : '—';
+                const kundenStr = r.topKunden.length > 0 ? _h(r.topKunden.slice(0, 2).join(', ')) : '—';
                 
                 return `
-                    <tr title="${r.bezeichnungFull}">
+                    <tr title="${_h(r.bezeichnungFull)}">
                         <td style="font-size: 1.2rem; text-align: center;">${r.empfehlung}</td>
-                        <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${r.bezeichnung}</td>
-                        <td style="font-size: 0.65rem;">${r.artikelgruppe || '—'}</td>
-                        <td><strong>${r.brand}</strong></td>
+                        <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${_h(r.bezeichnung)}</td>
+                        <td style="font-size: 0.65rem;">${_h(r.artikelgruppe || '—')}</td>
+                        <td><strong>${_h(r.brand)}</strong></td>
                         <td class="mono">${r.menge}</td>
                         <td class="mono">${r.listenVK.toLocaleString('de-DE')} €</td>
                         <td class="mono" style="color: var(--accent-green); font-weight: 700;">${r.maxEK.toLocaleString('de-DE')} €</td>
@@ -8238,6 +8258,8 @@
                 }));
                 dashboardState.manualFaktorenCount = Object.keys(dashboardState.manualFaktoren).length;
                 updateManualFaktorenCount();
+                // P1-12: Cache invalidieren da Manual-Faktoren Priorität 1 sind
+                if (typeof invalidateFaktorCache === 'function') invalidateFaktorCache();
                 return true;
             } catch (e) {
                 console.error('Fehler beim Speichern manueller Faktoren:', e);
@@ -9559,9 +9581,17 @@
             let snapshots = JSON.parse(localStorage.getItem(BESTAND_SNAPSHOT_KEY) || '{}');
             
             // Snapshot für dieses Datum speichern/aktualisieren
+            // P1-10 FIX (2026-04-20): DSGVO-Minimierung — Dateiname zu generischem Marker reduzieren.
+            // Volles Filename könnte AMM-Naming-Schema + Business-Schedule leaken (z.B. "BESTAND134_20260407.CSV").
+            // Aggregate Stückzahlen sind zweckdienlich, Pfade/User-Namen nicht.
+            const sanitizedFilename = (currentBestandFilename || 'unknown')
+                .replace(/[\\\/]/g, '')           // Pfadtrenner raus
+                .replace(/\d{8}/g, 'YYYYMMDD')    // Datumsmuster anonymisieren
+                .replace(/\d{4}-\d{2}-\d{2}/g, 'YYYY-MM-DD')
+                .substring(0, 60);                 // Max 60 Zeichen
             snapshots[snapshotDate] = {
                 timestamp: new Date().toISOString(),
-                filename: currentBestandFilename || 'unknown',
+                filename: sanitizedFilename,
                 lagerStueck: dashboardState.bestandLagerStueck || 0,
                 kommStueck: dashboardState.bestandKommStueck || 0,
                 weStueck: dashboardState.bestandWEStueck || 0,
@@ -10922,8 +10952,21 @@
             // Inhalt erstellen
             let html = '';
             
+            // Bonus (Sprint 3): 4-Way-Cross-Check Status-Kompaktleiste
+            const fw = dashboardState.fourWayStats;
+            if (fw && fw.total > 0) {
+                const pct = (n) => fw.total > 0 ? ((n / fw.total) * 100).toFixed(0) : 0;
+                html += `<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:0.4rem;margin-bottom:0.75rem;padding:0.5rem;background:var(--bg-elevated);border-radius:6px;font-size:0.65rem;">
+                    <div style="text-align:center;"><div style="color:var(--text-muted);font-size:0.55rem;text-transform:uppercase;">Gesamt</div><div style="font-weight:700;color:var(--text-primary);font-size:0.85rem;">${fw.total}</div></div>
+                    <div style="text-align:center;"><div style="color:var(--text-muted);font-size:0.55rem;text-transform:uppercase;">4/4 Komplett</div><div style="font-weight:700;color:var(--accent-green);font-size:0.85rem;">${fw.complete} <span style="font-size:0.55rem;opacity:0.7;">(${pct(fw.complete)}%)</span></div></div>
+                    <div style="text-align:center;"><div style="color:var(--text-muted);font-size:0.55rem;text-transform:uppercase;">3/4</div><div style="font-weight:700;color:var(--accent-cyan);font-size:0.85rem;">${fw.threeOfFour}</div></div>
+                    <div style="text-align:center;"><div style="color:var(--text-muted);font-size:0.55rem;text-transform:uppercase;">2/4</div><div style="font-weight:700;color:var(--accent-yellow);font-size:0.85rem;">${fw.twoOfFour}</div></div>
+                    <div style="text-align:center;"><div style="color:var(--text-muted);font-size:0.55rem;text-transform:uppercase;">1/4 Orphan</div><div style="font-weight:700;color:var(--accent-red);font-size:0.85rem;">${fw.oneOfFour}</div></div>
+                </div>`;
+            }
+
             if (mismatches.length === 0) {
-                html = `<div style="text-align: center; padding: 1rem; color: var(--accent-green);">
+                html += `<div style="text-align: center; padding: 1rem; color: var(--accent-green);">
                     ✓ Alle Datenquellen sind konsistent
                 </div>`;
             } else {
@@ -10942,13 +10985,13 @@
                     const color = items[0].schwere === 'warnung' ? 'var(--accent-orange)' : 'var(--accent-cyan)';
                     
                     html += `<div style="margin-bottom: 0.75rem; padding: 0.5rem; background: var(--bg-secondary); border-radius: 6px; border-left: 3px solid ${color};">`;
-                    html += `<div style="font-weight: 600; margin-bottom: 0.25rem;">${icon} ${quelle} (${items.length})</div>`;
-                    
-                    // Zeige max 3 Details
+                    html += `<div style="font-weight: 600; margin-bottom: 0.25rem;">${icon} ${_h(quelle)} (${items.length})</div>`;
+
+                    // Zeige max 3 Details (P1-9: auftrag/detail escapen — kommen aus CSV)
                     const showItems = items.slice(0, 3);
                     for (const item of showItems) {
                         html += `<div style="color: var(--text-muted); margin-left: 1rem; font-size: 0.7rem;">
-                            • ${item.auftrag}: ${item.detail}
+                            • ${_h(item.auftrag)}: ${_h(item.detail)}
                         </div>`;
                     }
                     
@@ -12346,10 +12389,36 @@
         // schreiben konkurrierend in dashboardState, letzter Upload überschreibt.
         // Lösung: Serielle Abarbeitung. _uploadChain ist Promise-Kette, jeder Upload
         // hängt sich hinten an und wartet auf seinen Turn.
+        // P1-11 FIX: Loading-Overlay während Parse → UI fühlt sich responsiv an.
         let _uploadChain = Promise.resolve();
         let _uploadInFlight = 0;
+        function _showUploadOverlay(label) {
+            let overlay = document.getElementById('upload-overlay');
+            if (!overlay) {
+                overlay = document.createElement('div');
+                overlay.id = 'upload-overlay';
+                overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(10,15,20,0.75);backdrop-filter:blur(2px);z-index:99998;display:flex;align-items:center;justify-content:center;pointer-events:none;';
+                overlay.innerHTML = '<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:1.5rem 2rem;display:flex;gap:1rem;align-items:center;box-shadow:0 20px 60px rgba(0,0,0,0.5);">'
+                    + '<div style="width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--accent-cyan);border-radius:50%;animation:upload-spin 0.8s linear infinite;"></div>'
+                    + '<div><div style="font-weight:600;color:var(--text-primary);" id="upload-overlay-label">Lädt…</div>'
+                    + '<div style="font-size:0.7rem;color:var(--text-muted);margin-top:0.15rem;" id="upload-overlay-sub">Datei wird verarbeitet</div></div></div>';
+                const styleEl = document.createElement('style');
+                styleEl.textContent = '@keyframes upload-spin{to{transform:rotate(360deg);}}';
+                document.head.appendChild(styleEl);
+                document.body.appendChild(overlay);
+            }
+            const labelEl = document.getElementById('upload-overlay-label');
+            if (labelEl) labelEl.textContent = label || 'Lädt…';
+            overlay.style.display = 'flex';
+        }
+        function _hideUploadOverlay() {
+            if (_uploadInFlight > 0) return;  // noch was in Arbeit
+            const overlay = document.getElementById('upload-overlay');
+            if (overlay) overlay.style.display = 'none';
+        }
         function enqueueUpload(task, label) {
             _uploadInFlight++;
+            _showUploadOverlay(label);
             const run = () => {
                 console.log(`[UploadQueue] → START ${label} (in-flight: ${_uploadInFlight})`);
                 return Promise.resolve().then(task).catch(e => {
@@ -12357,6 +12426,7 @@
                 }).finally(() => {
                     _uploadInFlight--;
                     console.log(`[UploadQueue] ✓ DONE ${label} (remaining: ${_uploadInFlight})`);
+                    _hideUploadOverlay();
                 });
             };
             _uploadChain = _uploadChain.then(run);
@@ -12632,47 +12702,64 @@
                 return { value: 1.0, known: false };
             }
             
+            // P1-12 FIX (2026-04-20): Memoization.
+            // getArtikelFaktorLocal() wurde pro BESTAND-Zeile aufgerufen und iterierte jedes Mal
+            // alle ~120 Keywords in artikelFaktoren. Bei 5000 Zeilen → 600k Iterationen/Upload.
+            // Fix: Cache per (bez|artNr). Cache wird manuell via invalidateFaktorCache() gepurged,
+            // wenn manualFaktoren oder artikelLookup sich ändern.
+            const _faktorCache = new Map();
+            function invalidateFaktorCache() {
+                _faktorCache.clear();
+                console.log('[FaktorCache] invalidated');
+            }
             function getArtikelFaktorLocal(bezeichner, artikelnummer) {
                 if (!bezeichner) return 1.0;
                 const bez = bezeichner.toLowerCase().trim();
                 const artNr = (artikelnummer || '').toString().trim();
-                
-                // PHASE 3: MANUELLE FAKTOREN HABEN HÖCHSTE PRIORITÄT
-                if (artNr && dashboardState.manualFaktoren && dashboardState.manualFaktoren[artNr]) {
-                    return dashboardState.manualFaktoren[artNr].faktor;
-                }
-                
-                // === SET-ARTIKEL SPEZIALLOGIK ===
-                if (bez.includes('set artikel') || bez.includes('backofen set') || 
-                    bez.includes('backofen-set') || bez.includes('gasherd-set')) {
-                    if (artNr.endsWith('.001')) return 1;     // Herd/Hauptgerät
-                    if (artNr.endsWith('.002')) return 0.2;   // Zubehör
-                    return 0.5;  // Fallback
-                }
-                
-                // Prüfe exakte Übereinstimmung zuerst
-                if (artikelFaktoren[bez] !== undefined) {
-                    return artikelFaktoren[bez];
-                }
-                
-                // Dann prüfe Teil-Übereinstimmung
-                for (const [typ, faktor] of Object.entries(artikelFaktoren)) {
-                    if (bez.includes(typ) || typ.includes(bez)) {
-                        return faktor;
+                const cacheKey = bez + '|' + artNr;
+                if (_faktorCache.has(cacheKey)) return _faktorCache.get(cacheKey);
+
+                let result;
+                compute: {
+                    // PHASE 3: MANUELLE FAKTOREN HABEN HÖCHSTE PRIORITÄT
+                    if (artNr && dashboardState.manualFaktoren && dashboardState.manualFaktoren[artNr]) {
+                        result = dashboardState.manualFaktoren[artNr].faktor;
+                        break compute;
                     }
-                }
-                
-                // PHASE 2: Artikelnummer-Lookup als Fallback
-                if (artNr && dashboardState.artikelLookup && dashboardState.artikelLookup[artNr]) {
-                    const lookupEntry = dashboardState.artikelLookup[artNr];
-                    if (lookupEntry.known) {
-                        // Faktor aus JTL-Lookup verwenden
-                        return lookupEntry.faktor;
+
+                    // === SET-ARTIKEL SPEZIALLOGIK ===
+                    if (bez.includes('set artikel') || bez.includes('backofen set') ||
+                        bez.includes('backofen-set') || bez.includes('gasherd-set')) {
+                        if (artNr.endsWith('.001')) { result = 1; break compute; }
+                        if (artNr.endsWith('.002')) { result = 0.2; break compute; }
+                        result = 0.5;
+                        break compute;
                     }
+
+                    // Prüfe exakte Übereinstimmung zuerst (O(1) Map-Lookup)
+                    if (artikelFaktoren[bez] !== undefined) {
+                        result = artikelFaktoren[bez];
+                        break compute;
+                    }
+
+                    // Dann prüfe Teil-Übereinstimmung (O(n) Loop)
+                    let partial = null;
+                    for (const [typ, faktor] of Object.entries(artikelFaktoren)) {
+                        if (bez.includes(typ) || typ.includes(bez)) { partial = faktor; break; }
+                    }
+                    if (partial !== null) { result = partial; break compute; }
+
+                    // PHASE 2: Artikelnummer-Lookup als Fallback
+                    if (artNr && dashboardState.artikelLookup && dashboardState.artikelLookup[artNr]) {
+                        const lookupEntry = dashboardState.artikelLookup[artNr];
+                        if (lookupEntry.known) { result = lookupEntry.faktor; break compute; }
+                    }
+
+                    // Standard
+                    result = 1.0;
                 }
-                
-                // Standard
-                return 1.0;
+                _faktorCache.set(cacheKey, result);
+                return result;
             }
             
             try {
