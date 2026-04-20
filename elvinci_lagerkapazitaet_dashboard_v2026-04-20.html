@@ -8563,35 +8563,84 @@
         // NEUER TAG = SAUBERER START
         // ============================================
         
+        // P1-1 FIX (2026-04-20): Vollständiger Session-Reset.
+        // Zentrale Reset-Funktion, damit "neuer Tag" keine Gestern-Daten in Maps/Arrays leakt.
+        function resetAllSessionState() {
+            // Flags
+            dashboardState.bestandLoaded = false;
+            dashboardState.weLoaded = false;
+            dashboardState.waLoaded = false;
+            dashboardState.weIstLoaded = false;
+            dashboardState.waIstLoaded = false;
+            dashboardState.statusLoaded = false;
+            dashboardState.stockAnalysisLoaded = false;
+            dashboardState.allSoldLoaded = false;
+            // Scalars
+            dashboardState.bestandLager = 0;
+            dashboardState.bestandKomm = 0;
+            dashboardState.bestandGesamt = 0;
+            dashboardState.bestandLagerStueck = 0;
+            dashboardState.bestandKommStueck = 0;
+            dashboardState.bestandGesamtStueck = 0;
+            dashboardState.bestandWE = 0;
+            dashboardState.bestandWEStueck = 0;
+            dashboardState.stockTotalEK = 0;
+            dashboardState.stockTotalVK = 0;
+            dashboardState.stockAnalysisCount = 0;
+            dashboardState.allSoldCount = 0;
+            dashboardState.allSoldProfit = 0;
+            dashboardState.allSoldTotalEK = 0;
+            dashboardState.allSoldTotalVK = 0;
+            // Maps & Arrays (das was vorher fehlte und Leak-Quelle war)
+            dashboardState.pipelineWE = {};
+            dashboardState.pipelineWA = {};
+            dashboardState.bestandAuftragMap = {};
+            dashboardState.fulfillmentDataMap = {};
+            dashboardState.auftragStatusMap = {};
+            dashboardState.plannerDataMap = {};
+            dashboardState.stockAnalysisData = {};
+            dashboardState.stockAnalysisRaw = [];
+            dashboardState.stockPgStats = {};
+            dashboardState.stockBrandStats = {};
+            dashboardState.stockLageralterBuckets = {};
+            dashboardState.allSoldData = [];
+            dashboardState.soldPgStats = {};
+            dashboardState.soldBrandStats = {};
+            dashboardState.soldByStats = {};
+            dashboardState.kundenStats = {};
+            dashboardState.kundenWgStats = {};
+            dashboardState.lieferantenStats = {};
+            dashboardState.margeDistribution = {};
+            dashboardState.dailySales = {};
+            dashboardState.monthlyRevenue = {};
+            dashboardState.allePaletten = [];
+            dashboardState.bestandRaw = [];
+            dashboardState.zonen = {};
+            dashboardState.zonenStueck = {};
+            dashboardState.diskrepanzen = [];
+            dashboardState.angebotAnalyseResults = [];
+        }
+
         function clearDailyDataIfNewDay() {
             const LAST_SESSION_KEY = 'elvinci_last_session_date';
             const today = new Date().toISOString().split('T')[0];
             const lastSession = localStorage.getItem(LAST_SESSION_KEY);
-            
+
             if (lastSession !== today) {
                 // Neuer Tag → alte Session-Daten löschen
                 console.log('🔄 Neuer Tag erkannt → Sauberer Start');
-                
+
                 // Nur Session-Daten löschen, Settings behalten
                 localStorage.removeItem('elvinci_bestand_snapshots');
                 localStorage.removeItem('elvinci_effizienz_daily');
                 localStorage.removeItem('elvinci_data_freshness');
-                
-                // dashboardState zurücksetzen (wird sowieso beim Laden initialisiert)
-                // aber für Sicherheit:
-                dashboardState.bestandLoaded = false;
-                dashboardState.weLoaded = false;
-                dashboardState.waLoaded = false;
-                dashboardState.bestandLager = 0;
-                dashboardState.bestandKomm = 0;
-                dashboardState.bestandGesamt = 0;
-                dashboardState.bestandLagerStueck = 0;
-                dashboardState.bestandKommStueck = 0;
-                dashboardState.bestandGesamtStueck = 0;
-                
+
+                // P1-1: dashboardState vollständig zurücksetzen (Maps + Arrays + Scalars)
+                resetAllSessionState();
+
                 // Heute als letzte Session speichern
                 localStorage.setItem(LAST_SESSION_KEY, today);
-                
+
                 console.log('✓ Session-Daten gelöscht, Settings behalten');
             } else {
                 console.log('📅 Gleicher Tag → Daten bleiben erhalten');
@@ -10748,13 +10797,89 @@
                 }
             }
             
+            // ===================================================
+            // 5. P1-4 FIX: FULFILLMENT ↔ BESTAND (Versand-Risiko!)
+            // "Auftrag soll raus, aber nichts im Lager" → kritisch
+            // ===================================================
+            if (dashboardState.bestandLoaded && dashboardState.fulfillmentDataMap && Object.keys(dashboardState.fulfillmentDataMap).length > 0) {
+                const fulfillment = dashboardState.fulfillmentDataMap;
+                const bestandAU = dashboardState.bestandAuftragMap || {};
+                for (const auNr in fulfillment) {
+                    const fulfillData = fulfillment[auNr];
+                    const bestandData = bestandAU[auNr];
+                    if (!bestandData || (bestandData.count || 0) === 0) {
+                        mismatches.push({
+                            typ: 'fulfillment_ohne_bestand',
+                            quelle: '🚨 Versand geplant, Lager leer',
+                            auftrag: auNr,
+                            detail: `In Fulfillment-Pipeline (${fulfillData.versandDatum || '—'}, ${fulfillData.kunde || 'Kunde ?'}), aber kein BESTAND-Eintrag → Versand-Risiko!`,
+                            schwere: 'warnung'
+                        });
+                    }
+                }
+            }
+
+            // ===================================================
+            // 6. P1-4 FIX: FULFILLMENT ↔ STATUS (ungeplant ausgebucht)
+            // ===================================================
+            if (dashboardState.statusLoaded && dashboardState.fulfillmentDataMap && Object.keys(dashboardState.fulfillmentDataMap).length > 0) {
+                const fulfillment = dashboardState.fulfillmentDataMap;
+                const statusAU = dashboardState.auftragStatusMap || {};
+                for (const auNr in fulfillment) {
+                    if (!statusAU[auNr]) {
+                        mismatches.push({
+                            typ: 'fulfillment_ohne_status',
+                            quelle: 'Pipeline ohne Status',
+                            auftrag: auNr,
+                            detail: `In Fulfillment-Pipeline geplant, aber kein AUFTRAG_STATUS-Eintrag`,
+                            schwere: 'info'
+                        });
+                    }
+                }
+            }
+
+            // ===================================================
+            // 7. P1-5 FIX: 4-WAY CROSS-CHECK SUMMARY
+            // Für jeden Auftrag: in wie vielen der 4 Systeme? (BESTAND, STATUS, FULFILLMENT, PLANNER)
+            // ===================================================
+            const allAU = new Set();
+            if (dashboardState.bestandLoaded) Object.keys(dashboardState.bestandAuftragMap || {}).forEach(a => allAU.add(a));
+            if (dashboardState.statusLoaded) Object.keys(dashboardState.auftragStatusMap || {}).forEach(a => allAU.add(a));
+            if (dashboardState.fulfillmentDataMap) Object.keys(dashboardState.fulfillmentDataMap || {}).forEach(a => allAU.add(a));
+            if (dashboardState.plannerLoaded) Object.keys(dashboardState.plannerDataMap || {}).forEach(a => allAU.add(a));
+
+            const fourWayStats = { complete: 0, threeOfFour: 0, twoOfFour: 0, oneOfFour: 0, total: allAU.size };
+            const orphans4Way = [];
+            for (const auNr of allAU) {
+                let count = 0;
+                const sys = { bestand: false, status: false, fulfillment: false, planner: false };
+                if ((dashboardState.bestandAuftragMap || {})[auNr]) { sys.bestand = true; count++; }
+                if ((dashboardState.auftragStatusMap || {})[auNr]) { sys.status = true; count++; }
+                if ((dashboardState.fulfillmentDataMap || {})[auNr]) { sys.fulfillment = true; count++; }
+                if ((dashboardState.plannerDataMap || {})[auNr]) { sys.planner = true; count++; }
+                if (count === 4) fourWayStats.complete++;
+                else if (count === 3) fourWayStats.threeOfFour++;
+                else if (count === 2) fourWayStats.twoOfFour++;
+                else if (count === 1) {
+                    fourWayStats.oneOfFour++;
+                    // Single-System-Orphan → ggf. kritisch
+                    const onlyIn = Object.entries(sys).find(([k,v]) => v);
+                    if (onlyIn && onlyIn[0] === 'fulfillment') {
+                        orphans4Way.push({ auNr, onlyIn: 'Fulfillment' });
+                    }
+                }
+            }
+            dashboardState.fourWayStats = fourWayStats;
+            dashboardState.orphans4Way = orphans4Way;
+            console.log('[4-Way-Check]', fourWayStats);
+
             // Speichere Mismatches
             dashboardState.mismatches = mismatches;
-            
+
             // UI aktualisieren
             updateMismatchDisplay();
             updateValidationDisplay();
-            
+
             console.log('Validation complete:', mismatches.length, 'mismatches found');
         }
         
@@ -12210,10 +12335,67 @@
             }
             
             console.log(`[${type}] ${filename}: ${totalStueck} Geräte (${zeilenMitMenge} mit Menge, ${zeilenOhneMenge} ohne → je 1)`);
-            
+
             return { datum, stueck: totalStueck, filename };
         }
-        
+
+        // ============================================
+        // P1-2 FIX: UPLOAD-QUEUE gegen Race-Conditions
+        // ============================================
+        // Problem: User dropped 4 Dateien gleichzeitig → alle Handler laufen parallel,
+        // schreiben konkurrierend in dashboardState, letzter Upload überschreibt.
+        // Lösung: Serielle Abarbeitung. _uploadChain ist Promise-Kette, jeder Upload
+        // hängt sich hinten an und wartet auf seinen Turn.
+        let _uploadChain = Promise.resolve();
+        let _uploadInFlight = 0;
+        function enqueueUpload(task, label) {
+            _uploadInFlight++;
+            const run = () => {
+                console.log(`[UploadQueue] → START ${label} (in-flight: ${_uploadInFlight})`);
+                return Promise.resolve().then(task).catch(e => {
+                    console.error(`[UploadQueue] ${label} failed:`, e);
+                }).finally(() => {
+                    _uploadInFlight--;
+                    console.log(`[UploadQueue] ✓ DONE ${label} (remaining: ${_uploadInFlight})`);
+                });
+            };
+            _uploadChain = _uploadChain.then(run);
+            return _uploadChain;
+        }
+
+        // P1-3 FIX: Einheitliche Refresh-Funktion — ALLE Handler rufen diese auf.
+        // Garantiert: kein Handler vergisst einen Downstream-Consumer.
+        // Debounced via requestAnimationFrame damit Multi-Upload nicht 5× rendert.
+        let _refreshScheduled = false;
+        function refreshAllDashboards(reason) {
+            if (_refreshScheduled) { return; }
+            _refreshScheduled = true;
+            requestAnimationFrame(() => {
+                _refreshScheduled = false;
+                try {
+                    console.log(`[refreshAllDashboards] reason=${reason || 'unknown'}`);
+                    if (typeof updateStats === 'function')            updateStats();
+                    if (typeof updateGauge === 'function')            updateGauge();
+                    if (typeof updateChart === 'function')            updateChart();
+                    if (typeof renderForecastTable === 'function')    renderForecastTable();
+                    if (typeof renderZones === 'function')            renderZones();
+                    if (typeof combineAndRenderAuftragData === 'function') combineAndRenderAuftragData();
+                    if (typeof runValidation === 'function')          runValidation();
+                    if (typeof validateAuftraege === 'function')      validateAuftraege();
+                    if (typeof renderHistoricalComparison === 'function') renderHistoricalComparison();
+                    if (typeof saveDataFreshness === 'function')      saveDataFreshness();
+                    if (typeof updateAnalyseProPanel === 'function' && dashboardState.stockAnalysisLoaded) {
+                        updateAnalyseProPanel();
+                    }
+                    if (typeof checkAngebotsAnalyseAvailability === 'function') {
+                        checkAngebotsAnalyseAvailability();
+                    }
+                } catch (err) {
+                    console.error('[refreshAllDashboards] error:', err);
+                }
+            });
+        }
+
         function handleFileUpload(input, type) {
             console.log('>>> handleFileUpload:', type);
             
@@ -12251,71 +12433,132 @@
             // jtl-sales: abhängig von Dateiendung
             const forceExcel = type === 'auftrag-status' || type === 'planner' || type === 'stock-analysis' || type === 'all-sold';
             
-            if (isExcel || forceExcel) {
-                console.log('→ Excel');
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    try {
-                        const data = new Uint8Array(e.target.result);
-                        const workbook = XLSX.read(data, { type: 'array', cellDates: true });
-                        console.log('Excel OK:', workbook.SheetNames);
-                        processExcel(workbook, type, filename);
-                    } catch (err) {
-                        const userMsg = handleUploadError(type, err, filename);
+            // P1-2: Enqueue — serielle Abarbeitung gegen Race-Conditions
+            enqueueUpload(() => new Promise((resolve) => {
+                if (isExcel || forceExcel) {
+                    console.log('→ Excel');
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        try {
+                            const data = new Uint8Array(e.target.result);
+                            // P1-8: Magic-Number-Check (XLSX = ZIP = PK\x03\x04)
+                            if (data.length < 4 || !(data[0] === 0x50 && data[1] === 0x4B && (data[2] === 0x03 || data[2] === 0x05 || data[2] === 0x07))) {
+                                // Nicht-ZIP-Datei unter .xlsx-Endung. Vermutlich CSV umbenannt oder .xls (OLE)
+                                // .xls hat Magic D0 CF 11 E0 — SheetJS handhabt das; wir lassen .xls durch.
+                                const isOLE = data.length >= 4 && data[0] === 0xD0 && data[1] === 0xCF && data[2] === 0x11 && data[3] === 0xE0;
+                                if (!isOLE) {
+                                    const userMsg = handleUploadError(type, 'Datei ist kein Excel (Magic-Number-Check). Vermutlich CSV als .xlsx umbenannt.', filename);
+                                    if (statusEl) {
+                                        statusEl.textContent = '❌ ' + userMsg;
+                                        statusEl.style.color = 'var(--accent-red)';
+                                    }
+                                    return resolve();
+                                }
+                            }
+                            const workbook = XLSX.read(data, { type: 'array', cellDates: true });
+                            console.log('Excel OK:', workbook.SheetNames);
+                            processExcel(workbook, type, filename);
+                        } catch (err) {
+                            const userMsg = handleUploadError(type, err, filename);
+                            if (statusEl) {
+                                statusEl.textContent = '❌ ' + userMsg;
+                                statusEl.style.color = 'var(--accent-red)';
+                            }
+                        } finally {
+                            refreshAllDashboards('excel-upload:' + type);
+                            resolve();
+                        }
+                    };
+                    reader.onerror = function() {
+                        const userMsg = handleUploadError(type, 'Datei konnte nicht gelesen werden', filename);
                         if (statusEl) {
-                            statusEl.textContent = '❌ ' + userMsg;
+                            statusEl.textContent = '❌ Lesefehler';
                             statusEl.style.color = 'var(--accent-red)';
                         }
+                        resolve();
+                    };
+                    reader.readAsArrayBuffer(file);
+                    return;
+                }
+
+                // CSV-Dateien mit PapaParse
+                console.log('→ CSV');
+                // P1-6/7: Encoding- + Delimiter-Auto-Detection via Pre-Read
+                const preReader = new FileReader();
+                preReader.onload = function(preEvt) {
+                    const rawBytes = new Uint8Array(preEvt.target.result);
+                    // Encoding: UTF-8-BOM → utf-8; sonst Heuristik (Umlaute in ISO vs. UTF-8)
+                    let encoding = 'ISO-8859-1';
+                    if (rawBytes.length >= 3 && rawBytes[0] === 0xEF && rawBytes[1] === 0xBB && rawBytes[2] === 0xBF) {
+                        encoding = 'UTF-8';
+                    } else {
+                        // Schnelle Heuristik: zähle typische UTF-8-Umlaute-Bytefolgen (C3 A4 = ä, C3 B6 = ö, C3 BC = ü)
+                        let utf8Hits = 0;
+                        const sampleLen = Math.min(rawBytes.length, 4096);
+                        for (let i = 0; i < sampleLen - 1; i++) {
+                            if (rawBytes[i] === 0xC3 && (rawBytes[i+1] >= 0x80 && rawBytes[i+1] <= 0xBF)) utf8Hits++;
+                        }
+                        if (utf8Hits >= 2) encoding = 'UTF-8';
                     }
+                    // Delimiter detection in erster Zeile
+                    const headSample = new TextDecoder(encoding === 'UTF-8' ? 'utf-8' : 'windows-1252').decode(rawBytes.slice(0, 2048));
+                    const firstLine = (headSample.split(/\r?\n/)[0] || '');
+                    const semis = (firstLine.match(/;/g) || []).length;
+                    const commas = (firstLine.match(/,/g) || []).length;
+                    const tabs = (firstLine.match(/\t/g) || []).length;
+                    let delimiter = ';';
+                    if (tabs > semis && tabs > commas) delimiter = '\t';
+                    else if (commas > semis) delimiter = ',';
+                    console.log(`[CSV-Detect] encoding=${encoding}, delimiter='${delimiter === '\t' ? 'TAB' : delimiter}'`);
+
+                    Papa.parse(file, {
+                        delimiter,
+                        encoding,
+                        skipEmptyLines: true,
+                        complete: function(results) {
+                            try {
+                                const csvValidation = validateCSVStructure(results.data, type, filename);
+                                if (!csvValidation.valid) {
+                                    const userMsg = handleUploadError(type, csvValidation.error, filename);
+                                    if (statusEl) {
+                                        statusEl.textContent = '❌ ' + userMsg;
+                                        statusEl.style.color = 'var(--accent-red)';
+                                    }
+                                    return;
+                                }
+                                console.log('CSV OK:', results.data.length, 'Zeilen');
+                                processCSV(results.data, type, filename);
+                            } catch (err) {
+                                const userMsg = handleUploadError(type, err, filename);
+                                if (statusEl) {
+                                    statusEl.textContent = '❌ ' + userMsg;
+                                    statusEl.style.color = 'var(--accent-red)';
+                                }
+                            } finally {
+                                refreshAllDashboards('csv-upload:' + type);
+                                resolve();
+                            }
+                        },
+                        error: function(err) {
+                            const userMsg = handleUploadError(type, err, filename);
+                            if (statusEl) {
+                                statusEl.textContent = '❌ ' + userMsg;
+                                statusEl.style.color = 'var(--accent-red)';
+                            }
+                            resolve();
+                        }
+                    });
                 };
-                reader.onerror = function() {
+                preReader.onerror = function() {
                     const userMsg = handleUploadError(type, 'Datei konnte nicht gelesen werden', filename);
                     if (statusEl) {
                         statusEl.textContent = '❌ Lesefehler';
                         statusEl.style.color = 'var(--accent-red)';
                     }
+                    resolve();
                 };
-                reader.readAsArrayBuffer(file);
-                return;
-            }
-            
-            // CSV-Dateien mit PapaParse
-            console.log('→ CSV');
-            Papa.parse(file, {
-                delimiter: ';',
-                encoding: 'ISO-8859-1',
-                skipEmptyLines: true,
-                complete: function(results) {
-                    // 2. VALIDIERUNG: CSV-Struktur prüfen
-                    const csvValidation = validateCSVStructure(results.data, type, filename);
-                    if (!csvValidation.valid) {
-                        const userMsg = handleUploadError(type, csvValidation.error, filename);
-                        if (statusEl) {
-                            statusEl.textContent = '❌ ' + userMsg;
-                            statusEl.style.color = 'var(--accent-red)';
-                        }
-                        return;
-                    }
-                    
-                    console.log('CSV OK:', results.data.length, 'Zeilen');
-                    try {
-                        processCSV(results.data, type, filename);
-                    } catch (err) {
-                        const userMsg = handleUploadError(type, err, filename);
-                        if (statusEl) {
-                            statusEl.textContent = '❌ ' + userMsg;
-                            statusEl.style.color = 'var(--accent-red)';
-                        }
-                    }
-                },
-                error: function(err) {
-                    const userMsg = handleUploadError(type, err, filename);
-                    if (statusEl) {
-                        statusEl.textContent = '❌ ' + userMsg;
-                        statusEl.style.color = 'var(--accent-red)';
-                    }
-                }
-            });
+                preReader.readAsArrayBuffer(file);
+            }), type + '/' + filename);
         }
         
         function handleExcelUpload(input, type) {
