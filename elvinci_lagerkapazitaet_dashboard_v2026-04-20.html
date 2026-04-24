@@ -4933,6 +4933,46 @@
         }
 
         // ============================================
+        // 10X-1 (Sprint 6.4, 2026-04-20): DATA-MODEL-SPLIT (Domain-Views)
+        // ============================================
+        // `dashboardState` ist historisch gewachsen zu einem 40+-Feld-Gott-Objekt mit
+        // unklaren Grenzen. Statt eines Big-Bang-Renames (riskant ohne breite Test-Coverage)
+        // bauen wir Live-Proxy-Views per Domain.
+        //
+        // - Jede Domain (inventory, pipeline, portal, orders, analysis, config) ist ein
+        //   Objekt mit Getter/Setter die auf dashboardState durchschlagen.
+        // - Altcode `dashboardState.bestandLoaded` funktioniert unverändert weiter.
+        // - Neucode nutzt `state.inventory.bestandLoaded` für klare Semantik.
+        // - Beide Views sind zu 100% synchron (dieselbe Storage).
+        // - Migration erfolgt inkrementell: wenn ein Tab refactored wird, bekommt er die
+        //   Domain-Sicht. Tests (domain.spec.js) garantieren Bidirektionalität.
+        //
+        // Taxonomie orientiert sich am Event-Bus (10X-2) für konzeptionelle Konsistenz:
+        //   inventory ↔ data:bestand-loaded
+        //   pipeline  ↔ data:we-*/wa-*/fulfillment
+        //   portal    ↔ data:stock-analysis-loaded / data:all-sold-loaded
+        //   orders    ↔ data:auftrag-status-loaded / data:planner-loaded
+        //   analysis  ↔ diskrepanzen, mismatches, anomalies, angebote
+        //   config    ↔ Kapazität, Worktime (persistent)
+
+        function createDomainView(source, keys) {
+            const view = {};
+            for (const key of keys) {
+                Object.defineProperty(view, key, {
+                    get() { return source[key]; },
+                    set(v) { source[key] = v; },
+                    enumerable: true,
+                    configurable: false,
+                });
+            }
+            return view;
+        }
+
+        // Late-bound: dashboardState ist aktuell noch nicht definiert (siehe ~5188).
+        // Wir initialisieren state erst nach der dashboardState-Deklaration unten.
+        let state = null;
+
+        // ============================================
         // 10X-2 (Sprint 6.3, 2026-04-20): EVENT-BUS (Pub/Sub)
         // ============================================
         // Inverts Architektur von "Handler ruft 10 Updates" zu "Handler emittiert Event,
@@ -5563,6 +5603,61 @@
             
             // Analyse-Bereich entsperrt?
             analyseUnlocked: false
+        };
+
+        // 10X-1 (Sprint 6.4): Domain-Views initialisieren. Live-Proxies auf dashboardState.
+        // Jede Änderung an state.X.Y schreibt direkt in dashboardState.Y und umgekehrt.
+        // Felder, die später durch Upload/Reset hinzugefügt werden (z.B. stockAnalysisData,
+        // kundenStats, etc.) werden vom Proxy abgedeckt sobald sie existieren — das .get()
+        // liest den aktuellen Wert live.
+        state = {
+            inventory: createDomainView(dashboardState, [
+                'bestandLoaded', 'bestandLager', 'bestandKomm', 'bestandGesamt', 'bestandWE',
+                'bestandLagerStueck', 'bestandKommStueck', 'bestandGesamtStueck', 'bestandWEStueck',
+                'bestandRaw', 'bestandAuftragMap', 'allePaletten', 'avgPktProGeraet',
+                'zonen', 'zonenStueck',
+                'manualFaktoren', 'manualFaktorenCount',
+                'artikelLookup', 'artikelLookupCount'
+            ]),
+            pipeline: createDomainView(dashboardState, [
+                'weLoaded', 'waLoaded',
+                'weIstLoaded', 'waIstLoaded',
+                'pipelineWE', 'pipelineWEKlassif', 'pipelineWEOhneKlassif', 'pipelineWA',
+                'weIstStueck', 'waIstStueck', 'weIstGewichtet', 'waIstGewichtet',
+                'weIstDatum', 'waIstDatum', 'weIstLieferungen', 'waIstAuftraege',
+                'fulfillmentDataMap',
+                'kommissioniertListe', 'quBereit', 'suVersandt'
+            ]),
+            portal: createDomainView(dashboardState, [
+                'stockAnalysisLoaded', 'stockAnalysisData', 'stockAnalysisRaw', 'stockAnalysisCount',
+                'stockAvgLifeDays', 'stockLageralterBuckets',
+                'stockPgStats', 'stockBrandStats',
+                'stockTotalEK', 'stockTotalVK',
+                'stockReservedCount', 'stockAvailableCount',
+                'stockReservedEK', 'stockReservedVK', 'stockAvailableEK', 'stockAvailableVK',
+                'allSoldLoaded', 'allSoldData', 'allSoldCount', 'allSoldProfit', 'allSoldAvgProfit',
+                'allSoldTotalEK', 'allSoldTotalVK',
+                'soldPgStats', 'soldBrandStats', 'soldByStats',
+                'kundenStats', 'kundenWgStats', 'lieferantenStats',
+                'margeDistribution', 'dailySales', 'monthlyRevenue',
+                'warenwertEK', 'warenwertVK', 'warenwertMarge', 'warenwertMatchCount'
+            ]),
+            orders: createDomainView(dashboardState, [
+                'statusLoaded', 'auftragStatusMap',
+                'plannerLoaded', 'plannerDataMap'
+            ]),
+            analysis: createDomainView(dashboardState, [
+                'angebotAnalyseResults',
+                'diskrepanzen', 'validierungsDiskrepanzen', 'mismatches',
+                'fourWayStats', 'orphans4Way',
+                'anomalies'
+            ]),
+            config: createDomainView(dashboardState, [
+                'kapazitaet', 'quKapazitaet',
+                'flaecheQm', 'palettenProQm', 'punkteProPalette',
+                'regalHalle1', 'regalHalle2', 'regalKapazitaet', 'bodenKapazitaet',
+                'analyseUnlocked'
+            ])
         };
 
         // ============================================
@@ -16355,6 +16450,8 @@ location.reload();</pre>
             window.renderAnomaliesPanel = renderAnomaliesPanel;
             window.bus = bus;                         // 10X-2: EventBus-Instanz
             window.createEventBus = createEventBus;   // 10X-2: Factory für Tests
+            window.state = state;                     // 10X-1: Domain-View
+            window.createDomainView = createDomainView; // 10X-1: Factory für Tests
             // getArtikelFaktorLocal ist bewusst nicht hier — es ist in processCSV genested und
             // wird indirekt über upload.spec.js (BESTAND-Upload) regressiert.
         }
