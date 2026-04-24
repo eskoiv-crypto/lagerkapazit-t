@@ -84,7 +84,9 @@
             --border: #d1d5db;
             --text-primary: #111827;
             --text-secondary: #4b5563;
-            --text-muted: #9ca3af;
+            /* P2-17 FIX (2026-04-20): WCAG-AA Kontrast. War #9ca3af (4:1 auf weiß),
+               jetzt #6b7280 (5.4:1) — gilt auch für kleine Schriften wie Timeline-Labels. */
+            --text-muted: #6b7280;
         }
         
         /* Theme Toggle Button */
@@ -2797,7 +2799,7 @@
     </div>
     
     <!-- Drag & Drop Overlay -->
-    <div id="drop-zone-overlay" class="drop-zone-overlay"></div>
+    <div id="drop-zone-overlay" class="drop-zone-overlay" role="region" aria-label="Drop-Zone: Dateien hier fallenlassen zum Upload" aria-live="polite"></div>
 
     <main class="main">
         <div class="grid-main">
@@ -4916,6 +4918,30 @@
             return ((vk - ek) / ek) * 100;
         }
 
+        // P2-20 FIX (Sprint 5, 2026-04-20): Empty-State-Helper.
+        // Setzt Platzhalter-HTML in eine tbody/container, wenn Daten noch fehlen.
+        // Aufrufbar statt direktem innerHTML='' — liefert klares UX-Signal.
+        function renderEmptyState(containerId, options = {}) {
+            const el = document.getElementById(containerId);
+            if (!el) return;
+            const icon = options.icon || '📂';
+            const title = options.title || 'Keine Daten geladen';
+            const hint = options.hint || 'Lade die passende Datei (siehe oben) um den Tab zu füllen.';
+            const colspan = options.colspan || 12;
+            const isTbody = el.tagName === 'TBODY';
+            const content = `
+                <div style="text-align:center;padding:1.5rem 1rem;color:var(--text-muted);font-size:0.75rem;">
+                    <div style="font-size:1.8rem;margin-bottom:0.4rem;opacity:0.5;">${icon}</div>
+                    <div style="font-weight:600;color:var(--text-secondary);margin-bottom:0.2rem;">${_h(title)}</div>
+                    <div style="font-size:0.65rem;">${_h(hint)}</div>
+                </div>`;
+            if (isTbody) {
+                el.innerHTML = `<tr><td colspan="${colspan}" style="padding:0;border:none;">${content}</td></tr>`;
+            } else {
+                el.innerHTML = content;
+            }
+        }
+
         // P1-9 FIX (2026-04-20): HTML-Entity-Escape für user-controlled Strings.
         // Aufgerufen in allen Render-Pfaden, die String-Felder aus CSV/Excel (Kundenname,
         // Artikelname, Marke, Modell, …) in innerHTML-Templates interpolieren.
@@ -5071,9 +5097,16 @@
             }
             
             // Toast anzeigen mit Dateiname
+            // P2-21 FIX (Sprint 5): Retry-Button. Klickt den passenden File-Input erneut,
+            // damit User ohne Umweg nochmal hochladen kann.
             const toastTitle = `${label}: ${userMessage}`;
-            const toastMsg = filename ? `${filename} — ${userHint}` : userHint;
-            showToast('error', toastTitle, toastMsg, 8000);
+            let toastMsg = filename ? `${filename} — ${userHint}` : userHint;
+            const inputId = 'file-' + type;
+            if (document.getElementById(inputId)) {
+                const retryJs = `document.getElementById('${inputId}').click()`;
+                toastMsg += `<br><button type="button" onclick="${retryJs}" style="margin-top:0.5rem;padding:0.25rem 0.6rem;background:var(--accent-cyan);color:white;border:none;border-radius:4px;font-size:0.65rem;cursor:pointer;">🔁 Erneut versuchen</button>`;
+            }
+            showToast('error', toastTitle, toastMsg, 10000);
             
             // Technischen Fehler in Console loggen (für Debugging)
             console.error(`[${type}] ${filename}:`, error);
@@ -8651,15 +8684,96 @@
         // INITIALIZATION
         // ============================================
         
+        // ============================================
+        // P2-12/13/14/16 FIX (Sprint 5, 2026-04-20): Globaler A11y-Initializer
+        // ============================================
+        // Patcht DOM-Elemente programmatisch statt 78 Buttons + 11 ImportBoxes + 14 Selects
+        // einzeln im HTML zu editieren. Läuft auf DOMContentLoaded und bei Mismatch-Rerenders.
+        // Idempotent (kann mehrfach laufen) dank data-a11y-done Markern.
+        function initA11y(root) {
+            const scope = root || document;
+
+            // (P2-13) Alle <button> ohne type → type="button" (verhindert Form-Submit-Default)
+            scope.querySelectorAll('button:not([type])').forEach(btn => {
+                btn.setAttribute('type', 'button');
+            });
+
+            // (P2-12) .import-box divs → keyboard-accessible. role=button, tabindex=0, Enter/Space triggern onclick
+            scope.querySelectorAll('.import-box:not([data-a11y-done])').forEach(box => {
+                box.setAttribute('role', 'button');
+                box.setAttribute('tabindex', '0');
+                // aria-label aus .import-label ableiten
+                const label = box.querySelector('.import-label');
+                if (label) box.setAttribute('aria-label', 'Upload: ' + label.textContent.trim());
+                box.addEventListener('keydown', function(e) {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        this.click();
+                    }
+                });
+                box.setAttribute('data-a11y-done', '1');
+            });
+
+            // (P2-16) .filter-btn → aria-pressed spiegelt .active-Klasse wider
+            const syncFilterPressed = (btn) => {
+                btn.setAttribute('aria-pressed', btn.classList.contains('active') ? 'true' : 'false');
+            };
+            scope.querySelectorAll('.filter-btn:not([data-a11y-done])').forEach(btn => {
+                syncFilterPressed(btn);
+                // MutationObserver überwacht class-Änderungen und synchronisiert
+                const mo = new MutationObserver(() => syncFilterPressed(btn));
+                mo.observe(btn, { attributes: true, attributeFilter: ['class'] });
+                btn.setAttribute('data-a11y-done', '1');
+            });
+
+            // (P2-14) <select> ohne Label → aria-label aus vorherigem Text oder ID herleiten
+            scope.querySelectorAll('select:not([aria-label]):not([data-a11y-done])').forEach(sel => {
+                let label = '';
+                // Heuristik 1: <label for="...">
+                if (sel.id) {
+                    const labelEl = scope.querySelector(`label[for="${sel.id}"]`);
+                    if (labelEl) label = labelEl.textContent.trim();
+                }
+                // Heuristik 2: vorheriger Text-Node oder span
+                if (!label && sel.previousElementSibling) {
+                    const prev = sel.previousElementSibling;
+                    if (prev.tagName === 'SPAN' || prev.tagName === 'LABEL') label = prev.textContent.trim();
+                }
+                // Heuristik 3: aus ID ableiten (z.B. "slowmover-threshold" → "Slowmover Threshold")
+                if (!label && sel.id) {
+                    label = sel.id.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+                }
+                if (label) sel.setAttribute('aria-label', label);
+                sel.setAttribute('data-a11y-done', '1');
+            });
+        }
+
         document.addEventListener('DOMContentLoaded', function() {
             // NEUER TAG = SAUBERER START
             // Prüfe ob heute ein neuer Tag ist → lösche alte Daten
             clearDailyDataIfNewDay();
-            
+
             // Nice-to-Have Features initialisieren
             loadTheme();           // Dark/Light Mode
             checkDataFreshness();  // Refresh-Warnung
             setupDragAndDrop();    // Drag & Drop Upload
+            initA11y();            // P2-12/13/14/16: A11y-Patches
+
+            // P2-20: Empty-States für dynamische Tabellen, damit leere Panels nicht "kaputt" aussehen
+            const emptyTargets = [
+                { id: 'slowmover-tbody',    hint: 'Benötigt Stock-Analysis (Portal-Export).', colspan: 8 },
+                { id: 'topseller-pg',       icon: '🏆', title: 'Top-Seller brauchen Verkaufsdaten', hint: 'Lade ALL-SOLD Export aus dem Portal.' },
+                { id: 'topseller-brands',   icon: '🏆', title: 'Top-Seller brauchen Verkaufsdaten', hint: 'Lade ALL-SOLD Export aus dem Portal.' },
+                { id: 'angebot-results-tbody', icon: '💼', title: 'Noch kein Angebot analysiert', hint: 'Ziehe ein Paletten_*.xlsx ins Dashboard.', colspan: 11 },
+                { id: 'potenzial-tbody',    icon: '🎯', title: 'Verkaufspriorität noch leer', hint: 'Lade BESTAND + Stock-Analysis.', colspan: 10 },
+                { id: 'kunden-tbody',       icon: '🏢', title: 'Keine Kundendaten', hint: 'Lade ALL-SOLD Export.', colspan: 12 }
+            ];
+            emptyTargets.forEach(t => {
+                const el = document.getElementById(t.id);
+                if (el && el.children.length === 0) {
+                    renderEmptyState(t.id, t);
+                }
+            });
             
             // Dashboard initialisieren
             updateCapacity();
@@ -12495,16 +12609,34 @@
         // P1-11 FIX: Loading-Overlay während Parse → UI fühlt sich responsiv an.
         let _uploadChain = Promise.resolve();
         let _uploadInFlight = 0;
-        function _showUploadOverlay(label) {
+        // P2-19/22 FIX (Sprint 5): Overlay mit Progress-Bar + Byte-Count.
+        function _formatBytes(n) {
+            if (!n) return '0 B';
+            const units = ['B', 'KB', 'MB', 'GB'];
+            let i = 0; let v = n;
+            while (v >= 1024 && i < units.length - 1) { v /= 1024; i++; }
+            return (i === 0 ? v : v.toFixed(1)) + ' ' + units[i];
+        }
+        function _showUploadOverlay(label, totalBytes) {
             let overlay = document.getElementById('upload-overlay');
             if (!overlay) {
                 overlay = document.createElement('div');
                 overlay.id = 'upload-overlay';
+                overlay.setAttribute('role', 'status');
+                overlay.setAttribute('aria-live', 'polite');
+                overlay.setAttribute('aria-busy', 'true');
                 overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(10,15,20,0.75);backdrop-filter:blur(2px);z-index:99998;display:flex;align-items:center;justify-content:center;pointer-events:none;';
-                overlay.innerHTML = '<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:1.5rem 2rem;display:flex;gap:1rem;align-items:center;box-shadow:0 20px 60px rgba(0,0,0,0.5);">'
+                overlay.innerHTML =
+                    '<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:1.5rem 2rem;min-width:320px;box-shadow:0 20px 60px rgba(0,0,0,0.5);">'
+                    + '<div style="display:flex;gap:1rem;align-items:center;margin-bottom:0.75rem;">'
                     + '<div style="width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--accent-cyan);border-radius:50%;animation:upload-spin 0.8s linear infinite;"></div>'
-                    + '<div><div style="font-weight:600;color:var(--text-primary);" id="upload-overlay-label">Lädt…</div>'
-                    + '<div style="font-size:0.7rem;color:var(--text-muted);margin-top:0.15rem;" id="upload-overlay-sub">Datei wird verarbeitet</div></div></div>';
+                    + '<div style="flex:1;"><div style="font-weight:600;color:var(--text-primary);" id="upload-overlay-label">Lädt…</div>'
+                    + '<div style="font-size:0.7rem;color:var(--text-muted);margin-top:0.15rem;" id="upload-overlay-sub">Datei wird verarbeitet</div></div></div>'
+                    + '<div id="upload-overlay-bar-wrap" style="display:none;height:6px;background:var(--bg-elevated);border-radius:3px;overflow:hidden;">'
+                    + '<div id="upload-overlay-bar" style="height:100%;width:0%;background:linear-gradient(90deg,var(--accent-cyan),var(--accent-blue));transition:width 0.15s ease;"></div>'
+                    + '</div>'
+                    + '<div id="upload-overlay-bytes" style="font-size:0.65rem;color:var(--text-muted);margin-top:0.35rem;font-family:var(--font-mono);text-align:right;display:none;"></div>'
+                    + '</div>';
                 const styleEl = document.createElement('style');
                 styleEl.textContent = '@keyframes upload-spin{to{transform:rotate(360deg);}}';
                 document.head.appendChild(styleEl);
@@ -12512,16 +12644,37 @@
             }
             const labelEl = document.getElementById('upload-overlay-label');
             if (labelEl) labelEl.textContent = label || 'Lädt…';
+            // Progress-Bar nur bei Dateien > 2 MB anzeigen (kleinere sind eh "instant")
+            const showProgress = totalBytes && totalBytes > 2 * 1024 * 1024;
+            const barWrap = document.getElementById('upload-overlay-bar-wrap');
+            const bytesEl = document.getElementById('upload-overlay-bytes');
+            if (barWrap) barWrap.style.display = showProgress ? 'block' : 'none';
+            if (bytesEl) {
+                bytesEl.style.display = showProgress ? 'block' : 'none';
+                if (showProgress) bytesEl.textContent = '0 / ' + _formatBytes(totalBytes);
+            }
+            _updateUploadProgress(0, totalBytes || 0);
             overlay.style.display = 'flex';
+        }
+        function _updateUploadProgress(loadedBytes, totalBytes) {
+            const bar = document.getElementById('upload-overlay-bar');
+            const bytesEl = document.getElementById('upload-overlay-bytes');
+            if (bar && totalBytes) {
+                const pct = Math.min(100, Math.round((loadedBytes / totalBytes) * 100));
+                bar.style.width = pct + '%';
+            }
+            if (bytesEl && totalBytes) {
+                bytesEl.textContent = _formatBytes(loadedBytes) + ' / ' + _formatBytes(totalBytes);
+            }
         }
         function _hideUploadOverlay() {
             if (_uploadInFlight > 0) return;  // noch was in Arbeit
             const overlay = document.getElementById('upload-overlay');
             if (overlay) overlay.style.display = 'none';
         }
-        function enqueueUpload(task, label) {
+        function enqueueUpload(task, label, totalBytes) {
             _uploadInFlight++;
-            _showUploadOverlay(label);
+            _showUploadOverlay(label, totalBytes);
             const run = () => {
                 console.log(`[UploadQueue] → START ${label} (in-flight: ${_uploadInFlight})`);
                 return Promise.resolve().then(task).catch(e => {
@@ -12607,10 +12760,14 @@
             const forceExcel = type === 'auftrag-status' || type === 'planner' || type === 'stock-analysis' || type === 'all-sold';
             
             // P1-2: Enqueue — serielle Abarbeitung gegen Race-Conditions
+            // P2-19/22: File-Size für Progress-Bar mitgeben
             enqueueUpload(() => new Promise((resolve) => {
                 if (isExcel || forceExcel) {
                     console.log('→ Excel');
                     const reader = new FileReader();
+                    reader.onprogress = function(e) {
+                        if (e.lengthComputable) _updateUploadProgress(e.loaded, e.total);
+                    };
                     reader.onload = function(e) {
                         try {
                             const data = new Uint8Array(e.target.result);
@@ -12658,6 +12815,9 @@
                 console.log('→ CSV');
                 // P1-6/7: Encoding- + Delimiter-Auto-Detection via Pre-Read
                 const preReader = new FileReader();
+                preReader.onprogress = function(e) {
+                    if (e.lengthComputable) _updateUploadProgress(e.loaded, e.total);
+                };
                 preReader.onload = function(preEvt) {
                     const rawBytes = new Uint8Array(preEvt.target.result);
                     // Encoding: UTF-8-BOM → utf-8; sonst Heuristik (Umlaute in ISO vs. UTF-8)
@@ -12731,7 +12891,7 @@
                     resolve();
                 };
                 preReader.readAsArrayBuffer(file);
-            }), type + '/' + filename);
+            }), type + '/' + filename, file.size);
         }
         
         function handleExcelUpload(input, type) {
@@ -15158,9 +15318,21 @@
         // Settings beim Start laden
         document.addEventListener('DOMContentLoaded', loadSettings);
         
+        // P2-15 FIX (Sprint 5, 2026-04-20): Focus-Trap + ESC-Close fürs Settings-Modal.
+        // Ohne <dialog>-Element, um bestehende CSS-Styles nicht umzustoßen — stattdessen
+        // manueller Focus-Trap via Tab-Interception.
+        let _settingsPrevFocus = null;
+        let _settingsKeyHandler = null;
         function openSettingsPanel() {
-            document.getElementById('settings-modal').style.display = 'flex';
-            
+            const modal = document.getElementById('settings-modal');
+            modal.style.display = 'flex';
+            modal.setAttribute('role', 'dialog');
+            modal.setAttribute('aria-modal', 'true');
+            modal.setAttribute('aria-label', 'Einstellungen');
+
+            // Vorigen Fokus merken für Restore nach Close
+            _settingsPrevFocus = document.activeElement;
+
             if (!isAdminAuthenticated) {
                 document.getElementById('password-section').style.display = 'block';
                 document.getElementById('settings-content').style.display = 'none';
@@ -15169,10 +15341,41 @@
             } else {
                 showSettingsContent();
             }
+
+            // Tab-Trap + ESC-Close
+            _settingsKeyHandler = function(e) {
+                if (e.key === 'Escape') {
+                    e.preventDefault();
+                    closeSettingsPanel();
+                    return;
+                }
+                if (e.key !== 'Tab') return;
+                const focusables = modal.querySelectorAll(
+                    'a[href], button, input, textarea, select, [tabindex]:not([tabindex="-1"])'
+                );
+                const visible = Array.from(focusables).filter(el => !el.disabled && el.offsetParent !== null);
+                if (visible.length === 0) return;
+                const first = visible[0];
+                const last = visible[visible.length - 1];
+                if (e.shiftKey && document.activeElement === first) {
+                    e.preventDefault(); last.focus();
+                } else if (!e.shiftKey && document.activeElement === last) {
+                    e.preventDefault(); first.focus();
+                }
+            };
+            modal.addEventListener('keydown', _settingsKeyHandler);
         }
-        
+
         function closeSettingsPanel() {
-            document.getElementById('settings-modal').style.display = 'none';
+            const modal = document.getElementById('settings-modal');
+            modal.style.display = 'none';
+            if (_settingsKeyHandler) {
+                modal.removeEventListener('keydown', _settingsKeyHandler);
+                _settingsKeyHandler = null;
+            }
+            if (_settingsPrevFocus && typeof _settingsPrevFocus.focus === 'function') {
+                try { _settingsPrevFocus.focus(); } catch(_) {}
+            }
         }
         
         function checkPassword() {
