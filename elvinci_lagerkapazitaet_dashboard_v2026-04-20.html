@@ -34,6 +34,47 @@
             --font-mono: 'JetBrains Mono', 'Fira Code', 'Consolas', 'Courier New', monospace;
         }
 
+        /* ====================================================
+         * P2-6/7 FIX (2026-04-20): Utility-Klassen.
+         * .card-with-accent  — ersetzt inkl. Accent-Bar das Muster .stat-card/.gesamt-block/.analyse-kpi
+         * .badge             — Basis für .gesamt-badge/.mark-count-badge/.filter-count (alle 3 inherit)
+         * Additiv hinzugefügt — bestehende Klassen bleiben für Rückwärtskompatibilität.
+         * Neue Komponenten sollten die Utilities nutzen.
+         * ==================================================== */
+        .card-with-accent {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-left: 3px solid var(--accent-blue);
+            border-radius: 8px;
+            padding: 0.75rem;
+        }
+        .card-with-accent.accent-green  { border-left-color: var(--accent-green); }
+        .card-with-accent.accent-orange { border-left-color: var(--accent-orange); }
+        .card-with-accent.accent-red    { border-left-color: var(--accent-red); }
+        .card-with-accent.accent-cyan   { border-left-color: var(--accent-cyan); }
+        .card-with-accent.accent-purple { border-left-color: var(--accent-purple); }
+        .card-with-accent.accent-yellow { border-left-color: var(--accent-yellow); }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            padding: 0.2rem 0.5rem;
+            border-radius: 12px;
+            font-size: 0.65rem;
+            font-weight: 600;
+            font-family: var(--font-mono);
+            background: var(--bg-elevated);
+            color: var(--text-secondary);
+        }
+        .badge.badge-green  { background: rgba(16,185,129,0.15); color: var(--accent-green); }
+        .badge.badge-orange { background: rgba(249,115,22,0.15); color: var(--accent-orange); }
+        .badge.badge-red    { background: rgba(239,68,68,0.15); color: var(--accent-red); }
+        .badge.badge-cyan   { background: rgba(6,182,212,0.15); color: var(--accent-cyan); }
+        .badge.badge-solid-green  { background: var(--accent-green);  color: white; }
+        .badge.badge-solid-orange { background: var(--accent-orange); color: white; }
+        .badge.badge-solid-red    { background: var(--accent-red);    color: white; }
+
         /* LIGHT MODE */
         [data-theme="light"] {
             --bg-primary: #f5f7fa;
@@ -4831,6 +4872,50 @@
             return el;
         }
 
+        // P2-3 FIX (2026-04-20): AMM-Zeilen-Parser als gemeinsamer Helper.
+        // Vorher dupliziert in drei Handler-Blöcken (we-ist, wa-ist, generisch parseAMMFile).
+        // Der Helper isoliert die gemeinsame Logik (iterieren ab Zeile 2, Bezeichner+Menge
+        // extrahieren, Faktor berechnen). Konsumenten projizieren mit Callback zusätzliche
+        // Felder (Bestell-Nr für WE, Kunde+AU für WA). NOCH NICHT aktiviert — Umstellung
+        // erfolgt in Sprint 6 mit Regression-Tests, da WE-IST/WA-IST an Effizienz-Tracker
+        // und Validation hängen. Der Helper steht bereit.
+        function parseAMMDataRows(rows, options = {}) {
+            const bezIdx = options.bezIdx ?? 2;
+            const mengeIdx = options.mengeIdx ?? 6;
+            const minCols = options.minCols ?? (mengeIdx + 1);
+            const onRow = typeof options.onRow === 'function' ? options.onRow : null;
+            let totalStueck = 0;
+            let totalGewichtet = 0;
+            const artikelTypenCount = {};
+            for (let i = 2; i < rows.length; i++) {
+                const cols = rows[i];
+                if (!cols || cols.length < minCols) continue;
+                const bezeichner = (cols[bezIdx] || '').toString().trim();
+                if (!bezeichner) continue;
+                const menge = parseInt(cols[mengeIdx]) || 1;
+                const faktor = getArtikelFaktorLocal(bezeichner, null);
+                totalStueck += menge;
+                totalGewichtet += menge * faktor;
+                const typKey = bezeichner.toLowerCase();
+                artikelTypenCount[typKey] = (artikelTypenCount[typKey] || 0) + menge;
+                if (onRow) onRow({ cols, bezeichner, menge, faktor, gewichtet: menge * faktor });
+            }
+            return { totalStueck, totalGewichtet, artikelTypenCount };
+        }
+
+        // P2-2 FIX (2026-04-20): Einheitliche Marge-Berechnung.
+        // Vorher 5× dupliziert mit teils leicht abweichender Formel (profit/umsatz vs. (vk-ek)/ek).
+        // Jetzt ein Helper pro Semantik. Beide liefern Number (nicht String) — Formatierung am Call-Site.
+        // Guard gegen Division-durch-0 inklusive.
+        function calculateMargin(profit, umsatz) {
+            if (!umsatz || umsatz <= 0) return 0;
+            return (profit / umsatz) * 100;
+        }
+        function calculateMarginFromEkVk(ek, vk) {
+            if (!ek || ek <= 0) return 0;
+            return ((vk - ek) / ek) * 100;
+        }
+
         // P1-9 FIX (2026-04-20): HTML-Entity-Escape für user-controlled Strings.
         // Aufgerufen in allen Render-Pfaden, die String-Felder aus CSV/Excel (Kundenname,
         // Artikelname, Marke, Modell, …) in innerHTML-Templates interpolieren.
@@ -5856,6 +5941,16 @@
             checkAngebotsAnalyseAvailability();
         }
         
+        // KILLCRITIC (Sprint 4, 2026-04-20): P2-1 — updateVerkaeufterTab, updateKundenTab und
+        // updateLieferantenTab teilen das Muster "aggregate → sort → render-table". Ein
+        // aggregateEntities(data, keyField, metrics)-Helper wäre DRY-korrekt, aber:
+        //   - jeder Tab aggregiert leicht unterschiedliche Metriken (profit/umsatz/count/
+        //     topWG/topBrand/kundenCount/ordersCount/margin-buckets …)
+        //   - die Render-Spalten divergieren noch mehr
+        //   - Sortier-Logik hat tab-spezifische Fallbacks
+        // Refactor-Aufwand > Gewinn bei aktueller Feature-Zahl. Geparkt für Sprint 5/6, wenn
+        // gemeinsame Aggregation Teil der Event-Bus/Data-Model-Migration (10X-1, 10X-2) wird.
+
         // ========== VERKÄUFER TAB ==========
         function updateVerkaeufterTab() {
             if (!dashboardState.allSoldLoaded) return;
@@ -5872,7 +5967,7 @@
                 
                 cardsContainer.innerHTML = sellers.map((s, idx) => {
                     const rankClass = idx === 0 ? 'rank-1' : idx === 1 ? 'rank-2' : idx === 2 ? 'rank-3' : 'rank-other';
-                    const margePct = s.umsatz > 0 ? ((s.profit / s.umsatz) * 100).toFixed(1) : 0;
+                    const margePct = calculateMargin(s.profit, s.umsatz).toFixed(1);
                     const avgProfit = s.count > 0 ? (s.profit / s.count).toFixed(2) : 0;
                     return `
                         <div class="seller-card">
@@ -5930,7 +6025,7 @@
                     .sort((a, b) => b.umsatz - a.umsatz);
                 
                 detailTbody.innerHTML = sellers.map((s, idx) => {
-                    const margePct = s.umsatz > 0 ? ((s.profit / s.umsatz) * 100).toFixed(1) : 0;
+                    const margePct = calculateMargin(s.profit, s.umsatz).toFixed(1);
                     const avgProfit = s.count > 0 ? (s.profit / s.count).toFixed(2) : 0;
                     const margeClass = parseFloat(margePct) >= 45 ? 'positive' : parseFloat(margePct) >= 35 ? '' : 'warning';
                     return `
@@ -6033,7 +6128,7 @@
                 const days = item.product_life_days || 0;
                 const ek = parseFloat(item.Buying_Price) || 0;
                 const vk = parseFloat(item.Selling_Price) || 0;
-                const marge = ek > 0 ? ((vk - ek) / ek) * 100 : 0;
+                const marge = calculateMarginFromEkVk(ek, vk);
                 const pg = (item.product_group || '').toLowerCase();
                 
                 // Lagertage-Score: Je älter, desto höher (max 100)
@@ -6281,7 +6376,7 @@
             if (tbody) {
                 tbody.innerHTML = kunden.slice(0, 50).map((k, idx) => {
                     const avgOrder = k.ordersCount > 0 ? (k.umsatz / k.ordersCount) : 0;
-                    const margePct = k.umsatz > 0 ? ((k.profit / k.umsatz) * 100).toFixed(1) : 0;
+                    const margePct = calculateMargin(k.profit, k.umsatz).toFixed(1);
                     const rankClass = idx < 3 ? `rank-${idx+1}` : 'rank-other';
                     const umsatzAnteil = totalUmsatz > 0 ? ((k.umsatz / totalUmsatz) * 100).toFixed(1) : 0;
                     const stueckAnteil = totalStueck > 0 ? ((k.count / totalStueck) * 100).toFixed(1) : 0;
@@ -8573,7 +8668,6 @@
             renderZones();
             renderForecastTable();
             initChart();
-            // updateEffizienzDisplay(); // ENTFERNT  // Effizienz-Tracking
             updateSnapshotDisplay();   // Snapshot-Übersicht
             renderHistoricalComparison();  // Historischer Vergleich (7d/30d)
             updateLookupDisplay();     // PHASE 2: Artikelnummer-Lookup Anzeige
@@ -9165,14 +9259,19 @@
             // Gesamt-Übersicht aktualisieren
             updateGesamtUebersicht();
             
-            // Arbeitszeit-Prognose aktualisieren
-            // updateWorktimePrognose(); // ENTFERNT
         }
 
         // ============================================
         // ARBEITSZEIT-PROGNOSE
         // ============================================
-        
+        //
+        // P2-8 FIX (2026-04-20): @deprecated — Arbeitszeit-Prognose-Feature wurde rückgängig
+        // gemacht, alle Call-Sites bereits in Vorsession auskommentiert. Function-Body bleibt
+        // aus Git-History-Gründen stehen und kann in einem späteren Sprint mit gezieltem
+        // Test-Harness (Playwright) komplett entfernt werden.
+        // Wird nirgends mehr aufgerufen.
+
+        /** @deprecated Siehe P2-8. Komplette Entfernung erfolgt in Sprint 6 mit Regression-Tests. */
         function updateWorktimePrognose() {
             const kapa = WORKTIME_CONFIG.stundenProTag;
             const stundensatz = WORKTIME_CONFIG.stundensatz;
@@ -9539,7 +9638,6 @@
             saveBestandSnapshot();
             
             updateHistorieDisplay();
-            // updateEffizienzDisplay(); // ENTFERNT
         }
         
         // ============================================
@@ -9721,7 +9819,6 @@
             // Effizienz neu berechnen
             recalculateAllEfficiency();
             updateSnapshotDisplay();
-            // updateEffizienzDisplay(); // ENTFERNT
             
             showToast(
                 errors === 0 ? 'success' : 'warning',
@@ -9941,6 +10038,8 @@
         }
         
         // Effizienz-Anzeige aktualisieren
+        /** @deprecated Siehe P2-8. Alle Call-Sites in Sprint 4 entfernt. Body bleibt für Git-History.
+         *  Komplette Entfernung in Sprint 6 mit Regression-Tests. */
         function updateEffizienzDisplay() {
             const history = JSON.parse(localStorage.getItem(WORKTIME_STORAGE_KEY) || '[]');
             
@@ -10159,7 +10258,6 @@
                     showToast('success', '📁 Import erfolgreich', 'Historie wiederhergestellt');
                     
                     // UI aktualisieren
-                    // updateEffizienzDisplay(); // ENTFERNT
                     
                 } catch (err) {
                     showToast('error', '❌ Import fehlgeschlagen', err.message);
@@ -10633,6 +10731,11 @@
             </span>`;
         }
         
+        // KILLCRITIC (Sprint 4, 2026-04-20): P2-5 Duplikation mit runValidation() (unten).
+        // Beide Functions vergleichen BESTAND vs. AUFTRAG_STATUS, produzieren aber unterschiedliche
+        // Output-Strukturen (diskrepanzen[] vs. mismatches[]) für unterschiedliche UIs (Toast/Table
+        // vs. Mismatch-Panel). Ein Merge würde beide konsumierenden UIs umschreiben — Sprint-5-Umfang
+        // mit Playwright-Test-Coverage. Hier bewusst dupliziert belassen.
         function validateAuftraege() {
             const diskrepanzen = [];
             const bestandMap = dashboardState.bestandAuftragMap || {};
@@ -15380,7 +15483,6 @@
             // UI aktualisieren
             showSettingsContent();
             updateCapacity();
-            // updateWorktimePrognose(); // ENTFERNT
             
             alert('✅ Einstellungen zurückgesetzt!');
         }
