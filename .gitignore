@@ -23,3 +23,10 @@ desktop.ini
 
 # Temp
 *.tmp
+
+# Playwright (10X-9, Sprint 6)
+node_modules/
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/

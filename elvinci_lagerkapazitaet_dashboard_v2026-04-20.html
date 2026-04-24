@@ -16005,6 +16005,29 @@ location.reload();</pre>
                 tooltipEl.style.display = 'none';
             }
         });
+
+        // ============================================
+        // 10X-9 FIX (Sprint 6, 2026-04-20): Test-Hooks.
+        // ============================================
+        // Klassische <script>-Tags haben `let`/`const` NICHT auf window — nur `var`/function.
+        // Für Playwright-Regression-Tests (tests/*.spec.js) explizit auf window.* hoisten.
+        // Keine Änderung an Runtime-Verhalten — nur Read-Zugang für Assertions.
+        if (typeof window !== 'undefined') {
+            window.dashboardState = dashboardState;
+            window.escapeHtml = escapeHtml;
+            window.calculateMargin = calculateMargin;
+            window.calculateMarginFromEkVk = calculateMarginFromEkVk;
+            window.parseAMMDataRows = parseAMMDataRows;
+            window.renderEmptyState = renderEmptyState;
+            window.resetAllSessionState = resetAllSessionState;
+            window.initA11y = initA11y;
+            window.enqueueUpload = enqueueUpload;
+            window.refreshAllDashboards = refreshAllDashboards;
+            window.openSettingsPanel = (typeof openSettingsPanel === 'function') ? openSettingsPanel : window.openSettingsPanel;
+            window.closeSettingsPanel = (typeof closeSettingsPanel === 'function') ? closeSettingsPanel : window.closeSettingsPanel;
+            // getArtikelFaktorLocal ist bewusst nicht hier — es ist in processCSV genested und
+            // wird indirekt über upload.spec.js (BESTAND-Upload) regressiert.
+        }
     </script>
 </body>
 </html>
