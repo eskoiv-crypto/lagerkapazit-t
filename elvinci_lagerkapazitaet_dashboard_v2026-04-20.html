@@ -4933,6 +4933,213 @@
         }
 
         // ============================================
+        // 10X-3 (Sprint 6.5, 2026-04-20): OFFLINE-PFEILER — IndexedDB + CDN-Health
+        // ============================================
+        // Realitäts-Check: Service Worker benötigt HTTPS/localhost — bricht file://-Workflow.
+        // Stattdessen: IndexedDB (funktioniert auf file://) für persistente Rich-History,
+        // plus CDN-Health-Check der den User proaktiv warnt wenn Libs fehlen.
+        //
+        // Architektur:
+        //   createIDBStore(db, store)    → Promise-wrapped CRUD
+        //   idbStores.snapshots          → Rich-Snapshot-Historie (90 Tage, Brand/WG-Breakdown)
+        //   detectCDNAvailability()      → beim Start: Chart/PapaParse/XLSX/jsPDF verfügbar?
+        //   renderOfflineBanner()        → top-of-dashboard Hinweis wenn Libs fehlen
+        //
+        // Migration-Strategie:
+        //   - localStorage-Snapshots bleiben zum Lesen aktiv (Rückwärtskompat)
+        //   - neue Snapshots gehen parallel in IDB (dual-write)
+        //   - IDB ist Source-of-Truth für Anomalie-Detektor (Sprint 7+, sobald genug Daten)
+
+        /** Erstellt einen Promise-basierten Wrapper um einen IndexedDB-ObjectStore. */
+        function createIDBStore(dbName, storeName, version = 1, keyPath = 'id') {
+            const openDB = () => new Promise((resolve, reject) => {
+                if (typeof indexedDB === 'undefined') {
+                    return reject(new Error('IndexedDB nicht verfügbar (Browser zu alt?)'));
+                }
+                const req = indexedDB.open(dbName, version);
+                req.onupgradeneeded = (e) => {
+                    const db = e.target.result;
+                    if (!db.objectStoreNames.contains(storeName)) {
+                        db.createObjectStore(storeName, { keyPath });
+                    }
+                };
+                req.onsuccess = () => resolve(req.result);
+                req.onerror = () => reject(req.error || new Error('IndexedDB open failed'));
+            });
+
+            const runTx = (mode, fn) => openDB().then(db => new Promise((resolve, reject) => {
+                const tx = db.transaction(storeName, mode);
+                const store = tx.objectStore(storeName);
+                let result;
+                try { result = fn(store); } catch (e) { return reject(e); }
+                tx.oncomplete = () => resolve(result);
+                tx.onerror = () => reject(tx.error);
+                tx.onabort = () => reject(tx.error || new Error('Transaction aborted'));
+            }));
+
+            return {
+                async put(record) {
+                    return runTx('readwrite', (store) => {
+                        const req = store.put(record);
+                        return new Promise((ok, err) => {
+                            req.onsuccess = () => ok(req.result);
+                            req.onerror = () => err(req.error);
+                        });
+                    });
+                },
+                async get(key) {
+                    return runTx('readonly', (store) => new Promise((ok, err) => {
+                        const req = store.get(key);
+                        req.onsuccess = () => ok(req.result);
+                        req.onerror = () => err(req.error);
+                    }));
+                },
+                async getAll() {
+                    return runTx('readonly', (store) => new Promise((ok, err) => {
+                        const req = store.getAll();
+                        req.onsuccess = () => ok(req.result || []);
+                        req.onerror = () => err(req.error);
+                    }));
+                },
+                async delete(key) {
+                    return runTx('readwrite', (store) => new Promise((ok, err) => {
+                        const req = store.delete(key);
+                        req.onsuccess = () => ok();
+                        req.onerror = () => err(req.error);
+                    }));
+                },
+                async clear() {
+                    return runTx('readwrite', (store) => new Promise((ok, err) => {
+                        const req = store.clear();
+                        req.onsuccess = () => ok();
+                        req.onerror = () => err(req.error);
+                    }));
+                },
+                async count() {
+                    return runTx('readonly', (store) => new Promise((ok, err) => {
+                        const req = store.count();
+                        req.onsuccess = () => ok(req.result);
+                        req.onerror = () => err(req.error);
+                    }));
+                }
+            };
+        }
+
+        // Globale Store-Registrierung. Lazy — erst bei Bedarf erzeugen.
+        const idbStores = {
+            _cache: {},
+            /** Rich-Snapshots (90d, Domain-organisiert). Key = 'YYYY-MM-DD'. */
+            snapshots() {
+                if (!this._cache.snapshots) {
+                    this._cache.snapshots = createIDBStore('elvinci_nh5', 'snapshots', 1, 'date');
+                }
+                return this._cache.snapshots;
+            },
+            /** Audit-Log für Compliance (wer hat wann welche Datei geladen). */
+            auditLog() {
+                if (!this._cache.auditLog) {
+                    this._cache.auditLog = createIDBStore('elvinci_nh5_audit', 'events', 1, 'id');
+                }
+                return this._cache.auditLog;
+            }
+        };
+
+        /** CDN-Health-Check. Alle 4 kritischen Libs müssen geladen sein. */
+        function detectCDNAvailability() {
+            return {
+                chartJs:    typeof window.Chart === 'function',
+                papaParse:  typeof window.Papa === 'object'   && typeof window.Papa.parse === 'function',
+                xlsx:       typeof window.XLSX === 'object'   && typeof window.XLSX.read === 'function',
+                jsPDF:      typeof window.jspdf === 'object'  || typeof window.jsPDF === 'function',
+                online:     navigator.onLine,
+                indexedDB:  typeof indexedDB !== 'undefined',
+            };
+        }
+
+        /** Zeigt einen dismissible Top-Banner wenn Libs fehlen oder offline. */
+        function renderOfflineBanner() {
+            const status = detectCDNAvailability();
+            const missing = [];
+            if (!status.chartJs)   missing.push('Chart.js (Diagramme)');
+            if (!status.papaParse) missing.push('PapaParse (CSV-Parser)');
+            if (!status.xlsx)      missing.push('XLSX (Excel-Parser)');
+            if (!status.jsPDF)     missing.push('jsPDF (PDF-Export)');
+
+            let banner = document.getElementById('offline-banner');
+            if (missing.length === 0 && status.online) {
+                if (banner) banner.remove();
+                return;
+            }
+            if (!banner) {
+                banner = document.createElement('div');
+                banner.id = 'offline-banner';
+                banner.setAttribute('role', 'alert');
+                banner.style.cssText = 'position:sticky;top:0;z-index:9000;background:linear-gradient(90deg,var(--accent-yellow),var(--accent-orange));color:#1a1a1a;padding:0.5rem 1rem;font-size:0.75rem;font-weight:600;display:flex;align-items:center;gap:0.75rem;box-shadow:0 2px 8px rgba(0,0,0,0.3);';
+                document.body.insertBefore(banner, document.body.firstChild);
+            }
+            const icon = !status.online ? '📡' : '⚠️';
+            const title = !status.online ? 'Offline-Modus' : 'Eingeschränkter Modus';
+            const body = missing.length > 0
+                ? `Bibliotheken nicht geladen: ${missing.join(', ')}. Uploads/Export könnten fehlschlagen.`
+                : 'Keine Internetverbindung — CDN-Libs aus Cache aktiv, neue Sessions evtl. eingeschränkt.';
+            banner.innerHTML = `
+                <span style="font-size:1rem;">${icon}</span>
+                <span><strong>${title}:</strong> ${_h(body)}</span>
+                <button type="button" onclick="this.parentElement.remove()" style="margin-left:auto;padding:0.2rem 0.5rem;background:rgba(0,0,0,0.15);border:none;border-radius:3px;cursor:pointer;font-size:0.65rem;font-weight:700;">✕ ausblenden</button>`;
+        }
+
+        /** Persistiert Snapshot in IDB. Lauscht auf data:bestand-loaded via Bus. */
+        async function persistSnapshotToIDB() {
+            try {
+                const today = new Date().toISOString().split('T')[0];
+                const snap = {
+                    date: today,
+                    timestamp: new Date().toISOString(),
+                    inventory: {
+                        bestandLoaded: state.inventory.bestandLoaded,
+                        bestandGesamtStueck: state.inventory.bestandGesamtStueck || 0,
+                        bestandLagerStueck: state.inventory.bestandLagerStueck || 0,
+                        bestandKommStueck: state.inventory.bestandKommStueck || 0,
+                        bestandWEStueck: state.inventory.bestandWEStueck || 0,
+                        auftraegeCount: Object.keys(state.inventory.bestandAuftragMap || {}).length
+                    },
+                    portal: {
+                        stockAnalysisLoaded: !!state.portal.stockAnalysisLoaded,
+                        stockCount: state.portal.stockAnalysisCount || 0,
+                        allSoldCount: state.portal.allSoldCount || 0,
+                        brandBreakdown: null,
+                        wgBreakdown: null
+                    }
+                };
+                // Brand/WG-Breakdown nur wenn Stock-Analysis geladen (kein PII, nur Aggregate)
+                if (state.portal.stockAnalysisLoaded && Array.isArray(state.inventory.allePaletten)) {
+                    snap.portal.brandBreakdown = {};
+                    snap.portal.wgBreakdown = {};
+                    for (const p of state.inventory.allePaletten) {
+                        const item = state.portal.stockAnalysisData[p];
+                        if (!item) continue;
+                        const b = (item.brand || 'unknown').toString().trim();
+                        const g = (item.pg || item.product_group || 'unknown').toString().trim();
+                        snap.portal.brandBreakdown[b] = (snap.portal.brandBreakdown[b] || 0) + 1;
+                        snap.portal.wgBreakdown[g] = (snap.portal.wgBreakdown[g] || 0) + 1;
+                    }
+                }
+                await idbStores.snapshots().put(snap);
+                // 90-Tage-Retention: ältere löschen
+                const all = await idbStores.snapshots().getAll();
+                if (all.length > 90) {
+                    const sorted = all.sort((a, b) => b.date.localeCompare(a.date));
+                    for (const old of sorted.slice(90)) {
+                        await idbStores.snapshots().delete(old.date);
+                    }
+                }
+                console.log('[IDB] Snapshot persisted:', today);
+            } catch (err) {
+                console.warn('[IDB] persistSnapshotToIDB failed:', err);
+            }
+        }
+
+        // ============================================
         // 10X-1 (Sprint 6.4, 2026-04-20): DATA-MODEL-SPLIT (Domain-Views)
         // ============================================
         // `dashboardState` ist historisch gewachsen zu einem 40+-Feld-Gott-Objekt mit
@@ -9120,6 +9327,10 @@
             setupDragAndDrop();    // Drag & Drop Upload
             initA11y();            // P2-12/13/14/16: A11y-Patches
             setupBusSubscribers(); // 10X-2: Event-Bus Legacy-Handler registrieren
+            renderOfflineBanner(); // 10X-3: CDN-Health + Online-Status prüfen
+            // Online/Offline-Wechsel live beobachten
+            window.addEventListener('online',  renderOfflineBanner);
+            window.addEventListener('offline', renderOfflineBanner);
 
             // P2-20: Empty-States für dynamische Tabellen, damit leere Panels nicht "kaputt" aussehen
             const emptyTargets = [
@@ -13132,6 +13343,13 @@
             bus.on('data:reset', guardedCall('updateGauge'));
             bus.on('data:reset', guardedCall('renderAnomaliesPanel'));
 
+            // 10X-3: Nach BESTAND-Upload Snapshot in IDB persistieren
+            bus.on('data:bestand-loaded', () => { persistSnapshotToIDB(); });
+            // Wenn Stock-Analysis nachgeladen wird, Snapshot bereichern
+            bus.on('data:stock-analysis-loaded', () => {
+                if (state.inventory.bestandLoaded) persistSnapshotToIDB();
+            });
+
             console.log('[EventBus] Legacy-Subscribers registriert. Refresh-Listener:', bus.listenerCount('data:refresh'));
         }
 
@@ -16452,6 +16670,11 @@ location.reload();</pre>
             window.createEventBus = createEventBus;   // 10X-2: Factory für Tests
             window.state = state;                     // 10X-1: Domain-View
             window.createDomainView = createDomainView; // 10X-1: Factory für Tests
+            window.createIDBStore = createIDBStore;   // 10X-3: IndexedDB-Wrapper
+            window.idbStores = idbStores;             // 10X-3: Store-Registry
+            window.detectCDNAvailability = detectCDNAvailability;
+            window.renderOfflineBanner = renderOfflineBanner;
+            window.persistSnapshotToIDB = persistSnapshotToIDB;
             // getArtikelFaktorLocal ist bewusst nicht hier — es ist in processCSV genested und
             // wird indirekt über upload.spec.js (BESTAND-Upload) regressiert.
         }

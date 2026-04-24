@@ -30,6 +30,10 @@ test.describe('Smoke', () => {
             createEventBus: typeof window.createEventBus === 'function',
             state: typeof window.state === 'object' && typeof window.state.inventory === 'object',
             createDomainView: typeof window.createDomainView === 'function',
+            createIDBStore: typeof window.createIDBStore === 'function',
+            idbStores: typeof window.idbStores === 'object',
+            detectCDNAvailability: typeof window.detectCDNAvailability === 'function',
+            persistSnapshotToIDB: typeof window.persistSnapshotToIDB === 'function',
         }));
         for (const [name, ok] of Object.entries(present)) {
             expect(ok, `${name} muss als global function existieren`).toBe(true);
