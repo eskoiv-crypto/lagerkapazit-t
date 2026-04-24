@@ -4933,6 +4933,307 @@
         }
 
         // ============================================
+        // 10X-5 (Sprint 6.6, 2026-04-20): SHAREPOINT-AUTO-SYNC (Scaffolding)
+        // ============================================
+        // Ziel: Auto-Pull des BESTAND-CSV von SharePoint alle X Min + optional Push
+        // des aktuellen Snapshots zurück. Ziel-Pfad elvinci: Backoffice → Spedition+Logistik
+        // → AMM DASHBOARD.
+        //
+        // Realitäts-Check (bewusst transparent für User):
+        //   - MSAL.js braucht HTTPS (file:// blockt OAuth)
+        //   - Azure-AD-App-Registrierung mit clientId + tenantId nötig (elvinci-IT)
+        //   - Graph-API-Scope Sites.Read.All / Files.Read.All mit Admin-Consent
+        //
+        // Strategie: Komplettes Client-Side-Scaffolding, das beim ersten validen
+        // Config-Eintrag (IT liefert Credentials) einsatzbereit ist.
+        // Bus-Events sync:pulled / sync:pushed / sync:failed / sync:config-changed
+        // ermöglichen allen Consumers (Anomalie-Detektor, IDB-Snapshot, Toast) sich
+        // einzuklinken ohne SharePoint-spezifischen Code zu kennen.
+
+        const SHAREPOINT_CONFIG_KEY = 'elvinci_sharepoint_config';
+        const SHAREPOINT_GRAPH_ROOT = 'https://graph.microsoft.com/v1.0';
+        const MSAL_CDN_URL = 'https://alcdn.msauth.net/browser/2.38.0/js/msal-browser.min.js';
+
+        /** Default-Config. Nichts geheim — clientId/tenantId sind öffentlich per Design. */
+        const DEFAULT_SHAREPOINT_CONFIG = {
+            enabled: false,
+            clientId: '',           // Azure-AD-App Client-ID (von elvinci-IT)
+            tenantId: '',           // Azure-AD-Tenant-ID
+            siteId: '',             // SharePoint Site-ID (Format: {hostname},{site-guid})
+            driveId: '',            // SharePoint Document Library Drive-ID
+            bestandFilePath: '',    // Pfad im Drive, z.B. '/AMM_DASHBOARD/BESTAND_latest.csv'
+            snapshotFolderPath: '', // Upload-Pfad für Push, z.B. '/AMM_DASHBOARD/Snapshots/'
+            autoPullMinutes: 0,     // 0 = manuell, >0 = Intervall in Minuten
+            lastPullAt: null,
+            lastPushAt: null,
+            lastStatus: null        // 'ok' | 'auth-failed' | 'http-failed' | 'file-not-found' | ...
+        };
+
+        function loadSharepointConfig() {
+            try {
+                const raw = localStorage.getItem(SHAREPOINT_CONFIG_KEY);
+                if (!raw) return { ...DEFAULT_SHAREPOINT_CONFIG };
+                return { ...DEFAULT_SHAREPOINT_CONFIG, ...JSON.parse(raw) };
+            } catch (e) {
+                console.warn('[SharePoint] Config-Read fehlgeschlagen:', e);
+                return { ...DEFAULT_SHAREPOINT_CONFIG };
+            }
+        }
+
+        function saveSharepointConfig(cfg) {
+            try {
+                const merged = { ...loadSharepointConfig(), ...cfg };
+                localStorage.setItem(SHAREPOINT_CONFIG_KEY, JSON.stringify(merged));
+                if (typeof bus !== 'undefined') {
+                    bus.emit('sync:config-changed', { enabled: merged.enabled });
+                }
+                return merged;
+            } catch (e) {
+                console.error('[SharePoint] Config-Save fehlgeschlagen:', e);
+                return null;
+            }
+        }
+
+        /** Diagnostik: ist die aktuelle Umgebung für Sync geeignet? */
+        function sharepointEnvironmentCheck() {
+            const protocol = location.protocol;
+            const cfg = loadSharepointConfig();
+            return {
+                protocolOk: protocol === 'https:' || location.hostname === 'localhost',
+                protocol,
+                hasClientId: !!cfg.clientId,
+                hasTenantId: !!cfg.tenantId,
+                hasSiteId: !!cfg.siteId,
+                hasFilePath: !!cfg.bestandFilePath,
+                configComplete: !!(cfg.clientId && cfg.tenantId && cfg.siteId && cfg.bestandFilePath),
+                enabled: cfg.enabled
+            };
+        }
+
+        /** Lädt MSAL.js einmalig per CDN. Cached Promise damit parallele Calls warten. */
+        let _msalLoadPromise = null;
+        function loadMSAL() {
+            if (typeof window.msal !== 'undefined') return Promise.resolve(window.msal);
+            if (_msalLoadPromise) return _msalLoadPromise;
+            _msalLoadPromise = new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.src = MSAL_CDN_URL;
+                script.async = true;
+                script.onload = () => {
+                    if (typeof window.msal !== 'undefined') resolve(window.msal);
+                    else reject(new Error('MSAL geladen, aber window.msal nicht verfügbar'));
+                };
+                script.onerror = () => reject(new Error('MSAL CDN-Load fehlgeschlagen (offline?)'));
+                document.head.appendChild(script);
+            });
+            return _msalLoadPromise;
+        }
+
+        /** Acquires Access-Token via MSAL. Popup on first login, silent thereafter. */
+        let _msalInstance = null;
+        async function sharepointAuth() {
+            const env = sharepointEnvironmentCheck();
+            if (!env.protocolOk) {
+                throw new Error(`SharePoint-Sync benötigt HTTPS. Aktuelles Protokoll: ${env.protocol}`);
+            }
+            if (!env.configComplete) {
+                throw new Error('SharePoint-Config unvollständig (clientId/tenantId/siteId/bestandFilePath)');
+            }
+            const cfg = loadSharepointConfig();
+            const msal = await loadMSAL();
+            if (!_msalInstance) {
+                _msalInstance = new msal.PublicClientApplication({
+                    auth: {
+                        clientId: cfg.clientId,
+                        authority: `https://login.microsoftonline.com/${cfg.tenantId}`,
+                        redirectUri: location.origin + location.pathname
+                    },
+                    cache: { cacheLocation: 'sessionStorage' }
+                });
+                await _msalInstance.initialize();
+            }
+            const scopes = ['Sites.Read.All', 'Files.ReadWrite'];
+            const accounts = _msalInstance.getAllAccounts();
+            let result;
+            if (accounts.length > 0) {
+                try {
+                    result = await _msalInstance.acquireTokenSilent({ scopes, account: accounts[0] });
+                } catch (e) {
+                    console.log('[SharePoint] Silent auth fehlgeschlagen, Popup:', e.errorCode || e.message);
+                    result = await _msalInstance.acquireTokenPopup({ scopes });
+                }
+            } else {
+                result = await _msalInstance.acquireTokenPopup({ scopes });
+            }
+            return result.accessToken;
+        }
+
+        /** Pull: SharePoint-Datei → als File-Blob → bestehenden Upload-Pfad wiederverwenden. */
+        async function sharepointPull() {
+            try {
+                const cfg = loadSharepointConfig();
+                const token = await sharepointAuth();
+                const url = `${SHAREPOINT_GRAPH_ROOT}/sites/${cfg.siteId}/drive/root:${cfg.bestandFilePath}:/content`;
+                const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+                if (!res.ok) {
+                    throw new Error(`Graph-API: ${res.status} ${res.statusText}`);
+                }
+                const blob = await res.blob();
+                const filename = cfg.bestandFilePath.split('/').pop() || 'BESTAND_from_sp.csv';
+                const file = new File([blob], filename, { type: 'text/csv' });
+                // Re-use bestehenden Upload-Pfad → gleiche Parsing-Robustheit, Events, Queue
+                const fakeInput = { files: [file], value: '' };
+                handleFileUpload(fakeInput, 'bestand');
+                saveSharepointConfig({ lastPullAt: new Date().toISOString(), lastStatus: 'ok' });
+                bus.emit('sync:pulled', { source: 'sharepoint', filename, bytes: blob.size });
+                return { ok: true, bytes: blob.size, filename };
+            } catch (err) {
+                const msg = err && err.message ? err.message : String(err);
+                saveSharepointConfig({ lastStatus: 'pull-failed: ' + msg.substring(0, 60) });
+                bus.emit('sync:failed', { op: 'pull', error: msg });
+                console.error('[SharePoint] Pull fehlgeschlagen:', err);
+                return { ok: false, error: msg };
+            }
+        }
+
+        /** Push: aktuellen Snapshot (JSON) zurück nach SharePoint. */
+        async function sharepointPush() {
+            try {
+                const cfg = loadSharepointConfig();
+                if (!cfg.snapshotFolderPath) throw new Error('snapshotFolderPath nicht konfiguriert');
+                const token = await sharepointAuth();
+                const snap = {
+                    exportedAt: new Date().toISOString(),
+                    date: new Date().toISOString().split('T')[0],
+                    inventory: {
+                        bestandLoaded: state.inventory.bestandLoaded,
+                        bestandGesamtStueck: state.inventory.bestandGesamtStueck,
+                        bestandLagerStueck: state.inventory.bestandLagerStueck,
+                        auftraegeCount: Object.keys(state.inventory.bestandAuftragMap || {}).length
+                    },
+                    analysis: {
+                        anomalies: (state.analysis.anomalies || []).length,
+                        fourWay: state.analysis.fourWayStats || null
+                    }
+                };
+                const body = JSON.stringify(snap, null, 2);
+                const folder = cfg.snapshotFolderPath.replace(/\/$/, '');
+                const filename = `snapshot_${snap.date}.json`;
+                const url = `${SHAREPOINT_GRAPH_ROOT}/sites/${cfg.siteId}/drive/root:${folder}/${filename}:/content`;
+                const res = await fetch(url, {
+                    method: 'PUT',
+                    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+                    body
+                });
+                if (!res.ok) throw new Error(`Graph-API: ${res.status} ${res.statusText}`);
+                saveSharepointConfig({ lastPushAt: new Date().toISOString(), lastStatus: 'ok' });
+                bus.emit('sync:pushed', { source: 'sharepoint', filename, bytes: body.length });
+                return { ok: true, filename, bytes: body.length };
+            } catch (err) {
+                const msg = err && err.message ? err.message : String(err);
+                saveSharepointConfig({ lastStatus: 'push-failed: ' + msg.substring(0, 60) });
+                bus.emit('sync:failed', { op: 'push', error: msg });
+                console.error('[SharePoint] Push fehlgeschlagen:', err);
+                return { ok: false, error: msg };
+            }
+        }
+
+        /** Auto-Pull-Scheduler. 0 Min = aus. Lebt bis zum Reload oder stopAutoPull(). */
+        let _autoPullTimer = null;
+        function startAutoPull() {
+            stopAutoPull();
+            const cfg = loadSharepointConfig();
+            if (!cfg.enabled || !cfg.autoPullMinutes || cfg.autoPullMinutes < 1) return;
+            const ms = cfg.autoPullMinutes * 60 * 1000;
+            _autoPullTimer = setInterval(() => {
+                if (navigator.onLine) sharepointPull();
+                else console.log('[SharePoint] Auto-Pull skipped — offline');
+            }, ms);
+            console.log(`[SharePoint] Auto-Pull aktiv: alle ${cfg.autoPullMinutes} Min`);
+        }
+        function stopAutoPull() {
+            if (_autoPullTimer) { clearInterval(_autoPullTimer); _autoPullTimer = null; }
+        }
+
+        // ---- Settings-UI-Glue (10X-5) ----
+        function loadSharepointSettingsIntoUI() {
+            const cfg = loadSharepointConfig();
+            const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v || ''; };
+            set('sp-client-id', cfg.clientId);
+            set('sp-tenant-id', cfg.tenantId);
+            set('sp-site-id', cfg.siteId);
+            set('sp-bestand-path', cfg.bestandFilePath);
+            set('sp-snapshot-path', cfg.snapshotFolderPath);
+            set('sp-auto-pull', cfg.autoPullMinutes || 0);
+            const enabled = document.getElementById('sp-enabled');
+            if (enabled) enabled.checked = !!cfg.enabled;
+            refreshSharepointStatusBanner();
+        }
+
+        function saveSharepointSettingsFromUI() {
+            const get = (id) => (document.getElementById(id) || {}).value || '';
+            const enabled = !!(document.getElementById('sp-enabled') || {}).checked;
+            const cfg = saveSharepointConfig({
+                enabled,
+                clientId: get('sp-client-id').trim(),
+                tenantId: get('sp-tenant-id').trim(),
+                siteId: get('sp-site-id').trim(),
+                bestandFilePath: get('sp-bestand-path').trim(),
+                snapshotFolderPath: get('sp-snapshot-path').trim(),
+                autoPullMinutes: parseInt(get('sp-auto-pull')) || 0
+            });
+            if (cfg && typeof showToast === 'function') {
+                showToast('success', 'SharePoint', 'Config gespeichert. Auto-Pull-Intervall: ' + cfg.autoPullMinutes + ' Min');
+            }
+            // Scheduler neu starten mit neuem Intervall
+            startAutoPull();
+            refreshSharepointStatusBanner();
+        }
+
+        function refreshSharepointStatusBanner() {
+            const banner = document.getElementById('sharepoint-status-banner');
+            if (!banner) return;
+            const env = sharepointEnvironmentCheck();
+            const cfg = loadSharepointConfig();
+            const lines = [];
+            lines.push(`<strong>Protokoll:</strong> ${env.protocolOk ? '✅' : '🚫 HTTPS erforderlich'} (${env.protocol})`);
+            lines.push(`<strong>Config:</strong> ${env.configComplete ? '✅ vollständig' : '⚠️ unvollständig (' + [
+                !env.hasClientId && 'Client-ID',
+                !env.hasTenantId && 'Tenant-ID',
+                !env.hasSiteId && 'Site-ID',
+                !env.hasFilePath && 'BESTAND-Pfad'
+            ].filter(Boolean).join(', ') + ')'}`);
+            lines.push(`<strong>Aktiviert:</strong> ${cfg.enabled ? '✅' : '⛔'}`);
+            lines.push(`<strong>Auto-Pull:</strong> ${cfg.autoPullMinutes > 0 ? cfg.autoPullMinutes + ' Min' : 'aus'}`);
+            if (cfg.lastPullAt) lines.push(`<strong>Letzter Pull:</strong> ${new Date(cfg.lastPullAt).toLocaleString('de-DE')}`);
+            if (cfg.lastPushAt) lines.push(`<strong>Letzter Push:</strong> ${new Date(cfg.lastPushAt).toLocaleString('de-DE')}`);
+            if (cfg.lastStatus) lines.push(`<strong>Letzter Status:</strong> ${_h(String(cfg.lastStatus))}`);
+            banner.innerHTML = lines.join('<br>');
+        }
+
+        async function sharepointPullManual() {
+            if (typeof showToast === 'function') showToast('info', 'SharePoint', 'Pull gestartet…', 3000);
+            const result = await sharepointPull();
+            refreshSharepointStatusBanner();
+            if (result.ok) {
+                if (typeof showToast === 'function') showToast('success', 'SharePoint', `Pull OK: ${result.filename} (${result.bytes} B)`);
+            } else {
+                if (typeof showToast === 'function') showToast('error', 'SharePoint Pull', result.error, 8000);
+            }
+        }
+
+        async function sharepointPushManual() {
+            if (typeof showToast === 'function') showToast('info', 'SharePoint', 'Push gestartet…', 3000);
+            const result = await sharepointPush();
+            refreshSharepointStatusBanner();
+            if (result.ok) {
+                if (typeof showToast === 'function') showToast('success', 'SharePoint', `Push OK: ${result.filename}`);
+            } else {
+                if (typeof showToast === 'function') showToast('error', 'SharePoint Push', result.error, 8000);
+            }
+        }
+
+        // ============================================
         // 10X-3 (Sprint 6.5, 2026-04-20): OFFLINE-PFEILER — IndexedDB + CDN-Health
         // ============================================
         // Realitäts-Check: Service Worker benötigt HTTPS/localhost — bricht file://-Workflow.
@@ -9331,6 +9632,8 @@
             // Online/Offline-Wechsel live beobachten
             window.addEventListener('online',  renderOfflineBanner);
             window.addEventListener('offline', renderOfflineBanner);
+            // 10X-5: Auto-Pull starten wenn konfiguriert (graceful no-op wenn leer)
+            if (typeof startAutoPull === 'function') startAutoPull();
 
             // P2-20: Empty-States für dynamische Tabellen, damit leere Panels nicht "kaputt" aussehen
             const emptyTargets = [
@@ -16032,7 +16335,12 @@
         function showSettingsContent() {
             document.getElementById('password-section').style.display = 'none';
             document.getElementById('settings-content').style.display = 'block';
-            
+
+            // 10X-5: SharePoint-Settings befüllen (falls Block gerendert)
+            if (typeof loadSharepointSettingsIntoUI === 'function') {
+                loadSharepointSettingsIntoUI();
+            }
+
             // Kapazitäts-Werte füllen
             document.getElementById('set-flaeche').value = dashboardState.flaecheQm;
             document.getElementById('set-paletten-qm').value = dashboardState.palettenProQm || 0.565;
@@ -16380,6 +16688,62 @@
             <!-- Settings Content -->
             <div id="settings-content" class="settings-content" style="display: none;">
                 <div class="settings-tabs">
+
+                    <!-- 10X-5 SharePoint-Sync (Sprint 6.6) -->
+                    <div class="settings-section" id="sharepoint-section">
+                        <h3>🔌 SharePoint Auto-Sync <span style="font-size: 0.65rem; font-weight: 400; color: var(--text-muted);">(10X-5, Scaffolding — aktivieren nach IT-Setup)</span></h3>
+                        <div id="sharepoint-status-banner" style="padding: 0.5rem; border-radius: 6px; background: var(--bg-elevated); margin-bottom: 0.5rem; font-size: 0.7rem; color: var(--text-muted);">
+                            Status wird beim Öffnen geladen …
+                        </div>
+                        <div class="settings-grid">
+                            <div class="setting-item">
+                                <label>Aktiviert</label>
+                                <input type="checkbox" id="sp-enabled" style="width: auto; margin-right: 0.5rem;">
+                                <span style="font-size: 0.65rem; color: var(--text-muted);">Nur setzen wenn Config unten vollständig</span>
+                            </div>
+                            <div class="setting-item">
+                                <label>Azure Client-ID</label>
+                                <input type="text" id="sp-client-id" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" autocomplete="off">
+                            </div>
+                            <div class="setting-item">
+                                <label>Azure Tenant-ID</label>
+                                <input type="text" id="sp-tenant-id" placeholder="elvinci.onmicrosoft.com oder GUID" autocomplete="off">
+                            </div>
+                            <div class="setting-item">
+                                <label>SharePoint Site-ID</label>
+                                <input type="text" id="sp-site-id" placeholder="elvinci.sharepoint.com,{guid}" autocomplete="off">
+                            </div>
+                            <div class="setting-item">
+                                <label>BESTAND Dateipfad</label>
+                                <input type="text" id="sp-bestand-path" placeholder="/AMM_DASHBOARD/BESTAND_latest.csv" autocomplete="off">
+                            </div>
+                            <div class="setting-item">
+                                <label>Snapshot Ziel-Ordner</label>
+                                <input type="text" id="sp-snapshot-path" placeholder="/AMM_DASHBOARD/Snapshots/" autocomplete="off">
+                            </div>
+                            <div class="setting-item">
+                                <label>Auto-Pull Intervall (Min)</label>
+                                <input type="number" id="sp-auto-pull" min="0" max="1440" value="0" step="1">
+                                <span style="font-size: 0.65rem; color: var(--text-muted);">0 = aus</span>
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 0.5rem; margin-top: 0.75rem; flex-wrap: wrap;">
+                            <button type="button" class="btn btn-primary" onclick="saveSharepointSettingsFromUI()">💾 Speichern</button>
+                            <button type="button" class="btn btn-secondary" onclick="sharepointPullManual()">⬇️ Jetzt Pull</button>
+                            <button type="button" class="btn btn-secondary" onclick="sharepointPushManual()">⬆️ Snapshot Push</button>
+                            <button type="button" class="btn btn-secondary" onclick="refreshSharepointStatusBanner()">🔄 Status aktualisieren</button>
+                        </div>
+                        <div style="margin-top: 0.5rem; padding: 0.5rem; background: rgba(6,182,212,0.08); border-left: 3px solid var(--accent-cyan); border-radius: 4px; font-size: 0.65rem; color: var(--text-secondary);">
+                            <strong>Setup-Voraussetzungen</strong> (einmalig durch elvinci-IT):
+                            <ol style="margin: 0.25rem 0 0 1rem; padding: 0;">
+                                <li>Azure-AD-App registrieren mit Redirect-URI = Dashboard-URL (HTTPS!)</li>
+                                <li>API-Permissions Sites.Read.All + Files.ReadWrite.All + Admin-Consent</li>
+                                <li>clientId/tenantId bereitstellen, SharePoint-Site-ID abfragen via Graph Explorer</li>
+                                <li>Dashboard über HTTPS serven (Caddy/localhost-Tunnel). file:// funktioniert nicht für OAuth</li>
+                            </ol>
+                        </div>
+                    </div>
+
                     <div class="settings-section">
                         <h3>📐 Kapazitäts-Parameter</h3>
                         <div class="settings-grid">
@@ -16675,6 +17039,19 @@ location.reload();</pre>
             window.detectCDNAvailability = detectCDNAvailability;
             window.renderOfflineBanner = renderOfflineBanner;
             window.persistSnapshotToIDB = persistSnapshotToIDB;
+            // 10X-5: SharePoint-Sync
+            window.loadSharepointConfig = loadSharepointConfig;
+            window.saveSharepointConfig = saveSharepointConfig;
+            window.sharepointEnvironmentCheck = sharepointEnvironmentCheck;
+            window.sharepointPull = sharepointPull;
+            window.sharepointPush = sharepointPush;
+            window.startAutoPull = startAutoPull;
+            window.stopAutoPull = stopAutoPull;
+            window.saveSharepointSettingsFromUI = saveSharepointSettingsFromUI;
+            window.sharepointPullManual = sharepointPullManual;
+            window.sharepointPushManual = sharepointPushManual;
+            window.refreshSharepointStatusBanner = refreshSharepointStatusBanner;
+            window.loadSharepointSettingsIntoUI = loadSharepointSettingsIntoUI;
             // getArtikelFaktorLocal ist bewusst nicht hier — es ist in processCSV genested und
             // wird indirekt über upload.spec.js (BESTAND-Upload) regressiert.
         }

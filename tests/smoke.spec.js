@@ -34,6 +34,11 @@ test.describe('Smoke', () => {
             idbStores: typeof window.idbStores === 'object',
             detectCDNAvailability: typeof window.detectCDNAvailability === 'function',
             persistSnapshotToIDB: typeof window.persistSnapshotToIDB === 'function',
+            loadSharepointConfig: typeof window.loadSharepointConfig === 'function',
+            saveSharepointConfig: typeof window.saveSharepointConfig === 'function',
+            sharepointPull: typeof window.sharepointPull === 'function',
+            sharepointPush: typeof window.sharepointPush === 'function',
+            startAutoPull: typeof window.startAutoPull === 'function',
         }));
         for (const [name, ok] of Object.entries(present)) {
             expect(ok, `${name} muss als global function existieren`).toBe(true);
