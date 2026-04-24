@@ -24,6 +24,8 @@ test.describe('Smoke', () => {
             parseAMMDataRows: typeof window.parseAMMDataRows === 'function',
             renderEmptyState: typeof window.renderEmptyState === 'function',
             initA11y: typeof window.initA11y === 'function',
+            detectAnomalies: typeof window.detectAnomalies === 'function',
+            renderAnomaliesPanel: typeof window.renderAnomaliesPanel === 'function',
         }));
         for (const [name, ok] of Object.entries(present)) {
             expect(ok, `${name} muss als global function existieren`).toBe(true);

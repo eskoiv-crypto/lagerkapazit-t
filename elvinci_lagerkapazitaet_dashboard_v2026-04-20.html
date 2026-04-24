@@ -3128,6 +3128,20 @@
                     </div>
                 </div>
 
+                <!-- 10X-4 (Sprint 6.2, 2026-04-20): Anomalie-Detektor -->
+                <div class="card" id="anomaly-card" style="margin-top: 1rem; border-left: 3px solid var(--accent-cyan); display: none;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+                        <div>
+                            <div style="font-size: 1rem; font-weight: 600; color: var(--text-primary);">📊 Anomalie-Radar</div>
+                            <div style="font-size: 0.7rem; color: var(--text-muted);">Auto-Vergleich gegen 7-Tage-Median — proaktive Frühwarnung</div>
+                        </div>
+                        <span id="anomaly-badge" class="badge badge-cyan">—</span>
+                    </div>
+                    <div id="anomaly-display">
+                        <!-- Wird dynamisch befüllt -->
+                    </div>
+                </div>
+
                 <!-- DATENABGLEICH / MISMATCH-ÜBERSICHT -->
                 <div class="card" id="mismatch-card" style="margin-top: 1rem; border-left: 3px solid var(--accent-orange); display: none;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
@@ -4916,6 +4930,194 @@
         function calculateMarginFromEkVk(ek, vk) {
             if (!ek || ek <= 0) return 0;
             return ((vk - ek) / ek) * 100;
+        }
+
+        // ============================================
+        // 10X-4 (Sprint 6.2, 2026-04-20): ANOMALIE-DETEKTOR
+        // ============================================
+        // Vergleicht heutige Stückzahlen + Brand/WG-Verteilung gegen 7-Tage-Median.
+        // Business-Wert: proaktive Warnung bei unüblichen Ausreißern (-37% SSD, +70% QU, etc.)
+        // ohne dass der User 12 Tabs pro Tag scannen muss.
+        //
+        // Heuristik: Deviation = (today - median) / median * 100
+        //   < ±20%  → keine Anomalie
+        //   ±20-40% → info
+        //   ±40-60% → warning
+        //   > ±60%  → critical
+        // + Mindestgröße: wenn today < 20 → skip (statistisches Rauschen)
+        //
+        // Daten kommen aus localStorage.elvinci_bestand_snapshots.
+        // Sprint 6.2 erweitert das Snapshot-Schema um brandBreakdown/wgBreakdown (optional).
+
+        /** Median + Mean + StdDev für ein Zahlen-Array. */
+        function _anomalyStats(values) {
+            if (!values || values.length === 0) return { median: 0, mean: 0, stdev: 0, n: 0 };
+            const sorted = [...values].sort((a, b) => a - b);
+            const n = sorted.length;
+            const median = n % 2 === 0
+                ? (sorted[n/2 - 1] + sorted[n/2]) / 2
+                : sorted[(n - 1) / 2];
+            const mean = sorted.reduce((s, v) => s + v, 0) / n;
+            const variance = sorted.reduce((s, v) => s + Math.pow(v - mean, 2), 0) / n;
+            return { median, mean, stdev: Math.sqrt(variance), n };
+        }
+
+        /** Klassifiziert Deviation zu Severity. */
+        function _anomalySeverity(deviationPct) {
+            const abs = Math.abs(deviationPct);
+            if (abs < 20) return null;        // keine Anomalie
+            if (abs < 40) return 'info';
+            if (abs < 60) return 'warning';
+            return 'critical';
+        }
+
+        /** Haupt-Detektor. Akzeptiert optionale Override-Snapshots für Tests. */
+        function detectAnomalies(snapshotsOverride) {
+            const snapshots = snapshotsOverride
+                || JSON.parse(localStorage.getItem('elvinci_bestand_snapshots') || '{}');
+            const dates = Object.keys(snapshots).sort().reverse();
+            if (dates.length < 2) return [];   // kein Vergleichswert
+
+            const todayDate = dates[0];
+            const today = snapshots[todayDate];
+            // History = letzte 7 Tage VOR heute
+            const historyDates = dates.slice(1, 8);
+            if (historyDates.length === 0) return [];
+
+            const anomalies = [];
+            const metrics = [
+                { key: 'gesamtStueck',  label: 'Gesamt-Bestand',      minAbs: 50 },
+                { key: 'lagerStueck',   label: 'Lager (Boden+Regal)', minAbs: 30 },
+                { key: 'kommStueck',    label: 'Kommissionierung',    minAbs: 20 },
+                { key: 'weStueck',      label: 'WE-Bereich',          minAbs: 10 },
+                { key: 'auftraege',     label: 'Anzahl Aufträge',     minAbs: 5 }
+            ];
+
+            for (const m of metrics) {
+                const todayVal = today[m.key] || 0;
+                if (todayVal < m.minAbs) continue;   // zu klein → Rauschen
+                const histVals = historyDates.map(d => snapshots[d][m.key] || 0).filter(v => v > 0);
+                if (histVals.length < 2) continue;
+                const stats = _anomalyStats(histVals);
+                if (stats.median === 0) continue;
+                const devPct = ((todayVal - stats.median) / stats.median) * 100;
+                const sev = _anomalySeverity(devPct);
+                if (!sev) continue;
+                anomalies.push({
+                    type: 'aggregate',
+                    metric: m.key,
+                    label: m.label,
+                    today: todayVal,
+                    median: Math.round(stats.median),
+                    deviationPct: Math.round(devPct),
+                    severity: sev,
+                    hint: devPct > 0
+                        ? `+${Math.round(devPct)}% über 7-Tage-Median (${Math.round(stats.median)} → ${todayVal})`
+                        : `${Math.round(devPct)}% unter 7-Tage-Median (${Math.round(stats.median)} → ${todayVal})`
+                });
+            }
+
+            // Brand-Level-Anomalien (optional, nur wenn snapshot.brandBreakdown vorhanden)
+            if (today.brandBreakdown && typeof today.brandBreakdown === 'object') {
+                const brandKeys = Object.keys(today.brandBreakdown);
+                for (const brand of brandKeys) {
+                    const todayCount = today.brandBreakdown[brand] || 0;
+                    if (todayCount < 10) continue;  // winzige Brands ignorieren
+                    const histCounts = historyDates
+                        .map(d => (snapshots[d].brandBreakdown || {})[brand] || 0)
+                        .filter(v => v > 0);
+                    if (histCounts.length < 2) continue;
+                    const stats = _anomalyStats(histCounts);
+                    if (stats.median === 0) continue;
+                    const devPct = ((todayCount - stats.median) / stats.median) * 100;
+                    const sev = _anomalySeverity(devPct);
+                    if (!sev) continue;
+                    anomalies.push({
+                        type: 'brand',
+                        metric: 'brand:' + brand,
+                        label: 'Marke: ' + brand,
+                        today: todayCount,
+                        median: Math.round(stats.median),
+                        deviationPct: Math.round(devPct),
+                        severity: sev,
+                        hint: `${brand}: ${Math.round(stats.median)} → ${todayCount} (${devPct > 0 ? '+' : ''}${Math.round(devPct)}%)`
+                    });
+                }
+            }
+
+            // Sort: critical > warning > info, dann nach |deviationPct| absteigend
+            const rank = { critical: 3, warning: 2, info: 1 };
+            anomalies.sort((a, b) => (rank[b.severity] - rank[a.severity])
+                || Math.abs(b.deviationPct) - Math.abs(a.deviationPct));
+            return anomalies;
+        }
+
+        /** Rendert das Anomaly-Card. Called nach jedem BESTAND-Upload via refreshAllDashboards. */
+        function renderAnomaliesPanel() {
+            const card = document.getElementById('anomaly-card');
+            const display = document.getElementById('anomaly-display');
+            const badge = document.getElementById('anomaly-badge');
+            if (!card || !display || !badge) return;
+
+            const anomalies = detectAnomalies();
+            dashboardState.anomalies = anomalies;
+
+            // Nur anzeigen wenn mindestens 2 Snapshots existieren (sonst kein Vergleich möglich)
+            const snapshots = JSON.parse(localStorage.getItem('elvinci_bestand_snapshots') || '{}');
+            const snapCount = Object.keys(snapshots).length;
+            if (snapCount < 2) {
+                card.style.display = 'none';
+                return;
+            }
+
+            card.style.display = 'block';
+
+            const critical = anomalies.filter(a => a.severity === 'critical').length;
+            const warnings = anomalies.filter(a => a.severity === 'warning').length;
+            const infos = anomalies.filter(a => a.severity === 'info').length;
+
+            if (anomalies.length === 0) {
+                badge.className = 'badge badge-green';
+                badge.textContent = '✓ Normal';
+                display.innerHTML = `<div style="text-align:center;padding:0.75rem;color:var(--text-muted);font-size:0.75rem;">
+                    Alle Metriken liegen im ±20%-Band um den 7-Tage-Median (${snapCount} Snapshots in Historie).
+                </div>`;
+                return;
+            }
+
+            if (critical > 0) {
+                badge.className = 'badge badge-solid-red';
+                badge.textContent = `🚨 ${critical} kritisch${critical > 1 ? 'e' : ''}`;
+            } else if (warnings > 0) {
+                badge.className = 'badge badge-solid-orange';
+                badge.textContent = `⚠️ ${warnings} Warnung${warnings > 1 ? 'en' : ''}`;
+            } else {
+                badge.className = 'badge badge-cyan';
+                badge.textContent = `ℹ️ ${infos} Hinweis${infos > 1 ? 'e' : ''}`;
+            }
+
+            const severityColor = {
+                critical: 'var(--accent-red)',
+                warning:  'var(--accent-orange)',
+                info:     'var(--accent-cyan)'
+            };
+            const severityIcon = { critical: '🚨', warning: '⚠️', info: 'ℹ️' };
+            let html = '<div style="display:flex;flex-direction:column;gap:0.35rem;">';
+            for (const a of anomalies.slice(0, 15)) {  // max 15 anzeigen
+                const dir = a.deviationPct > 0 ? '▲' : '▼';
+                const devColor = a.deviationPct > 0 ? 'var(--accent-orange)' : 'var(--accent-red)';
+                html += `<div style="display:flex;align-items:center;gap:0.5rem;padding:0.4rem 0.5rem;background:var(--bg-secondary);border-radius:4px;border-left:2px solid ${severityColor[a.severity]};font-size:0.7rem;">
+                    <span style="width:1.2rem;text-align:center;">${severityIcon[a.severity]}</span>
+                    <span style="flex:0 0 140px;font-weight:600;color:var(--text-primary);">${_h(a.label)}</span>
+                    <span style="flex:1;color:var(--text-muted);">${_h(a.hint)}</span>
+                    <span style="font-family:var(--font-mono);font-weight:700;color:${devColor};">${dir} ${Math.abs(a.deviationPct)}%</span>
+                </div>`;
+            }
+            if (anomalies.length > 15) {
+                html += `<div style="font-size:0.65rem;color:var(--text-muted);font-style:italic;padding:0.3rem;">… und ${anomalies.length - 15} weitere</div>`;
+            }
+            html += '</div>';
+            display.innerHTML = html;
         }
 
         // P2-20 FIX (Sprint 5, 2026-04-20): Empty-State-Helper.
@@ -9801,6 +10003,25 @@
                 .replace(/\d{8}/g, 'YYYYMMDD')    // Datumsmuster anonymisieren
                 .replace(/\d{4}-\d{2}-\d{2}/g, 'YYYY-MM-DD')
                 .substring(0, 60);                 // Max 60 Zeichen
+            // 10X-4 (Sprint 6.2): Optional Brand-/WG-Breakdown für Anomalie-Detektor.
+            // Wird nur befüllt wenn stock-analysis aktuell geladen ist — ohne das gibt's
+            // keine Marken-Info im BESTAND. Counts auf Palette-Ebene.
+            let brandBreakdown = null;
+            let wgBreakdown = null;
+            if (dashboardState.stockAnalysisLoaded && dashboardState.stockAnalysisData
+                && Array.isArray(dashboardState.allePaletten)) {
+                brandBreakdown = {};
+                wgBreakdown = {};
+                for (const paletteNr of dashboardState.allePaletten) {
+                    const item = dashboardState.stockAnalysisData[paletteNr];
+                    if (!item) continue;
+                    const b = (item.brand || 'unknown').toString().trim();
+                    const g = (item.pg || item.product_group || 'unknown').toString().trim();
+                    brandBreakdown[b] = (brandBreakdown[b] || 0) + 1;
+                    wgBreakdown[g] = (wgBreakdown[g] || 0) + 1;
+                }
+            }
+
             snapshots[snapshotDate] = {
                 timestamp: new Date().toISOString(),
                 filename: sanitizedFilename,
@@ -9808,7 +10029,9 @@
                 kommStueck: dashboardState.bestandKommStueck || 0,
                 weStueck: dashboardState.bestandWEStueck || 0,
                 gesamtStueck: dashboardState.bestandGesamtStueck || 0,
-                auftraege: Object.keys(dashboardState.bestandAuftragMap || {}).length
+                auftraege: Object.keys(dashboardState.bestandAuftragMap || {}).length,
+                brandBreakdown,    // null oder { brand → count }
+                wgBreakdown        // null oder { pg → count }
             };
             
             // Nur letzte 90 Tage behalten
@@ -12715,6 +12938,10 @@
                     }
                     if (typeof checkAngebotsAnalyseAvailability === 'function') {
                         checkAngebotsAnalyseAvailability();
+                    }
+                    // 10X-4: Anomalie-Detektor bei jedem Refresh neu bewerten
+                    if (typeof renderAnomaliesPanel === 'function') {
+                        renderAnomaliesPanel();
                     }
                 } catch (err) {
                     console.error('[refreshAllDashboards] error:', err);
@@ -16025,6 +16252,8 @@ location.reload();</pre>
             window.refreshAllDashboards = refreshAllDashboards;
             window.openSettingsPanel = (typeof openSettingsPanel === 'function') ? openSettingsPanel : window.openSettingsPanel;
             window.closeSettingsPanel = (typeof closeSettingsPanel === 'function') ? closeSettingsPanel : window.closeSettingsPanel;
+            window.detectAnomalies = detectAnomalies;
+            window.renderAnomaliesPanel = renderAnomaliesPanel;
             // getArtikelFaktorLocal ist bewusst nicht hier — es ist in processCSV genested und
             // wird indirekt über upload.spec.js (BESTAND-Upload) regressiert.
         }
