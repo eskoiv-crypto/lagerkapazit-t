@@ -4933,6 +4933,70 @@
         }
 
         // ============================================
+        // 10X-2 (Sprint 6.3, 2026-04-20): EVENT-BUS (Pub/Sub)
+        // ============================================
+        // Inverts Architektur von "Handler ruft 10 Updates" zu "Handler emittiert Event,
+        // jeder interessierte Consumer registriert sich selbst". Macht Dashboard erweiterbar
+        // ohne refreshAllDashboards() jedesmal anzufassen.
+        //
+        // Event-Taxonomie:
+        //   data:bestand-loaded        — BESTAND-CSV geparst
+        //   data:we-ist-loaded         — AMM Tages-WE geparst
+        //   data:wa-ist-loaded         — AMM Tages-WA geparst
+        //   data:we-pipe-loaded        — WE-Pipeline Excel
+        //   data:wa-pipe-loaded        — Fulfillment Excel
+        //   data:auftrag-status-loaded — JTL AUFTRAG_STATUS
+        //   data:planner-loaded        — Teams-Planner Export
+        //   data:stock-analysis-loaded — Portal Stock-Analysis
+        //   data:all-sold-loaded       — Portal ALL-SOLD
+        //   data:jtl-sales-loaded      — JTL Artikelstamm
+        //   data:refresh               — composite "irgendwas hat sich geändert, alle bitte rendern"
+        //   data:reset                 — resetAllSessionState wurde gerufen
+        //   ui:tab-switched            — Analytics-Tab-Wechsel (payload: tabName)
+        //
+        // Payload-Konvention: { source: 'upload'|'sync'|'manual', ...context }
+
+        function createEventBus() {
+            const subs = new Map();   // event → Set<handler>
+            function on(event, handler) {
+                if (!subs.has(event)) subs.set(event, new Set());
+                subs.get(event).add(handler);
+                return () => off(event, handler);  // unsubscribe-Token
+            }
+            function once(event, handler) {
+                const wrapped = (payload) => {
+                    off(event, wrapped);
+                    handler(payload);
+                };
+                return on(event, wrapped);
+            }
+            function off(event, handler) {
+                if (subs.has(event)) subs.get(event).delete(handler);
+            }
+            function emit(event, payload) {
+                if (!subs.has(event)) return 0;
+                let delivered = 0;
+                // Snapshot Set damit Handler während Delivery nichts kaputt machen
+                for (const h of Array.from(subs.get(event))) {
+                    try { h(payload); delivered++; }
+                    catch (err) {
+                        // Fehler isolieren — ein kaputter Handler darf nicht die Kette stoppen
+                        console.error(`[EventBus] handler for '${event}' threw:`, err);
+                    }
+                }
+                return delivered;
+            }
+            function listenerCount(event) {
+                return subs.has(event) ? subs.get(event).size : 0;
+            }
+            function clearAll() { subs.clear(); }
+            return { on, off, once, emit, listenerCount, clearAll };
+        }
+
+        // Globale Bus-Instanz für das Dashboard.
+        const bus = createEventBus();
+
+        // ============================================
         // 10X-4 (Sprint 6.2, 2026-04-20): ANOMALIE-DETEKTOR
         // ============================================
         // Vergleicht heutige Stückzahlen + Brand/WG-Verteilung gegen 7-Tage-Median.
@@ -8960,6 +9024,7 @@
             checkDataFreshness();  // Refresh-Warnung
             setupDragAndDrop();    // Drag & Drop Upload
             initA11y();            // P2-12/13/14/16: A11y-Patches
+            setupBusSubscribers(); // 10X-2: Event-Bus Legacy-Handler registrieren
 
             // P2-20: Empty-States für dynamische Tabellen, damit leere Panels nicht "kaputt" aussehen
             const emptyTargets = [
@@ -9051,6 +9116,10 @@
             dashboardState.zonenStueck = {};
             dashboardState.diskrepanzen = [];
             dashboardState.angebotAnalyseResults = [];
+            // 10X-2: Emit data:reset damit registrierte Consumer UI-State abbauen
+            if (typeof bus !== 'undefined') {
+                bus.emit('data:reset', { source: 'resetAllSessionState' });
+            }
         }
 
         function clearDailyDataIfNewDay() {
@@ -12913,8 +12982,8 @@
         }
 
         // P1-3 FIX: Einheitliche Refresh-Funktion — ALLE Handler rufen diese auf.
-        // Garantiert: kein Handler vergisst einen Downstream-Consumer.
-        // Debounced via requestAnimationFrame damit Multi-Upload nicht 5× rendert.
+        // 10X-2 (Sprint 6.3): intern nutzt sie jetzt den Event-Bus. Alte Call-Sites bleiben
+        // funktional (backward-compat) — Consumer registrieren sich über bus.on('data:refresh').
         let _refreshScheduled = false;
         function refreshAllDashboards(reason) {
             if (_refreshScheduled) { return; }
@@ -12923,30 +12992,52 @@
                 _refreshScheduled = false;
                 try {
                     console.log(`[refreshAllDashboards] reason=${reason || 'unknown'}`);
-                    if (typeof updateStats === 'function')            updateStats();
-                    if (typeof updateGauge === 'function')            updateGauge();
-                    if (typeof updateChart === 'function')            updateChart();
-                    if (typeof renderForecastTable === 'function')    renderForecastTable();
-                    if (typeof renderZones === 'function')            renderZones();
-                    if (typeof combineAndRenderAuftragData === 'function') combineAndRenderAuftragData();
-                    if (typeof runValidation === 'function')          runValidation();
-                    if (typeof validateAuftraege === 'function')      validateAuftraege();
-                    if (typeof renderHistoricalComparison === 'function') renderHistoricalComparison();
-                    if (typeof saveDataFreshness === 'function')      saveDataFreshness();
-                    if (typeof updateAnalyseProPanel === 'function' && dashboardState.stockAnalysisLoaded) {
-                        updateAnalyseProPanel();
-                    }
-                    if (typeof checkAngebotsAnalyseAvailability === 'function') {
-                        checkAngebotsAnalyseAvailability();
-                    }
-                    // 10X-4: Anomalie-Detektor bei jedem Refresh neu bewerten
-                    if (typeof renderAnomaliesPanel === 'function') {
-                        renderAnomaliesPanel();
-                    }
+                    // 10X-2: Composite-Event. Legacy-Subscriber (unten in setupBusSubscribers)
+                    // kümmern sich um die alten updateX()-Calls. Neue Features registrieren
+                    // sich direkt via bus.on('data:refresh', handler).
+                    bus.emit('data:refresh', { reason, source: 'refreshAllDashboards' });
                 } catch (err) {
                     console.error('[refreshAllDashboards] error:', err);
                 }
             });
+        }
+
+        // 10X-2: Legacy-Subscriber. Bindet die bisherigen updateX()-Calls an den Bus.
+        // Wird einmal auf DOMContentLoaded gerufen. Jede Funktion bekommt ihren eigenen
+        // Try/Catch via bus.emit internem Error-Handler → ein kaputter Consumer stoppt
+        // nicht die Kette.
+        function setupBusSubscribers() {
+            const guardedCall = (fnName) => {
+                return () => {
+                    const fn = window[fnName];
+                    if (typeof fn === 'function') fn();
+                };
+            };
+            // data:refresh — die volle Renderkette. Bisheriges Verhalten 1:1 erhalten.
+            bus.on('data:refresh', guardedCall('updateStats'));
+            bus.on('data:refresh', guardedCall('updateGauge'));
+            bus.on('data:refresh', guardedCall('updateChart'));
+            bus.on('data:refresh', guardedCall('renderForecastTable'));
+            bus.on('data:refresh', guardedCall('renderZones'));
+            bus.on('data:refresh', guardedCall('combineAndRenderAuftragData'));
+            bus.on('data:refresh', guardedCall('runValidation'));
+            bus.on('data:refresh', guardedCall('validateAuftraege'));
+            bus.on('data:refresh', guardedCall('renderHistoricalComparison'));
+            bus.on('data:refresh', guardedCall('saveDataFreshness'));
+            bus.on('data:refresh', () => {
+                if (typeof updateAnalyseProPanel === 'function' && dashboardState.stockAnalysisLoaded) {
+                    updateAnalyseProPanel();
+                }
+            });
+            bus.on('data:refresh', guardedCall('checkAngebotsAnalyseAvailability'));
+            bus.on('data:refresh', guardedCall('renderAnomaliesPanel'));
+
+            // data:reset — UI-State sauber neu aufbauen
+            bus.on('data:reset', guardedCall('updateStats'));
+            bus.on('data:reset', guardedCall('updateGauge'));
+            bus.on('data:reset', guardedCall('renderAnomaliesPanel'));
+
+            console.log('[EventBus] Legacy-Subscribers registriert. Refresh-Listener:', bus.listenerCount('data:refresh'));
         }
 
         function handleFileUpload(input, type) {
@@ -13487,6 +13578,8 @@
                     // NEU: Rohdaten für Datenqualitäts-Validierung speichern
                     dashboardState.bestandRaw = bestandRawItems;
                     dashboardState.bestandLoaded = true;
+                    // 10X-2: Domain-Event
+                    bus.emit('data:bestand-loaded', { stueck: totalStueck, auftraege: Object.keys(bestandAuftragMap).length });
                     console.log('BESTAND Rohdaten gespeichert:', bestandRawItems.length, 'Artikel');
                     
                     // NEU: Validierung durchführen wenn andere Daten geladen
@@ -13572,6 +13665,7 @@
                     
                     dashboardState.weIstLoaded = true;
                     dashboardState.weIstStueck = totalStueck;
+                    bus.emit('data:we-ist-loaded', { stueck: totalStueck, datum: datumStr });
                     dashboardState.weIstGewichtet = Math.round(totalGewichtet);
                     dashboardState.weIstDatum = datumStr;
                     dashboardState.weIstLieferungen = lieferungenMap;
@@ -13637,6 +13731,7 @@
                     
                     dashboardState.waIstLoaded = true;
                     dashboardState.waIstStueck = totalStueck;
+                    bus.emit('data:wa-ist-loaded', { stueck: totalStueck, datum: datumStr });
                     dashboardState.waIstGewichtet = Math.round(totalGewichtet);
                     dashboardState.waIstDatum = datumStr;
                     dashboardState.waIstAuftraege = auftraegeMap;
@@ -14306,6 +14401,8 @@
                     
                     dashboardState.auftragStatusMap = auftragStatusMap;
                     dashboardState.statusLoaded = true;
+                    // 10X-2: Domain-Event für neue Consumer (Analytics, SharePoint-Sync, ...)
+                    bus.emit('data:auftrag-status-loaded', { count: Object.keys(auftragStatusMap).length });
                     
                     if (statusEl) {
                         statusEl.innerHTML = `✓ <span style="color:var(--accent-orange)">${countQU} QU</span> | <span style="color:var(--accent-cyan)">${countAK} AK</span> | <span style="color:var(--text-muted)">${countSU} SU</span>`;
@@ -14587,6 +14684,7 @@
                     dashboardState.stockAnalysisData = stockAnalysisData;
                     dashboardState.stockAnalysisLoaded = true;
                     dashboardState.stockAnalysisCount = count;
+                    bus.emit('data:stock-analysis-loaded', { count });
                     
                     // NEU: Verfügbarkeits-Statistiken
                     dashboardState.stockReservedCount = reservedCount;
@@ -14771,6 +14869,7 @@
                     
                     dashboardState.allSoldLoaded = true;
                     dashboardState.allSoldData = allSoldData;
+                    bus.emit('data:all-sold-loaded', { count: allSoldData.length });
                     dashboardState.allSoldCount = count;
                     dashboardState.allSoldProfit = totalProfit;
                     dashboardState.allSoldAvgProfit = count > 0 ? totalProfit / count : 0;
@@ -16254,6 +16353,8 @@ location.reload();</pre>
             window.closeSettingsPanel = (typeof closeSettingsPanel === 'function') ? closeSettingsPanel : window.closeSettingsPanel;
             window.detectAnomalies = detectAnomalies;
             window.renderAnomaliesPanel = renderAnomaliesPanel;
+            window.bus = bus;                         // 10X-2: EventBus-Instanz
+            window.createEventBus = createEventBus;   // 10X-2: Factory für Tests
             // getArtikelFaktorLocal ist bewusst nicht hier — es ist in processCSV genested und
             // wird indirekt über upload.spec.js (BESTAND-Upload) regressiert.
         }

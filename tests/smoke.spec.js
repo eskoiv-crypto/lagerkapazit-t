@@ -26,6 +26,8 @@ test.describe('Smoke', () => {
             initA11y: typeof window.initA11y === 'function',
             detectAnomalies: typeof window.detectAnomalies === 'function',
             renderAnomaliesPanel: typeof window.renderAnomaliesPanel === 'function',
+            bus: typeof window.bus === 'object' && typeof window.bus.emit === 'function',
+            createEventBus: typeof window.createEventBus === 'function',
         }));
         for (const [name, ok] of Object.entries(present)) {
             expect(ok, `${name} muss als global function existieren`).toBe(true);
