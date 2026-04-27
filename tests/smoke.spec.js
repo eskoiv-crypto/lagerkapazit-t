@@ -44,6 +44,12 @@ test.describe('Smoke', () => {
             authLogout: typeof window.authLogout === 'function',
             renderUserBadge: typeof window.renderUserBadge === 'function',
             authState: typeof window.authState === 'object',
+            getDataClassification: typeof window.getDataClassification === 'function',
+            maskPII: typeof window.maskPII === 'function',
+            maskedH: typeof window.maskedH === 'function',
+            auditLog: typeof window.auditLog === 'function',
+            getAuditLog: typeof window.getAuditLog === 'function',
+            FILE_CLASSIFICATIONS: typeof window.FILE_CLASSIFICATIONS === 'object',
         }));
         for (const [name, ok] of Object.entries(present)) {
             expect(ok, `${name} muss als global function existieren`).toBe(true);

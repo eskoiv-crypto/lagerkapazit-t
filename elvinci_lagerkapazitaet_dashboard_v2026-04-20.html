@@ -4933,6 +4933,315 @@
         }
 
         // ============================================
+        // 10X-6 (Sprint 6.8, 2026-04-27): COMPLIANCE-LAYER (DSGVO + elvinci-Richtlinie)
+        // ============================================
+        // Drei zusammenhängende Bausteine, die auf den vorigen Sprints aufsetzen:
+        //
+        //   1) Daten-Klassifizierung (🟢/🟡/🔴 Ampel pro File-Typ).
+        //      Sichtbar beim Upload-Toast und im Settings-Reference-Panel.
+        //
+        //   2) PII-Maskierung (Pseudonymisierung).
+        //      Globaler Toggle — wenn aktiv, ersetzen Render-Funktionen Kundennamen,
+        //      E-Mails, Lager-Nrn durch maskierte Varianten (z.B. "Müller GmbH" →
+        //      "Kunde_M_____"). Ideal für Screenshots, Demos, Sales-Calls.
+        //
+        //   3) Audit-Log-Producer.
+        //      Subscribed alle relevanten Bus-Events (auth:*, data:*-loaded, sync:*)
+        //      und persistiert sie ins idbStores.auditLog (10X-3 hatte den Store
+        //      angelegt aber keine Producer). User aus authState (10X-10) wird
+        //      mitgeloggt für Wer-hat-wann-was-Nachvollziehbarkeit.
+
+        const COMPLIANCE_CONFIG_KEY = 'elvinci_compliance_config';
+        const DEFAULT_COMPLIANCE_CONFIG = {
+            piiMaskingEnabled: false,    // global render-toggle
+            auditLogEnabled: true,       // Producer ein/aus
+            auditRetentionDays: 365      // ältere Events werden bei nächstem Write gelöscht
+        };
+
+        function loadComplianceConfig() {
+            try {
+                const raw = localStorage.getItem(COMPLIANCE_CONFIG_KEY);
+                if (!raw) return { ...DEFAULT_COMPLIANCE_CONFIG };
+                return { ...DEFAULT_COMPLIANCE_CONFIG, ...JSON.parse(raw) };
+            } catch (e) { return { ...DEFAULT_COMPLIANCE_CONFIG }; }
+        }
+        function saveComplianceConfig(cfg) {
+            try {
+                const merged = { ...loadComplianceConfig(), ...cfg };
+                localStorage.setItem(COMPLIANCE_CONFIG_KEY, JSON.stringify(merged));
+                if (typeof bus !== 'undefined') {
+                    bus.emit('compliance:config-changed', { piiMaskingEnabled: merged.piiMaskingEnabled });
+                }
+                return merged;
+            } catch (e) { return null; }
+        }
+
+        // ---- 1) Daten-Klassifizierung ----
+        // 🟢 grün:  reine Aggregat-Daten ohne Personenbezug
+        // 🟡 gelb:  Auftragsnummern / Bestellnummern / Adressen-Aggregate
+        // 🔴 rot:   Kundennamen + Preise + Profitdaten (vollständige PII)
+        const FILE_CLASSIFICATIONS = {
+            'bestand':        { tier: 'green',  label: '🟢 Grün',  desc: 'Aggregierte Bestandszahlen pro Palette/Lagerplatz. Keine PII.' },
+            'we-ist':         { tier: 'green',  label: '🟢 Grün',  desc: 'AMM Tages-WE: Stückzahlen + Bestellnummern.' },
+            'wa-ist':         { tier: 'yellow', label: '🟡 Gelb',  desc: 'AMM Tages-WA: Empfänger-Aggregate + Auftragsnummern.' },
+            'we-pipe':        { tier: 'green',  label: '🟢 Grün',  desc: 'WE-Pipeline: Liefermengen pro Tag.' },
+            'wa-pipe':        { tier: 'yellow', label: '🟡 Gelb',  desc: 'Fulfillment-Pipeline: Auftrags+Versanddaten, teils Kundenbezug.' },
+            'auftrag-status': { tier: 'yellow', label: '🟡 Gelb',  desc: 'AUFTRAG_STATUS: Kundennamen + Land + Spediteur. Eingeschränkte PII.' },
+            'planner':        { tier: 'yellow', label: '🟡 Gelb',  desc: 'Teams-Planner: Aufgaben + Notizen mit Kundenbezug.' },
+            'jtl-sales':      { tier: 'red',    label: '🔴 Rot',   desc: 'JTL Sales: vollständige Verkaufsdaten mit Profit + Kundenbezug.' },
+            'all-sold':       { tier: 'red',    label: '🔴 Rot',   desc: 'Portal All-Sold: EK + VK + Profit + Kunde + Verkäufer = volle PII + sensible Geschäftsdaten.' },
+            'stock-analysis': { tier: 'red',    label: '🔴 Rot',   desc: 'Portal Stock-Analysis: EK/VK-Preise pro Lagernummer.' },
+            'angebot':        { tier: 'yellow', label: '🟡 Gelb',  desc: 'Lieferanten-Angebot: Listen-VK + Bezeichnungen, kein Endkunden-PII.' }
+        };
+        function getDataClassification(type) {
+            return FILE_CLASSIFICATIONS[type] || { tier: 'unknown', label: '⚪ Unbekannt', desc: 'Datei-Typ nicht klassifiziert.' };
+        }
+        function tierColor(tier) {
+            return tier === 'green' ? 'var(--accent-green)'
+                 : tier === 'yellow' ? 'var(--accent-yellow)'
+                 : tier === 'red'    ? 'var(--accent-red)'
+                 : 'var(--text-muted)';
+        }
+
+        // ---- 2) PII-Maskierung ----
+        function isPIIMaskingEnabled() {
+            return loadComplianceConfig().piiMaskingEnabled === true;
+        }
+        function setPIIMaskingEnabled(on) {
+            saveComplianceConfig({ piiMaskingEnabled: !!on });
+            // Re-render aller Tabs damit Maskierung sofort greift
+            if (typeof bus !== 'undefined') bus.emit('data:refresh', { reason: 'pii-masking-toggle' });
+        }
+        /**
+         * Pseudonymisiert User-Strings. Behält erste 1-2 Zeichen + Länge für
+         * Wiedererkennbarkeit ohne Identifikation. Idempotent.
+         *  - 'name'  : "Müller GmbH"          → "Kunde_M_____"
+         *  - 'email' : "max@firma.de"         → "m**@**.**"
+         *  - 'phone' : "+49 911 12345"        → "+** *** ****"
+         *  - 'lager' : "9001234567"           → "9*******67"
+         *  - 'auto'  : Heuristik aus Inhalt
+         */
+        function maskPII(value, type) {
+            if (value === null || value === undefined) return '';
+            const s = String(value);
+            if (s.length === 0) return s;
+            type = type || _detectPIIType(s);
+            switch (type) {
+                case 'name': {
+                    const first = s[0];
+                    return 'Kunde_' + first + '_'.repeat(Math.max(1, Math.min(s.length - 1, 8)));
+                }
+                case 'email': {
+                    const at = s.indexOf('@');
+                    if (at < 1) return s[0] + '***';
+                    return s[0] + '**@**.**';
+                }
+                case 'phone': return '+** *** ****';
+                case 'lager': {
+                    if (s.length < 4) return '*'.repeat(s.length);
+                    return s[0] + '*'.repeat(s.length - 3) + s.slice(-2);
+                }
+                default: {
+                    if (s.length <= 2) return '*'.repeat(s.length);
+                    return s[0] + '*'.repeat(Math.min(s.length - 2, 6)) + s.slice(-1);
+                }
+            }
+        }
+        function _detectPIIType(s) {
+            if (s.includes('@'))                 return 'email';
+            if (/^[+0-9 ()-]{6,}$/.test(s))      return 'phone';
+            if (/^\d{8,}$/.test(s))              return 'lager';
+            return 'name';
+        }
+        /** Wrapper für escapeHtml + ggf. Maskierung. Drop-in-Ersatz für _h() in
+         *  PII-führenden Render-Pfaden. Heißt _h2 damit alte _h() unverändert bleibt. */
+        function maskedH(value, piiType) {
+            return escapeHtml(isPIIMaskingEnabled() ? maskPII(value, piiType) : value);
+        }
+
+        // ---- 3) Audit-Logger ----
+        let _auditQueue = Promise.resolve();   // serialisiert Schreibvorgänge → vermeidet IDB-Konflikte
+        function _currentActor() {
+            try {
+                if (typeof authState !== 'undefined' && authState.user) {
+                    return {
+                        id: authState.user.id || null,
+                        email: authState.user.email || null,
+                        displayName: authState.user.displayName || null,
+                        mode: authState.mode || null
+                    };
+                }
+            } catch (_) {}
+            return { id: null, email: null, displayName: 'anonymous', mode: 'none' };
+        }
+        async function auditLog(action, payload) {
+            const cfg = loadComplianceConfig();
+            if (!cfg.auditLogEnabled) return;
+            if (typeof idbStores === 'undefined') return;
+            const entry = {
+                id: 'evt_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8),
+                timestamp: new Date().toISOString(),
+                action,
+                actor: _currentActor(),
+                payload: payload || {}
+            };
+            // Reihenfolge erzwingen damit Events chronologisch persistiert werden
+            _auditQueue = _auditQueue.then(async () => {
+                try {
+                    await idbStores.auditLog().put(entry);
+                    // Retention: ab und zu (nicht jedes Event) alte löschen
+                    if (Math.random() < 0.05) {
+                        const all = await idbStores.auditLog().getAll();
+                        const cutoff = new Date(Date.now() - cfg.auditRetentionDays * 86400_000).toISOString();
+                        for (const e of all) {
+                            if (e.timestamp < cutoff) await idbStores.auditLog().delete(e.id);
+                        }
+                    }
+                } catch (err) {
+                    console.warn('[Audit] persist failed:', err);
+                }
+            });
+            return _auditQueue;
+        }
+
+        /** Subscribed Bus-Events und übersetzt sie in Audit-Log-Einträge. */
+        function setupAuditProducers() {
+            if (typeof bus === 'undefined') return;
+            // Auth-Events
+            bus.on('auth:logged-in',       (p) => auditLog('auth.login', p));
+            bus.on('auth:logged-out',      (p) => auditLog('auth.logout', p));
+            bus.on('auth:denied',          (p) => auditLog('auth.denied', p));
+            // Daten-Uploads (mit Klassifizierung)
+            const dataEvents = [
+                ['data:bestand-loaded',        'bestand'],
+                ['data:we-ist-loaded',         'we-ist'],
+                ['data:wa-ist-loaded',         'wa-ist'],
+                ['data:auftrag-status-loaded', 'auftrag-status'],
+                ['data:stock-analysis-loaded', 'stock-analysis'],
+                ['data:all-sold-loaded',       'all-sold']
+            ];
+            for (const [evt, type] of dataEvents) {
+                bus.on(evt, (p) => {
+                    const cls = getDataClassification(type);
+                    auditLog('data.upload', {
+                        type,
+                        tier: cls.tier,
+                        ...(p || {})
+                    });
+                });
+            }
+            // SharePoint-Sync
+            bus.on('sync:pulled',  (p) => auditLog('sync.pulled', p));
+            bus.on('sync:pushed',  (p) => auditLog('sync.pushed', p));
+            bus.on('sync:failed',  (p) => auditLog('sync.failed', p));
+            console.log('[Audit] Producer registriert');
+        }
+
+        async function getAuditLog(limit) {
+            if (typeof idbStores === 'undefined') return [];
+            const all = await idbStores.auditLog().getAll();
+            // Neueste zuerst
+            all.sort((a, b) => (a.timestamp < b.timestamp ? 1 : -1));
+            return typeof limit === 'number' ? all.slice(0, limit) : all;
+        }
+
+        // ---- UI-Glue ----
+        function loadComplianceSettingsIntoUI() {
+            const cfg = loadComplianceConfig();
+            const set = (id, prop, v) => { const el = document.getElementById(id); if (el) el[prop] = v; };
+            set('comp-pii-mask', 'checked', !!cfg.piiMaskingEnabled);
+            set('comp-audit-on', 'checked', !!cfg.auditLogEnabled);
+            set('comp-audit-retention', 'value', cfg.auditRetentionDays || 365);
+        }
+        function saveComplianceSettingsFromUI() {
+            const get = (id, prop) => { const el = document.getElementById(id); return el ? el[prop] : null; };
+            const cfg = saveComplianceConfig({
+                piiMaskingEnabled: !!get('comp-pii-mask', 'checked'),
+                auditLogEnabled: !!get('comp-audit-on', 'checked'),
+                auditRetentionDays: parseInt(get('comp-audit-retention', 'value')) || 365
+            });
+            if (cfg && typeof showToast === 'function') {
+                showToast('success', 'Compliance', `PII-Maskierung: ${cfg.piiMaskingEnabled ? 'an' : 'aus'} | Audit: ${cfg.auditLogEnabled ? 'an' : 'aus'}`);
+            }
+            // Falls PII-Toggle gewechselt → komplettes Re-Render der Tabs
+            if (typeof bus !== 'undefined') bus.emit('data:refresh', { reason: 'compliance-saved' });
+        }
+
+        async function renderAuditLogViewer() {
+            const viewer = document.getElementById('audit-log-viewer');
+            const det = document.getElementById('audit-log-details');
+            if (!viewer) return;
+            if (det) det.open = true;
+            viewer.textContent = 'Lade…';
+            try {
+                const events = await getAuditLog(50);
+                if (events.length === 0) {
+                    viewer.innerHTML = '<em style="color:var(--text-muted);">Keine Audit-Events vorhanden.</em>';
+                    return;
+                }
+                const rows = events.map(e => {
+                    const ts = new Date(e.timestamp).toLocaleString('de-DE');
+                    const actor = (e.actor && e.actor.displayName) || 'anonymous';
+                    const payloadStr = e.payload ? Object.keys(e.payload).filter(k => k !== 'source').slice(0, 4).map(k => `${k}=${_h(String(e.payload[k]).substring(0, 40))}`).join(' ') : '';
+                    return `<div style="padding:0.25rem 0;border-bottom:1px solid var(--border);">
+                        <span style="color:var(--text-muted);">${ts}</span>
+                        <strong style="color:var(--accent-cyan);">${_h(e.action)}</strong>
+                        <span style="color:var(--text-secondary);">@ ${_h(actor)}</span>
+                        <span style="color:var(--text-muted);">${payloadStr}</span>
+                    </div>`;
+                }).join('');
+                viewer.innerHTML = `<div>${events.length} Events:</div>${rows}`;
+            } catch (err) {
+                viewer.innerHTML = '<em style="color:var(--accent-red);">Fehler beim Laden: ' + _h(String(err.message || err)) + '</em>';
+            }
+        }
+
+        async function exportAuditLogCSV() {
+            try {
+                const events = await getAuditLog();
+                if (events.length === 0) {
+                    if (typeof showToast === 'function') showToast('info', 'Audit-Log', 'Keine Events zum Exportieren');
+                    return;
+                }
+                const headers = ['timestamp', 'action', 'actor', 'mode', 'payload'];
+                const lines = [headers.join(';')];
+                for (const e of events) {
+                    const actor = (e.actor && (e.actor.email || e.actor.displayName)) || 'anonymous';
+                    const mode = (e.actor && e.actor.mode) || '';
+                    const payload = JSON.stringify(e.payload || {}).replace(/;/g, ',');
+                    lines.push([e.timestamp, e.action, actor, mode, payload].map(v => `"${String(v).replace(/"/g, '""')}"`).join(';'));
+                }
+                const csv = '\ufeff' + lines.join('\n');
+                const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `audit_log_${new Date().toISOString().split('T')[0]}.csv`;
+                a.click();
+                setTimeout(() => URL.revokeObjectURL(url), 1000);
+                if (typeof showToast === 'function') showToast('success', 'Audit-Log', `${events.length} Events exportiert`);
+            } catch (err) {
+                if (typeof showToast === 'function') showToast('error', 'Audit-Export', String(err.message || err));
+            }
+        }
+
+        function renderClassificationReference() {
+            const target = document.getElementById('classification-reference');
+            const det = document.getElementById('classification-details');
+            if (!target) return;
+            if (det) det.open = true;
+            const rows = Object.entries(FILE_CLASSIFICATIONS).map(([type, cls]) => `
+                <tr>
+                    <td style="padding:0.25rem 0.5rem;font-family:var(--font-mono);">${_h(type)}</td>
+                    <td style="padding:0.25rem 0.5rem;color:${tierColor(cls.tier)};font-weight:700;">${cls.label}</td>
+                    <td style="padding:0.25rem 0.5rem;color:var(--text-secondary);">${_h(cls.desc)}</td>
+                </tr>`).join('');
+            target.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:0.65rem;">
+                <thead><tr style="background:var(--bg-elevated);"><th style="text-align:left;padding:0.25rem 0.5rem;">Datei-Typ</th><th style="text-align:left;padding:0.25rem 0.5rem;">Tier</th><th style="text-align:left;padding:0.25rem 0.5rem;">Beschreibung</th></tr></thead>
+                <tbody>${rows}</tbody></table>`;
+        }
+
+        // ============================================
         // 10X-10 (Sprint 6.7, 2026-04-27): AUTH-LAYER (Azure AD + Passwort-Fallback)
         // ============================================
         // Killcritic: Hardcoded 'elvinci' ist Security-Theater (DevTools-sichtbar, geteilt).
@@ -9858,6 +10167,8 @@
             // 10X-10: User-Badge mounten + Auth-Mode-Hint im Login-Dialog
             if (typeof renderUserBadge === 'function') renderUserBadge();
             if (typeof updateAuthModeHint === 'function') updateAuthModeHint();
+            // 10X-6: Audit-Producer aktivieren — muss NACH setupBusSubscribers sein
+            if (typeof setupAuditProducers === 'function') setupAuditProducers();
 
             // P2-20: Empty-States für dynamische Tabellen, damit leere Panels nicht "kaputt" aussehen
             const emptyTargets = [
@@ -13907,7 +14218,18 @@
                 statusEl.textContent = '⏳ Lädt...';
                 statusEl.style.color = 'var(--accent-cyan)';
             }
-            
+
+            // 10X-6: Klassifizierungs-Hinweis. Bei 🔴 Rot zeigen wir einen kurzen Toast,
+            // damit User bewusst ist welche Datenklasse verarbeitet wird (DSGVO-Awareness).
+            try {
+                const cls = (typeof getDataClassification === 'function') ? getDataClassification(type) : null;
+                if (cls && cls.tier === 'red' && typeof showToast === 'function') {
+                    showToast('info', `${cls.label} ${label}`, cls.desc, 5000);
+                } else if (cls && cls.tier === 'yellow' && typeof showToast === 'function') {
+                    showToast('info', `${cls.label} ${label}`, cls.desc, 3500);
+                }
+            } catch (_) { /* kein UX-Block bei Fehler */ }
+
             const fileName = filename.toLowerCase();
             const isExcel = fileName.endsWith('.xlsx') || fileName.endsWith('.xls');
             const isCsv = fileName.endsWith('.csv');
@@ -16675,6 +16997,10 @@
             if (typeof loadAuthSettingsIntoUI === 'function') {
                 loadAuthSettingsIntoUI();
             }
+            // 10X-6: Compliance-Settings befüllen
+            if (typeof loadComplianceSettingsIntoUI === 'function') {
+                loadComplianceSettingsIntoUI();
+            }
 
             // Kapazitäts-Werte füllen
             document.getElementById('set-flaeche').value = dashboardState.flaecheQm;
@@ -17029,6 +17355,47 @@
             <!-- Settings Content -->
             <div id="settings-content" class="settings-content" style="display: none;">
                 <div class="settings-tabs">
+
+                    <!-- 10X-6 Compliance-Layer (Sprint 6.8) -->
+                    <div class="settings-section" id="compliance-section">
+                        <h3>🛡️ Compliance & DSGVO <span style="font-size: 0.65rem; font-weight: 400; color: var(--text-muted);">(10X-6, Klassifizierung + PII-Maskierung + Audit-Log)</span></h3>
+                        <div class="settings-grid">
+                            <div class="setting-item">
+                                <label>PII-Maskierung global aktivieren</label>
+                                <input type="checkbox" id="comp-pii-mask" style="width: auto; margin-right: 0.5rem;">
+                                <span style="font-size: 0.65rem; color: var(--text-muted);">Maskiert Kundennamen, E-Mails, Lagernummern in allen Tabellen — ideal für Screenshots/Demos</span>
+                            </div>
+                            <div class="setting-item">
+                                <label>Audit-Log aktivieren</label>
+                                <input type="checkbox" id="comp-audit-on" style="width: auto; margin-right: 0.5rem;">
+                                <span style="font-size: 0.65rem; color: var(--text-muted);">Persistiert Login-Events + Uploads + Sync-Aktionen in IndexedDB</span>
+                            </div>
+                            <div class="setting-item">
+                                <label>Audit-Retention (Tage)</label>
+                                <input type="number" id="comp-audit-retention" min="7" max="3650" value="365" step="1">
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 0.5rem; margin-top: 0.75rem; flex-wrap: wrap;">
+                            <button type="button" class="btn btn-primary" onclick="saveComplianceSettingsFromUI()">💾 Speichern</button>
+                            <button type="button" class="btn btn-secondary" onclick="renderAuditLogViewer()">🔍 Audit-Log anzeigen</button>
+                            <button type="button" class="btn btn-secondary" onclick="exportAuditLogCSV()">📥 Audit als CSV</button>
+                            <button type="button" class="btn btn-secondary" onclick="renderClassificationReference()">📋 Klassifizierungs-Tabelle</button>
+                        </div>
+
+                        <details style="margin-top: 0.75rem;" id="audit-log-details">
+                            <summary style="cursor:pointer;font-size:0.7rem;color:var(--text-secondary);">Audit-Log-Viewer (zuletzt 50 Events)</summary>
+                            <div id="audit-log-viewer" style="margin-top: 0.5rem; max-height: 300px; overflow-y: auto; font-size: 0.65rem; font-family: var(--font-mono); background: var(--bg-elevated); padding: 0.5rem; border-radius: 4px;">
+                                Klick auf "Audit-Log anzeigen" zum Laden.
+                            </div>
+                        </details>
+
+                        <details style="margin-top: 0.5rem;" id="classification-details">
+                            <summary style="cursor:pointer;font-size:0.7rem;color:var(--text-secondary);">Daten-Klassifizierung (Referenz)</summary>
+                            <div id="classification-reference" style="margin-top: 0.5rem; font-size: 0.65rem;">
+                                Klick auf "Klassifizierungs-Tabelle" zum Laden.
+                            </div>
+                        </details>
+                    </div>
 
                     <!-- 10X-10 Auth-Config (Sprint 6.7) -->
                     <div class="settings-section" id="auth-section">
@@ -17448,6 +17815,23 @@ location.reload();</pre>
             window.loadAuthSettingsIntoUI = loadAuthSettingsIntoUI;
             // authState als Read-Property für Tests
             Object.defineProperty(window, 'authState', { get: () => authState, configurable: true });
+            // 10X-6: Compliance
+            window.loadComplianceConfig = loadComplianceConfig;
+            window.saveComplianceConfig = saveComplianceConfig;
+            window.FILE_CLASSIFICATIONS = FILE_CLASSIFICATIONS;
+            window.getDataClassification = getDataClassification;
+            window.isPIIMaskingEnabled = isPIIMaskingEnabled;
+            window.setPIIMaskingEnabled = setPIIMaskingEnabled;
+            window.maskPII = maskPII;
+            window.maskedH = maskedH;
+            window.auditLog = auditLog;
+            window.getAuditLog = getAuditLog;
+            window.setupAuditProducers = setupAuditProducers;
+            window.renderAuditLogViewer = renderAuditLogViewer;
+            window.exportAuditLogCSV = exportAuditLogCSV;
+            window.renderClassificationReference = renderClassificationReference;
+            window.saveComplianceSettingsFromUI = saveComplianceSettingsFromUI;
+            window.loadComplianceSettingsIntoUI = loadComplianceSettingsIntoUI;
             // getArtikelFaktorLocal ist bewusst nicht hier — es ist in processCSV genested und
             // wird indirekt über upload.spec.js (BESTAND-Upload) regressiert.
         }
