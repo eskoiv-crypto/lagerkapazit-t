@@ -5256,9 +5256,53 @@
                         schwere: 'info'
                     });
                 }
+
+                // 10X (User-Report 2026-04-27): Lifecycle-Anomalien aus Fulfillment-Pipeline
+                if (fulfillmentData) {
+                    // (a) Auftrag älter als 14 Tage ohne Versand-Termin → Eskalation
+                    if (fulfillmentData.auftragAlterTage !== null
+                        && fulfillmentData.auftragAlterTage > 14
+                        && !fulfillmentData.versandDatum
+                        && !fulfillmentData.istWarteText) {
+                        mismatches.push({
+                            typ: 'auftrag_alt_ohne_termin',
+                            quelle: '⏰ Alter Auftrag ohne Termin',
+                            auftrag: auNr,
+                            detail: `${fulfillmentData.auftragAlterTage} Tage seit Anmeldung, kein Versanddatum — Status klären.`,
+                            schwere: 'warnung'
+                        });
+                    }
+                    // (b) Versanddatum gesetzt aber Versand bei AMM nicht angemeldet
+                    if (fulfillmentData.versandDatum
+                        && fulfillmentData.versandDatum >= heute0()
+                        && fulfillmentData.versandAngemeldet === false
+                        && fulfillmentData.versandAnmeldungStr === '') {
+                        mismatches.push({
+                            typ: 'versand_nicht_angemeldet',
+                            quelle: '📋 Versand bei AMM nicht angemeldet',
+                            auftrag: auNr,
+                            detail: `Termin ${fulfillmentData.versandStr || '—'} steht, aber Spalte I leer (sollte 'angemeldet' sein).`,
+                            schwere: 'info'
+                        });
+                    }
+                    // (c) Lead-Time > 21 Tage → ungewöhnlich lang
+                    if (fulfillmentData.leadTimeTage !== null && fulfillmentData.leadTimeTage > 21) {
+                        mismatches.push({
+                            typ: 'lange_lead_time',
+                            quelle: '🐢 Lange Lead-Time',
+                            auftrag: auNr,
+                            detail: `${fulfillmentData.leadTimeTage} Tage Anmeldung→Versand (${fulfillmentData.kunde || '?'}).`,
+                            schwere: 'info'
+                        });
+                    }
+                }
             }
 
             return { diskrepanzen, mismatches, fourWayStats, orphans4Way };
+        }
+
+        function heute0() {
+            const d = new Date(); d.setHours(0,0,0,0); return d;
         }
 
         // ============================================
@@ -16370,46 +16414,80 @@ Keine Erklärungen, kein Markdown.`;
                         
                         // Spalte E (Index 4) = NOTIZEN (AMM)
                         const notizenAMM = (row[4] || '').toString().trim();
-                        
+
+                        // 10X (User-Report 2026-04-27): Spalte F (Index 5) = Anmeldedatum
+                        // Wann der Auftrag bei AMM eingegangen ist. Basis für Auftrags-Alter
+                        // und Lead-Time-Berechnung.
+                        const anmeldeDatumRaw = row[5];
+                        const anmeldeDatum = parseExcelDate(anmeldeDatumRaw);
+
                         // Spalte G (Index 6) = Kommissioniertag
                         const kommDatumRaw = row[6];
                         let kommDatum = null;
                         if (kommDatumRaw) {
                             kommDatum = parseExcelDate(kommDatumRaw);
                         }
-                        
+
                         // Spalte H (Index 7) = Versanddatum/Abholdatum
                         let versandDatumRaw = row[7];
                         const versandStr = (versandDatumRaw || '').toString().trim();
-                        
+
+                        // 10X: Spalte I (Index 8) = Versandanmeldung/Abholanmeldung
+                        // Status-Flag ob Versand bereits BEI AMM angemeldet ist ("angemeldet")
+                        const versandAnmeldungStr = (row[8] || '').toString().trim().toLowerCase();
+                        const versandAngemeldet = versandAnmeldungStr.startsWith('angemel');
+
                         // Spalte M (Index 12) = Versandart
                         const versandart = (row[12] || '').toString().trim();
-                        
+
                         // Prüfe auf STORNO
                         if (versandDatumRaw && String(versandDatumRaw).toUpperCase().includes('STORNO')) {
                             continue;
                         }
-                        
+
                         // Prüfe auf "warte auf..." Text
                         const istWarteText = versandStr.toLowerCase().startsWith('warte');
-                        
-                        // Parse Versanddatum
+
+                        // 10X: Robustes Parsing inkl. Range, abgekürzte Monate, Heuristik
                         let versandDatum = null;
+                        let versandDatumEnd = null;
+                        let versandIstRange = false;
                         if (versandDatumRaw && !istWarteText) {
-                            versandDatum = parseExcelDate(versandDatumRaw);
+                            const parsed = parseFulfillmentDate(versandDatumRaw);
+                            if (parsed) {
+                                versandDatum = parsed.start;
+                                versandDatumEnd = parsed.end;
+                                versandIstRange = parsed.isRange;
+                            }
                         }
-                        
+
+                        // 10X: Berechnete Lifecycle-Felder
+                        const auftragAlterTage = anmeldeDatum
+                            ? Math.floor((heute - anmeldeDatum) / 86400000)
+                            : null;
+                        const leadTimeTage = (anmeldeDatum && versandDatum)
+                            ? Math.floor((versandDatum - anmeldeDatum) / 86400000)
+                            : null;
+
                         // fulfillmentDataMap füllen (für combineAndRenderAuftragData)
                         if (auftragsnr) {
                             fulfillmentDataMap[auftragsnr] = {
                                 kunde: kunde,
                                 artikel: artikel,
                                 versandDatum: versandDatum,
+                                versandDatumEnd: versandDatumEnd,
+                                versandIstRange: versandIstRange,
                                 versandStr: versandStr,
                                 versandart: versandart,
                                 kommDatum: kommDatum,
                                 istWarteText: istWarteText,
-                                notizenAMM: notizenAMM
+                                notizenAMM: notizenAMM,
+                                // 10X-Erweiterung
+                                anmeldeDatum: anmeldeDatum,
+                                versandAngemeldet: versandAngemeldet,
+                                versandAnmeldungStr: versandAnmeldungStr,
+                                auftragAlterTage: auftragAlterTage,
+                                leadTimeTage: leadTimeTage
                             };
                         }
                         
@@ -17125,39 +17203,128 @@ Keine Erklärungen, kein Markdown.`;
         
         // Hilfsfunktion zum Parsen von Excel-Daten
         function parseExcelDate(value) {
-            if (!value) return null;
-            
+            const r = parseFulfillmentDate(value);
+            return r ? r.start : null;
+        }
+
+        /**
+         * 10X (User-Report 2026-04-27): Robuster Date-Parser für die Fulfillment-Pipeline.
+         * AMM trägt Termine in 5+ Formaten ein:
+         *   "23.04.2026"      — DD.MM.YYYY
+         *   "2026-04-23"      — ISO
+         *   "23.04"           — DD.MM ohne Jahr (Jahr aus Heuristik)
+         *   "15. Apr"         — abgekürzt deutsch (Tag + Monat)
+         *   "28.04 - 30.04"   — Range (Versand zwischen zwei Daten)
+         *   "Warte auf X"     — Text → null
+         *   Excel-Serial      — Number
+         *   Date-Objekt       — direkt
+         *
+         * Liefert {start, end, isRange}. Wenn nur ein Datum erkannt: end===null,isRange===false.
+         * Bei Range: start ist erstes Datum, end ist zweites Datum, isRange===true.
+         * Bei Nicht-Erkennung: null.
+         *
+         * Jahres-Heuristik bei Formaten ohne Jahr:
+         *   - Wenn aus Datum + currentYear → in der Zukunft oder weniger als 90 Tage in
+         *     der Vergangenheit → currentYear
+         *   - Sonst: nextYear (z.B. "15. Jan" im Dezember interpretiert als nächstes Jahr)
+         */
+        function parseFulfillmentDate(value) {
+            if (!value && value !== 0) return null;
+
+            // Date-Objekt
             if (value instanceof Date) {
-                return value;
+                return isNaN(value.getTime()) ? null : { start: value, end: null, isRange: false };
             }
-            
+            // Excel-Serial-Number
             if (typeof value === 'number') {
-                // Excel serial date (Tage seit 1.1.1900)
-                return new Date((value - 25569) * 86400 * 1000);
+                const d = new Date((value - 25569) * 86400 * 1000);
+                return isNaN(d.getTime()) ? null : { start: d, end: null, isRange: false };
             }
-            
-            if (typeof value === 'string') {
-                // Versuche verschiedene Formate
-                // DD.MM.YYYY
-                const deMatch = value.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})/);
-                if (deMatch) {
-                    return new Date(parseInt(deMatch[3]), parseInt(deMatch[2]) - 1, parseInt(deMatch[1]));
-                }
-                
-                // YYYY-MM-DD
-                const isoMatch = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
-                if (isoMatch) {
-                    return new Date(parseInt(isoMatch[1]), parseInt(isoMatch[2]) - 1, parseInt(isoMatch[3]));
-                }
-                
-                // Fallback: JavaScript Date Parser
-                const parsed = new Date(value);
-                if (!isNaN(parsed.getTime())) {
-                    return parsed;
+            if (typeof value !== 'string') return null;
+
+            const s = value.trim();
+            if (!s) return null;
+            // Text-Wert ohne Datum (z.B. "Warte auf Rückmeldung", "warte auf Zahlung")
+            if (/^[a-zäöüß]/i.test(s) && !/^\d|^\w+\.|^[a-z]{3,4}\b\s+\d/i.test(s)) {
+                // beginnt mit Buchstabe, KEIN Tag/Monat-Pattern → Text
+                if (!/\b\d{1,2}\b/.test(s)) return null;
+            }
+
+            // Range: "28.04 - 30.04" oder "28.04.2026 - 30.04.2026"
+            const rangeMatch = s.match(/^(\d{1,2}\.\d{1,2}(?:\.\d{2,4})?)\s*[-–—]\s*(\d{1,2}\.\d{1,2}(?:\.\d{2,4})?)$/);
+            if (rangeMatch) {
+                const start = _parseSingleDate(rangeMatch[1]);
+                const end   = _parseSingleDate(rangeMatch[2]);
+                if (start) return { start, end: end || null, isRange: !!end };
+            }
+
+            // Single Date
+            const d = _parseSingleDate(s);
+            return d ? { start: d, end: null, isRange: false } : null;
+        }
+
+        const _GERMAN_MONTHS = {
+            'jan':0,'feb':1,'mär':2,'maerz':2,'mar':2,'apr':3,'mai':4,'jun':5,'juni':5,
+            'jul':6,'juli':6,'aug':7,'sep':8,'sept':8,'okt':9,'oct':9,'nov':10,'dez':11,'dec':11
+        };
+
+        function _parseSingleDate(s) {
+            if (!s) return null;
+            const today = new Date(); today.setHours(0,0,0,0);
+            const currentYear = today.getFullYear();
+            const trimmed = s.trim().replace(/\s+/g, ' ');
+
+            // 1. ISO YYYY-MM-DD
+            let m = trimmed.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+            if (m) return new Date(+m[1], +m[2]-1, +m[3]);
+
+            // 2. DD.MM.YYYY (4-digit year)
+            m = trimmed.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+            if (m) return new Date(+m[3], +m[2]-1, +m[1]);
+
+            // 3. DD.MM.YY (2-digit year → 20YY)
+            m = trimmed.match(/^(\d{1,2})\.(\d{1,2})\.(\d{2})$/);
+            if (m) return new Date(2000 + (+m[3]), +m[2]-1, +m[1]);
+
+            // 4. DD.MM (Jahr aus Heuristik)
+            m = trimmed.match(/^(\d{1,2})\.(\d{1,2})\.?$/);
+            if (m) {
+                return _withYearHeuristic(+m[1], +m[2]-1, currentYear, today);
+            }
+
+            // 5. "DD. Monat" oder "DD. Mon" (deutsch abgekürzt)
+            //    "15. Apr", "27. April", "15.Apr"
+            m = trimmed.match(/^(\d{1,2})\.\s*([A-Za-zäöüÄÖÜ]{3,9})\.?\s*(\d{2,4})?$/);
+            if (m) {
+                const monKey = m[2].toLowerCase().replace(/\.$/, '');
+                if (_GERMAN_MONTHS.hasOwnProperty(monKey)) {
+                    const day = +m[1];
+                    const mon = _GERMAN_MONTHS[monKey];
+                    if (m[3]) {
+                        const year = m[3].length === 2 ? 2000 + (+m[3]) : +m[3];
+                        return new Date(year, mon, day);
+                    }
+                    return _withYearHeuristic(day, mon, currentYear, today);
                 }
             }
-            
+
+            // 6. JavaScript Native Fallback (sehr nachsichtig)
+            const parsed = new Date(trimmed);
+            if (!isNaN(parsed.getTime())) return parsed;
+
             return null;
+        }
+
+        /** Wenn das Datum mit currentYear in der Vergangenheit liegt (>90 Tage zurück),
+         *  vermutlich nächstes Jahr gemeint. Sonst aktuelles Jahr. */
+        function _withYearHeuristic(day, month0, currentYear, today) {
+            const candidate = new Date(currentYear, month0, day);
+            if (isNaN(candidate.getTime())) return null;
+            const daysDiff = Math.floor((today - candidate) / 86400000);
+            if (daysDiff > 90) {
+                return new Date(currentYear + 1, month0, day);
+            }
+            return candidate;
         }
 
         // ============================================
@@ -18785,6 +18952,9 @@ location.reload();</pre>
             window.aggregateEntities = aggregateEntities;
             window.pickTopSubgroup = pickTopSubgroup;
             window.runUnifiedValidation = runUnifiedValidation;
+            // 10X (Sprint 7+ User-Report): robuster Date-Parser
+            window.parseFulfillmentDate = parseFulfillmentDate;
+            window.parseExcelDate = parseExcelDate;
             // getArtikelFaktorLocal ist bewusst nicht hier — es ist in processCSV genested und
             // wird indirekt über upload.spec.js (BESTAND-Upload) regressiert.
         }
