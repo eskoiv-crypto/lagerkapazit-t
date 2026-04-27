@@ -50,6 +50,10 @@ test.describe('Smoke', () => {
             auditLog: typeof window.auditLog === 'function',
             getAuditLog: typeof window.getAuditLog === 'function',
             FILE_CLASSIFICATIONS: typeof window.FILE_CLASSIFICATIONS === 'object',
+            parseNaturalQuery: typeof window.parseNaturalQuery === 'function',
+            applyQuery: typeof window.applyQuery === 'function',
+            askDashboard: typeof window.askDashboard === 'function',
+            getLLMBackend: typeof window.getLLMBackend === 'function',
         }));
         for (const [name, ok] of Object.entries(present)) {
             expect(ok, `${name} muss als global function existieren`).toBe(true);

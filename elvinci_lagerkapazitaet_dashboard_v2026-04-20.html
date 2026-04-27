@@ -3128,6 +3128,26 @@
                     </div>
                 </div>
 
+                <!-- 10X-7 (Sprint 6.9, 2026-04-27): Natural-Language Query -->
+                <div class="card" id="query-card" style="margin-top: 1rem; border-left: 3px solid var(--accent-purple);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; flex-wrap: wrap; gap: 0.5rem;">
+                        <div>
+                            <div style="font-size: 1rem; font-weight: 600; color: var(--text-primary);">🔍 Query-Bar <span style="font-size: 0.6rem; color: var(--text-muted); font-weight: 400;">10X-7 — Natural Language</span></div>
+                            <div style="font-size: 0.65rem; color: var(--text-muted);">Beispiele: <code>siemens älter 180</code> · <code>marge unter 10</code> · <code>wäschetrockner status QU</code> · <code>ek > 200 lagertage > 90</code></div>
+                        </div>
+                        <span id="query-backend-badge" class="badge" title="Verfügbares Backend"></span>
+                    </div>
+                    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                        <input id="query-input" type="text" placeholder="z.B. Siemens-Paletten älter 180 Tage mit Marge unter 10%"
+                            aria-label="Natural-Language-Query"
+                            style="flex: 1; min-width: 250px; padding: 0.4rem 0.6rem; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 4px; color: var(--text-primary); font-size: 0.75rem;"
+                            onkeydown="if (event.key === 'Enter') handleAskDashboard(false);">
+                        <button type="button" class="btn btn-primary" onclick="handleAskDashboard(false)" style="padding: 0.4rem 0.8rem; font-size: 0.7rem;">⚡ Regex-Filter</button>
+                        <button type="button" class="btn btn-secondary" onclick="handleAskDashboard(true)" style="padding: 0.4rem 0.8rem; font-size: 0.7rem;" id="query-llm-btn" title="Nutzt LLM-Backend nur wenn aktiviert (Chrome Prompt API oder WebLLM)">🤖 LLM-Fallback</button>
+                    </div>
+                    <div id="query-results" style="margin-top: 0.6rem; max-height: 320px; overflow-y: auto;"></div>
+                </div>
+
                 <!-- 10X-4 (Sprint 6.2, 2026-04-20): Anomalie-Detektor -->
                 <div class="card" id="anomaly-card" style="margin-top: 1rem; border-left: 3px solid var(--accent-cyan); display: none;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
@@ -4930,6 +4950,295 @@
         function calculateMarginFromEkVk(ek, vk) {
             if (!ek || ek <= 0) return 0;
             return ((vk - ek) / ek) * 100;
+        }
+
+        // ============================================
+        // 10X-7 (Sprint 6.9, 2026-04-27): NATURAL-LANGUAGE QUERY
+        // ============================================
+        // Strategie: Regex-First, LLM-Fallback. Realität:
+        //   - WebLLM: 1-4 GB Modell-Download → kein Default für Ops-Tool
+        //   - Chrome Prompt-API (Gemini Nano): chrome://flags-only, ~50% Coverage
+        //   - Cloud-LLM: bricht DSGVO-Commitment aus 10X-6
+        //
+        // 80%-Lösung kostet 5% Aufwand: Regex-Parser deckt die häufigen Pattern ab
+        // ("Marke X", "Marge < N%", "Lagertage > N", "WG Y", Status-Filter).
+        // Liefert sofort, überall, ohne Download. LLM nur für Fancy-Queries.
+        //
+        // Query-Schema (Backend-agnostisch):
+        //   { filters: [{ field, op, value }, ...], note?: string }
+        //   field: 'brand' | 'pg' | 'lifeDays' | 'margePct' | 'status' | 'lagerNr' | 'ek' | 'vk' | 'free-text'
+        //   op:    'eq' | 'neq' | 'lt' | 'lte' | 'gt' | 'gte' | 'contains' | 'startsWith'
+        //
+        // Quelle: state.portal.stockAnalysisRaw (Lager-Daten) — derzeit. Kann später
+        // erweitert werden auf state.portal.allSoldData / state.inventory.bestandRaw.
+
+        function parseNaturalQuery(text) {
+            const q = (text || '').trim();
+            if (!q) return { filters: [], note: 'leere Query' };
+            const lower = q.toLowerCase();
+            const filters = [];
+
+            // Lagertage / Tage / "älter X" / "über X tage"
+            //   "älter 180", "lagertage > 90", ">180 tage"
+            let m;
+            m = lower.match(/(?:lagertage|tage|days|alter|älter|life)[^\d<>]*([<>]=?)?\s*(\d{1,4})/);
+            if (m) {
+                const val = parseInt(m[2], 10);
+                const op = m[1] === '<'  ? 'lt' : m[1] === '<=' ? 'lte'
+                         : m[1] === '>=' ? 'gte' : 'gt';   // default >
+                if (!isNaN(val)) filters.push({ field: 'lifeDays', op, value: val });
+            } else {
+                m = lower.match(/^([<>]=?)\s*(\d{1,4})\s*(?:tage|days)$/);
+                if (m) {
+                    const val = parseInt(m[2], 10);
+                    const op = m[1] === '<' ? 'lt' : m[1] === '<=' ? 'lte' : m[1] === '>=' ? 'gte' : 'gt';
+                    if (!isNaN(val)) filters.push({ field: 'lifeDays', op, value: val });
+                }
+            }
+
+            // Marge - "marge < 10%", "marge unter 10", "marge >= 50%"
+            m = lower.match(/marge[^\d<>]*([<>]=?|unter|über|ueber|mind\.?|max\.?|=)?\s*(-?\d{1,3})\s*%?/);
+            if (m) {
+                const raw = m[1] || '';
+                const opMap = { '<': 'lt', '<=': 'lte', '>': 'gt', '>=': 'gte', '=': 'eq',
+                                'unter': 'lt', 'über': 'gt', 'ueber': 'gt', 'mind': 'gte', 'max': 'lte' };
+                const op = opMap[raw.replace('.', '')] || 'lt';
+                const val = parseInt(m[2], 10);
+                if (!isNaN(val)) filters.push({ field: 'margePct', op, value: val });
+            }
+
+            // EK / VK Preise: "ek > 200", "vk unter 500"
+            for (const f of ['ek', 'vk']) {
+                const re = new RegExp(`\\b${f}\\b[^\\d<>]*([<>]=?|unter|über|ueber|=)?\\s*(\\d+)\\s*€?`);
+                m = lower.match(re);
+                if (m) {
+                    const opMap = { '<': 'lt', '<=': 'lte', '>': 'gt', '>=': 'gte', '=': 'eq',
+                                    'unter': 'lt', 'über': 'gt', 'ueber': 'gt' };
+                    const op = opMap[m[1] || ''] || 'gt';
+                    const val = parseInt(m[2], 10);
+                    if (!isNaN(val)) filters.push({ field: f, op, value: val });
+                }
+            }
+
+            // Status: "QU", "VS", "AA"
+            m = lower.match(/\b(qu|vs|aa|ak|su)\b/);
+            if (m) filters.push({ field: 'status', op: 'eq', value: m[1].toUpperCase() });
+
+            // Lager-Nr: "9001234567" oder "lager 9001234567"
+            m = q.match(/\b(9\d{8,12})\b/);
+            if (m) filters.push({ field: 'lagerNr', op: 'eq', value: m[1] });
+
+            // Marke: "siemens", "bosch", "samsung", "lg", "miele", ...
+            const knownBrands = ['siemens', 'bosch', 'samsung', 'lg', 'miele', 'aeg', 'electrolux',
+                'beko', 'gorenje', 'liebherr', 'bauknecht', 'whirlpool', 'panasonic', 'sharp',
+                'philips', 'sony', 'grundig', 'bomann', 'medion', 'haier', 'amica', 'neff'];
+            for (const b of knownBrands) {
+                if (lower.includes(b)) { filters.push({ field: 'brand', op: 'contains', value: b }); break; }
+            }
+
+            // WG / Warengruppe / Produktgruppe / PG explizit
+            m = lower.match(/(?:warengruppe|produktgruppe|wg|pg)\s*[:=]?\s*([a-z0-9\-]{2,30})/);
+            if (m) filters.push({ field: 'pg', op: 'contains', value: m[1] });
+
+            // Wäschetrockner / Waschmaschine / Kühlschrank → free-text auf bezeichner/pg
+            const productKw = ['waschmaschine', 'wäschetrockner', 'waeschetrockner', 'trockner',
+                'kühlschrank', 'kuehlschrank', 'gefriertruhe', 'gefrierschrank', 'staubsauger',
+                'mikrowelle', 'kaffeevollautomat', 'fernseher', 'monitor', 'side-by-side'];
+            for (const kw of productKw) {
+                if (lower.includes(kw)) { filters.push({ field: 'pg', op: 'contains', value: kw }); break; }
+            }
+
+            return { filters, note: filters.length === 0 ? 'keine Pattern erkannt' : null };
+        }
+
+        /** Wendet Query auf state.portal.stockAnalysisRaw an. Liefert gefilterte Items + Stats. */
+        function applyQuery(query) {
+            const raw = (state && state.portal && Array.isArray(state.portal.stockAnalysisRaw))
+                ? state.portal.stockAnalysisRaw : [];
+            if (!query || !query.filters || query.filters.length === 0) {
+                return { items: [], total: raw.length, applied: 0 };
+            }
+            const fieldMap = (item, field) => {
+                switch (field) {
+                    case 'brand':    return (item.brand || '').toString().toLowerCase();
+                    case 'pg':       return ((item.pg || item.product_group || '') + ' ' +
+                                            (item.bezeichner || item.model || '')).toString().toLowerCase();
+                    case 'lifeDays': return parseInt(item.product_life_days || item.lifeDays || 0, 10);
+                    case 'margePct': return calculateMarginFromEkVk(parseFloat(item.Buying_Price || item.ek) || 0,
+                                                                    parseFloat(item.Selling_Price || item.vk) || 0);
+                    case 'status':   return ((item.status || '') + '').toUpperCase();
+                    case 'lagerNr':  return (item.lager_number || item.lagerNr || '').toString();
+                    case 'ek':       return parseFloat(item.Buying_Price || item.ek) || 0;
+                    case 'vk':       return parseFloat(item.Selling_Price || item.vk) || 0;
+                    default:         return '';
+                }
+            };
+            const opMap = {
+                eq:         (a, b) => a === b,
+                neq:        (a, b) => a !== b,
+                lt:         (a, b) => a < b,
+                lte:        (a, b) => a <= b,
+                gt:         (a, b) => a > b,
+                gte:        (a, b) => a >= b,
+                contains:   (a, b) => String(a).includes(String(b).toLowerCase()),
+                startsWith: (a, b) => String(a).startsWith(String(b).toLowerCase())
+            };
+            const items = raw.filter(item =>
+                query.filters.every(f => {
+                    const op = opMap[f.op] || opMap.eq;
+                    const val = fieldMap(item, f.field);
+                    const target = (typeof val === 'string') ? String(f.value).toLowerCase() : f.value;
+                    return op(val, target);
+                })
+            );
+            return { items, total: raw.length, applied: query.filters.length };
+        }
+
+        // ---- LLM-Backend-Detection ----
+        function getLLMBackend() {
+            // Chrome Prompt API (window.ai oder window.LanguageModel je nach Version)
+            if (typeof window.LanguageModel !== 'undefined' &&
+                typeof window.LanguageModel.create === 'function') return 'prompt-api';
+            if (typeof window.ai !== 'undefined' && window.ai.languageModel &&
+                typeof window.ai.languageModel.create === 'function') return 'prompt-api-legacy';
+            // WebLLM (lazy-geladen, daher nur erkannt wenn schon initialisiert)
+            if (typeof window.webllm !== 'undefined') return 'webllm';
+            return 'none';
+        }
+
+        async function askLLM(userQuery) {
+            const backend = getLLMBackend();
+            if (backend === 'none') {
+                throw new Error('Kein LLM-Backend verfügbar. Chrome Prompt API aktivieren oder WebLLM laden.');
+            }
+            // Strikte JSON-Schema-Anweisung — wir wollen kein Freitext, sondern parsbare Struktur
+            const systemPrompt = `Du bist ein Filter-Builder für ein Lager-Dashboard. Antworte AUSSCHLIESSLICH mit gültigem JSON nach diesem Schema:
+{"filters":[{"field":"brand|pg|lifeDays|margePct|status|lagerNr|ek|vk","op":"eq|lt|lte|gt|gte|contains","value":"<wert>"}]}
+Felder:
+- brand: Markenname (z.B. siemens, bosch)
+- pg: Warengruppe oder Produkttyp
+- lifeDays: Lagertage (Zahl)
+- margePct: Marge in % (Zahl)
+- status: QU|VS|AA|AK|SU
+- lagerNr: Lagernummer
+- ek/vk: Preis in EUR (Zahl)
+Keine Erklärungen, kein Markdown.`;
+            let response;
+            if (backend === 'prompt-api') {
+                const session = await window.LanguageModel.create({ systemPrompt });
+                response = await session.prompt(userQuery);
+                if (typeof session.destroy === 'function') session.destroy();
+            } else if (backend === 'prompt-api-legacy') {
+                const session = await window.ai.languageModel.create({ systemPrompt });
+                response = await session.prompt(userQuery);
+                if (typeof session.destroy === 'function') session.destroy();
+            } else if (backend === 'webllm') {
+                const engine = window.webllm.engine || window.webllm;
+                const out = await engine.chat.completions.create({
+                    messages: [
+                        { role: 'system', content: systemPrompt },
+                        { role: 'user', content: userQuery }
+                    ]
+                });
+                response = out.choices[0].message.content;
+            }
+            // JSON aus der Antwort extrahieren (LLMs neigen zu Markdown trotz Anweisung)
+            const jsonMatch = String(response).match(/\{[\s\S]*\}/);
+            if (!jsonMatch) throw new Error('LLM-Antwort ohne valides JSON: ' + response);
+            const parsed = JSON.parse(jsonMatch[0]);
+            return validateQuerySchema(parsed);
+        }
+
+        function validateQuerySchema(obj) {
+            if (!obj || !Array.isArray(obj.filters)) {
+                return { filters: [], note: 'invalides Schema' };
+            }
+            const allowedFields = new Set(['brand','pg','lifeDays','margePct','status','lagerNr','ek','vk']);
+            const allowedOps = new Set(['eq','neq','lt','lte','gt','gte','contains','startsWith']);
+            const filters = obj.filters.filter(f =>
+                f && typeof f === 'object'
+                && allowedFields.has(f.field)
+                && allowedOps.has(f.op)
+                && (f.value !== undefined && f.value !== null)
+            );
+            return { filters, note: filters.length < obj.filters.length ? 'einige Filter verworfen (Schema-Verstoß)' : null };
+        }
+
+        /** Haupt-API: Regex-First, LLM-Fallback. */
+        async function askDashboard(text, opts) {
+            opts = opts || {};
+            const regex = parseNaturalQuery(text);
+            if (regex.filters.length > 0) {
+                return { ...applyQuery(regex), source: 'regex', query: regex };
+            }
+            // Regex hat nichts gefunden → LLM, aber nur wenn explizit erlaubt
+            if (!opts.tryLLM) {
+                return { items: [], total: 0, applied: 0, source: 'regex',
+                    query: regex, hint: 'Regex hat kein Pattern erkannt. Mit "LLM nutzen" nochmal versuchen.' };
+            }
+            try {
+                const llmQuery = await askLLM(text);
+                return { ...applyQuery(llmQuery), source: 'llm:' + getLLMBackend(), query: llmQuery };
+            } catch (err) {
+                return { items: [], total: 0, applied: 0, source: 'error', error: err.message || String(err) };
+            }
+        }
+
+        /** Rendert das Query-Result-Panel. */
+        function renderQueryResults(result) {
+            const panel = document.getElementById('query-results');
+            if (!panel) return;
+            const items = (result.items || []).slice(0, 50);
+            const sourceBadge = result.source === 'regex' ? '⚡ Regex'
+                              : result.source && result.source.startsWith('llm:') ? '🤖 ' + result.source
+                              : result.source === 'error' ? '❌ Fehler' : '—';
+            if (result.error) {
+                panel.innerHTML = `<div style="color:var(--accent-red);padding:0.5rem;">${_h(result.error)}</div>`;
+                return;
+            }
+            if (items.length === 0) {
+                const hint = result.hint || (result.applied === 0 ? 'Keine Filter aktiv' : 'Kein Treffer');
+                panel.innerHTML = `<div style="color:var(--text-muted);padding:0.75rem;font-size:0.75rem;">
+                    <span class="badge">${sourceBadge}</span> ${_h(hint)}
+                </div>`;
+                return;
+            }
+            const rows = items.map(i => `
+                <tr>
+                    <td class="mono">${_h(String(i.lager_number || i.lagerNr || '—'))}</td>
+                    <td>${_h(String((i.model || i.bezeichner || '—')).substring(0, 40))}</td>
+                    <td>${_h(String(i.brand || '—'))}</td>
+                    <td>${_h(String(i.pg || i.product_group || '—'))}</td>
+                    <td class="mono">${parseInt(i.product_life_days || i.lifeDays || 0)}</td>
+                    <td class="mono">${(parseFloat(i.Buying_Price || i.ek) || 0).toFixed(0)}€</td>
+                    <td class="mono">${(parseFloat(i.Selling_Price || i.vk) || 0).toFixed(0)}€</td>
+                </tr>`).join('');
+            panel.innerHTML = `
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.4rem;font-size:0.7rem;color:var(--text-muted);">
+                    <span>${result.items.length} Treffer von ${result.total} (${result.applied} Filter)${result.items.length > 50 ? ' — top 50' : ''}</span>
+                    <span class="badge">${sourceBadge}</span>
+                </div>
+                <table style="width:100%;border-collapse:collapse;font-size:0.65rem;">
+                    <thead style="background:var(--bg-elevated);"><tr>
+                        <th style="padding:0.25rem;text-align:left;">LagerNr</th>
+                        <th style="padding:0.25rem;text-align:left;">Modell</th>
+                        <th style="padding:0.25rem;text-align:left;">Marke</th>
+                        <th style="padding:0.25rem;text-align:left;">PG</th>
+                        <th style="padding:0.25rem;text-align:left;">Tage</th>
+                        <th style="padding:0.25rem;text-align:left;">EK</th>
+                        <th style="padding:0.25rem;text-align:left;">VK</th>
+                    </tr></thead>
+                    <tbody>${rows}</tbody>
+                </table>`;
+        }
+
+        /** UI-Handler — wird vom Input/Button aufgerufen. */
+        async function handleAskDashboard(useLLM) {
+            const input = document.getElementById('query-input');
+            if (!input) return;
+            const text = input.value;
+            const result = await askDashboard(text, { tryLLM: !!useLLM });
+            renderQueryResults(result);
         }
 
         // ============================================
@@ -10169,6 +10478,22 @@
             if (typeof updateAuthModeHint === 'function') updateAuthModeHint();
             // 10X-6: Audit-Producer aktivieren — muss NACH setupBusSubscribers sein
             if (typeof setupAuditProducers === 'function') setupAuditProducers();
+            // 10X-7: Query-Backend-Badge aktualisieren
+            try {
+                const badge = document.getElementById('query-backend-badge');
+                const btn = document.getElementById('query-llm-btn');
+                if (badge) {
+                    const backend = (typeof getLLMBackend === 'function') ? getLLMBackend() : 'none';
+                    if (backend === 'none') {
+                        badge.textContent = '⚡ nur Regex';
+                        badge.className = 'badge';
+                        if (btn) { btn.disabled = true; btn.title = 'Kein LLM-Backend verfügbar (Chrome Prompt API oder WebLLM benötigt)'; }
+                    } else {
+                        badge.textContent = '🤖 ' + backend;
+                        badge.className = 'badge badge-cyan';
+                    }
+                }
+            } catch (_) {}
 
             // P2-20: Empty-States für dynamische Tabellen, damit leere Panels nicht "kaputt" aussehen
             const emptyTargets = [
@@ -17832,6 +18157,15 @@ location.reload();</pre>
             window.renderClassificationReference = renderClassificationReference;
             window.saveComplianceSettingsFromUI = saveComplianceSettingsFromUI;
             window.loadComplianceSettingsIntoUI = loadComplianceSettingsIntoUI;
+            // 10X-7: Natural-Language-Query
+            window.parseNaturalQuery = parseNaturalQuery;
+            window.applyQuery = applyQuery;
+            window.askDashboard = askDashboard;
+            window.askLLM = askLLM;
+            window.getLLMBackend = getLLMBackend;
+            window.validateQuerySchema = validateQuerySchema;
+            window.renderQueryResults = renderQueryResults;
+            window.handleAskDashboard = handleAskDashboard;
             // getArtikelFaktorLocal ist bewusst nicht hier — es ist in processCSV genested und
             // wird indirekt über upload.spec.js (BESTAND-Upload) regressiert.
         }
