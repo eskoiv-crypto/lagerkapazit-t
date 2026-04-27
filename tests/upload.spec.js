@@ -58,6 +58,50 @@ test.describe('BESTAND Upload Workflow', () => {
         expect(overlayHidden, 'Overlay muss nach Upload verschwinden').toBe(true);
     });
 
+    test('Sprint 7+ Regression: Geplant-Filter ist orthogonal zum Blockierer (User-Report 2026-04-27)', async ({ page }) => {
+        await openDashboard(page);
+        // Reproduziere User-Szenario: Aufträge mit Versanddatum-Zukunft die ALLE blockiert sind
+        const result = await page.evaluate(() => {
+            // Simuliere kommissioniertListe direkt — bypassed Upload-Pfad für deterministischen Test
+            const tomorrow = new Date(); tomorrow.setHours(0,0,0,0); tomorrow.setDate(tomorrow.getDate() + 1);
+            const today = new Date(); today.setHours(0,0,0,0);
+
+            window.dashboardState.kommissioniertListe = [
+                // Auftrag A: blockiert + Termin morgen → muss in Blockierer UND Geplant erscheinen
+                { auftragsnr: 'AU_A', artikel: 50, status: 'QU', anzeigeStatus: 'kritisch',
+                  versandDatum: tomorrow, istBlockierer: true, istKritischerBlockierer: true,
+                  istUeberfaellig: false, istEchterProblemfall: true, istKombi: false,
+                  tageBlockiert: 5, tageUeberfaellig: 0, kunde: 'Test A', land: 'DE' },
+                // Auftrag B: blockiert + Termin heute → muss in Blockierer UND Heute erscheinen
+                { auftragsnr: 'AU_B', artikel: 30, status: 'QU', anzeigeStatus: 'blockierer',
+                  versandDatum: today, istBlockierer: true, istKritischerBlockierer: false,
+                  istUeberfaellig: false, istEchterProblemfall: false, istKombi: false,
+                  tageBlockiert: 1, tageUeberfaellig: 0, kunde: 'Test B', land: 'DE' },
+                // Auftrag C: nicht blockiert + Termin morgen → nur in Geplant
+                { auftragsnr: 'AU_C', artikel: 10, status: 'AK', anzeigeStatus: 'ak-geplant',
+                  versandDatum: tomorrow, istBlockierer: false, istKritischerBlockierer: false,
+                  istUeberfaellig: false, istEchterProblemfall: false, istKombi: false,
+                  tageBlockiert: 0, tageUeberfaellig: 0, kunde: 'Test C', land: 'DE' },
+            ];
+            window.renderKommissioniertListe();
+
+            // Lese counts aus dem DOM (was der User sieht)
+            return {
+                blockierer: document.getElementById('count-blockierer').textContent.trim(),
+                heute:      document.getElementById('count-heute').textContent.trim(),
+                geplant:    document.getElementById('count-geplant').textContent.trim(),
+                qu:         document.getElementById('count-qu').textContent.trim(),
+                ak:         document.getElementById('count-ak').textContent.trim()
+            };
+        });
+        // Die Asymmetrie ist Pflicht: 2 Blockierer + 2 Geplant (A in beiden) + 1 Heute (B)
+        expect(parseInt(result.blockierer), 'Blockierer-Count').toBe(2);
+        expect(parseInt(result.heute), 'Heute-Count (B)').toBe(1);
+        expect(parseInt(result.geplant), 'Geplant-Count (A + C, NICHT 0)').toBe(2);
+        expect(parseInt(result.qu), 'QU-Count (A + B)').toBe(2);
+        expect(parseInt(result.ak), 'AK-Count (C)').toBe(1);
+    });
+
     test('Sprint 7+ Regression: AKTUELLER FÜLLSTAND-Karte zeigt alle 4 Werte', async ({ page }) => {
         await openDashboard(page);
         // Vorbedingung: keine doppelten IDs (sonst greift getElementById nicht das richtige)

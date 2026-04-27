@@ -4340,6 +4340,9 @@
                         <div class="filter-info" id="filter-info">
                             Zeige alle offenen Aufträge
                         </div>
+                        <div style="font-size: 0.6rem; color: var(--text-muted); margin-top: 0.25rem; font-style: italic;" title="Beispiel: Auftrag mit Status QU + blockiert + Termin Freitag erscheint im QU-, Blockierer- und Geplant-Reiter gleichzeitig.">
+                            ℹ️ Reiter sind orthogonale Sichten — Aufträge können in mehreren Reitern gleichzeitig erscheinen (z.B. QU + Blockierer + Geplant).
+                        </div>
                     </div>
                     
                     <div class="komm-table-container">
@@ -13707,15 +13710,23 @@ Keine Erklärungen, kein Markdown.`;
                     geraeteUeberfaellig += item.artikel;
                 }
                 
-                // Heute / Geplant (nur wenn nicht Blockierer)
-                if (!item.istBlockierer) {
-                    if (anzeigeStatus === 'heute') {
-                        countHeute++;
-                        geraeteHeute += item.artikel;
-                    } else if (anzeigeStatus === 'geplant' || anzeigeStatus === 'ak-geplant' || anzeigeStatus === 'su-geplant') {
-                        countGeplant++;
-                        geraeteGeplant += item.artikel;
-                    }
+                // Bug-Fix Sprint 7+ (User-Report 2026-04-27):
+                // Vorher: "(nur wenn nicht Blockierer)" — schluckte alle Aufträge
+                // mit Versanddatum sobald sie blockiert waren. User sah "Geplant: 0"
+                // obwohl 18 Aufträge mit Termin existierten.
+                // Jetzt: Termin-Filter sind ORTHOGONAL zu Blockierer-Filter.
+                // Operative Begründung: blockierte Aufträge MIT Termin müssen sowohl
+                // im Blockierer-Reiter (zum Auflösen) als auch im Geplant-Reiter
+                // (zum Termin-Vorbereiten) sichtbar sein.
+                // Heute = Versanddatum exakt heute
+                if (item.versandDatum && item.versandDatum.getTime() === heute.getTime()) {
+                    countHeute++;
+                    geraeteHeute += item.artikel;
+                }
+                // Geplant = Versanddatum in der Zukunft (egal welcher Status, egal ob Blockierer)
+                else if (item.versandDatum && item.versandDatum > heute) {
+                    countGeplant++;
+                    geraeteGeplant += item.artikel;
                 }
                 
                 // Status-Zähler
@@ -13767,20 +13778,29 @@ Keine Erklärungen, kein Markdown.`;
             for (const item of liste) {
                 totalGeraete += item.artikel;
                 
-                // Filter anwenden
+                // Filter anwenden — orthogonale Sichten (Sprint 7+ Konzept).
+                // Heute / Geplant sind jetzt UNABHÄNGIG vom Blockierer-Status:
+                //   "Heute"   = Versanddatum ist heute       (egal ob blockiert)
+                //   "Geplant" = Versanddatum ist Zukunft     (egal ob blockiert)
+                //   "Blockierer" = istBlockierer=true        (egal welcher Termin)
+                // Ein Auftrag kann in mehreren Reitern erscheinen — gewollt.
                 let showRow = false;
+                const heuteMidnight = (() => { const d = new Date(); d.setHours(0,0,0,0); return d; })();
                 if (currentKommFilter === 'alle') {
                     showRow = true;
                 } else if (currentKommFilter === 'blockierer' && item.istBlockierer) {
                     showRow = true;
                 } else if (currentKommFilter === 'problemfall' && item.istEchterProblemfall) {
-                    // NEU: Verwendet kombinierte Problemfall-Logik
                     showRow = true;
                 } else if (currentKommFilter === 'kombi' && item.istKombi) {
                     showRow = true;
-                } else if (currentKommFilter === 'heute' && item.anzeigeStatus === 'heute') {
+                } else if (currentKommFilter === 'heute'
+                           && item.versandDatum
+                           && item.versandDatum.getTime() === heuteMidnight.getTime()) {
                     showRow = true;
-                } else if (currentKommFilter === 'geplant' && (item.anzeigeStatus === 'geplant' || item.anzeigeStatus === 'ak-geplant' || item.anzeigeStatus === 'su-geplant')) {
+                } else if (currentKommFilter === 'geplant'
+                           && item.versandDatum
+                           && item.versandDatum > heuteMidnight) {
                     showRow = true;
                 } else if (currentKommFilter === 'qu' && item.status === 'QU') {
                     showRow = true;
