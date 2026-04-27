@@ -5417,10 +5417,13 @@
             const subject = subjects[mode] || subjects.counter;
             const body = _buildSupplierMailBody(results, mode);
             const url = buildMailto('', subject, body);
-            window.location.href = url;
+            // Bug-Fix Sprint 7+: emit ZUERST, redirect danach. Wenn location.href-Setter
+            // throws (z.B. in Test-Stubs oder Sandbox-iframes) bleibt das Event garantiert
+            // sichtbar für Audit-Logger (10X-6) und Test-Assertions.
             if (typeof bus !== 'undefined') {
                 bus.emit('angebot:mail-draft', { target: 'supplier', mode, count: results.length });
             }
+            try { window.location.href = url; } catch (e) { console.warn('[10X-8] mailto-redirect blocked:', e); }
         }
 
         function openCustomerMailDraft(kundeName) {
@@ -5433,10 +5436,11 @@
             const subject = `Aktuelle Verfügbarkeiten für ${kundeName} — elvinci.de NH5`;
             const body = _buildCustomerMailBody(entry);
             const url = buildMailto('', subject, body);
-            window.location.href = url;
+            // Bug-Fix Sprint 7+: emit-first-pattern (siehe openSupplierMailDraft)
             if (typeof bus !== 'undefined') {
                 bus.emit('angebot:mail-draft', { target: 'customer', kunde: kundeName, items: entry.itemCount });
             }
+            try { window.location.href = url; } catch (e) { console.warn('[10X-8] mailto-redirect blocked:', e); }
         }
 
         // ---- v2-UI-Renderer ----
@@ -5913,8 +5917,11 @@ Keine Erklärungen, kein Markdown.`;
         }
         function _detectPIIType(s) {
             if (s.includes('@'))                 return 'email';
-            if (/^[+0-9 ()-]{6,}$/.test(s))      return 'phone';
+            // Bug-Fix Sprint 7+: lager (reine Ziffern, 8+) MUSS vor phone geprüft werden,
+            // sonst matcht phone-Regex (akzeptiert reine Ziffern) zuerst auf "9001234567".
             if (/^\d{8,}$/.test(s))              return 'lager';
+            // phone braucht +, Klammer, Leerzeichen oder Bindestrich (sonst wäre es lager)
+            if (/^[+0-9 ()-]{6,}$/.test(s) && /[+ ()-]/.test(s)) return 'phone';
             return 'name';
         }
         /** Wrapper für escapeHtml + ggf. Maskierung. Drop-in-Ersatz für _h() in

@@ -29,7 +29,7 @@ test.describe('Anomalie-Detektor (10X-4)', () => {
         expect(result).toEqual([]);
     });
 
-    test('Gesamtbestand -50% → critical Anomaly', async ({ page }) => {
+    test('Gesamtbestand -50% → warning Anomaly (40-60% Range)', async ({ page }) => {
         await openDashboard(page);
         const snaps = {
             '2026-04-20': { gesamtStueck: 250, lagerStueck: 200, kommStueck: 40, weStueck: 10, auftraege: 20 },
@@ -40,9 +40,25 @@ test.describe('Anomalie-Detektor (10X-4)', () => {
         const result = await page.evaluate((s) => window.detectAnomalies(s), snaps);
         const gesamt = result.find(a => a.metric === 'gesamtStueck');
         expect(gesamt, 'Gesamt-Bestand-Anomalie muss erkannt werden').toBeTruthy();
-        expect(gesamt.severity).toBe('critical');
+        // -50% liegt in 40-60%-Range → 'warning' per Algorithmus-Definition
+        expect(gesamt.severity).toBe('warning');
         expect(gesamt.deviationPct).toBeLessThan(-40);
         expect(gesamt.today).toBe(250);
+    });
+
+    test('Gesamtbestand -70% → critical Anomaly (>60% Range)', async ({ page }) => {
+        await openDashboard(page);
+        const snaps = {
+            '2026-04-20': { gesamtStueck: 150, lagerStueck: 100, kommStueck: 40, weStueck: 10, auftraege: 10 },
+            '2026-04-19': { gesamtStueck: 500, lagerStueck: 400, kommStueck: 80, weStueck: 20, auftraege: 40 },
+            '2026-04-18': { gesamtStueck: 510, lagerStueck: 410, kommStueck: 80, weStueck: 20, auftraege: 39 },
+            '2026-04-17': { gesamtStueck: 495, lagerStueck: 395, kommStueck: 80, weStueck: 20, auftraege: 41 },
+        };
+        const result = await page.evaluate((s) => window.detectAnomalies(s), snaps);
+        const gesamt = result.find(a => a.metric === 'gesamtStueck');
+        expect(gesamt).toBeTruthy();
+        expect(gesamt.severity).toBe('critical');
+        expect(gesamt.deviationPct).toBeLessThan(-60);
     });
 
     test('Brand-Level Anomaly (Electrolux -37%)', async ({ page }) => {

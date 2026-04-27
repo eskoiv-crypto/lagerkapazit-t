@@ -107,11 +107,11 @@ test.describe('Mail-Drafts (10X-8)', () => {
 
     test('openSupplierMailDraft emittiert angebot:mail-draft', async ({ page }) => {
         await openDashboard(page);
-        // Verhindere echte Navigation zu mailto: (sonst springt Test in Mail-Client)
-        await page.evaluate(() => {
-            // location.href setter no-op
-            Object.defineProperty(window, 'location', { value: { href: '' }, configurable: true });
-        });
+        // Hinweis: window.location ist in modernen Chromium nicht mehr per
+        // Object.defineProperty stub-bar (TypeError "Cannot redefine property: location").
+        // Bug-Fix dafür im Dashboard: openSupplierMailDraft emittiert Bus-Event VOR
+        // dem location.href-Setter. Test verlässt sich auf diese Reihenfolge —
+        // der echte mailto:-Redirect wird in Headless-Chromium ignoriert (kein Handler).
         const captured = await page.evaluate(async () => {
             window.dashboardState.angebotAnalyseResults = [
                 { bezeichnung: 'WaMa', bezeichnungFull: 'Waschmaschine X', menge: 10, maxEK: 200, listenVK: 400, empfehlung: '🟢' },
@@ -119,7 +119,7 @@ test.describe('Mail-Drafts (10X-8)', () => {
             ];
             const events = [];
             window.bus.on('angebot:mail-draft', (p) => events.push(p));
-            window.openSupplierMailDraft('counter');
+            try { window.openSupplierMailDraft('counter'); } catch (_) { /* mailto-redirect kann scheitern, Event ist trotzdem gefeuert */ }
             return events;
         });
         expect(captured.length).toBe(1);
