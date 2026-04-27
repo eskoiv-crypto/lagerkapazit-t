@@ -2856,7 +2856,7 @@
                                 <div class="gauge-stat">
                                     <div class="gauge-stat-value mono" id="bestand-lager-value" style="color: var(--text-muted)">—</div>
                                     <div class="gauge-stat-label">Belegt (Pkt)</div>
-                                    <div class="gauge-stat-sub" id="stueck-lager" style="font-size:0.65rem;color:var(--text-muted);margin-top:2px">— Geräte</div>
+                                    <div class="gauge-stat-sub" id="gauge-stueck-sub" style="font-size:0.65rem;color:var(--text-muted);margin-top:2px">— Geräte</div>
                                 </div>
                                 <div class="gauge-stat">
                                     <div class="gauge-stat-value mono" id="kapazitaet-value">—</div>
@@ -11238,35 +11238,49 @@ Keine Erklärungen, kein Markdown.`;
             // Prüfe ob Bestand geladen wurde
             if (!dashboardState.bestandLoaded) {
                 setEl('gauge-value', '—');
-                const stueckLagerEl = document.getElementById('stueck-lager');
-                if (stueckLagerEl) stueckLagerEl.textContent = '— Geräte';
+                // Bug-Fix Sprint 7+: doppelte ID 'stueck-lager' aufgelöst → gauge-stueck-sub
+                const gaugeSubEl = document.getElementById('gauge-stueck-sub');
+                if (gaugeSubEl) gaugeSubEl.textContent = '— Geräte';
                 const lagerEl = document.getElementById('bestand-lager-value');
                 if (lagerEl) lagerEl.textContent = '—';
-                
+                // Auch die Karten-Felder zurücksetzen wenn keine Daten geladen
+                ['stueck-lager','stueck-komm','stueck-we','stueck-gesamt'].forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) el.textContent = '—';
+                });
+
                 const gaugeFill = document.getElementById('gauge-fill');
                 if (gaugeFill) gaugeFill.style.transform = 'rotate(-180deg)';
-                
+
                 setEl('gauge-status', '● DATEN LADEN');
                 const statusEl = document.getElementById('gauge-status');
                 if (statusEl) statusEl.className = 'gauge-status status-warning';
                 return;
             }
-            
+
             const bestandLager = dashboardState.bestandLager;
             const bestandKomm = dashboardState.bestandKomm;
             const bestandWE = dashboardState.bestandWE;
             const kapazitaet = dashboardState.kapazitaet;
             const auslastung = (bestandLager / kapazitaet) * 100;
-            
+
             // === STÜCKZAHLEN (echte Geräte-Anzahl) ===
             const lagerStueck = dashboardState.bestandLagerStueck || 0;
             const kommStueck = dashboardState.bestandKommStueck || 0;
             const weStueck = dashboardState.bestandWEStueck || 0;
             const gesamtStueck = dashboardState.bestandGesamtStueck || (lagerStueck + kommStueck + weStueck);
-            
-            // Stückzahl unter der Gauge anzeigen
-            const stueckLagerEl = document.getElementById('stueck-lager');
-            if (stueckLagerEl) stueckLagerEl.textContent = lagerStueck.toLocaleString('de-DE') + ' Geräte';
+
+            // Stückzahl unter der Gauge anzeigen (Bug-Fix Sprint 7+: eindeutige ID)
+            const gaugeSubEl = document.getElementById('gauge-stueck-sub');
+            if (gaugeSubEl) gaugeSubEl.textContent = lagerStueck.toLocaleString('de-DE') + ' Geräte';
+
+            // Bug-Fix Sprint 7+: AKTUELLER FÜLLSTAND-Karte befüllen
+            // Vorher waren stueck-komm/stueck-we/stueck-gesamt tote Render-Pfade (HTML
+            // existierte, JS fehlte). stueck-lager hatte zusätzlich Doppel-ID-Konflikt.
+            setEl('stueck-lager',  lagerStueck.toLocaleString('de-DE'));
+            setEl('stueck-komm',   kommStueck.toLocaleString('de-DE'));
+            setEl('stueck-we',     weStueck.toLocaleString('de-DE'));
+            setEl('stueck-gesamt', gesamtStueck.toLocaleString('de-DE'));
             
             // === AUSLASTUNG (gewichtete Werte) ===
             // Update gauge value

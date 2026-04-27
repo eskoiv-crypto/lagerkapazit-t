@@ -57,4 +57,41 @@ test.describe('BESTAND Upload Workflow', () => {
         });
         expect(overlayHidden, 'Overlay muss nach Upload verschwinden').toBe(true);
     });
+
+    test('Sprint 7+ Regression: AKTUELLER FÜLLSTAND-Karte zeigt alle 4 Werte', async ({ page }) => {
+        await openDashboard(page);
+        // Vorbedingung: keine doppelten IDs (sonst greift getElementById nicht das richtige)
+        const dupCheck = await page.evaluate(() => {
+            const ids = ['stueck-lager','stueck-komm','stueck-we','stueck-gesamt','gauge-stueck-sub'];
+            return ids.map(id => ({
+                id,
+                count: document.querySelectorAll('#' + id).length
+            }));
+        });
+        for (const d of dupCheck) {
+            expect(d.count, `ID #${d.id} muss eindeutig sein`).toBe(1);
+        }
+
+        // Upload BESTAND-Fixture
+        await uploadFixture(page, '#file-bestand', 'BESTAND_sample.csv');
+        await page.waitForFunction(() => window.dashboardState.bestandLoaded === true, { timeout: 8000 });
+
+        // Die 4 Karten-Felder müssen befüllt sein, nicht "—"
+        const values = await page.evaluate(() => ({
+            lager:   document.getElementById('stueck-lager').textContent.trim(),
+            komm:    document.getElementById('stueck-komm').textContent.trim(),
+            we:      document.getElementById('stueck-we').textContent.trim(),
+            gesamt:  document.getElementById('stueck-gesamt').textContent.trim(),
+            gaugeSub: document.getElementById('gauge-stueck-sub').textContent.trim()
+        }));
+        expect(values.lager, 'stueck-lager darf nicht "—" sein').not.toBe('—');
+        expect(values.komm, 'stueck-komm darf nicht "—" sein nach Upload').not.toBe('—');
+        expect(values.we, 'stueck-we darf nicht "—" sein nach Upload').not.toBe('—');
+        expect(values.gesamt, 'stueck-gesamt darf nicht "—" sein').not.toBe('—');
+        // Gauge-Sub-Label hat "X Geräte" Format
+        expect(values.gaugeSub).toContain('Geräte');
+        // Sanity: Karte zeigt reine Zahl (kein "Geräte"-Suffix wie früher durch Doppel-ID)
+        expect(values.lager.includes('Geräte'),
+            'stueck-lager darf KEIN "Geräte"-Suffix haben (Bug aus Doppel-ID)').toBe(false);
+    });
 });
