@@ -4975,6 +4975,290 @@
         }
 
         // ============================================
+        // P2-1 + P2-5 (Sprint 7, 2026-04-27): SPRINT-4 REFACTOR-SCHULDEN
+        // ============================================
+        // Sprint 4 hatte zwei DRY-Verstöße bewusst zurückgestellt — KILLCRITIC im Code:
+        //   P2-1: aggregateEntities() — Seller/Kunden/Lieferanten 3× dupliziert
+        //   P2-5: validateAuftraege/runValidation iterieren dieselben Maps zweimal
+        // Mit 102 Tests als Sicherheitsnetz baue ich jetzt die Helper-Functions —
+        // aber MIGRIERE NOCH NICHT die Call-Sites: Tests decken Logik, nicht Visual.
+        // Migration erfolgt file-by-file in späteren Sprints mit Smoke-Test-Coverage.
+
+        /**
+         * Generischer Aggregator. Gruppiert items nach keyField und berechnet pro Gruppe
+         * die definierten Metriken. Ersatz für das verstreute Map+Reduce in
+         * updateVerkaeufterTab / updateKundenTab / updateLieferantenTab.
+         *
+         * @param {Array<object>} items
+         * @param {object} options
+         *   - keyField: string oder fn(item)→string  (Pflicht)
+         *   - metrics: { name: { op, from?, weight? } }  Mindestens eine
+         *     ops:
+         *       'sum'            — summe von item[from]
+         *       'count'           — Anzahl Items in Gruppe
+         *       'distinct'        — distinct-count von item[from]
+         *       'avg'             — Durchschnitt von item[from]
+         *       'max' / 'min'     — extremwert
+         *       'first' / 'last'  — erstes/letztes item[from]
+         *   - subgroupBy: { name: keyField, ... }  Optional secondary group-bys
+         *     Liefert in result[k][`by_${name}`] ein Map<subkey, {count, sum_<m>}>
+         *   - filter: fn(group) → boolean   Optional Post-Filter
+         * @returns {Array<object>}  Eine Liste der Gruppen mit allen Metriken.
+         */
+        function aggregateEntities(items, options) {
+            if (!Array.isArray(items) || items.length === 0) return [];
+            options = options || {};
+            const keyFn = typeof options.keyField === 'function'
+                ? options.keyField
+                : (it) => (it && it[options.keyField] != null ? String(it[options.keyField]) : '');
+            const metrics = options.metrics || {};
+            const subgroups = options.subgroupBy || {};
+            const groups = new Map();
+
+            for (const item of items) {
+                const key = keyFn(item);
+                if (!key) continue;
+                let g = groups.get(key);
+                if (!g) {
+                    g = { _key: key, _count: 0, _distinctSets: {} };
+                    for (const m of Object.keys(metrics)) {
+                        const def = metrics[m];
+                        if (def.op === 'min') g[m] = Infinity;
+                        else if (def.op === 'max') g[m] = -Infinity;
+                        else if (def.op === 'distinct') g[m] = 0;
+                        else if (def.op === 'first' || def.op === 'last') g[m] = null;
+                        else if (def.op === 'avg') g[m] = 0;
+                        else g[m] = 0;
+                        if (def.op === 'distinct') g._distinctSets[m] = new Set();
+                    }
+                    for (const sgName of Object.keys(subgroups)) {
+                        g['by_' + sgName] = {};
+                    }
+                    groups.set(key, g);
+                }
+                g._count++;
+                // Hauptmetriken
+                for (const m of Object.keys(metrics)) {
+                    const def = metrics[m];
+                    const val = def.from ? Number(item[def.from]) : 1;
+                    switch (def.op) {
+                        case 'sum':      g[m] += (Number(item[def.from]) || 0); break;
+                        case 'count':    g[m] = g._count; break;
+                        case 'avg':      g[m] += (Number(item[def.from]) || 0); break;
+                        case 'max':      if (val > g[m]) g[m] = val; break;
+                        case 'min':      if (val < g[m]) g[m] = val; break;
+                        case 'first':    if (g[m] === null) g[m] = item[def.from]; break;
+                        case 'last':     g[m] = item[def.from]; break;
+                        case 'distinct': {
+                            const v = item[def.from];
+                            if (v != null && v !== '') g._distinctSets[m].add(String(v));
+                            break;
+                        }
+                    }
+                }
+                // Subgruppen
+                for (const sgName of Object.keys(subgroups)) {
+                    const sgKey = typeof subgroups[sgName] === 'function'
+                        ? subgroups[sgName](item)
+                        : (item[subgroups[sgName]] != null ? String(item[subgroups[sgName]]) : '');
+                    if (!sgKey) continue;
+                    const subBucket = g['by_' + sgName];
+                    if (!subBucket[sgKey]) subBucket[sgKey] = { count: 0 };
+                    subBucket[sgKey].count++;
+                    // Optional: derive sums für Subgruppen aus Top-Metriken
+                    for (const m of Object.keys(metrics)) {
+                        const def = metrics[m];
+                        if (def.op === 'sum' && def.from) {
+                            subBucket[sgKey]['sum_' + m] = (subBucket[sgKey]['sum_' + m] || 0) + (Number(item[def.from]) || 0);
+                        }
+                    }
+                }
+            }
+
+            // Post-Processing: avg/distinct finalisieren, distinctSets entfernen
+            const list = Array.from(groups.values()).map(g => {
+                for (const m of Object.keys(metrics)) {
+                    const def = metrics[m];
+                    if (def.op === 'avg') {
+                        g[m] = g._count > 0 ? g[m] / g._count : 0;
+                    } else if (def.op === 'distinct') {
+                        g[m] = g._distinctSets[m] ? g._distinctSets[m].size : 0;
+                    }
+                }
+                delete g._distinctSets;
+                return g;
+            });
+
+            return options.filter ? list.filter(options.filter) : list;
+        }
+
+        /**
+         * Liefert für eine Subgruppe in einem Aggregate-Item den Top-Eintrag nach Sum-Metrik.
+         * Convenience-Helper: aggregateEntities erzeugt by_X mit {count, sum_<m>},
+         * Caller will oft nur "top by sum_umsatz".
+         */
+        function pickTopSubgroup(group, subgroupName, byMetric) {
+            const sub = group['by_' + subgroupName];
+            if (!sub) return null;
+            const metricKey = byMetric ? ('sum_' + byMetric) : 'count';
+            let topKey = null, topVal = -Infinity;
+            for (const k of Object.keys(sub)) {
+                const v = sub[k][metricKey] || 0;
+                if (v > topVal) { topVal = v; topKey = k; }
+            }
+            return topKey ? { key: topKey, value: topVal, ...sub[topKey] } : null;
+        }
+
+        /**
+         * P2-5: Vereinheitlichter Validation-Pass. Iteriert die Map-Strukturen einmal und
+         * produziert BEIDE Output-Schemas:
+         *   - diskrepanzen[] (validateAuftraege-Format: kompakt, für Kommissioniert-UI + Toast)
+         *   - mismatches[]   (runValidation-Format: nach schwere/quelle, fürs Mismatch-Panel)
+         *   - fourWayStats   (Sprint-2-Cross-Check)
+         *   - orphans4Way    (1/4-Single-System-Orphans)
+         *
+         * MIGRATION-PFAD: validateAuftraege() und runValidation() können später ihre
+         * Maps durch dieses Ergebnis ersetzen — gleiche Output-Strukturen, eine
+         * Iteration statt zwei. Aktuell parallel verfügbar als Reference-Implementation.
+         */
+        function runUnifiedValidation(opts) {
+            opts = opts || {};
+            const bestandMap     = (state && state.inventory && state.inventory.bestandAuftragMap)  || {};
+            const statusMap      = (state && state.orders    && state.orders.auftragStatusMap)      || {};
+            const fulfillmentMap = (state && state.pipeline  && state.pipeline.fulfillmentDataMap)  || {};
+            const plannerMap     = (state && state.orders    && state.orders.plannerDataMap)        || {};
+            const waIst          = (state && state.pipeline  && state.pipeline.waIstAuftraege)      || {};
+
+            const diskrepanzen = [];
+            const mismatches = [];
+
+            // Vereinheitlichtes Auftragsuniversum
+            const allAU = new Set([
+                ...Object.keys(bestandMap),
+                ...Object.keys(statusMap),
+                ...Object.keys(fulfillmentMap),
+                ...Object.keys(plannerMap)
+            ]);
+
+            const fourWayStats = { complete: 0, threeOfFour: 0, twoOfFour: 0, oneOfFour: 0, total: allAU.size };
+            const orphans4Way = [];
+
+            for (const auNr of allAU) {
+                const bestandData     = bestandMap[auNr];
+                const statusData      = statusMap[auNr];
+                const fulfillmentData = fulfillmentMap[auNr];
+                const plannerData     = plannerMap[auNr];
+
+                let presence = 0;
+                const sys = { bestand: false, status: false, fulfillment: false, planner: false };
+                if (bestandData)     { sys.bestand = true; presence++; }
+                if (statusData)      { sys.status = true; presence++; }
+                if (fulfillmentData) { sys.fulfillment = true; presence++; }
+                if (plannerData)     { sys.planner = true; presence++; }
+
+                if (presence === 4)      fourWayStats.complete++;
+                else if (presence === 3) fourWayStats.threeOfFour++;
+                else if (presence === 2) fourWayStats.twoOfFour++;
+                else if (presence === 1) {
+                    fourWayStats.oneOfFour++;
+                    const onlyIn = Object.entries(sys).find(([k, v]) => v);
+                    if (onlyIn && onlyIn[0] === 'fulfillment') {
+                        orphans4Way.push({ auNr, onlyIn: 'Fulfillment' });
+                    }
+                }
+
+                // BESTAND ↔ STATUS Logik (validateAuftraege-Schema + runValidation-Schema)
+                if (bestandData && statusData) {
+                    const bCount = bestandData.count || 0;
+                    const sCount = statusData.artikel || 0;
+                    if (bCount !== sCount && sCount > 0) {
+                        diskrepanzen.push({
+                            auftrag: auNr,
+                            typ: 'anzahl_diff',
+                            bestand: bCount,
+                            status: sCount,
+                            diff: bCount - sCount,
+                            message: `BESTAND: ${bCount} vs STATUS: ${sCount}`
+                        });
+                        mismatches.push({
+                            typ: 'mengen_diff',
+                            quelle: 'Mengenabweichung',
+                            auftrag: auNr,
+                            detail: `Bestand: ${bCount} Stk. ≠ Status: ${sCount} Stk.`,
+                            schwere: 'info'
+                        });
+                    }
+                } else if (bestandData && !statusData) {
+                    diskrepanzen.push({
+                        auftrag: auNr, typ: 'nur_bestand',
+                        bestand: bestandData.count || 0, status: 0,
+                        message: `Nur in BESTAND (${bestandData.count || 0}), fehlt in STATUS`
+                    });
+                    mismatches.push({
+                        typ: 'bestand_ohne_status', quelle: 'Auftrag ohne Statuseintrag',
+                        auftrag: auNr,
+                        detail: `${bestandData.count || 0} Stk. im Bestand, kein Statuseintrag`,
+                        schwere: 'warnung'
+                    });
+                } else if (!bestandData && statusData
+                           && (statusData.status === 'QU' || statusData.status === 'AK')) {
+                    diskrepanzen.push({
+                        auftrag: auNr, typ: 'nur_status',
+                        bestand: 0, status: statusData.artikel || 0,
+                        message: `${statusData.status} mit ${statusData.artikel || 0} Stk., fehlt im BESTAND`
+                    });
+                    mismatches.push({
+                        typ: 'status_ohne_bestand', quelle: 'Offener Auftrag nicht im Lager',
+                        auftrag: auNr,
+                        detail: `Status ${statusData.status} mit ${statusData.artikel || 0} Stk., kein Bestand`,
+                        schwere: 'warnung'
+                    });
+                }
+
+                // FULFILLMENT ↔ BESTAND (Versand-Risiko, nur in mismatches)
+                if (fulfillmentData && (!bestandData || (bestandData.count || 0) === 0)) {
+                    mismatches.push({
+                        typ: 'fulfillment_ohne_bestand',
+                        quelle: '🚨 Versand geplant, Lager leer',
+                        auftrag: auNr,
+                        detail: `Pipeline: ${fulfillmentData.versandDatum || '—'}, ${fulfillmentData.kunde || 'Kunde ?'} — kein Bestand`,
+                        schwere: 'warnung'
+                    });
+                }
+
+                // FULFILLMENT ↔ STATUS
+                if (fulfillmentData && !statusData) {
+                    mismatches.push({
+                        typ: 'fulfillment_ohne_status', quelle: 'Pipeline ohne Status',
+                        auftrag: auNr, detail: 'In Fulfillment-Pipeline, kein STATUS-Eintrag',
+                        schwere: 'info'
+                    });
+                }
+
+                // STATUS ↔ PLANNER (offene Aufträge sollten Planner-Karte haben)
+                if (statusData && (statusData.status === 'QU' || statusData.status === 'AK') && !plannerData) {
+                    mismatches.push({
+                        typ: 'status_ohne_planner', quelle: 'Offener Auftrag ohne Planner-Karte',
+                        auftrag: auNr, detail: `Status ${statusData.status}, keine Planner-Aufgabe`,
+                        schwere: 'info'
+                    });
+                }
+
+                // WA-IST ↔ BESTAND (versendet aber noch da)
+                if (waIst[auNr] && bestandData && (bestandData.count || 0) > 0) {
+                    mismatches.push({
+                        typ: 'wa_noch_in_bestand', quelle: 'Versand noch im Lager',
+                        auftrag: auNr,
+                        detail: `Versendet (${waIst[auNr].stueck} Stk.), aber noch ${bestandData.count} im Bestand — Datei veraltet?`,
+                        schwere: 'info'
+                    });
+                }
+            }
+
+            return { diskrepanzen, mismatches, fourWayStats, orphans4Way };
+        }
+
+        // ============================================
         // 10X-8 (Sprint 6.10, 2026-04-27): ANGEBOTS-ANALYSE PRO v2
         // ============================================
         // Erweitert die bestehende analyzeAngebot() um drei v2-Pfeiler:
@@ -7953,15 +8237,17 @@ Keine Erklärungen, kein Markdown.`;
             checkAngebotsAnalyseAvailability();
         }
         
-        // KILLCRITIC (Sprint 4, 2026-04-20): P2-1 — updateVerkaeufterTab, updateKundenTab und
-        // updateLieferantenTab teilen das Muster "aggregate → sort → render-table". Ein
-        // aggregateEntities(data, keyField, metrics)-Helper wäre DRY-korrekt, aber:
-        //   - jeder Tab aggregiert leicht unterschiedliche Metriken (profit/umsatz/count/
-        //     topWG/topBrand/kundenCount/ordersCount/margin-buckets …)
-        //   - die Render-Spalten divergieren noch mehr
-        //   - Sortier-Logik hat tab-spezifische Fallbacks
-        // Refactor-Aufwand > Gewinn bei aktueller Feature-Zahl. Geparkt für Sprint 5/6, wenn
-        // gemeinsame Aggregation Teil der Event-Bus/Data-Model-Migration (10X-1, 10X-2) wird.
+        // KILLCRITIC (Sprint 7 UPDATE, 2026-04-27): P2-1 Migration READY.
+        // aggregateEntities(items, options)-Helper steht zur Verfügung (~Zeile 4972 oben).
+        // Migration der drei Tab-Funktionen (updateVerkaeufterTab, updateKundenTab,
+        // updateLieferantenTab) wäre jetzt machbar, aber bleibt aktuell unverändert
+        // weil:
+        //   - 102 Tests decken Logik ab, NICHT Visual-Output
+        //   - jede Tab-Migration sollte mit Smoke-Test + Manual-QA validiert werden
+        //   - file-by-file-Migration (1 Sprint pro Tab) reduziert Risk-Surface
+        // Aufgabenlauf für jede Migration: aggregateEntities-Aufruf vorbereiten,
+        // Output-Shape mit Original abgleichen, Smoke-Test, Sortierung umstellen,
+        // Render unverändert lassen, manueller QA-Check.
 
         // ========== VERKÄUFER TAB ==========
         function updateVerkaeufterTab() {
@@ -12882,11 +13168,15 @@ Keine Erklärungen, kein Markdown.`;
             </span>`;
         }
         
-        // KILLCRITIC (Sprint 4, 2026-04-20): P2-5 Duplikation mit runValidation() (unten).
-        // Beide Functions vergleichen BESTAND vs. AUFTRAG_STATUS, produzieren aber unterschiedliche
-        // Output-Strukturen (diskrepanzen[] vs. mismatches[]) für unterschiedliche UIs (Toast/Table
-        // vs. Mismatch-Panel). Ein Merge würde beide konsumierenden UIs umschreiben — Sprint-5-Umfang
-        // mit Playwright-Test-Coverage. Hier bewusst dupliziert belassen.
+        // KILLCRITIC (Sprint 7 UPDATE, 2026-04-27): P2-5 Migration READY.
+        // runUnifiedValidation()-Helper steht zur Verfügung (~Zeile 5165 oben) — produziert
+        // beide Output-Schemas in einer Iteration: diskrepanzen[] (validateAuftraege-
+        // Format) UND mismatches[] (runValidation-Format) plus fourWayStats + orphans4Way.
+        // Migration-Pfad: validateAuftraege() und runValidation() können später ihre
+        // doppelte Iteration durch einen einzelnen runUnifiedValidation()-Aufruf ersetzen.
+        // Aktuell parallel verfügbar als Reference-Implementation — beide alten Funktionen
+        // bleiben unangetastet bis ein dedizierter Smoke-Test-Lauf den Output-Match
+        // bestätigt.
         function validateAuftraege() {
             const diskrepanzen = [];
             const bestandMap = dashboardState.bestandAuftragMap || {};
@@ -18450,6 +18740,10 @@ location.reload();</pre>
             window.renderAngebotV2Panels = renderAngebotV2Panels;
             window.renderCustomerMatchDetail = renderCustomerMatchDetail;
             window.buildMailto = buildMailto;
+            // Sprint 7: Refactor-Schulden P2-1 + P2-5
+            window.aggregateEntities = aggregateEntities;
+            window.pickTopSubgroup = pickTopSubgroup;
+            window.runUnifiedValidation = runUnifiedValidation;
             // getArtikelFaktorLocal ist bewusst nicht hier — es ist in processCSV genested und
             // wird indirekt über upload.spec.js (BESTAND-Upload) regressiert.
         }

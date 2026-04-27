@@ -58,6 +58,9 @@ test.describe('Smoke', () => {
             computeCustomerMatches: typeof window.computeCustomerMatches === 'function',
             openSupplierMailDraft: typeof window.openSupplierMailDraft === 'function',
             buildMailto: typeof window.buildMailto === 'function',
+            aggregateEntities: typeof window.aggregateEntities === 'function',
+            pickTopSubgroup: typeof window.pickTopSubgroup === 'function',
+            runUnifiedValidation: typeof window.runUnifiedValidation === 'function',
         }));
         for (const [name, ok] of Object.entries(present)) {
             expect(ok, `${name} muss als global function existieren`).toBe(true);
