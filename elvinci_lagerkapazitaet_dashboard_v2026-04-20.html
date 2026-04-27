@@ -35,6 +35,22 @@
         }
 
         /* ====================================================
+         * 10X (User-Wunsch 2026-04-27): Department-Filter via CSS.
+         * Body bekommt data-active-dept="lager|auftrag|sales|finance|alle".
+         * Cards mit data-departments="lager,alle" werden angezeigt wenn
+         * active-dept entweder "alle" ist ODER in der departments-Liste vorkommt.
+         * Default ohne data-departments = immer sichtbar.
+         * ==================================================== */
+        body[data-active-dept="lager"]   [data-departments]:not([data-departments*="lager"]):not([data-departments="alle"]) { display: none !important; }
+        body[data-active-dept="auftrag"] [data-departments]:not([data-departments*="auftrag"]):not([data-departments="alle"]) { display: none !important; }
+        body[data-active-dept="sales"]   [data-departments]:not([data-departments*="sales"]):not([data-departments="alle"]) { display: none !important; }
+        body[data-active-dept="finance"] [data-departments]:not([data-departments*="finance"]):not([data-departments="alle"]) { display: none !important; }
+        /* "alle" zeigt alles — kein Selector nötig */
+
+        .dept-btn:hover { border-color: var(--accent-blue) !important; }
+        .dept-btn.active { background: var(--accent-blue) !important; color: white !important; border-color: var(--accent-blue) !important; }
+
+        /* ====================================================
          * P2-6/7 FIX (2026-04-20): Utility-Klassen.
          * .card-with-accent  — ersetzt inkl. Accent-Bar das Muster .stat-card/.gesamt-block/.analyse-kpi
          * .badge             — Basis für .gesamt-badge/.mark-count-badge/.filter-count (alle 3 inherit)
@@ -2797,6 +2813,23 @@
         ⚠️ Daten sind älter als <span id="freshness-hours">4</span> Stunden. Bitte aktuelle Daten hochladen!
         <button onclick="dismissFreshnessWarning()">✕ Ausblenden</button>
     </div>
+
+    <!-- 10X (User-Wunsch 2026-04-27): Department-Switcher (Lager/Sales/Finance/Auftragsabwicklung) -->
+    <nav id="dept-switcher" role="tablist" aria-label="Abteilungen"
+        style="position: sticky; top: 0; z-index: 800; background: var(--bg-primary); border-bottom: 1px solid var(--border); padding: 0.4rem 1rem; display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap; box-shadow: 0 2px 6px rgba(0,0,0,0.15);">
+        <span style="font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-right: 0.5rem;">Sicht:</span>
+        <button type="button" role="tab" data-dept="alle" class="dept-btn active" onclick="setDepartment('alle')"
+            style="padding: 0.35rem 0.8rem; background: var(--accent-blue); color: white; border: 1px solid var(--accent-blue); border-radius: 4px; font-size: 0.7rem; font-weight: 600; cursor: pointer;">🌐 Alle</button>
+        <button type="button" role="tab" data-dept="lager" class="dept-btn" onclick="setDepartment('lager')"
+            style="padding: 0.35rem 0.8rem; background: transparent; color: var(--text-primary); border: 1px solid var(--border); border-radius: 4px; font-size: 0.7rem; font-weight: 600; cursor: pointer;">🏭 Lager</button>
+        <button type="button" role="tab" data-dept="auftrag" class="dept-btn" onclick="setDepartment('auftrag')"
+            style="padding: 0.35rem 0.8rem; background: transparent; color: var(--text-primary); border: 1px solid var(--border); border-radius: 4px; font-size: 0.7rem; font-weight: 600; cursor: pointer;">📦 Auftragsabwicklung</button>
+        <button type="button" role="tab" data-dept="sales" class="dept-btn" onclick="setDepartment('sales')"
+            style="padding: 0.35rem 0.8rem; background: transparent; color: var(--text-primary); border: 1px solid var(--border); border-radius: 4px; font-size: 0.7rem; font-weight: 600; cursor: pointer;">💰 Sales</button>
+        <button type="button" role="tab" data-dept="finance" class="dept-btn" onclick="setDepartment('finance')"
+            style="padding: 0.35rem 0.8rem; background: transparent; color: var(--text-primary); border: 1px solid var(--border); border-radius: 4px; font-size: 0.7rem; font-weight: 600; cursor: pointer;">💵 Finance</button>
+        <span style="margin-left: auto; font-size: 0.6rem; color: var(--text-muted); font-style: italic;">Filtert die sichtbaren Bereiche — nichts wird gelöscht.</span>
+    </nav>
     
     <!-- Drag & Drop Overlay -->
     <div id="drop-zone-overlay" class="drop-zone-overlay" role="region" aria-label="Drop-Zone: Dateien hier fallenlassen zum Upload" aria-live="polite"></div>
@@ -2804,7 +2837,7 @@
     <main class="main">
         <div class="grid-main">
             <!-- Sidebar -->
-            <aside class="sidebar">
+            <aside class="sidebar" data-departments="alle,lager,auftrag">
                 <!-- Gauge Card -->
                 <div class="card">
                     <div class="card-header">
@@ -3011,7 +3044,7 @@
             <!-- Content -->
             <div class="content">
                 <!-- GESAMT-ÜBERSICHT (NEU) -->
-                <div class="gesamt-uebersicht" id="gesamt-uebersicht">
+                <div class="gesamt-uebersicht" id="gesamt-uebersicht" data-departments="alle,lager">
                     <div class="gesamt-header">
                         <h3>🏭 GESAMTÜBERSICHT NH5 <span style="font-size: 0.7rem; font-weight: 400; color: var(--text-muted);">(Punkte)</span></h3>
                         <div class="gesamt-badge" id="gesamt-status-badge">● DATEN LADEN</div>
@@ -3075,7 +3108,7 @@
                 </div>
 
                 <!-- EFFIZIENZ-TRACKER - VORÜBERGEHEND DEAKTIVIERT (Logik-Fix ausstehend) -->
-                <div class="card" id="effizienz-tracker" style="display: none; margin-top: 1rem; border-left: 3px solid var(--accent-purple);">
+                <div class="card" id="effizienz-tracker" data-departments="alle,lager" style="display: none; margin-top: 1rem; border-left: 3px solid var(--accent-purple);">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
                         <div>
                             <div style="font-size: 1rem; font-weight: 600; color: var(--text-primary);">📊 Tagesleistung</div>
@@ -3129,7 +3162,7 @@
                 </div>
 
                 <!-- 10X-7 (Sprint 6.9, 2026-04-27): Natural-Language Query -->
-                <div class="card" id="query-card" style="margin-top: 1rem; border-left: 3px solid var(--accent-purple);">
+                <div class="card" id="query-card" data-departments="alle,lager,auftrag,sales,finance" style="margin-top: 1rem; border-left: 3px solid var(--accent-purple);">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; flex-wrap: wrap; gap: 0.5rem;">
                         <div>
                             <div style="font-size: 1rem; font-weight: 600; color: var(--text-primary);">🔍 Query-Bar <span style="font-size: 0.6rem; color: var(--text-muted); font-weight: 400;">10X-7 — Natural Language</span></div>
@@ -3149,7 +3182,7 @@
                 </div>
 
                 <!-- 10X-4 (Sprint 6.2, 2026-04-20): Anomalie-Detektor -->
-                <div class="card" id="anomaly-card" style="margin-top: 1rem; border-left: 3px solid var(--accent-cyan); display: none;">
+                <div class="card" id="anomaly-card" data-departments="alle,lager" style="margin-top: 1rem; border-left: 3px solid var(--accent-cyan); display: none;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
                         <div>
                             <div style="font-size: 1rem; font-weight: 600; color: var(--text-primary);">📊 Anomalie-Radar</div>
@@ -3163,7 +3196,7 @@
                 </div>
 
                 <!-- DATENABGLEICH / MISMATCH-ÜBERSICHT -->
-                <div class="card" id="mismatch-card" style="margin-top: 1rem; border-left: 3px solid var(--accent-orange); display: none;">
+                <div class="card" id="mismatch-card" data-departments="alle,lager,auftrag" style="margin-top: 1rem; border-left: 3px solid var(--accent-orange); display: none;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
                         <div>
                             <div style="font-size: 1rem; font-weight: 600; color: var(--text-primary);">🔍 Datenqualität & Abgleich</div>
@@ -3177,7 +3210,7 @@
                 </div>
 
                 <!-- HISTORIE EXPORT/IMPORT -->
-                <div class="card" id="historie-card" style="margin-top: 1rem; border-left: 3px solid var(--text-muted);">
+                <div class="card" id="historie-card" data-departments="alle,lager" style="margin-top: 1rem; border-left: 3px solid var(--text-muted);">
                     <div style="display: flex; justify-content: space-between; align-items: center;">
                         <div>
                             <div style="font-size: 1rem; font-weight: 600; color: var(--text-primary);">📁 Historie</div>
@@ -3240,7 +3273,7 @@
                 </div>
 
                 <!-- Forecast Table -->
-                <div class="card">
+                <div class="card" data-departments="alle,lager">
                     <div class="card-header">
                         <span class="card-title">📅 2-Wochen-Prognose</span>
                     </div>
@@ -3266,7 +3299,7 @@
                 <!-- ============================================ -->
                 <!-- VERKAUFSANALYSE PRO (Stock-Analysis + All-Sold) -->
                 <!-- ============================================ -->
-                <div class="card" id="analyse-pro-panel" style="display: none;">
+                <div class="card" id="analyse-pro-panel" data-departments="alle,sales,finance" style="display: none;">
                     <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; cursor: pointer;" onclick="toggleAnalyseProPanel()">
                         <span class="card-title">📊 VERKAUFSANALYSE PRO</span>
                         <div style="display: flex; align-items: center; gap: 0.5rem;">
@@ -4297,12 +4330,23 @@
                         </div>
                     </div>
                 </div>
-                <div class="card" id="kommissioniert-card" style="display: none;">
+                <div class="card" id="kommissioniert-card" data-departments="alle,auftrag" style="display: none;">
                     <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
                         <span class="card-title">📦 Kommissioniert – Wartend auf Versand</span>
                         <span class="mono" id="komm-count-badge" style="background: var(--accent-orange); color: white; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.75rem;">0 Aufträge</span>
                     </div>
                     
+                    <!-- 10X (User-Wunsch 2026-04-27): Auftragsabwicklung-Suche (Kunde + Auftragsnr) -->
+                    <div style="margin-bottom: 0.5rem; display: flex; gap: 0.5rem; align-items: center;">
+                        <input type="search" id="komm-search" placeholder="🔍 Suche: Kunde oder Auftragsnummer (z.B. AU2026..., Müller GmbH)"
+                            aria-label="Suche nach Kunde oder Auftragsnummer"
+                            oninput="onKommSearchInput(this.value)"
+                            style="flex: 1; padding: 0.4rem 0.7rem; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 4px; color: var(--text-primary); font-size: 0.75rem;">
+                        <button type="button" id="komm-search-clear" onclick="clearKommSearch()" title="Suche leeren"
+                            style="padding: 0.4rem 0.7rem; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 4px; color: var(--text-muted); cursor: pointer; font-size: 0.75rem; display: none;">✕</button>
+                        <span id="komm-search-info" style="font-size: 0.65rem; color: var(--text-muted); white-space: nowrap;"></span>
+                    </div>
+
                     <!-- Filter-Leiste -->
                     <div class="komm-filter-bar">
                         <div class="filter-buttons">
@@ -4374,7 +4418,7 @@
                 </div>
 
                 <!-- Import Section -->
-                <div class="import-section">
+                <div class="import-section" data-departments="alle,lager,auftrag,sales,finance">
                     <div class="import-header">
                         <h3 class="import-title">📁 Datenimport</h3>
                         <span style="font-size: 0.7rem; color: var(--text-muted)">Dateien ablegen oder klicken</span>
@@ -11094,6 +11138,8 @@ Keine Erklärungen, kein Markdown.`;
             if (typeof updateAuthModeHint === 'function') updateAuthModeHint();
             // 10X-6: Audit-Producer aktivieren — muss NACH setupBusSubscribers sein
             if (typeof setupAuditProducers === 'function') setupAuditProducers();
+            // 10X (User-Wunsch 2026-04-27): Department-Switcher initialisieren
+            if (typeof loadDepartment === 'function') loadDepartment();
             // 10X-7: Query-Backend-Badge aktualisieren
             try {
                 const badge = document.getElementById('query-backend-badge');
@@ -13152,6 +13198,54 @@ Keine Erklärungen, kein Markdown.`;
         // ============================================
         
         let currentKommFilter = 'alle';
+        // 10X (User-Wunsch 2026-04-27): Suche nach Kunde / Auftragsnr
+        let currentKommSearch = '';
+
+        function onKommSearchInput(value) {
+            currentKommSearch = (value || '').trim().toLowerCase();
+            const clearBtn = document.getElementById('komm-search-clear');
+            if (clearBtn) clearBtn.style.display = currentKommSearch ? 'inline-block' : 'none';
+            if (typeof renderKommissioniertListe === 'function') renderKommissioniertListe();
+        }
+        function clearKommSearch() {
+            const inp = document.getElementById('komm-search');
+            if (inp) inp.value = '';
+            onKommSearchInput('');
+        }
+        function _kommItemMatchesSearch(item, q) {
+            if (!q) return true;
+            const fields = [
+                String(item.auftragsnr || '').toLowerCase(),
+                String(item.kunde || '').toLowerCase(),
+                String(item.land || '').toLowerCase(),
+                String(item.spediteur || '').toLowerCase()
+            ];
+            return fields.some(f => f.includes(q));
+        }
+
+        // 10X: Department-Switcher
+        function setDepartment(dept) {
+            const valid = ['alle', 'lager', 'auftrag', 'sales', 'finance'];
+            if (!valid.includes(dept)) dept = 'alle';
+            document.body.dataset.activeDept = dept;
+            // Button-State
+            document.querySelectorAll('.dept-btn').forEach(btn => {
+                if (btn.dataset.dept === dept) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+            // Persistieren — User-Vorliebe bleibt nach Reload
+            try { localStorage.setItem('elvinci_active_dept', dept); } catch (_) {}
+            if (typeof bus !== 'undefined') bus.emit('ui:dept-changed', { dept });
+        }
+        function loadDepartment() {
+            try {
+                const saved = localStorage.getItem('elvinci_active_dept');
+                setDepartment(saved || 'alle');
+            } catch (_) { setDepartment('alle'); }
+        }
         
         // Auftrag markieren/entmarkieren
         function toggleAuftragMarkierung(auftragsnr) {
@@ -13822,6 +13916,13 @@ Keine Erklärungen, kein Markdown.`;
             for (const item of liste) {
                 totalGeraete += item.artikel;
                 
+                // 10X (User-Wunsch 2026-04-27): Such-Filter zuerst — wenn der User sucht,
+                // muss der Treffer angezeigt werden REGARDLESS vom aktiven Reiter.
+                // Wenn die Suche leer ist, gilt Reiter-Logik unverändert.
+                if (currentKommSearch && !_kommItemMatchesSearch(item, currentKommSearch)) {
+                    continue;
+                }
+
                 // Filter anwenden — orthogonale Sichten (Sprint 7+ Konzept).
                 // Heute / Geplant sind jetzt UNABHÄNGIG vom Blockierer-Status:
                 //   "Heute"   = Versanddatum ist heute       (egal ob blockiert)
@@ -14084,8 +14185,19 @@ Keine Erklärungen, kein Markdown.`;
                     'ak': `⚙️ ${filteredCount} in Kommissionierung (${filteredGeraete.toLocaleString('de-DE')} Geräte)`,
                     'su': `⏸️ ${filteredCount} noch nicht gestartet (${filteredGeraete.toLocaleString('de-DE')} Geräte)`
                 };
-                filterInfo.textContent = filterTexts[currentKommFilter] || filterTexts['alle'];
-                
+                let infoText = filterTexts[currentKommFilter] || filterTexts['alle'];
+                if (currentKommSearch) {
+                    infoText = `🔍 Suche "${currentKommSearch}" → ${filteredCount} Treffer von ${liste.length} | ` + infoText;
+                }
+                filterInfo.textContent = infoText;
+                // Such-Info-Tag rechts neben Input aktualisieren
+                const searchInfoEl = document.getElementById('komm-search-info');
+                if (searchInfoEl) {
+                    searchInfoEl.textContent = currentKommSearch
+                        ? `${filteredCount} Treffer`
+                        : '';
+                }
+
                 // Farbe je nach Filter
                 let filterColor = 'var(--text-muted)';
                 if (currentKommFilter === 'blockierer' || currentKommFilter === 'problemfall') {
@@ -18955,6 +19067,11 @@ location.reload();</pre>
             // 10X (Sprint 7+ User-Report): robuster Date-Parser
             window.parseFulfillmentDate = parseFulfillmentDate;
             window.parseExcelDate = parseExcelDate;
+            // 10X (User-Wunsch 2026-04-27): Department-Switcher + Komm-Suche
+            window.setDepartment = setDepartment;
+            window.loadDepartment = loadDepartment;
+            window.onKommSearchInput = onKommSearchInput;
+            window.clearKommSearch = clearKommSearch;
             // getArtikelFaktorLocal ist bewusst nicht hier — es ist in processCSV genested und
             // wird indirekt über upload.spec.js (BESTAND-Upload) regressiert.
         }
