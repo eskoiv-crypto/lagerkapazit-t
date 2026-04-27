@@ -39,6 +39,11 @@ test.describe('Smoke', () => {
             sharepointPull: typeof window.sharepointPull === 'function',
             sharepointPush: typeof window.sharepointPush === 'function',
             startAutoPull: typeof window.startAutoPull === 'function',
+            loadAuthConfig: typeof window.loadAuthConfig === 'function',
+            authLoginAzure: typeof window.authLoginAzure === 'function',
+            authLogout: typeof window.authLogout === 'function',
+            renderUserBadge: typeof window.renderUserBadge === 'function',
+            authState: typeof window.authState === 'object',
         }));
         for (const [name, ok] of Object.entries(present)) {
             expect(ok, `${name} muss als global function existieren`).toBe(true);

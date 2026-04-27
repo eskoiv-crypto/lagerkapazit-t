@@ -4933,6 +4933,227 @@
         }
 
         // ============================================
+        // 10X-10 (Sprint 6.7, 2026-04-27): AUTH-LAYER (Azure AD + Passwort-Fallback)
+        // ============================================
+        // Killcritic: Hardcoded 'elvinci' ist Security-Theater (DevTools-sichtbar, geteilt).
+        // Azure AD wäre richtig — aber bricht file://-Workflow und braucht IT-Setup.
+        //
+        // Dual-Auth-Strategie:
+        //   - 'password' Mode (Default): Bestehender hardcoded-Pwd-Flow als Fallback für
+        //     file:// und für Tag X bevor IT die AD-App freigibt
+        //   - 'azure-ad' Mode: MSAL-Login mit User.Read-Scope, optional Group-Check via
+        //     Graph /me/memberOf gegen allowedGroups[] aus Config
+        //   - 'hybrid' Mode: AD-Button + Passwort-Box beide aktiv. User wählt
+        //
+        // Reuse: nutzt loadMSAL() + Auth-Cache aus 10X-5. Nur Scope wechselt
+        // (User.Read statt Sites.Read.All) → leichteres Permission-Profil.
+
+        const AUTH_CONFIG_KEY = 'elvinci_auth_config';
+        const DEFAULT_AUTH_CONFIG = {
+            mode: 'password',         // 'password' | 'azure-ad' | 'hybrid'
+            adClientId: '',           // wenn leer: kann auf 10X-5 SharePoint-clientId fallen
+            adTenantId: '',
+            allowedGroups: [],        // Azure-AD-Group-IDs. Leer = jeder authentifizierte User ist Admin
+            requirePasswordOverride: false  // Notausstieg falls AD ausfällt
+        };
+
+        let authState = {
+            mode: 'password',
+            isAuthenticated: false,
+            user: null,               // { id, email, displayName }
+            groups: [],
+            authenticatedAt: null
+        };
+
+        function loadAuthConfig() {
+            try {
+                const raw = localStorage.getItem(AUTH_CONFIG_KEY);
+                if (!raw) return { ...DEFAULT_AUTH_CONFIG };
+                return { ...DEFAULT_AUTH_CONFIG, ...JSON.parse(raw) };
+            } catch (e) {
+                console.warn('[Auth] Config-Read fehlgeschlagen:', e);
+                return { ...DEFAULT_AUTH_CONFIG };
+            }
+        }
+
+        function saveAuthConfig(cfg) {
+            try {
+                const merged = { ...loadAuthConfig(), ...cfg };
+                localStorage.setItem(AUTH_CONFIG_KEY, JSON.stringify(merged));
+                if (typeof bus !== 'undefined') {
+                    bus.emit('auth:config-changed', { mode: merged.mode });
+                }
+                return merged;
+            } catch (e) {
+                console.error('[Auth] Config-Save fehlgeschlagen:', e);
+                return null;
+            }
+        }
+
+        /** Liefert effektive Auth-Credentials. Wenn auth-config leer, fallback auf
+         *  SharePoint-clientId/tenantId aus 10X-5 (gleiche AD-App). */
+        function _resolveADCredentials() {
+            const auth = loadAuthConfig();
+            if (auth.adClientId && auth.adTenantId) {
+                return { clientId: auth.adClientId, tenantId: auth.adTenantId };
+            }
+            const sp = (typeof loadSharepointConfig === 'function') ? loadSharepointConfig() : null;
+            if (sp && sp.clientId && sp.tenantId) {
+                return { clientId: sp.clientId, tenantId: sp.tenantId };
+            }
+            return null;
+        }
+
+        function authEnvironmentCheck() {
+            const auth = loadAuthConfig();
+            const protocol = location.protocol;
+            const protocolOk = protocol === 'https:' || location.hostname === 'localhost';
+            const creds = _resolveADCredentials();
+            return {
+                mode: auth.mode,
+                protocolOk,
+                protocol,
+                hasADCreds: !!creds,
+                groupsConfigured: Array.isArray(auth.allowedGroups) && auth.allowedGroups.length > 0,
+                adReady: protocolOk && !!creds,
+                isAuthenticated: authState.isAuthenticated,
+                user: authState.user
+            };
+        }
+
+        async function authLoginAzure() {
+            const env = authEnvironmentCheck();
+            if (!env.protocolOk) {
+                throw new Error(`Azure-AD-Login benötigt HTTPS. Aktuelles Protokoll: ${env.protocol}`);
+            }
+            const creds = _resolveADCredentials();
+            if (!creds) {
+                throw new Error('Azure-AD-Credentials fehlen (clientId/tenantId in Config oder SharePoint-Config setzen)');
+            }
+            const msal = await loadMSAL();
+            // Wiederverwendung der gleichen MSAL-Instance wie SharePoint, aber separater Scope.
+            // _msalInstance wird von 10X-5 bereitgestellt — wenn noch nicht initialisiert,
+            // setzen wir hier mit gleicher AD-App auf.
+            if (typeof _msalInstance === 'undefined' || !_msalInstance) {
+                /* eslint-disable no-undef */
+                _msalInstance = new msal.PublicClientApplication({
+                    auth: {
+                        clientId: creds.clientId,
+                        authority: `https://login.microsoftonline.com/${creds.tenantId}`,
+                        redirectUri: location.origin + location.pathname
+                    },
+                    cache: { cacheLocation: 'sessionStorage' }
+                });
+                await _msalInstance.initialize();
+                /* eslint-enable no-undef */
+            }
+            const scopes = ['User.Read'];
+            const accounts = _msalInstance.getAllAccounts();
+            let result;
+            try {
+                if (accounts.length > 0) {
+                    result = await _msalInstance.acquireTokenSilent({ scopes, account: accounts[0] });
+                } else {
+                    result = await _msalInstance.acquireTokenPopup({ scopes });
+                }
+            } catch (e) {
+                result = await _msalInstance.acquireTokenPopup({ scopes });
+            }
+            // Profil holen
+            const profileRes = await fetch('https://graph.microsoft.com/v1.0/me', {
+                headers: { Authorization: `Bearer ${result.accessToken}` }
+            });
+            if (!profileRes.ok) throw new Error(`Graph /me fehlgeschlagen: ${profileRes.status}`);
+            const profile = await profileRes.json();
+            // Optional Group-Check
+            const cfg = loadAuthConfig();
+            let groups = [];
+            if (Array.isArray(cfg.allowedGroups) && cfg.allowedGroups.length > 0) {
+                try {
+                    const memberRes = await fetch(`https://graph.microsoft.com/v1.0/me/memberOf?$select=id,displayName`, {
+                        headers: { Authorization: `Bearer ${result.accessToken}` }
+                    });
+                    if (memberRes.ok) {
+                        const data = await memberRes.json();
+                        groups = (data.value || []).map(g => ({ id: g.id, name: g.displayName }));
+                        const allowedIds = new Set(cfg.allowedGroups);
+                        const hasAccess = groups.some(g => allowedIds.has(g.id));
+                        if (!hasAccess) {
+                            authState.isAuthenticated = false;
+                            const err = new Error(`Zugriff verweigert: User ist in keiner der erlaubten Gruppen (${cfg.allowedGroups.join(', ')})`);
+                            bus.emit('auth:denied', { reason: 'group-not-allowed', user: profile.userPrincipalName });
+                            throw err;
+                        }
+                    }
+                } catch (e) {
+                    if (e.message && e.message.includes('verweigert')) throw e;
+                    console.warn('[Auth] Group-Check fehlgeschlagen, fahre ohne fort:', e);
+                }
+            }
+            // Erfolgreich
+            authState.mode = 'azure-ad';
+            authState.isAuthenticated = true;
+            authState.user = {
+                id: profile.id,
+                email: profile.mail || profile.userPrincipalName,
+                displayName: profile.displayName
+            };
+            authState.groups = groups;
+            authState.authenticatedAt = new Date().toISOString();
+            // Backward-compat: existierende Code-Pfade prüfen isAdminAuthenticated
+            if (typeof isAdminAuthenticated !== 'undefined') {
+                isAdminAuthenticated = true;
+            }
+            bus.emit('auth:logged-in', {
+                mode: 'azure-ad',
+                user: authState.user,
+                groups: groups.length
+            });
+            renderUserBadge();
+            return authState.user;
+        }
+
+        function authLogout() {
+            const wasAuth = authState.isAuthenticated;
+            authState.isAuthenticated = false;
+            authState.user = null;
+            authState.groups = [];
+            authState.authenticatedAt = null;
+            if (typeof isAdminAuthenticated !== 'undefined') {
+                isAdminAuthenticated = false;
+            }
+            // MSAL-Cache leeren
+            try {
+                if (typeof _msalInstance !== 'undefined' && _msalInstance) {
+                    const accounts = _msalInstance.getAllAccounts();
+                    accounts.forEach(a => _msalInstance.clearCache({ account: a }));
+                }
+            } catch (e) { console.warn('[Auth] MSAL-Cache-Clear:', e); }
+            bus.emit('auth:logged-out', { wasAuthenticated: wasAuth });
+            renderUserBadge();
+        }
+
+        /** Rendert User-Badge (Top-Bar). Zeigt eingeloggte Identity oder "Gast". */
+        function renderUserBadge() {
+            let badge = document.getElementById('user-badge');
+            if (!badge) {
+                badge = document.createElement('div');
+                badge.id = 'user-badge';
+                badge.style.cssText = 'position:fixed;top:0.5rem;right:6rem;z-index:9000;display:flex;align-items:center;gap:0.4rem;padding:0.3rem 0.7rem;background:var(--bg-card);border:1px solid var(--border);border-radius:20px;font-size:0.65rem;font-family:var(--font-mono);box-shadow:0 2px 8px rgba(0,0,0,0.3);';
+                document.body.appendChild(badge);
+            }
+            if (authState.isAuthenticated && authState.user) {
+                const initials = (authState.user.displayName || '?').split(/\s+/).map(s => s[0]).slice(0, 2).join('').toUpperCase();
+                badge.innerHTML = `
+                    <span style="display:inline-flex;width:20px;height:20px;background:var(--accent-green);color:white;border-radius:50%;align-items:center;justify-content:center;font-weight:700;">${_h(initials)}</span>
+                    <span style="color:var(--text-secondary);">${_h(authState.user.displayName || authState.user.email)}</span>
+                    <button type="button" onclick="authLogout()" title="Abmelden" style="background:transparent;border:none;color:var(--text-muted);cursor:pointer;padding:0 0.2rem;font-size:0.75rem;">✕</button>`;
+            } else {
+                badge.innerHTML = `<span style="color:var(--text-muted);">👤 Gast</span>`;
+            }
+        }
+
+        // ============================================
         // 10X-5 (Sprint 6.6, 2026-04-20): SHAREPOINT-AUTO-SYNC (Scaffolding)
         // ============================================
         // Ziel: Auto-Pull des BESTAND-CSV von SharePoint alle X Min + optional Push
@@ -9634,6 +9855,9 @@
             window.addEventListener('offline', renderOfflineBanner);
             // 10X-5: Auto-Pull starten wenn konfiguriert (graceful no-op wenn leer)
             if (typeof startAutoPull === 'function') startAutoPull();
+            // 10X-10: User-Badge mounten + Auth-Mode-Hint im Login-Dialog
+            if (typeof renderUserBadge === 'function') renderUserBadge();
+            if (typeof updateAuthModeHint === 'function') updateAuthModeHint();
 
             // P2-20: Empty-States für dynamische Tabellen, damit leere Panels nicht "kaputt" aussehen
             const emptyTargets = [
@@ -16322,13 +16546,120 @@
         
         function checkPassword() {
             const input = document.getElementById('admin-password').value;
+            // 10X-10: Auth-Config respektieren — Passwort-Login nur in den Modes
+            // 'password' und 'hybrid' erlaubt. 'azure-ad' verlangt Azure-Login.
+            const authCfg = (typeof loadAuthConfig === 'function') ? loadAuthConfig() : { mode: 'password' };
+            if (authCfg.mode === 'azure-ad' && !authCfg.requirePasswordOverride) {
+                if (typeof showToast === 'function') {
+                    showToast('warning', 'Auth-Mode', 'Dashboard ist auf Azure-AD-only gesetzt. Bitte über AD anmelden.');
+                }
+                return;
+            }
             if (input === ADMIN_PASSWORD) {
                 isAdminAuthenticated = true;
+                // 10X-10: Auth-State aktualisieren (Mode bleibt 'password')
+                if (typeof authState !== 'undefined') {
+                    authState.mode = 'password';
+                    authState.isAuthenticated = true;
+                    authState.user = { displayName: 'Admin (Passwort)', email: 'local@elvinci' };
+                    authState.authenticatedAt = new Date().toISOString();
+                    if (typeof bus !== 'undefined') {
+                        bus.emit('auth:logged-in', { mode: 'password', user: authState.user });
+                    }
+                    if (typeof renderUserBadge === 'function') renderUserBadge();
+                }
                 showSettingsContent();
             } else {
                 alert('❌ Falsches Passwort!');
                 document.getElementById('admin-password').value = '';
                 document.getElementById('admin-password').focus();
+            }
+        }
+
+        // 10X-10: Settings-UI Glue
+        function loadAuthSettingsIntoUI() {
+            const cfg = loadAuthConfig();
+            const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v ?? ''; };
+            set('auth-client-id', cfg.adClientId);
+            set('auth-tenant-id', cfg.adTenantId);
+            set('auth-allowed-groups', (cfg.allowedGroups || []).join(','));
+            const modeSel = document.getElementById('auth-mode');
+            if (modeSel) modeSel.value = cfg.mode || 'password';
+            const pwd = document.getElementById('auth-pwd-override');
+            if (pwd) pwd.checked = !!cfg.requirePasswordOverride;
+            refreshAuthStatusBanner();
+            updateAuthModeHint();
+        }
+
+        function saveAuthSettingsFromUI() {
+            const get = (id) => (document.getElementById(id) || {}).value || '';
+            const groupsRaw = get('auth-allowed-groups').trim();
+            const groups = groupsRaw ? groupsRaw.split(',').map(s => s.trim()).filter(Boolean) : [];
+            const cfg = saveAuthConfig({
+                mode: get('auth-mode') || 'password',
+                adClientId: get('auth-client-id').trim(),
+                adTenantId: get('auth-tenant-id').trim(),
+                allowedGroups: groups,
+                requirePasswordOverride: !!(document.getElementById('auth-pwd-override') || {}).checked
+            });
+            if (cfg && typeof showToast === 'function') {
+                showToast('success', 'Auth', `Mode: ${cfg.mode} — gespeichert`);
+            }
+            refreshAuthStatusBanner();
+            updateAuthModeHint();
+        }
+
+        function refreshAuthStatusBanner() {
+            const banner = document.getElementById('auth-status-banner');
+            if (!banner) return;
+            const env = authEnvironmentCheck();
+            const lines = [];
+            lines.push(`<strong>Mode:</strong> ${env.mode}`);
+            lines.push(`<strong>Protokoll:</strong> ${env.protocolOk ? '✅' : '🚫 HTTPS für Azure AD nötig'} (${env.protocol})`);
+            lines.push(`<strong>AD-Credentials:</strong> ${env.hasADCreds ? '✅' : '⚠️ fehlen (eigene oder SharePoint-Config setzen)'}`);
+            lines.push(`<strong>Gruppen-Filter:</strong> ${env.groupsConfigured ? 'aktiv' : 'aus (jeder authentifizierte User OK)'}`);
+            lines.push(`<strong>AD-Login einsatzbereit:</strong> ${env.adReady ? '✅ ja' : '⚠️ nein'}`);
+            if (env.user) {
+                lines.push(`<strong>Eingeloggt:</strong> ${_h(env.user.displayName || env.user.email)} (Mode: ${authState.mode})`);
+            } else {
+                lines.push(`<strong>Eingeloggt:</strong> nein`);
+            }
+            banner.innerHTML = lines.join('<br>');
+        }
+
+        function updateAuthModeHint() {
+            const hint = document.getElementById('auth-mode-hint');
+            const btn = document.getElementById('btn-azure-login');
+            if (!hint) return;
+            const env = authEnvironmentCheck();
+            if (!env.adReady) {
+                hint.textContent = '⚠️ Azure-AD-Login nicht verfügbar — bitte Passwort nutzen oder Auth-Config in den Settings ergänzen.';
+                if (btn) btn.disabled = true;
+            } else if (env.mode === 'password') {
+                hint.textContent = 'Mode: password — Azure-AD-Button deaktiviert.';
+                if (btn) btn.disabled = true;
+            } else {
+                hint.textContent = `Mode: ${env.mode} — Azure-AD-Login aktiv.`;
+                if (btn) btn.disabled = false;
+            }
+        }
+
+        // 10X-10: Azure-AD-Login-Wrapper für UI-Button
+        async function checkAzureLogin() {
+            try {
+                if (typeof showToast === 'function') showToast('info', 'Azure AD', 'Login gestartet…', 3000);
+                await authLoginAzure();
+                showSettingsContent();
+                if (typeof showToast === 'function') {
+                    showToast('success', 'Azure AD', `Angemeldet als ${authState.user.displayName}`);
+                }
+            } catch (err) {
+                const msg = err && err.message ? err.message : String(err);
+                if (typeof showToast === 'function') {
+                    showToast('error', 'Azure AD Login', msg, 8000);
+                } else {
+                    alert('Azure-AD-Login fehlgeschlagen: ' + msg);
+                }
             }
         }
         
@@ -16339,6 +16670,10 @@
             // 10X-5: SharePoint-Settings befüllen (falls Block gerendert)
             if (typeof loadSharepointSettingsIntoUI === 'function') {
                 loadSharepointSettingsIntoUI();
+            }
+            // 10X-10: Auth-Settings befüllen
+            if (typeof loadAuthSettingsIntoUI === 'function') {
+                loadAuthSettingsIntoUI();
             }
 
             // Kapazitäts-Werte füllen
@@ -16680,14 +17015,61 @@
             <div id="password-section" class="password-section">
                 <div class="password-icon">🔐</div>
                 <h3>Admin-Zugang</h3>
-                <p>Bitte Passwort eingeben:</p>
-                <input type="password" id="admin-password" class="password-input" placeholder="Passwort...">
-                <button class="btn btn-primary" onclick="checkPassword()">Entsperren</button>
+                <p>Bitte Passwort eingeben oder per Azure AD anmelden:</p>
+                <input type="password" id="admin-password" class="password-input" placeholder="Passwort..." aria-label="Admin-Passwort">
+                <div style="display: flex; gap: 0.5rem; justify-content: center; margin-top: 0.5rem; flex-wrap: wrap;">
+                    <button type="button" class="btn btn-primary" onclick="checkPassword()">🔑 Mit Passwort</button>
+                    <button type="button" class="btn btn-secondary" onclick="checkAzureLogin()" id="btn-azure-login">🪪 Azure AD</button>
+                </div>
+                <div id="auth-mode-hint" style="margin-top: 0.5rem; font-size: 0.65rem; color: var(--text-muted); text-align: center;">
+                    <!-- Wird dynamisch gefüllt -->
+                </div>
             </div>
             
             <!-- Settings Content -->
             <div id="settings-content" class="settings-content" style="display: none;">
                 <div class="settings-tabs">
+
+                    <!-- 10X-10 Auth-Config (Sprint 6.7) -->
+                    <div class="settings-section" id="auth-section">
+                        <h3>🪪 Authentifizierung <span style="font-size: 0.65rem; font-weight: 400; color: var(--text-muted);">(10X-10, Dual-Auth: Passwort + Azure AD)</span></h3>
+                        <div id="auth-status-banner" style="padding: 0.5rem; border-radius: 6px; background: var(--bg-elevated); margin-bottom: 0.5rem; font-size: 0.7rem; color: var(--text-muted);">
+                            Status wird beim Öffnen geladen …
+                        </div>
+                        <div class="settings-grid">
+                            <div class="setting-item">
+                                <label>Auth-Mode</label>
+                                <select id="auth-mode" aria-label="Auth-Mode">
+                                    <option value="password">password (nur lokales Passwort)</option>
+                                    <option value="hybrid">hybrid (beides erlaubt)</option>
+                                    <option value="azure-ad">azure-ad (nur Azure AD)</option>
+                                </select>
+                            </div>
+                            <div class="setting-item">
+                                <label>Azure Client-ID (optional)</label>
+                                <input type="text" id="auth-client-id" placeholder="Leer = SharePoint-Config nutzen" autocomplete="off">
+                            </div>
+                            <div class="setting-item">
+                                <label>Azure Tenant-ID (optional)</label>
+                                <input type="text" id="auth-tenant-id" placeholder="Leer = SharePoint-Config nutzen" autocomplete="off">
+                            </div>
+                            <div class="setting-item" style="grid-column: 1 / -1;">
+                                <label>Erlaubte AD-Gruppen-IDs (komma-separiert)</label>
+                                <input type="text" id="auth-allowed-groups" placeholder="leer = jeder authentifizierte User" autocomplete="off">
+                                <span style="font-size: 0.6rem; color: var(--text-muted);">Format: GUID,GUID,GUID — abrufbar in Azure-Portal → Groups</span>
+                            </div>
+                            <div class="setting-item">
+                                <label>Passwort-Override</label>
+                                <input type="checkbox" id="auth-pwd-override" style="width: auto; margin-right: 0.5rem;">
+                                <span style="font-size: 0.65rem; color: var(--text-muted);">Erlaubt Passwort-Login auch im 'azure-ad' Mode (Notausstieg falls AD ausfällt)</span>
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 0.5rem; margin-top: 0.75rem; flex-wrap: wrap;">
+                            <button type="button" class="btn btn-primary" onclick="saveAuthSettingsFromUI()">💾 Auth-Config speichern</button>
+                            <button type="button" class="btn btn-secondary" onclick="authLogout()">🚪 Abmelden</button>
+                            <button type="button" class="btn btn-secondary" onclick="refreshAuthStatusBanner()">🔄 Status aktualisieren</button>
+                        </div>
+                    </div>
 
                     <!-- 10X-5 SharePoint-Sync (Sprint 6.6) -->
                     <div class="settings-section" id="sharepoint-section">
@@ -17052,6 +17434,20 @@ location.reload();</pre>
             window.sharepointPushManual = sharepointPushManual;
             window.refreshSharepointStatusBanner = refreshSharepointStatusBanner;
             window.loadSharepointSettingsIntoUI = loadSharepointSettingsIntoUI;
+            // 10X-10: Auth-Layer
+            window.loadAuthConfig = loadAuthConfig;
+            window.saveAuthConfig = saveAuthConfig;
+            window.authEnvironmentCheck = authEnvironmentCheck;
+            window.authLoginAzure = authLoginAzure;
+            window.authLogout = authLogout;
+            window.checkAzureLogin = checkAzureLogin;
+            window.renderUserBadge = renderUserBadge;
+            window.refreshAuthStatusBanner = refreshAuthStatusBanner;
+            window.updateAuthModeHint = updateAuthModeHint;
+            window.saveAuthSettingsFromUI = saveAuthSettingsFromUI;
+            window.loadAuthSettingsIntoUI = loadAuthSettingsIntoUI;
+            // authState als Read-Property für Tests
+            Object.defineProperty(window, 'authState', { get: () => authState, configurable: true });
             // getArtikelFaktorLocal ist bewusst nicht hier — es ist in processCSV genested und
             // wird indirekt über upload.spec.js (BESTAND-Upload) regressiert.
         }
