@@ -4232,7 +4232,29 @@
                                     <div id="angebot-recommendation" style="padding: 1rem; border-radius: 8px; margin-bottom: 1rem; text-align: center;">
                                         <!-- Dynamisch: KAUFEN / VERHANDELN / ABLEHNEN -->
                                     </div>
-                                    
+
+                                    <!-- 10X-8 v2: Pareto + Customer-Match + Mail-Drafts -->
+                                    <div id="angebot-v2-panel" style="display:none;">
+                                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:1rem;">
+                                            <div class="card-with-accent accent-purple" id="angebot-pareto-card">
+                                                <div style="font-size:0.75rem;font-weight:700;margin-bottom:0.4rem;">📊 Pareto-Analyse <span style="font-weight:400;color:var(--text-muted);font-size:0.6rem;">(80/20)</span></div>
+                                                <div id="angebot-pareto-content" style="font-size:0.7rem;color:var(--text-secondary);">—</div>
+                                            </div>
+                                            <div class="card-with-accent accent-cyan" id="angebot-customers-card">
+                                                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.4rem;">
+                                                    <div style="font-size:0.75rem;font-weight:700;">👥 Top-Kunden-Match</div>
+                                                    <button type="button" onclick="renderCustomerMatchDetail()" style="padding:0.15rem 0.4rem;font-size:0.6rem;background:var(--accent-cyan);color:white;border:none;border-radius:3px;cursor:pointer;">Details</button>
+                                                </div>
+                                                <div id="angebot-customers-content" style="font-size:0.7rem;color:var(--text-secondary);">—</div>
+                                            </div>
+                                        </div>
+                                        <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:1rem;">
+                                            <button type="button" id="btn-mail-supplier-counter" onclick="openSupplierMailDraft('counter')" style="padding:0.4rem 0.7rem;font-size:0.7rem;background:var(--accent-yellow);color:#1a1a1a;border:none;border-radius:4px;cursor:pointer;font-weight:600;">📧 Lieferant: Gegenangebot</button>
+                                            <button type="button" id="btn-mail-supplier-accept" onclick="openSupplierMailDraft('accept')" style="padding:0.4rem 0.7rem;font-size:0.7rem;background:var(--accent-green);color:white;border:none;border-radius:4px;cursor:pointer;font-weight:600;">📧 Lieferant: Annahme (🟢-Items)</button>
+                                            <button type="button" id="btn-mail-supplier-reject" onclick="openSupplierMailDraft('reject')" style="padding:0.4rem 0.7rem;font-size:0.7rem;background:var(--accent-red);color:white;border:none;border-radius:4px;cursor:pointer;font-weight:600;">📧 Lieferant: Ablehnung</button>
+                                        </div>
+                                    </div>
+
                                     <!-- Sortierung & Export -->
                                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
                                         <h4 style="margin: 0; font-size: 0.85rem;">📋 Artikel-Analyse</h4>
@@ -4950,6 +4972,255 @@
         function calculateMarginFromEkVk(ek, vk) {
             if (!ek || ek <= 0) return 0;
             return ((vk - ek) / ek) * 100;
+        }
+
+        // ============================================
+        // 10X-8 (Sprint 6.10, 2026-04-27): ANGEBOTS-ANALYSE PRO v2
+        // ============================================
+        // Erweitert die bestehende analyzeAngebot() um drei v2-Pfeiler:
+        //
+        //   1) Pareto-Analyse: Welche 20% der Items machen 80% des Profit-Potenzials?
+        //      Operativ: zeigt sofort wo der Verhandlungs-Hebel sitzt
+        //
+        //   2) Kunden-Vorab-Matching: Welche Kunden kaufen bereits in diesen WGs?
+        //      Aggregiert kundenWgStats über alle Angebot-Items → Liste "Kunde X
+        //      passt zu 7 Items mit Gesamtwert 45k€"
+        //
+        //   3) E-Mail-Drafts via mailto:
+        //      - Lieferant counter-offer (mit unseren Max-EK-Preisen)
+        //      - Lieferant Annahme (nur 🟢-Items)
+        //      - Lieferant Ablehnung
+        //      - Kunde-Outreach (pro Match-Kandidat)
+        //      Killcritic: Outlook-Integration via mailto:-Link reicht. Zero
+        //      Extra-Tooling, funktioniert in jedem Mail-Client (Outlook, Thunderbird,
+        //      Apple Mail). Body wird URL-encoded mitgegeben.
+
+        /** Pareto: sortiert nach Profit-Potenzial = (histVK_implied - maxEK) * menge.
+         *  Liefert kumulative %-Verteilung + 80%-Threshold-Index. */
+        function computeParetoAnalysis(results) {
+            if (!Array.isArray(results) || results.length === 0) {
+                return { items: [], totalPotential: 0, threshold80Idx: -1, top80Count: 0, top80Pct: 0 };
+            }
+            // Profit-Potenzial schätzen: histVK = maxEK / (1 - 0.45) → potenziell-Profit = (histVK - maxEK) * menge
+            const enriched = results.map(r => {
+                const implMargeFactor = 0.45;
+                const implVk = r.maxEK > 0 ? r.maxEK / (1 - implMargeFactor) : (r.listenVK || 0);
+                const potential = Math.max(0, (implVk - r.maxEK) * (r.menge || 1));
+                return { ...r, _potential: Math.round(potential) };
+            }).sort((a, b) => b._potential - a._potential);
+
+            const total = enriched.reduce((s, r) => s + r._potential, 0);
+            let cumulative = 0;
+            let threshold80Idx = -1;
+            const withCum = enriched.map((r, i) => {
+                cumulative += r._potential;
+                const cumPct = total > 0 ? (cumulative / total) * 100 : 0;
+                if (threshold80Idx === -1 && cumPct >= 80) threshold80Idx = i;
+                return { ...r, _cumPct: Math.round(cumPct * 10) / 10 };
+            });
+            const top80Count = threshold80Idx >= 0 ? threshold80Idx + 1 : enriched.length;
+            const top80Pct = enriched.length > 0 ? Math.round((top80Count / enriched.length) * 100) : 0;
+            return {
+                items: withCum,
+                totalPotential: total,
+                threshold80Idx,
+                top80Count,
+                top80Pct
+            };
+        }
+
+        /** Kunden-Match: für jeden Kunden zählen wie viele Items aus dem Angebot
+         *  in seiner Kauf-Historie liegen + summiertes Potenzial. */
+        function computeCustomerMatches(results) {
+            const kundenWgStats = (state && state.portal && state.portal.kundenWgStats) || {};
+            const matches = {};   // kunde → { items: [], totalPotential, totalUmsatzHist }
+
+            // Pareto liefert _potential bereits — wir nehmen die enrichten Items.
+            const pareto = computeParetoAnalysis(results);
+
+            for (const item of pareto.items) {
+                const wg = (item.artikelgruppe || '').toLowerCase();
+                if (!wg) continue;
+                for (const kunde in kundenWgStats) {
+                    const wgData = kundenWgStats[kunde] && kundenWgStats[kunde][wg];
+                    if (!wgData || !wgData.count) continue;
+                    if (!matches[kunde]) {
+                        matches[kunde] = { kunde, items: [], totalPotential: 0, totalUmsatzHist: 0, wgs: new Set() };
+                    }
+                    matches[kunde].items.push({
+                        bezeichnung: item.bezeichnung,
+                        wg,
+                        menge: item.menge,
+                        maxEK: item.maxEK,
+                        potential: item._potential
+                    });
+                    matches[kunde].totalPotential += item._potential;
+                    matches[kunde].totalUmsatzHist += wgData.umsatz || 0;
+                    matches[kunde].wgs.add(wg);
+                }
+            }
+            const list = Object.values(matches).map(m => ({
+                ...m,
+                wgs: Array.from(m.wgs),
+                itemCount: m.items.length
+            }));
+            list.sort((a, b) => b.totalPotential - a.totalPotential);
+            return list;
+        }
+
+        // ---- Mail-Draft-Helper ----
+        function _buildSupplierMailBody(results, mode) {
+            const dateStr = new Date().toLocaleDateString('de-DE');
+            const intro = mode === 'accept'
+                ? `Sehr geehrte Damen und Herren,\n\nbasierend auf unserer internen Analyse möchten wir die folgenden Positionen aus Ihrem Angebot annehmen:\n\n`
+                : mode === 'reject'
+                ? `Sehr geehrte Damen und Herren,\n\nleider können wir die folgenden Positionen aus Ihrem Angebot zu den genannten Preisen nicht übernehmen:\n\n`
+                : `Sehr geehrte Damen und Herren,\n\nbasierend auf unserer Markt- und Verkaufsanalyse können wir die folgenden Gegenangebote unterbreiten:\n\n`;
+
+            const filtered = mode === 'accept' ? results.filter(r => r.empfehlung === '🟢')
+                          : mode === 'reject'  ? results.filter(r => r.empfehlung === '🔴')
+                          : results.filter(r => r.empfehlung !== '🔴').slice(0, 25);
+
+            if (filtered.length === 0) {
+                return intro + '(Keine passenden Positionen)\n\nMit freundlichen Grüßen\nelvinci.de GmbH';
+            }
+
+            let body = intro;
+            for (const r of filtered) {
+                if (mode === 'reject') {
+                    body += `- ${r.bezeichnungFull || r.bezeichnung} (Menge: ${r.menge}, Listen-VK: ${r.listenVK} €) — ablehnen\n`;
+                } else {
+                    body += `- ${r.bezeichnungFull || r.bezeichnung} (Menge: ${r.menge}) — Max-EK: ${r.maxEK} €/Stk\n`;
+                }
+            }
+
+            const summe = filtered.reduce((s, r) => s + (r.maxEK || 0) * (r.menge || 0), 0);
+            if (mode !== 'reject') {
+                body += `\nGesamtwert (Max-EK × Menge): ca. ${summe.toLocaleString('de-DE')} €\n`;
+            }
+            body += `\nDieses Schreiben wurde am ${dateStr} aus dem NH5-Dashboard generiert.\n\nMit freundlichen Grüßen\nelvinci.de GmbH`;
+            return body;
+        }
+
+        function _buildCustomerMailBody(matchEntry) {
+            const dateStr = new Date().toLocaleDateString('de-DE');
+            let body = `Sehr geehrte Damen und Herren,\n\nbasierend auf Ihrem bisherigen Einkaufsverhalten haben wir aktuelle Verfügbarkeiten, die zu Ihrem Sortiment passen könnten:\n\n`;
+            const top = matchEntry.items.slice(0, 15);
+            for (const it of top) {
+                body += `- ${it.bezeichnung} (Menge: ${it.menge})\n`;
+            }
+            body += `\nWir freuen uns über Ihr Interesse — gerne unterbreiten wir Ihnen ein konkretes Angebot.\n\nDieses Schreiben wurde am ${dateStr} aus dem NH5-Dashboard generiert.\n\nMit freundlichen Grüßen\nelvinci.de GmbH`;
+            return body;
+        }
+
+        function buildMailto(to, subject, body) {
+            const enc = encodeURIComponent;
+            const toPart = to ? enc(to) : '';
+            return `mailto:${toPart}?subject=${enc(subject)}&body=${enc(body)}`;
+        }
+
+        function openSupplierMailDraft(mode) {
+            const results = dashboardState.angebotAnalyseResults || [];
+            if (results.length === 0) {
+                if (typeof showToast === 'function') showToast('warning', 'Mail-Draft', 'Keine Angebots-Daten geladen.');
+                return;
+            }
+            const subjects = {
+                accept:  'Angebots-Annahme — elvinci.de NH5',
+                reject:  'Angebots-Antwort — elvinci.de NH5',
+                counter: 'Gegenangebot — elvinci.de NH5'
+            };
+            const subject = subjects[mode] || subjects.counter;
+            const body = _buildSupplierMailBody(results, mode);
+            const url = buildMailto('', subject, body);
+            window.location.href = url;
+            if (typeof bus !== 'undefined') {
+                bus.emit('angebot:mail-draft', { target: 'supplier', mode, count: results.length });
+            }
+        }
+
+        function openCustomerMailDraft(kundeName) {
+            const matches = computeCustomerMatches(dashboardState.angebotAnalyseResults || []);
+            const entry = matches.find(m => m.kunde === kundeName);
+            if (!entry) {
+                if (typeof showToast === 'function') showToast('warning', 'Mail-Draft', `Kein Match für ${kundeName}`);
+                return;
+            }
+            const subject = `Aktuelle Verfügbarkeiten für ${kundeName} — elvinci.de NH5`;
+            const body = _buildCustomerMailBody(entry);
+            const url = buildMailto('', subject, body);
+            window.location.href = url;
+            if (typeof bus !== 'undefined') {
+                bus.emit('angebot:mail-draft', { target: 'customer', kunde: kundeName, items: entry.itemCount });
+            }
+        }
+
+        // ---- v2-UI-Renderer ----
+        function renderAngebotV2Panels() {
+            const results = dashboardState.angebotAnalyseResults || [];
+            const panel = document.getElementById('angebot-v2-panel');
+            if (!panel) return;
+            if (results.length === 0) { panel.style.display = 'none'; return; }
+            panel.style.display = 'block';
+
+            // Pareto
+            const pareto = computeParetoAnalysis(results);
+            const paretoEl = document.getElementById('angebot-pareto-content');
+            if (paretoEl) {
+                if (pareto.totalPotential <= 0) {
+                    paretoEl.innerHTML = '<em style="color:var(--text-muted);">Kein Profit-Potenzial berechenbar (keine Verkaufshistorie?).</em>';
+                } else {
+                    const top = pareto.items.slice(0, Math.max(1, pareto.top80Count));
+                    const rows = top.slice(0, 5).map((r, i) => `
+                        <div style="display:flex;justify-content:space-between;padding:0.15rem 0;border-bottom:1px dotted var(--border);font-size:0.65rem;">
+                            <span style="color:var(--text-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:200px;">${i + 1}. ${_h(r.bezeichnung)}</span>
+                            <span style="font-family:var(--font-mono);color:var(--accent-green);">+${r._potential.toLocaleString('de-DE')}€</span>
+                        </div>`).join('');
+                    paretoEl.innerHTML = `
+                        <div style="margin-bottom:0.4rem;">
+                            <strong style="color:var(--accent-purple);">${pareto.top80Count} Items (${pareto.top80Pct}%)</strong>
+                            machen ~80% des Potenzials von <strong>${pareto.totalPotential.toLocaleString('de-DE')}€</strong>
+                        </div>
+                        <div>${rows}${pareto.top80Count > 5 ? `<div style="font-size:0.6rem;color:var(--text-muted);font-style:italic;padding:0.2rem 0;">... und ${pareto.top80Count - 5} weitere</div>` : ''}</div>`;
+                }
+            }
+
+            // Kunden-Match (Top 5)
+            const matches = computeCustomerMatches(results);
+            const kundenEl = document.getElementById('angebot-customers-content');
+            if (kundenEl) {
+                if (matches.length === 0) {
+                    kundenEl.innerHTML = '<em style="color:var(--text-muted);">Keine Kunden-Historie für die WGs vorhanden — All-Sold laden?</em>';
+                } else {
+                    const top = matches.slice(0, 5);
+                    const rows = top.map(m => `
+                        <div style="display:flex;justify-content:space-between;align-items:center;padding:0.2rem 0;border-bottom:1px dotted var(--border);font-size:0.65rem;">
+                            <div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:140px;">
+                                <strong>${_h(m.kunde)}</strong>
+                                <span style="color:var(--text-muted);"> · ${m.itemCount}/${results.length}</span>
+                            </div>
+                            <div style="display:flex;gap:0.3rem;align-items:center;">
+                                <span style="font-family:var(--font-mono);color:var(--accent-cyan);">${m.totalPotential.toLocaleString('de-DE')}€</span>
+                                <button type="button" onclick="openCustomerMailDraft('${(m.kunde || '').replace(/'/g, "\\'")}')" style="padding:0.1rem 0.35rem;font-size:0.6rem;background:var(--accent-cyan);color:white;border:none;border-radius:3px;cursor:pointer;" title="Mail-Draft erstellen">📧</button>
+                            </div>
+                        </div>`).join('');
+                    kundenEl.innerHTML = rows + (matches.length > 5 ? `<div style="font-size:0.6rem;color:var(--text-muted);font-style:italic;padding:0.2rem 0;">... und ${matches.length - 5} weitere — siehe Details</div>` : '');
+                }
+            }
+        }
+
+        function renderCustomerMatchDetail() {
+            const results = dashboardState.angebotAnalyseResults || [];
+            const matches = computeCustomerMatches(results);
+            if (matches.length === 0) {
+                if (typeof showToast === 'function') showToast('info', 'Kunden-Match', 'Keine Matches berechnet.');
+                return;
+            }
+            const lines = matches.map(m => `${m.kunde} — ${m.itemCount} Items, ~${m.totalPotential.toLocaleString('de-DE')}€ Potenzial, WGs: ${m.wgs.join(', ')}`);
+            const summary = `Kunden-Match Details (${matches.length} Kunden):\n\n` + lines.join('\n');
+            // Toast wäre zu schmal — wir zeigen es als ausklappbares Detail in der UI
+            // Quick'n'dirty: alert reicht für Power-User-Workflow
+            window.alert(summary);
         }
 
         // ============================================
@@ -9886,10 +10157,15 @@ Keine Erklärungen, kein Markdown.`;
                 `;
             }
             
+            // 10X-8 v2: Pareto + Customer-Match Panels rendern
+            if (typeof renderAngebotV2Panels === 'function') {
+                try { renderAngebotV2Panels(); } catch (e) { console.warn('[10X-8] v2-Panels fehlgeschlagen:', e); }
+            }
+
             // Tabelle rendern
             sortAngebotResults();
         }
-        
+
         // Sortierung
         function sortAngebotResults() {
             const sortBy = document.getElementById('angebot-sort')?.value || 'score';
@@ -18166,6 +18442,14 @@ location.reload();</pre>
             window.validateQuerySchema = validateQuerySchema;
             window.renderQueryResults = renderQueryResults;
             window.handleAskDashboard = handleAskDashboard;
+            // 10X-8: Angebots-Analyse v2
+            window.computeParetoAnalysis = computeParetoAnalysis;
+            window.computeCustomerMatches = computeCustomerMatches;
+            window.openSupplierMailDraft = openSupplierMailDraft;
+            window.openCustomerMailDraft = openCustomerMailDraft;
+            window.renderAngebotV2Panels = renderAngebotV2Panels;
+            window.renderCustomerMatchDetail = renderCustomerMatchDetail;
+            window.buildMailto = buildMailto;
             // getArtikelFaktorLocal ist bewusst nicht hier — es ist in processCSV genested und
             // wird indirekt über upload.spec.js (BESTAND-Upload) regressiert.
         }
