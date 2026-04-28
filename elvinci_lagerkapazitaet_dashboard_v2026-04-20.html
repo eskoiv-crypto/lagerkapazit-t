@@ -4353,10 +4353,12 @@
                             <button class="filter-btn active" data-filter="alle" onclick="filterKommissioniert('alle')">
                                 Alle
                             </button>
-                            <button class="filter-btn filter-ueberfaellig" data-filter="blockierer" onclick="filterKommissioniert('blockierer')">
+                            <button class="filter-btn filter-ueberfaellig" data-filter="blockierer" onclick="filterKommissioniert('blockierer')"
+                                title="Was hindert den Versand HEUTE? Aufträge die Fläche belegen ohne zukünftigen Termin (kein Datum / wartet / überfällig). Alle Schweregrade.">
                                 🚫 Blockierer <span class="filter-count" id="count-blockierer">0</span>
                             </button>
-                            <button class="filter-btn" data-filter="problemfall" onclick="filterKommissioniert('problemfall')" style="border-color: var(--accent-red)">
+                            <button class="filter-btn" data-filter="problemfall" onclick="filterKommissioniert('problemfall')" style="border-color: var(--accent-red)"
+                                title="Wo brauchen wir manuell Sales/Finance/Kunden-Kontakt? Eskalations-Fälle: Planner-Label gesetzt, oder Zahlungsausfall, oder >5-7 Tage Funkstille. Subset von Blockierern, aber nicht jeder Blockierer ist ein Problem.">
                                 ⚠️ Problem <span class="filter-count" id="count-problemfall">0</span>
                             </button>
                             <button class="filter-btn" data-filter="kombi" onclick="filterKommissioniert('kombi')" style="border-color: var(--accent-cyan)">
@@ -14176,8 +14178,8 @@ Keine Erklärungen, kein Markdown.`;
             if (filterInfo) {
                 const filterTexts = {
                     'alle': `Zeige alle ${liste.length} Aufträge (${totalGeraete.toLocaleString('de-DE')} Geräte)`,
-                    'blockierer': `🚫 ${filteredCount} FLÄCHENBLOCKIERER (${filteredGeraete.toLocaleString('de-DE')} Geräte) – KUNDEN KONTAKTIEREN!`,
-                    'problemfall': `⚠️ ${filteredCount} PROBLEMFÄLLE (${filteredGeraete.toLocaleString('de-DE')} Geräte) – ACHTUNG!`,
+                    'blockierer': `🚫 ${filteredCount} BLOCKIERER (${filteredGeraete.toLocaleString('de-DE')} Geräte) – belegen Fläche, kein Versand-Termin`,
+                    'problemfall': `⚠️ ${filteredCount} ESKALATIONS-FÄLLE (${filteredGeraete.toLocaleString('de-DE')} Geräte) – Sales/Finance/Kunden-Kontakt nötig`,
                     'kombi': `🔗 ${filteredCount} KOMBI-AUFTRÄGE (${filteredGeraete.toLocaleString('de-DE')} Geräte) – zusammen verladen`,
                     'heute': `📅 ${filteredCount} Aufträge für heute (${filteredGeraete.toLocaleString('de-DE')} Geräte)`,
                     'geplant': `✓ ${filteredCount} Aufträge mit Termin (${filteredGeraete.toLocaleString('de-DE')} Geräte)`,
@@ -14351,24 +14353,35 @@ Keine Erklärungen, kein Markdown.`;
                 const spediteur = statusData.spediteur || '';
                 
                 // ========================================
-                // VOLLSTÄNDIGE LOGIK: Blockierer & Problemfälle
+                // VOLLSTÄNDIGE LOGIK: Blockierer vs. Problem
                 // ========================================
-                // 
-                // DEFINITIONEN:
-                // 
-                // BLOCKIERER = Belegt Versandfläche OHNE konkreten zukünftigen Abholtermin
-                //   → Status QU (kommissioniert = liegt auf Fläche)
-                //   → UND: kein gültiges zukünftiges Versanddatum
-                //         ODER "warte auf..." Text
-                //         ODER Versanddatum in der Vergangenheit
                 //
-                // KRITISCHER BLOCKIERER = Blockierer >= 3 Tage (Komm-Tag + 2)
+                // 10X (User-Report 2026-04-28): Konzept-Schärfung.
+                // Vorher: istEchterProblemfall enthielt istKritischerBlockierer
+                //   → Jeder >=3-Tage-Blockierer wurde automatisch Problem
+                //   → 100%-Überlappung im UI, keine Information
                 //
-                // PROBLEMFALL = Braucht besondere Aufmerksamkeit
-                //   → Planner-Label "Problemfall"
-                //   → ODER: kritischer Blockierer (>= 3 Tage)
-                //   → ODER: überfällig >= 3 Tage
-                //   → ODER: "warte auf..." ohne Datum (Zahlungsproblem)
+                // NEUE Trennung — orthogonal-aber-überlappbar:
+                //
+                // 🚫 BLOCKIERER = "Was hindert den Versand HEUTE?"
+                //   Auftrag belegt Versandfläche und kann nicht raus.
+                //   ALLE Schweregrade (1 Tag bis 30 Tage).
+                //   → Status QU UND
+                //   → kein zukünftiger Termin (kein versandDatum, oder wartet, oder überfällig)
+                //
+                // 🔴 KRITISCHER BLOCKIERER = Blockierer >= 3 Tage (für UI-Badge)
+                //
+                // ⚠️ PROBLEM = "Wo brauchen wir manuelle Eskalation?"
+                //   Etwas läuft AB vom normalen Workflow — Sales/Finance/
+                //   Kunden-Kontakt nötig. NICHT die reine Wartezeit.
+                //   → Planner-Label "Problemfall" (explizit so markiert) ODER
+                //   → "Warte auf Zahlung" UND überfällig (Kunde zahlt nicht) ODER
+                //   → AK-Status seit > 7 Tagen (sollte längst durch sein) ODER
+                //   → "Warte auf Rückmeldung" + > 5 Tagen (Antwort fehlt) ODER
+                //   → überfällig >= 7 Tagen (eskalations-Schwelle)
+                //
+                // → BLOCKIERER ⊋ PROBLEM (Problem-Subset, aber Mehrheit der
+                //   Blockierer sind KEIN Problem — sie warten halt normal.)
                 //
                 // ========================================
                 
@@ -14432,25 +14445,30 @@ Keine Erklärungen, kein Markdown.`;
                     }
                 }
                 
-                // AK mit überfälligem Termin ist auch problematisch (aber kein Blockierer)
-                if (status === 'AK' && istUeberfaellig) {
-                    // AK sollte nicht so lange dauern
-                    if (tageUeberfaellig >= 7) {
-                        istEchterProblemfall = true;
-                    }
-                }
-                
                 // -----------------------------------------
-                // SCHRITT 3: Problemfall-Erkennung
+                // SCHRITT 3: PROBLEM-Erkennung (10X-Schärfung 2026-04-28)
                 // -----------------------------------------
-                // Kombiniert ALLE Kriterien
-                
-                istEchterProblemfall = istEchterProblemfall || (
-                    istProblemfall ||                              // Planner-Label "Problemfall"
-                    istKritischerBlockierer ||                     // >= 3 Tage oder unbekannt
-                    (istUeberfaellig && tageUeberfaellig >= 3) ||  // >= 3 Tage überfällig
-                    (istWarteText && istBlockierer)                // Wartet auf Zahlung + blockiert
+                // Problem = Eskalations-Bedarf außerhalb normalen Workflows.
+                // KEIN automatisches "lange blockiert = Problem" mehr.
+                //
+                // Wir checken explizit "wartet-auf-Zahlung" via notizenAMM/versandStr
+                // weil istWarteText nur sagt DASS gewartet wird, nicht WORAUF.
+                const wartetAufZahlung = istWarteText && (
+                    /zahlung|payment|invoice|rechnung/i.test(versandStr || '') ||
+                    /zahlung|payment|invoice|rechnung/i.test(notizenAMM || '')
                 );
+
+                istEchterProblemfall =
+                    // (a) Explizites Planner-Label "Problemfall" (jemand hat ihn so markiert)
+                    istProblemfall
+                    // (b) Wartet auf Zahlung UND ist überfällig (Kunde säumig)
+                    || (wartetAufZahlung && istUeberfaellig)
+                    // (c) AK-Status seit > 7 Tagen überfällig (sollte längst Versand sein)
+                    || (status === 'AK' && istUeberfaellig && tageUeberfaellig >= 7)
+                    // (d) Wartet auf irgendwas seit > 5 Tagen (zu lange Funkstille)
+                    || (istWarteText && tageBlockiert >= 5)
+                    // (e) Überfällig >= 7 Tagen (Eskalations-Schwelle, früher 3)
+                    || (istUeberfaellig && tageUeberfaellig >= 7);
                 
                 // -----------------------------------------
                 // SCHRITT 4: Anzeige-Status bestimmen

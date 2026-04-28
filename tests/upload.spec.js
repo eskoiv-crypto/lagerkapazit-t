@@ -102,6 +102,61 @@ test.describe('BESTAND Upload Workflow', () => {
         expect(parseInt(result.ak), 'AK-Count (C)').toBe(1);
     });
 
+    test('Sprint 7+ Konzept (User-Report 2026-04-28): Blockierer ⊋ Problem (nicht 100% Überlappung)', async ({ page }) => {
+        await openDashboard(page);
+        const result = await page.evaluate(async () => {
+            // Simuliere eine reale Mischung: 4 Blockierer, davon nur 1 echtes Problem
+            const today = new Date(); today.setHours(0,0,0,0);
+            const ago2 = new Date(today); ago2.setDate(ago2.getDate() - 2);
+            const ago8 = new Date(today); ago8.setDate(ago8.getDate() - 8);
+            const ago3 = new Date(today); ago3.setDate(ago3.getDate() - 3);
+
+            // dashboardState mit echten Daten füllen (statt mocked kommissioniertListe)
+            window.resetAllSessionState();
+            window.state.orders.auftragStatusMap = {
+                'AU_BLOCK_NORMAL':    { status: 'QU', kunde: 'Kunde A', artikel: 5,  land: 'DE' },
+                'AU_BLOCK_LANG':      { status: 'QU', kunde: 'Kunde B', artikel: 3,  land: 'DE' },
+                'AU_BLOCK_WARTET':    { status: 'QU', kunde: 'Kunde C', artikel: 2,  land: 'DE' },
+                'AU_PROBLEM_LABEL':   { status: 'QU', kunde: 'Kunde D', artikel: 7,  land: 'DE' }
+            };
+            window.state.pipeline.fulfillmentDataMap = {
+                // 1) Normaler Blockierer: kommissioniert vor 2 Tagen, kein Termin → Blockierer, NICHT Problem
+                'AU_BLOCK_NORMAL':  { kunde: 'Kunde A', artikel: 5, kommDatum: ago2, versandDatum: null,
+                                       versandStr: '', istWarteText: false, notizenAMM: '' },
+                // 2) Lang blockiert (8 Tage): WAR vorher Problem, JETZT nur Blockierer (kein Eskalations-Trigger)
+                'AU_BLOCK_LANG':    { kunde: 'Kunde B', artikel: 3, kommDatum: ago8, versandDatum: null,
+                                       versandStr: '', istWarteText: false, notizenAMM: '' },
+                // 3) Wartet auf Rückmeldung seit 3 Tagen: Blockierer, NICHT Problem (zu kurz)
+                'AU_BLOCK_WARTET':  { kunde: 'Kunde C', artikel: 2, kommDatum: ago3, versandDatum: null,
+                                       versandStr: 'Warte auf Rückmeldung', istWarteText: true, notizenAMM: '' },
+                // 4) Auftrag mit explizitem Planner-Label "Problemfall" → Blockierer + PROBLEM
+                'AU_PROBLEM_LABEL': { kunde: 'Kunde D', artikel: 7, kommDatum: ago2, versandDatum: null,
+                                       versandStr: '', istWarteText: false, notizenAMM: '' }
+            };
+            window.state.orders.plannerDataMap = {
+                'AU_PROBLEM_LABEL': { istProblemfall: true, bucketKurz: 'Problemfall', labels: ['Problemfall'] }
+            };
+            window.state.inventory.bestandLoaded = true;
+            window.state.orders.statusLoaded = true;
+
+            window.combineAndRenderAuftragData();
+            window.filterKommissioniert('alle');
+
+            // Counts auslesen
+            return {
+                blockierer:  parseInt(document.getElementById('count-blockierer').textContent.trim()),
+                problemfall: parseInt(document.getElementById('count-problemfall').textContent.trim()),
+                qu:          parseInt(document.getElementById('count-qu').textContent.trim())
+            };
+        });
+        // 4 QU-Aufträge, 4 Blockierer (alle ohne Termin), aber nur 1 Problem (das mit Planner-Label)
+        expect(result.qu, 'Alle 4 sind QU').toBe(4);
+        expect(result.blockierer, 'Alle 4 sind Blockierer (kein Termin)').toBe(4);
+        expect(result.problemfall, 'Nur das Planner-markierte ist Problem (1 von 4)').toBe(1);
+        // Konzeptionelle Asymmetrie: Problem ist echtes Subset
+        expect(result.problemfall).toBeLessThan(result.blockierer);
+    });
+
     test('Sprint 7+ Regression: AKTUELLER FÜLLSTAND-Karte zeigt alle 4 Werte', async ({ page }) => {
         await openDashboard(page);
         // Vorbedingung: keine doppelten IDs (sonst greift getElementById nicht das richtige)
