@@ -30,3 +30,5 @@ test-results/
 playwright-report/
 blob-report/
 playwright/.cache/
+validation_output.txt
+validation_v2.txt
