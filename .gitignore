@@ -4,6 +4,9 @@ data/amm/*.csv
 data/elvinci/*.xlsx
 data/elvinci/*.xls
 
+# Claude Code agent state (local only)
+.claude/
+
 # OS
 .DS_Store
 Thumbs.db
@@ -17,3 +20,15 @@ desktop.ini
 
 # Logs
 *.log
+
+# Temp
+*.tmp
+
+# Playwright (10X-9, Sprint 6)
+node_modules/
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
+validation_output.txt
+validation_v2.txt
