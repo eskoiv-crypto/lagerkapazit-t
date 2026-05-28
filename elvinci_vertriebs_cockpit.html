@@ -154,6 +154,46 @@
         .vc-info.tip-left::after { left: auto; right: 0; transform: none; }
         .vc-info.tip-left::before { left: auto; right: 6px; transform: none; }
 
+        /* ====================================================
+         * Source-Pills (Datenquellen-Kennzeichnung an Zahlen)
+         * 🟦 BESTAND · 🟩 Stock · 🟧 All-Sold · 🟪 JTL · ⏱ Stichtag
+         * Verwendung: <span class="src-pill src-stock" data-tip="…">Stock</span>
+         * ==================================================== */
+        .src-pill {
+            display: inline-flex; align-items: center; gap: 3px;
+            padding: 1px 6px; border-radius: 6px;
+            font-size: 9.5px; font-weight: 700; letter-spacing: 0.02em;
+            text-transform: uppercase;
+            border: 1px solid transparent;
+            position: relative; cursor: help;
+            line-height: 1.3; vertical-align: middle;
+        }
+        .src-bestand { background: rgba(59,130,246,0.16); color: #60a5fa; border-color: rgba(59,130,246,0.35); }
+        .src-stock   { background: rgba(34,197,94,0.16);  color: #4ade80; border-color: rgba(34,197,94,0.35);  }
+        .src-sold    { background: rgba(249,115,22,0.16); color: #fb923c; border-color: rgba(249,115,22,0.35); }
+        .src-jtl     { background: rgba(168,85,247,0.16); color: #c084fc; border-color: rgba(168,85,247,0.35); }
+        .src-stichtag{ background: rgba(148,163,184,0.16); color: #cbd5e1; border-color: rgba(148,163,184,0.35); }
+        .src-pill[data-tip]:hover::after {
+            content: attr(data-tip);
+            position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%);
+            background: #0d141b; color: #e8edf3; padding: 8px 12px; border-radius: 8px;
+            font-size: 11px; font-weight: 400; line-height: 1.5; text-transform: none; letter-spacing: 0;
+            width: 260px; white-space: normal; text-align: left;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.55); border: 1px solid var(--border, #2a3542);
+            z-index: 99999; pointer-events: none;
+        }
+        /* Globaler Zeitraum-Filter im DATENSTAND-Bar */
+        .gf-select {
+            background: var(--bg-card, #161e29);
+            color: var(--text-primary, #e8edf3);
+            border: 1px solid var(--border, #2a3542);
+            border-radius: 6px;
+            padding: 3px 7px; font-size: 0.7rem; font-weight: 600;
+            cursor: pointer; outline: none;
+        }
+        .gf-select:hover, .gf-select:focus { border-color: var(--accent-cyan, #06b6d4); }
+        .gf-label { font-size: 0.65rem; font-weight: 600; color: var(--text-muted, #8b9cad); text-transform: uppercase; letter-spacing: 0.04em; }
+
         .dept-btn:hover { border-color: var(--accent-blue) !important; }
         .dept-btn.active { background: var(--accent-blue) !important; color: white !important; border-color: var(--accent-blue) !important; }
 
@@ -3445,13 +3485,26 @@
                             <button class="analyse-tab" data-tab="angebotsanalyse" onclick="switchAnalyseTab('angebotsanalyse')" id="tab-btn-angebotsanalyse" style="background: linear-gradient(135deg, #10B981, #06B6D4); color: white;" title="Angebots-Analyse: lädt eine Angebots-/Auftragsdatei und gleicht sie gegen den verfügbaren Bestand ab — was kann sofort geliefert werden, was fehlt?">💼 Angebots-Analyse</button>
                         </div>
 
-                        <!-- DATENSTAND-LEISTE: Zeiträume je Quelle -->
+                        <!-- DATENSTAND-LEISTE: Zeiträume je Quelle + GLOBALER ZEITRAUM-FILTER -->
                         <div id="data-range-bar" style="display:none; padding:0.55rem 1rem; background: var(--bg-secondary); border-bottom:1px solid var(--border); font-size:0.68rem; color:var(--text-secondary); display:flex; flex-wrap:wrap; gap:1.25rem; align-items:center;">
                             <span style="font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em;">🕒 Datenstand</span>
                             <span id="range-bestand" style="display:none;"></span>
                             <span id="range-stock" style="display:none;"></span>
                             <span id="range-sold" style="display:none;"></span>
                             <span id="range-jtl" style="display:none;"></span>
+                            <span style="flex:1;"></span>
+                            <span class="gf-label">Zeitraum-Filter</span>
+                            <select id="global-time-filter" class="gf-select" onchange="onGlobalTimeFilterChange()">
+                                <option value="all">Alle Daten</option>
+                                <option value="last-30d">Letzte 30 Tage</option>
+                                <option value="last-90d">Letzte 90 Tage</option>
+                                <option value="q1-2026">Q1 2026 (Jan–Mär)</option>
+                                <option value="2026-ytd">2026 YTD</option>
+                                <option value="last-12m">Letzte 12 Monate</option>
+                                <option value="2025">Gesamt 2025</option>
+                            </select>
+                            <span class="vc-info tip-left" data-tip="Phase 2: Filter wirkt aktuell auf die Reiter Kunden, Kunden×WG und Lieferanten (sie re-aggregieren live aus All-Sold). Übersicht, Verkäufer, Warengruppen, Marken und Top-Seller nutzen vorberechnete Aggregationen — diese werden in Phase 3 nachgezogen. Bestand-Reiter (Dead Stock, Verkaufspriorität, Datenqualität) sind stichtagsbezogen und vom Filter NICHT betroffen.">ⓘ</span>
+                            <span id="global-time-filter-window" style="font-size:0.62rem; color:var(--text-muted); font-style:italic;"></span>
                         </div>
 
                         <!-- TAB: ÜBERSICHT -->
@@ -8433,6 +8486,61 @@ Keine Erklärungen, kein Markdown.`;
             }
         }
         
+        // ====== GLOBAL TIME FILTER (Phase 2) ======
+        // Sales-orientierte Tabs (Übersicht/Verkäufer/Kunden/Warengruppen/Marken/Lieferanten/Top-Seller)
+        // konsumieren All-Sold via getFilteredSold() statt direkt dashboardState.allSoldData.
+        // Bestand-Tabs (Dead Stock, Verkaufspriorität, Datenqualität, Konvolut) bleiben Stichtag-bezogen.
+        function _gfWindow(preset) {
+            const now = new Date(); const t = now.getTime();
+            const day = 86400000;
+            switch (preset) {
+                case 'last-30d':  return { from: new Date(t - 30*day),  to: now };
+                case 'last-90d':  return { from: new Date(t - 90*day),  to: now };
+                case 'q1-2026':   return { from: new Date(2026,0,1),    to: new Date(2026,2,31,23,59,59) };
+                case '2026-ytd':  return { from: new Date(2026,0,1),    to: now };
+                case 'last-12m':  return { from: new Date(t - 365*day), to: now };
+                case '2025':      return { from: new Date(2025,0,1),    to: new Date(2025,11,31,23,59,59) };
+                default:          return null; // 'all'
+            }
+        }
+        function _gfFormat(d) {
+            return d.toLocaleDateString('de-DE', { day:'2-digit', month:'2-digit', year:'numeric' });
+        }
+        function getActiveTimeWindow() {
+            const f = dashboardState.globalTimeFilter || { preset: 'all' };
+            return _gfWindow(f.preset);
+        }
+        function getFilteredSold() {
+            const all = dashboardState.allSoldData || [];
+            const win = getActiveTimeWindow();
+            if (!win) return all;
+            return all.filter(row => {
+                const ds = row.saleDate || row.date || '';
+                if (!ds) return false;
+                const d = new Date(ds);
+                return !isNaN(d.getTime()) && d >= win.from && d <= win.to;
+            });
+        }
+        function onGlobalTimeFilterChange() {
+            const sel = document.getElementById('global-time-filter');
+            if (!sel) return;
+            const preset = sel.value;
+            const win = _gfWindow(preset);
+            dashboardState.globalTimeFilter = { preset, from: win?.from || null, to: win?.to || null };
+            // Sichtbares Zeitfenster-Label + Scope-Hinweis
+            const lbl = document.getElementById('global-time-filter-window');
+            if (lbl) {
+                lbl.innerHTML = win
+                    ? `→ ${_gfFormat(win.from)} – ${_gfFormat(win.to)} <span style="color:var(--accent-cyan);">· wirkt auf: Kunden · Kunden×WG · Lieferanten</span>`
+                    : '';
+            }
+            // Re-Render aller Sales-Tabs
+            try { updateAnalyseProPanel(); } catch(e) { console.warn('[GF] re-render error', e); }
+            try { if (typeof bus !== 'undefined' && bus.emit) bus.emit('filter:time-changed', { preset }); } catch(e){}
+            // Toast für UX-Feedback
+            try { if (typeof showToast === 'function') showToast(`Zeitraum: ${sel.options[sel.selectedIndex].text} (${win ? getFilteredSold().length.toLocaleString('de-DE') + ' Verkäufe' : 'alle'})`, 'info'); } catch(e){}
+        }
+
         function updateAnalyseProPanel() {
             const panel = document.getElementById('analyse-pro-panel');
             if (!panel) return;
@@ -8442,13 +8550,33 @@ Keine Erklärungen, kein Markdown.`;
             panel.style.display = hasData ? 'block' : 'none';
             if (!hasData) return;
             
-            // Status-Badge aktualisieren
+            // Status-Badge mit Source-Pills + Dedup-Count
             const statusEl = document.getElementById('analyse-pro-status');
             if (statusEl) {
+                // Stock: unique Lager-Nrn (Map.size, nicht Zeilen-Count → behebt 3.454 vs 3.446 Konflikt)
+                let stockUniq = 0;
+                if (dashboardState.stockAnalysisData) {
+                    stockUniq = (dashboardState.stockAnalysisData instanceof Map)
+                        ? dashboardState.stockAnalysisData.size
+                        : Object.keys(dashboardState.stockAnalysisData).length;
+                }
+                const f = dashboardState.globalTimeFilter || { preset: 'all' };
+                const soldShown = f.preset === 'all'
+                    ? (dashboardState.allSoldData || []).length
+                    : getFilteredSold().length;
+                const soldAll = (dashboardState.allSoldData || []).length;
+                const soldLabel = f.preset === 'all'
+                    ? `${soldShown.toLocaleString('de-DE')} Verkauft`
+                    : `${soldShown.toLocaleString('de-DE')} / ${soldAll.toLocaleString('de-DE')} Verkauft`;
+                statusEl.style.background = 'transparent'; statusEl.style.padding = '0';
                 const parts = [];
-                if (dashboardState.stockAnalysisLoaded) parts.push(`${dashboardState.stockAnalysisCount.toLocaleString('de-DE')} Lager`);
-                if (dashboardState.allSoldLoaded) parts.push(`${dashboardState.allSoldCount.toLocaleString('de-DE')} Verkauft`);
-                statusEl.textContent = parts.join(' | ');
+                if (dashboardState.stockAnalysisLoaded) {
+                    parts.push(`<span class="src-pill src-stock" data-tip="Stock-Analysis (Portal-Snapshot): aktuell verkaufsbereite Geräte (Status A/M), dedupliziert nach Lager-Nr. Stichtag: heute beim Upload. Vom Zeitraum-Filter NICHT betroffen.">🟩 ${stockUniq.toLocaleString('de-DE')} Stock</span>`);
+                }
+                if (dashboardState.allSoldLoaded) {
+                    parts.push(`<span class="src-pill src-sold" data-tip="All-Sold (Verkaufs-Historie): vom Zeitraum-Filter betroffen. ${f.preset === 'all' ? 'Aktuell: alle Verkäufe.' : 'Aktuell gefiltert: ' + soldShown.toLocaleString('de-DE') + ' von ' + soldAll.toLocaleString('de-DE') + ' Verkäufen.'}">🟧 ${soldLabel}</span>`);
+                }
+                statusEl.innerHTML = parts.join(' ');
             }
             
             // KPIs aktualisieren
@@ -9020,7 +9148,7 @@ Keine Erklärungen, kein Markdown.`;
                 soldRangeTxt = `${fmt(r.mn)} – ${fmt(r.mx)}`;
                 if (elSold) {
                     elSold.style.display = 'inline';
-                    elSold.innerHTML = `<b style="color:var(--accent-green);">All-Sold (Verkäufe):</b> ${soldRangeTxt} <span style="color:var(--text-muted);">· ${sold.length.toLocaleString('de-DE')} Verk.</span>`;
+                    elSold.innerHTML = `<span class="src-pill src-sold" data-tip="All-Sold (Portal-Verkaufshistorie): jede Zeile = ein verkauftes Gerät mit Verkaufsdatum, Preis, Kunde, Verkäufer. DSGVO: enthält Kundennamen (vertraulich).">🟧 ALL-SOLD</span> <b style="color:var(--accent-green);">Verkäufe:</b> ${soldRangeTxt} <span style="color:var(--text-muted);">· ${sold.length.toLocaleString('de-DE')} Verk.</span>`;
                     shown = true;
                 }
             } else if (elSold) { elSold.style.display = 'none'; }
@@ -9035,7 +9163,7 @@ Keine Erklärungen, kein Markdown.`;
                 if (stock.length) {
                     const r = _rangeOf(stock, 'datetime_upload');
                     elStock.style.display = 'inline';
-                    elStock.innerHTML = `<b style="color:var(--accent-orange);">Stock-Analysis (Portal-Snapshot):</b> WE ${fmt(r.mn)} – ${fmt(r.mx)} <span style="color:var(--text-muted);">· ${stock.length.toLocaleString('de-DE')} Art.</span>`;
+                    elStock.innerHTML = `<span class="src-pill src-stock" data-tip="Stock-Analysis (Portal-Snapshot): aktuell verkaufsbereite Geräte (Status A/M). Bereits verkaufte oder gesperrte Geräte sind hier NICHT enthalten. Stichtag: Zeitpunkt des Portal-Exports.">🟩 STOCK</span> <b style="color:var(--accent-orange);">Portal-Snapshot:</b> WE ${fmt(r.mn)} – ${fmt(r.mx)} <span style="color:var(--text-muted);">· ${stock.length.toLocaleString('de-DE')} Art.</span>`;
                     shown = true;
                 } else { elStock.style.display = 'none'; }
             }
@@ -9046,7 +9174,7 @@ Keine Erklärungen, kein Markdown.`;
                 if (bestand.length) {
                     const r = _rangeOf(bestand, 'weDatum');
                     elBest.style.display = 'inline';
-                    elBest.innerHTML = `<b style="color:var(--accent-cyan);">BESTAND (Lager-Snapshot):</b> Stichtag heute <span style="color:var(--text-muted);">· ${bestand.length.toLocaleString('de-DE')} Geräte · WE ${fmt(r.mn)}–${fmt(r.mx)}</span>`;
+                    elBest.innerHTML = `<span class="src-pill src-bestand" data-tip="BESTAND (AMM-Lagerverwaltung): physischer Lagerbestand mit ALLEN Status (QE klassifiziert, VS Versand, AA Sonder, Frischware). Eine Lager-Nr = ein physisches Gerät ODER eine gemischte Sammelpalette.">🟦 BESTAND</span> <b style="color:var(--accent-cyan);">Lager-Snapshot:</b> Stichtag heute <span style="color:var(--text-muted);">· ${bestand.length.toLocaleString('de-DE')} Geräte · WE ${fmt(r.mn)}–${fmt(r.mx)}</span>`;
                     shown = true;
                 } else { elBest.style.display = 'none'; }
             }
@@ -9056,7 +9184,7 @@ Keine Erklärungen, kein Markdown.`;
             if (elJtl) {
                 if (jtlCount) {
                     elJtl.style.display = 'inline';
-                    elJtl.innerHTML = `<b style="color:var(--accent-purple);">JTL (Artikelstamm):</b> <span style="color:var(--text-muted);">${jtlCount.toLocaleString('de-DE')} Positionen</span>`;
+                    elJtl.innerHTML = `<span class="src-pill src-jtl" data-tip="JTL (Warenwirtschaft): Artikelstamm-Export mit Artikelnummern, Marken, Warengruppen. Liefert Rechnungs-/Zahlungs-Stati und Stammdaten zur Verknüpfung mit All-Sold.">🟪 JTL</span> <b style="color:var(--accent-purple);">Artikelstamm:</b> <span style="color:var(--text-muted);">${jtlCount.toLocaleString('de-DE')} Positionen</span>`;
                     shown = true;
                 } else { elJtl.style.display = 'none'; }
             }
@@ -9145,8 +9273,8 @@ Keine Erklärungen, kein Markdown.`;
         // ========== KUNDEN TAB ==========
         function updateKundenTab() {
             if (!dashboardState.allSoldLoaded) return;
-            
-            const allSoldData = dashboardState.allSoldData || [];
+
+            const allSoldData = getFilteredSold();  // Phase-2 global time filter
             
             // Kunden-Aggregation
             const kundenStats = {};
@@ -9298,8 +9426,8 @@ Keine Erklärungen, kein Markdown.`;
         // ========== KUNDEN × WARENGRUPPEN MATRIX ==========
         function updateKundenMatrix() {
             if (!dashboardState.allSoldLoaded) return;
-            
-            const allSoldData = dashboardState.allSoldData || [];
+
+            const allSoldData = getFilteredSold();  // Phase-2 global time filter
             const view = document.getElementById('matrix-view')?.value || 'kunde-wg';
             const metric = document.getElementById('matrix-metric')?.value || 'umsatz';
             const topN = parseInt(document.getElementById('matrix-topn')?.value) || 15;
@@ -10415,8 +10543,8 @@ Keine Erklärungen, kein Markdown.`;
         // ========== LIEFERANTEN-TAB ==========
         function updateLieferantenTab() {
             if (!dashboardState.allSoldLoaded) return;
-            
-            const allSoldData = dashboardState.allSoldData || [];
+
+            const allSoldData = getFilteredSold();  // Phase-2 global time filter
             
             // Lieferanten-Aggregation basierend auf Supply Type
             const lieferantenStats = {};
@@ -11782,6 +11910,8 @@ Keine Erklärungen, kein Markdown.`;
             dashboardState.stockTotalVK = 0;
             dashboardState.stockAnalysisCount = 0;
             dashboardState.allSoldCount = 0;
+            // === GLOBAL TIME FILTER (Phase 2, 2026-05-28) ===
+            dashboardState.globalTimeFilter = dashboardState.globalTimeFilter || { preset: 'all', from: null, to: null };
             dashboardState.allSoldProfit = 0;
             dashboardState.allSoldTotalEK = 0;
             dashboardState.allSoldTotalVK = 0;
