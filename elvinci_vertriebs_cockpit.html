@@ -4173,6 +4173,10 @@
                                         </button>
                                     </div>
                                 </div>
+                                <!-- DSGVO-Hinweis Kunden-Match -->
+                                <div id="konvolut-dsgvo-hint" style="margin-top:0.9rem; padding:0.45rem 0.7rem; background:rgba(239,68,68,0.06); border-left:3px solid var(--accent-red); border-radius:6px; font-size:0.62rem; color:var(--text-secondary);">
+                                    🔴 <b>DSGVO-Hinweis:</b> Sobald All-Sold geladen ist, schlägt jedes Konvolut <b>Top-5 historische Käufer</b> vor (Kundenname + Kaufverhalten = vertraulich). Vorschläge bleiben lokal im Browser. Nutzung nur im berechtigten Kreis (Verkauf, Backoffice).
+                                </div>
                                 <!-- Konvolut-Übersicht -->
                                 <div id="konvolut-summary" style="margin-top: 0.9rem; font-size:0.75rem; color: var(--text-secondary);"></div>
                                 <!-- Konvolut-Karten -->
@@ -8928,6 +8932,143 @@ Keine Erklärungen, kein Markdown.`;
             dashboardState.potenzialTop50 = filtered.slice(0, limit);
         }
 
+        // ============================================================
+        // KUNDEN-AFFINITÄTS-ENGINE (Phase 2026-05-28)
+        // Verbindet All-Sold-Kaufhistorie mit Konvolut-Kandidaten.
+        // Ziel: alte Ware zum höchstmöglichen erwarteten Umsatz verkaufen.
+        //
+        // KILLCRITIC-Designentscheidungen (User-bestätigt):
+        //  · Matching strikt: nur exakte WG + Marke (kein Marken-Fuzzy)
+        //  · Sichtbar: P(Kauf) % UND Erw. Umsatz € (beide Dimensionen)
+        //  · Flow: Konvolut wie heute → Top-Kunden als Vorschlag
+        //  · DSGVO: alle Verkäufer sehen alle Kunden (+ Hinweis in UI)
+        //
+        // Modell: fit = recency · experience · priceAch · paymentScore
+        //   recency      = exp(-daysSinceLast / 180)
+        //   experience   = log(1 + count_in_(WG,Brand))
+        //   priceAch     = ØVK_Kunde / ØVK_Markt im Tupel (clamped 0.3..1.3)
+        //   paymentScore = Anteil bezahlter Käufe (default 1.0 wenn unbekannt)
+        // P(Kauf) = 1 - exp(-fit / 1.5)  → [0%..95%]
+        // ============================================================
+        function buildCustomerAffinity() {
+            const sold = dashboardState.allSoldData || [];
+            if (!sold.length) {
+                dashboardState.customerAffinity = null;
+                return null;
+            }
+            const NOW = Date.now();
+            const _norm = s => String(s || '').trim();
+            const _key = (pg, brand) => `${_norm(pg).toLowerCase()}||${_norm(brand).toUpperCase()}`;
+
+            // 1) Markt-Mittelwerte je (WG, Marke) für Preis-Achievement
+            const marketStats = new Map(); // key → { sumVK, count }
+            sold.forEach(s => {
+                if (!s.pg || !s.brand) return;
+                const k = _key(s.pg, s.brand);
+                const vk = parseFloat(s.jtlPrice) || parseFloat(s.vk) || 0;
+                if (vk <= 0) return;
+                const m = marketStats.get(k) || { sumVK: 0, count: 0 };
+                m.sumVK += vk; m.count++;
+                marketStats.set(k, m);
+            });
+
+            // 2) Kunden-Tupel-Profile
+            const affinity = new Map(); // company||pg||brand → profile
+            const customerTotals = new Map(); // company → { paid, total, lastSaleTs }
+            sold.forEach(s => {
+                const company = _norm(s.company);
+                if (!company || company === 'Unbekannt' || !s.pg || !s.brand) return;
+                const k = `${company}||${_key(s.pg, s.brand)}`;
+                const vk = parseFloat(s.jtlPrice) || parseFloat(s.vk) || 0;
+                const profit = parseFloat(s.profit) || 0;
+                const saleTs = s.saleDate ? new Date(s.saleDate).getTime() : null;
+                const validTs = saleTs && !isNaN(saleTs) ? saleTs : null;
+
+                const p = affinity.get(k) || { company, pg: s.pg, brand: s.brand, count: 0, sumVK: 0, sumProfit: 0, lastSaleTs: 0 };
+                p.count++; p.sumVK += vk; p.sumProfit += profit;
+                if (validTs && validTs > p.lastSaleTs) p.lastSaleTs = validTs;
+                affinity.set(k, p);
+
+                // Kundentotal für Payment-Score
+                const ct = customerTotals.get(company) || { paid: 0, total: 0, lastSaleTs: 0 };
+                ct.total++;
+                const paidStr = String(s.paid || '').toUpperCase();
+                if (paidStr.includes('BEZAHLT') || paidStr.includes('PAID') || paidStr === 'JA' || paidStr === 'Y') ct.paid++;
+                if (validTs && validTs > ct.lastSaleTs) ct.lastSaleTs = validTs;
+                customerTotals.set(company, ct);
+            });
+
+            // 3) Scoring je Profil
+            affinity.forEach((p, k) => {
+                const market = marketStats.get(_key(p.pg, p.brand));
+                const customerAvgVK = p.sumVK / p.count;
+                const marketAvgVK = market && market.count ? (market.sumVK / market.count) : customerAvgVK;
+                p.priceAchievement = marketAvgVK > 0 ? Math.min(1.3, Math.max(0.3, customerAvgVK / marketAvgVK)) : 1.0;
+                p.daysSinceLast = p.lastSaleTs ? Math.round((NOW - p.lastSaleTs) / 86400000) : 9999;
+                p.recencyFactor = Math.exp(-p.daysSinceLast / 180);
+                p.experienceFactor = Math.log(1 + p.count);
+
+                const ct = customerTotals.get(p.company) || { paid: 0, total: 0 };
+                p.paymentScore = ct.total > 0 ? (0.6 + 0.4 * (ct.paid / ct.total)) : 1.0; // 0.6..1.0
+                p.customerTotalSales = ct.total;
+
+                p.fitScore = p.recencyFactor * p.experienceFactor * p.priceAchievement * p.paymentScore;
+                p.pBuy = 1 - Math.exp(-p.fitScore / 1.5); // 0..~0.95
+            });
+
+            dashboardState.customerAffinity = { affinity, marketStats, customerTotals, builtAt: NOW };
+            console.log(`[Affinity] ${affinity.size} Kunde×WG×Marke-Tupel · ${customerTotals.size} Kunden · ${marketStats.size} Markt-Tupel`);
+            return dashboardState.customerAffinity;
+        }
+
+        function matchCustomersForKonvolut(k, topN = 5) {
+            const aff = dashboardState.customerAffinity || buildCustomerAffinity();
+            if (!aff) return [];
+
+            // Dominantes (WG, Marke)-Tupel im Konvolut bestimmen (häufigste Kombi)
+            const tupleCount = new Map();
+            (k.items || []).forEach(it => {
+                const pg = String(it.product_group || '').trim();
+                const brand = String(it.brand || '').trim();
+                if (!pg || !brand) return;
+                const tk = `${pg.toLowerCase()}||${brand.toUpperCase()}`;
+                tupleCount.set(tk, (tupleCount.get(tk) || 0) + 1);
+            });
+            if (tupleCount.size === 0) return [];
+
+            // Kandidaten: alle Profile, die zu IRGENDEINEM Tupel im Konvolut matchen (strikt WG+Brand)
+            const candidates = new Map(); // company → bestProfile
+            aff.affinity.forEach(p => {
+                const tk = `${String(p.pg).toLowerCase()}||${String(p.brand).toUpperCase()}`;
+                if (!tupleCount.has(tk)) return;
+                const coverage = tupleCount.get(tk) / k.anzahl; // wieviel des Konvoluts deckt dieses Tupel ab
+                const adjustedFit = p.fitScore * (0.5 + 0.5 * coverage); // teilweises Match wird abgeschwächt
+                const existing = candidates.get(p.company);
+                if (!existing || adjustedFit > existing._adjustedFit) {
+                    candidates.set(p.company, { ...p, _adjustedFit: adjustedFit, _coverage: coverage });
+                }
+            });
+            if (candidates.size === 0) return [];
+
+            // Top-N nach erw. Umsatz (= sumVK × P(Kauf)) — Kombi-Metrik
+            const list = Array.from(candidates.values()).map(p => {
+                const pBuy = 1 - Math.exp(-p._adjustedFit / 1.5);
+                return {
+                    company: p.company,
+                    count: p.count,
+                    daysSinceLast: p.daysSinceLast,
+                    priceAchievement: p.priceAchievement,
+                    paymentScore: p.paymentScore,
+                    pBuy,
+                    expectedRevenue: (k.sumVK || 0) * pBuy,
+                    coverage: p._coverage,
+                    fitScore: p._adjustedFit
+                };
+            });
+            list.sort((a, b) => b.expectedRevenue - a.expectedRevenue);
+            return list.slice(0, topN);
+        }
+
         // ====== KONVOLUT-GENERATOR ======
         function generateKonvolute() {
             const items = dashboardState.potenzialScoredItems || [];
@@ -8970,6 +9111,13 @@ Keine Erklärungen, kein Markdown.`;
                 }
             });
             konvolute.sort((a,b) => b.avgScore - a.avgScore);  // dringendste Konvolute zuerst
+
+            // KUNDEN-MATCH: Top-5 Käufer je Konvolut anreichern (wenn All-Sold geladen)
+            if (dashboardState.allSoldLoaded) {
+                if (!dashboardState.customerAffinity) buildCustomerAffinity();
+                konvolute.forEach(k => { k.topCustomers = matchCustomersForKonvolut(k, 5); });
+            }
+
             dashboardState.konvolute = konvolute;
             renderKonvolute();
         }
@@ -9029,7 +9177,9 @@ Keine Erklärungen, kein Markdown.`;
                             <span id="konvolut-arrow-${idx}" style="font-size:0.9rem; color:var(--text-muted);">▸</span>
                         </div>
                     </div>
-                    <div id="konvolut-body-${idx}" style="display:none; max-height:320px; overflow-y:auto; padding:0.5rem 1rem 1rem;">
+                    <div id="konvolut-body-${idx}" style="display:none; max-height:480px; overflow-y:auto; padding:0.5rem 1rem 1rem;">
+                        ${_renderTopCustomersBlock(k)}
+                        <div style="font-size:0.7rem; font-weight:700; margin:0.8rem 0 0.3rem; color:var(--text-secondary);">📦 Geräte im Konvolut</div>
                         <table class="analyse-table" style="font-size:0.62rem;">
                             <thead><tr><th>Lager-Nr</th><th>Artikel</th><th>Marke</th><th>Tage</th><th>EK</th><th>VK</th><th>Marge</th></tr></thead>
                             <tbody>${rows}</tbody>
@@ -9037,6 +9187,63 @@ Keine Erklärungen, kein Markdown.`;
                     </div>
                 </div>`;
             }).join('');
+        }
+
+        // Render-Helper: Top-Kunden-Block in jedem Konvolut (Phase 2026-05-28)
+        function _renderTopCustomersBlock(k) {
+            const tops = k.topCustomers || [];
+            if (!dashboardState.allSoldLoaded) {
+                return `<div style="padding:0.5rem; background:var(--bg-elevated); border-radius:6px; font-size:0.65rem; color:var(--text-muted);">💡 Top-Kunden-Vorschläge erscheinen, sobald <b>All-Sold</b> hochgeladen ist.</div>`;
+            }
+            if (tops.length === 0) {
+                return `<div style="padding:0.55rem 0.7rem; background:rgba(249,115,22,0.08); border-left:3px solid var(--accent-orange); border-radius:6px; font-size:0.68rem;">
+                    🟧 <b>Keine historischen Käufer</b> für dieses WG+Marke-Tupel — harter Klärfall (Rabatt-Aktion, Aufruf an Neukunden, oder ausbuchen).
+                </div>`;
+            }
+            const maxRev = Math.max(...tops.map(t => t.expectedRevenue), 1);
+            const bestRev = tops[0].expectedRevenue;
+            const rows = tops.map((c, i) => {
+                const pct = Math.round(c.pBuy * 100);
+                const barW = Math.round((c.expectedRevenue / maxRev) * 100);
+                const pctColor = pct >= 60 ? 'var(--accent-green)' : pct >= 35 ? 'var(--accent-cyan)' : 'var(--text-muted)';
+                const trustIcons = c.paymentScore >= 0.95 ? '💳' : c.paymentScore >= 0.8 ? '' : '⚠️';
+                const priceLabel = c.priceAchievement >= 1.05 ? 'Premium-Käufer' : c.priceAchievement >= 0.9 ? 'Normalpreis' : 'Schnäppchenjäger';
+                return `<tr>
+                    <td style="font-size:0.62rem; font-weight:700; color:${i===0?'var(--accent-green)':'inherit'};">${i+1}.</td>
+                    <td style="font-size:0.65rem; max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${_h(c.company)}">${_h(c.company)} ${trustIcons}</td>
+                    <td class="mono" style="font-size:0.6rem; text-align:right;">${c.count}×</td>
+                    <td class="mono" style="font-size:0.6rem; text-align:right;">${c.daysSinceLast === 9999 ? '?' : c.daysSinceLast + 'T'}</td>
+                    <td style="font-size:0.6rem;" title="ØVK des Kunden ÷ ØVK Markt für dieses (WG, Marke)">${(c.priceAchievement*100).toFixed(0)}% <span style="color:var(--text-muted); font-size:0.55rem;">(${priceLabel})</span></td>
+                    <td class="mono" style="font-size:0.65rem; text-align:right; font-weight:700; color:${pctColor};">${pct}%</td>
+                    <td style="font-size:0.62rem; text-align:right; min-width:140px;">
+                        <div style="display:flex; align-items:center; gap:0.4rem; justify-content:flex-end;">
+                            <div style="flex:1; max-width:80px; height:5px; background:var(--bg-elevated); border-radius:3px; overflow:hidden;">
+                                <div style="width:${barW}%; height:100%; background:var(--accent-green);"></div>
+                            </div>
+                            <span class="mono" style="font-weight:700; color:var(--accent-green); min-width:60px;">${c.expectedRevenue.toLocaleString('de-DE',{style:'currency',currency:'EUR',maximumFractionDigits:0})}</span>
+                        </div>
+                    </td>
+                </tr>`;
+            }).join('');
+            return `
+                <div style="padding:0.6rem 0.8rem; background:linear-gradient(135deg,rgba(34,197,94,0.08),rgba(6,182,212,0.05)); border:1px solid rgba(34,197,94,0.25); border-radius:8px; margin-bottom:0.3rem;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.4rem;">
+                        <div style="font-size:0.72rem; font-weight:700;">🎯 Beste Abnehmer <span class="vc-info" data-tip="Vorschläge basieren auf strikten Matches WG+Marke aus der All-Sold-Kaufhistorie. Score = Frische × Erfahrung × Preis-Achievement × Zahlungs-Score. P(Kauf) und Erw. Umsatz sind statistische Schätzer, kein Versprechen.">ⓘ</span></div>
+                        <div style="font-size:0.62rem; color:var(--accent-green); font-weight:700;">Top-Empfehlung: ${_h(tops[0].company)} → ${bestRev.toLocaleString('de-DE',{style:'currency',currency:'EUR',maximumFractionDigits:0})} erw. Umsatz</div>
+                    </div>
+                    <table style="width:100%; font-size:0.62rem; border-collapse:collapse;">
+                        <thead><tr style="color:var(--text-muted); text-align:left; font-size:0.55rem; text-transform:uppercase; letter-spacing:0.04em;">
+                            <th style="padding:0.2rem 0.3rem;">#</th>
+                            <th style="padding:0.2rem 0.3rem;">Kunde</th>
+                            <th style="padding:0.2rem 0.3rem; text-align:right;" title="Anzahl historischer Käufe in WG+Marke">Ähnl.</th>
+                            <th style="padding:0.2rem 0.3rem; text-align:right;" title="Tage seit letztem Kauf">Letzte</th>
+                            <th style="padding:0.2rem 0.3rem;">Preis-Achievement</th>
+                            <th style="padding:0.2rem 0.3rem; text-align:right;" title="Wahrscheinlichkeit dass Kunde kauft">P(Kauf)</th>
+                            <th style="padding:0.2rem 0.3rem; text-align:right;">Erw. Umsatz</th>
+                        </tr></thead>
+                        <tbody>${rows}</tbody>
+                    </table>
+                </div>`;
         }
 
         function toggleKonvolut(idx) {
@@ -9050,6 +9257,9 @@ Keine Erklärungen, kein Markdown.`;
 
         function _konvolutToCsvRows(k) {
             const rows = [];
+            const top = (k.topCustomers || []).slice(0, 3)
+                .map(c => `${c.company} (${Math.round(c.pBuy*100)}% / ${Math.round(c.expectedRevenue)}€)`.replace(/;/g, ','))
+                .join(' | ') || '—';
             k.items.forEach(it => {
                 rows.push([
                     (k.teileGesamt > 1 ? `${k.gruppe} (Teil ${k.teilNr}/${k.teileGesamt})` : k.gruppe),
@@ -9058,7 +9268,8 @@ Keine Erklärungen, kein Markdown.`;
                     it.product_life_days || 0,
                     (parseFloat(it.Buying_Price)||0).toFixed(2).replace('.', ','),
                     (parseFloat(it.Selling_Price)||0).toFixed(2).replace('.', ','),
-                    it.marge.toFixed(1).replace('.', ',')
+                    it.marge.toFixed(1).replace('.', ','),
+                    top
                 ].join(';'));
             });
             return rows;
@@ -9067,7 +9278,7 @@ Keine Erklärungen, kein Markdown.`;
         function exportKonvolut(idx) {
             const k = (dashboardState.konvolute || [])[idx];
             if (!k) return;
-            const header = ['Konvolut','Score','Lager-Nr','Modell','Marke','Warengruppe','Lagertage','EK','VK','Marge%'].join(';');
+            const header = ['Konvolut','Score','Lager-Nr','Modell','Marke','Warengruppe','Lagertage','EK','VK','Marge%','Top-3 Käufer (P%/erw.€)'].join(';');
             const csv = '﻿' + header + '\n' + _konvolutToCsvRows(k).join('\n');
             const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
             const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
@@ -9079,7 +9290,7 @@ Keine Erklärungen, kein Markdown.`;
         function exportAlleKonvolute() {
             const konvolute = dashboardState.konvolute || [];
             if (konvolute.length === 0) return;
-            const header = ['Konvolut','Score','Lager-Nr','Modell','Marke','Warengruppe','Lagertage','EK','VK','Marge%'].join(';');
+            const header = ['Konvolut','Score','Lager-Nr','Modell','Marke','Warengruppe','Lagertage','EK','VK','Marge%','Top-3 Käufer (P%/erw.€)'].join(';');
             const allRows = konvolute.flatMap(_konvolutToCsvRows);
             const csv = '﻿' + header + '\n' + allRows.join('\n');
             const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
