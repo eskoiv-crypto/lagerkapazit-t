@@ -3482,6 +3482,7 @@
                             <button class="analyse-tab" data-tab="deadstock" onclick="switchAnalyseTab('deadstock')" title="Ladenhüter: Geräte, die ungewöhnlich lange im Lager liegen, ohne verkauft zu werden. Kandidaten für Abverkauf/Rabatt.">💀 Dead Stock</button>
                             <button class="analyse-tab" data-tab="potenzial" onclick="switchAnalyseTab('potenzial')" title="Verkaufspriorität: Geräte nach Dringlichkeit sortiert — alte Lagerware mit guter Marge zuerst verkaufen.">🎯 Verkaufspriorität</button>
                             <button class="analyse-tab" data-tab="topseller" onclick="switchAnalyseTab('topseller')" title="Bestseller: die am häufigsten und schnellsten verkauften Artikel/Warengruppen — ideal für Nachbestellung.">🏆 Top-Seller</button>
+                            <button class="analyse-tab" data-tab="liveview" onclick="switchAnalyseTab('liveview')" id="tab-btn-liveview" style="background: linear-gradient(135deg, #6366f1, #06b6d4); color: white;" title="Live View: Drill-Down nach Lieferant × Warengruppe × Marke. Zeigt aktuellen Bestand und besten Kunden für diese Kombi in Echtzeit beim Filter-Klick.">🔍 Live View</button>
                             <button class="analyse-tab" data-tab="angebotsanalyse" onclick="switchAnalyseTab('angebotsanalyse')" id="tab-btn-angebotsanalyse" style="background: linear-gradient(135deg, #10B981, #06B6D4); color: white;" title="Angebots-Analyse: lädt eine Angebots-/Auftragsdatei und gleicht sie gegen den verfügbaren Bestand ab — was kann sofort geliefert werden, was fehlt?">💼 Angebots-Analyse</button>
                         </div>
 
@@ -4486,6 +4487,67 @@
                             </div>
                         </div>
                         
+                        <!-- ========== TAB: LIVE VIEW (Drill-Down Lieferant × WG × Marke) ========== -->
+                        <div id="tab-liveview" class="analyse-tab-content" style="display: none; padding: 1rem;">
+                            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem; margin-bottom:0.75rem;">
+                                <div>
+                                    <div class="analytics-section-title" style="margin:0;">🔍 Live View — Drill-Down nach Lieferant × Produkt</div>
+                                    <span style="font-size:0.7rem; color:var(--text-muted);">Filter kombinieren · sofortige Bestands- und Kundenmatch-Berechnung</span>
+                                </div>
+                            </div>
+
+                            <!-- FILTER-LEISTE -->
+                            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:0.6rem; padding:0.9rem; background:linear-gradient(135deg, rgba(99,102,241,0.08), rgba(6,182,212,0.08)); border:1px solid rgba(99,102,241,0.3); border-radius:10px; margin-bottom:1rem;">
+                                <div>
+                                    <label style="display:block; font-size:0.6rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:0.2rem;">📦 Lieferant (supply_type) <span class="vc-info" data-tip="Bezugsquelle: von wem haben wir die Ware? Werte aus Stock-Analysis (z.B. AEG_Italien, OTTO_MIX). Leer = alle.">ⓘ</span></label>
+                                    <select id="lv-supplier" onchange="updateLiveView()" style="width:100%; padding:0.4rem; font-size:0.78rem; border-radius:6px; background:var(--bg-secondary); border:1px solid var(--border); color:var(--text-primary);">
+                                        <option value="">— alle Lieferanten —</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label style="display:block; font-size:0.6rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:0.2rem;">🏷️ Warengruppe <span class="vc-info" data-tip="Produktkategorie (z.B. Waschmaschine). Optionen filtern sich nach Lieferant-Wahl.">ⓘ</span></label>
+                                    <select id="lv-wg" onchange="updateLiveView()" style="width:100%; padding:0.4rem; font-size:0.78rem; border-radius:6px; background:var(--bg-secondary); border:1px solid var(--border); color:var(--text-primary);">
+                                        <option value="">— alle Warengruppen —</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label style="display:block; font-size:0.6rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:0.2rem;">🏭 Marke <span class="vc-info" data-tip="Hersteller-Marke (z.B. AEG). Optionen filtern sich nach Lieferant + Warengruppe.">ⓘ</span></label>
+                                    <select id="lv-brand" onchange="updateLiveView()" style="width:100%; padding:0.4rem; font-size:0.78rem; border-radius:6px; background:var(--bg-secondary); border:1px solid var(--border); color:var(--text-primary);">
+                                        <option value="">— alle Marken —</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label style="display:block; font-size:0.6rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:0.2rem;">🔎 Modell-Suche <span class="vc-info tip-left" data-tip="Freitext-Suche im Modell-Feld (Substring, case-insensitive). Z.B. „L6FB" für AEG Lavamat L6FB-Modelle.">ⓘ</span></label>
+                                    <input id="lv-model" oninput="updateLiveView()" type="text" placeholder="z.B. L6FB…" style="width:100%; padding:0.4rem; font-size:0.78rem; border-radius:6px; background:var(--bg-secondary); border:1px solid var(--border); color:var(--text-primary);">
+                                </div>
+                                <div style="display:flex; align-items:end; gap:0.4rem;">
+                                    <button onclick="resetLiveViewFilters()" style="padding:0.45rem 0.8rem; background:var(--bg-elevated); color:var(--text-primary); border:1px solid var(--border); border-radius:6px; font-size:0.72rem; cursor:pointer; flex:1;">↺ Reset</button>
+                                    <button onclick="liveViewToKonvolut()" style="padding:0.45rem 0.8rem; background:var(--gradient-green); color:white; border:none; border-radius:6px; font-size:0.72rem; font-weight:700; cursor:pointer; flex:2;">→ Als Konvolut anbieten</button>
+                                </div>
+                            </div>
+
+                            <!-- AKTIVER FILTER-BREADCRUMB -->
+                            <div id="lv-breadcrumb" style="font-size:0.72rem; color:var(--text-secondary); margin-bottom:0.75rem;"></div>
+
+                            <!-- KPI-CARDS Bestand -->
+                            <div id="lv-kpis" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap:0.75rem; margin-bottom:1rem;"></div>
+
+                            <!-- 2-Spalten-Layout: Geräte-Tabelle + Kunden-Match -->
+                            <div style="display:grid; grid-template-columns: 1.5fr 1fr; gap:1rem;">
+                                <div style="background:var(--bg-card); border:1px solid var(--border); border-radius:10px; padding:0.9rem; min-height:300px;">
+                                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
+                                        <div style="font-size:0.85rem; font-weight:700;">📋 Bestand <span id="lv-count-badge" style="color:var(--text-muted); font-weight:400; font-size:0.7rem;"></span></div>
+                                        <div style="font-size:0.65rem; color:var(--text-muted);">sortiert nach Lagertage absteigend</div>
+                                    </div>
+                                    <div id="lv-table-container" style="max-height:480px; overflow-y:auto;"></div>
+                                </div>
+                                <div style="background:linear-gradient(135deg, rgba(34,197,94,0.06), rgba(6,182,212,0.04)); border:1px solid rgba(34,197,94,0.25); border-radius:10px; padding:0.9rem; min-height:300px;">
+                                    <div style="font-size:0.85rem; font-weight:700; margin-bottom:0.5rem;">🎯 Bester Kunde für diese Auswahl <span class="vc-info" data-tip="Top-5-Kunden, die historisch (All-Sold) diese WG+Marke-Kombi gekauft haben. Erw. Umsatz = aktueller Σ VK × P(Kauf). Profit-Score berücksichtigt zusätzlich Marge der historischen Käufe.">ⓘ</span></div>
+                                    <div id="lv-customer-block"></div>
+                                </div>
+                            </div>
+                        </div>
+
                         <!-- ========== TAB: ANGEBOTS-ANALYSE ========== -->
                         <div id="tab-angebotsanalyse" class="analyse-tab-content" style="display: none; padding: 1rem;">
                             <!-- Header mit Aktivierungs-Check -->
@@ -8523,6 +8585,10 @@ Keine Erklärungen, kein Markdown.`;
                 content.classList.add('active');
                 content.style.display = 'block';
             }
+            // Live-View beim Tab-Wechsel initialisieren
+            if (tabName === 'liveview') {
+                try { updateLiveView(); } catch(e) { console.warn('[LiveView] init', e); }
+            }
         }
         
         // ====== GLOBAL TIME FILTER (Phase 2) ======
@@ -9174,6 +9240,205 @@ Keine Erklärungen, kein Markdown.`;
             sel.innerHTML = '<option value="">— kein Kunde (allgemein) —</option>'
                 + sorted.map(([c, v]) => `<option value="${_h(c)}">${_h(c)} (${(v/1000).toFixed(0)}k €)</option>`).join('');
             if (current) sel.value = current;
+        }
+
+        // ============================================================
+        // LIVE VIEW — Drill-Down Lieferant × WG × Marke (2026-06-03)
+        // Filter-Kombinationen liefern sofort:
+        //  · KPI-Block: Anzahl Geräte, Σ EK/VK, Marge%, Ø Lagertage, ältestes Stück
+        //  · Geräte-Tabelle (Top 100, sortiert nach Lagertage)
+        //  · Top-5 Kunden via Affinity-Engine (re-use von Konvolut-Logik)
+        // ============================================================
+        function _liveItems() {
+            return (dashboardState.potenzialScoredItems || []);
+        }
+        function _liveFilters() {
+            return {
+                supplier: document.getElementById('lv-supplier')?.value || '',
+                wg: document.getElementById('lv-wg')?.value || '',
+                brand: document.getElementById('lv-brand')?.value || '',
+                model: (document.getElementById('lv-model')?.value || '').trim().toLowerCase(),
+            };
+        }
+        function _liveFilterItems(items, f) {
+            return items.filter(i => {
+                if (f.supplier && String(i.supply_type || '').trim() !== f.supplier) return false;
+                if (f.wg && String(i.product_group || '').trim() !== f.wg) return false;
+                if (f.brand && String(i.brand || '').trim() !== f.brand) return false;
+                if (f.model && !String(i.model || '').toLowerCase().includes(f.model)) return false;
+                return true;
+            });
+        }
+        function populateLiveViewDropdowns() {
+            const items = _liveItems();
+            const f = _liveFilters();
+            // Lieferant: alle distinct supply_type — counts mit aktuellen Brand/WG-Filtern aber OHNE Lieferant-Filter
+            const suppCounts = {}, wgCounts = {}, brandCounts = {};
+            items.forEach(i => {
+                const sp = String(i.supply_type || '').trim() || '(unbekannt)';
+                const wg = String(i.product_group || '').trim() || '(unbekannt)';
+                const br = String(i.brand || '').trim() || '(unbekannt)';
+                // Lieferant-Dropdown: filter ohne supplier
+                if ((!f.wg || wg === f.wg) && (!f.brand || br === f.brand)) {
+                    suppCounts[sp] = (suppCounts[sp] || 0) + 1;
+                }
+                // WG-Dropdown: filter ohne wg
+                if ((!f.supplier || sp === f.supplier) && (!f.brand || br === f.brand)) {
+                    wgCounts[wg] = (wgCounts[wg] || 0) + 1;
+                }
+                // Brand-Dropdown: filter ohne brand
+                if ((!f.supplier || sp === f.supplier) && (!f.wg || wg === f.wg)) {
+                    brandCounts[br] = (brandCounts[br] || 0) + 1;
+                }
+            });
+            function fill(id, counts, currentVal, defaultLabel) {
+                const sel = document.getElementById(id);
+                if (!sel) return;
+                const sorted = Object.entries(counts).sort((a,b) => b[1]-a[1]);
+                sel.innerHTML = `<option value="">${defaultLabel}</option>`
+                    + sorted.map(([k,v]) => `<option value="${_h(k)}"${k===currentVal?' selected':''}>${_h(k)} (${v})</option>`).join('');
+            }
+            fill('lv-supplier', suppCounts, f.supplier, '— alle Lieferanten —');
+            fill('lv-wg', wgCounts, f.wg, '— alle Warengruppen —');
+            fill('lv-brand', brandCounts, f.brand, '— alle Marken —');
+        }
+        function resetLiveViewFilters() {
+            ['lv-supplier','lv-wg','lv-brand'].forEach(id => { const e = document.getElementById(id); if (e) e.value = ''; });
+            const m = document.getElementById('lv-model'); if (m) m.value = '';
+            updateLiveView();
+        }
+        function updateLiveView() {
+            populateLiveViewDropdowns();
+            const items = _liveItems();
+            const f = _liveFilters();
+            const filtered = _liveFilterItems(items, f);
+
+            // Breadcrumb
+            const bc = document.getElementById('lv-breadcrumb');
+            if (bc) {
+                const parts = [];
+                if (f.supplier) parts.push(`<span style="color:var(--accent-cyan); font-weight:600;">📦 ${_h(f.supplier)}</span>`);
+                if (f.wg)       parts.push(`<span style="color:var(--accent-cyan); font-weight:600;">🏷️ ${_h(f.wg)}</span>`);
+                if (f.brand)    parts.push(`<span style="color:var(--accent-cyan); font-weight:600;">🏭 ${_h(f.brand)}</span>`);
+                if (f.model)    parts.push(`<span style="color:var(--accent-cyan); font-weight:600;">🔎 "${_h(f.model)}"</span>`);
+                bc.innerHTML = parts.length ? `Aktive Filter: ${parts.join(' · ')} → <b>${filtered.length}</b> Geräte` : `<span style="color:var(--text-muted);">Keine Filter aktiv — Live View zeigt alle ${filtered.length} verkaufsbereiten Geräte. Wähle einen Filter für gezieltes Drill-Down.</span>`;
+            }
+
+            // KPI-Cards
+            const kpis = document.getElementById('lv-kpis');
+            if (kpis) {
+                const n = filtered.length;
+                const sumEK = filtered.reduce((s,x) => s + (parseFloat(x.Buying_Price) || 0), 0);
+                const sumVK = filtered.reduce((s,x) => s + (parseFloat(x.Selling_Price) || 0), 0);
+                const sumProfit = sumVK - sumEK;
+                const margePct = sumVK > 0 ? (sumProfit / sumVK * 100) : 0;
+                const avgDays = n > 0 ? Math.round(filtered.reduce((s,x) => s + (x.product_life_days || 0), 0) / n) : 0;
+                const maxDays = n > 0 ? Math.max(...filtered.map(x => x.product_life_days || 0)) : 0;
+                function _card(label, value, sub, color) {
+                    return `<div style="background:var(--bg-card); border:1px solid var(--border); border-left:3px solid ${color}; border-radius:8px; padding:0.7rem 0.9rem;">
+                        <div style="font-size:0.55rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em;">${label}</div>
+                        <div style="font-size:1.35rem; font-weight:700; color:var(--text-primary); line-height:1.2;">${value}</div>
+                        <div style="font-size:0.62rem; color:var(--text-muted); margin-top:1px;">${sub}</div>
+                    </div>`;
+                }
+                kpis.innerHTML = [
+                    _card('Geräte', n.toLocaleString('de-DE'), 'aktuell verfügbar', 'var(--accent-cyan)'),
+                    _card('Σ EK', sumEK.toLocaleString('de-DE',{style:'currency',currency:'EUR',maximumFractionDigits:0}), 'Buchwert', 'var(--text-muted)'),
+                    _card('Σ VK', sumVK.toLocaleString('de-DE',{style:'currency',currency:'EUR',maximumFractionDigits:0}), 'Listenwert', 'var(--accent-green)'),
+                    _card('Marge', margePct.toFixed(1)+' %', sumProfit.toLocaleString('de-DE',{style:'currency',currency:'EUR',maximumFractionDigits:0}) + ' Profit', margePct >= 40 ? 'var(--accent-green)' : margePct >= 20 ? 'var(--accent-orange)' : 'var(--accent-red)'),
+                    _card('Ø Lagertage', avgDays + ' T', 'ältestes: '+maxDays+' T', avgDays >= 180 ? 'var(--accent-red)' : avgDays >= 90 ? 'var(--accent-orange)' : 'var(--accent-green)'),
+                ].join('');
+            }
+
+            // Geräte-Tabelle (Top 100 nach Lagertage)
+            const tc = document.getElementById('lv-table-container');
+            const cb = document.getElementById('lv-count-badge');
+            if (cb) cb.textContent = filtered.length > 100 ? `(zeige Top 100 von ${filtered.length})` : `(${filtered.length})`;
+            if (tc) {
+                if (!filtered.length) {
+                    tc.innerHTML = '<div style="padding:2rem; text-align:center; color:var(--text-muted); font-size:0.8rem;">Keine Geräte für diese Filter-Kombination.</div>';
+                } else {
+                    const sorted = filtered.slice().sort((a,b) => (b.product_life_days || 0) - (a.product_life_days || 0)).slice(0, 100);
+                    tc.innerHTML = `<table class="analyse-table" style="font-size:0.65rem; width:100%;">
+                        <thead><tr><th>Lager-Nr</th><th>Marke</th><th>Modell</th><th>WG</th><th>Tage</th><th>EK</th><th>VK</th><th>Marge%</th></tr></thead>
+                        <tbody>${sorted.map(it => {
+                            const ek = parseFloat(it.Buying_Price)||0, vk = parseFloat(it.Selling_Price)||0;
+                            const m = vk > 0 ? ((vk-ek)/vk*100) : 0;
+                            return `<tr>
+                                <td class="mono" style="font-size:0.6rem;">${_h(it.lager_number||'—')}</td>
+                                <td style="font-size:0.6rem;">${_h(it.brand||'—')}</td>
+                                <td style="font-size:0.6rem;">${_h(String(it.model||'—').substring(0,30))}</td>
+                                <td style="font-size:0.58rem; color:var(--text-muted);">${_h(String(it.product_group||'—').substring(0,18))}</td>
+                                <td class="mono" style="font-size:0.6rem;">${it.product_life_days||0}T</td>
+                                <td class="mono" style="font-size:0.6rem;">${ek.toLocaleString('de-DE',{style:'currency',currency:'EUR'})}</td>
+                                <td class="mono" style="font-size:0.6rem;">${vk.toLocaleString('de-DE',{style:'currency',currency:'EUR'})}</td>
+                                <td class="mono" style="font-size:0.6rem; color:${m>=50?'var(--accent-green)':m>=20?'inherit':'var(--accent-orange)'}">${m.toFixed(0)}%</td>
+                            </tr>`;
+                        }).join('')}</tbody>
+                    </table>`;
+                }
+            }
+
+            // Top-5 Kunden — re-use Affinity-Engine
+            const cust = document.getElementById('lv-customer-block');
+            if (cust) {
+                if (!dashboardState.allSoldLoaded) {
+                    cust.innerHTML = '<div style="padding:1rem; color:var(--text-muted); font-size:0.7rem;">💡 Top-Kunden-Vorschläge erscheinen, sobald <b>All-Sold</b> hochgeladen ist.</div>';
+                } else if (!filtered.length) {
+                    cust.innerHTML = '<div style="padding:1rem; color:var(--text-muted); font-size:0.7rem;">Keine Geräte → keine Kunden-Empfehlung.</div>';
+                } else {
+                    // Pseudo-Konvolut für matchCustomersForKonvolut
+                    const sumVK = filtered.reduce((s,x) => s + (parseFloat(x.Selling_Price) || 0), 0);
+                    const pseudo = { items: filtered, anzahl: filtered.length, sumVK: sumVK };
+                    if (!dashboardState.customerAffinity) buildCustomerAffinity();
+                    const tops = matchCustomersForKonvolut(pseudo, 5);
+                    if (!tops.length) {
+                        cust.innerHTML = '<div style="padding:1rem; background:rgba(249,115,22,0.06); border-left:3px solid var(--accent-orange); border-radius:6px; font-size:0.7rem;">🟧 Keine historischen Käufer für diese Filter-Kombi gefunden.</div>';
+                    } else {
+                        const maxRev = Math.max(...tops.map(t => t.expectedRevenue), 1);
+                        cust.innerHTML = tops.map((c, i) => {
+                            const pct = (c.pBuy * 100).toFixed(1);
+                            const barW = Math.round((c.expectedRevenue / maxRev) * 100);
+                            const ringColor = i === 0 ? 'var(--accent-green)' : 'var(--text-muted)';
+                            const priceLabel = c.priceAchievement >= 1.30 ? 'Premium ≥130%' : c.priceAchievement >= 1.05 ? 'Premium-Käufer' : c.priceAchievement >= 0.9 ? 'Normalpreis' : 'Schnäppchen';
+                            const trustIcon = c.paymentScore >= 0.95 ? '💳' : c.paymentScore >= 0.8 ? '' : '⚠️';
+                            return `<div style="padding:0.65rem 0.8rem; margin-bottom:0.5rem; background:var(--bg-elevated); border-left:3px solid ${ringColor}; border-radius:6px;">
+                                <div style="display:flex; justify-content:space-between; align-items:center; gap:0.5rem; margin-bottom:0.3rem;">
+                                    <div style="font-weight:700; font-size:0.78rem;">${i+1}. ${_h(c.company)} ${trustIcon}</div>
+                                    <div style="font-size:0.7rem; color:${i===0?'var(--accent-green)':'var(--text-secondary)'}; font-weight:700;">${pct} %</div>
+                                </div>
+                                <div style="display:flex; gap:0.6rem; font-size:0.62rem; color:var(--text-muted); margin-bottom:0.3rem;">
+                                    <span><b>${c.count}×</b> ähnl.</span>
+                                    <span>letzt: <b>${c.daysSinceLast === 9999 ? '?' : c.daysSinceLast+'T'}</b></span>
+                                    <span title="ØVK Kunde ÷ Markt"><b>${(c.priceAchievement*100).toFixed(0)}%</b> ${priceLabel}</span>
+                                </div>
+                                <div style="display:flex; align-items:center; gap:0.4rem;">
+                                    <div style="flex:1; height:5px; background:var(--bg-card); border-radius:3px; overflow:hidden;">
+                                        <div style="width:${barW}%; height:100%; background:var(--accent-green);"></div>
+                                    </div>
+                                    <span class="mono" style="font-weight:700; font-size:0.72rem; color:var(--accent-green); min-width:78px; text-align:right;">${c.expectedRevenue.toLocaleString('de-DE',{style:'currency',currency:'EUR',maximumFractionDigits:0})}</span>
+                                </div>
+                            </div>`;
+                        }).join('');
+                    }
+                }
+            }
+        }
+        function liveViewToKonvolut() {
+            const f = _liveFilters();
+            // Wechsel zum Verkaufsprioritäts-Reiter + Voreinstellungen im Konvolut-Generator
+            switchAnalyseTab('potenzial');
+            const setIf = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
+            if (f.brand)    setIf('konvolut-groupby', 'brand');
+            else if (f.wg)  setIf('konvolut-groupby', 'product_group');
+            else            setIf('konvolut-groupby', '__mixed__');
+            setIf('konvolut-minscore', '0');
+            setIf('konvolut-minmarge', '0');
+            setIf('konvolut-maxsize', '30');
+            // Hinweis: aktueller Konvolut-Generator filtert nicht nach Lieferant — wir markieren das
+            setTimeout(() => {
+                showToast('info', 'Voreingestellt im Konvolut-Generator', `Filter "${f.supplier||f.wg||f.brand||'alle'}" wurde übernommen. Klick "⚙️ Konvolute erzeugen".`);
+            }, 250);
         }
 
         // ====== KONVOLUT-GENERATOR (erweitert mit Sortby/MinMarge/Kunden-Filter) ======
