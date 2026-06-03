@@ -4135,40 +4135,75 @@
                             <!-- ========== KONVOLUT-GENERATOR ========== -->
                             <div style="background: linear-gradient(135deg, rgba(16,185,129,0.08), rgba(6,182,212,0.08)); border: 1px solid var(--accent-green); border-radius: 12px; padding: 1rem 1.25rem; margin-bottom: 1.25rem;">
                                 <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem; margin-bottom: 0.75rem;">
-                                    <div class="analytics-section-title" style="margin:0;">📦 Konvolut-Generator <span class="vc-info" data-tip="Bündelt verkaufspriorisierte Geräte automatisch zu verkaufsfertigen Konvoluten (Paketen), die Verkäufer direkt an B2B-Kunden anbieten können. Gruppierung, Mindest-Score und Konvolut-Größe sind einstellbar.">ⓘ</span></div>
-                                    <span style="font-size:0.7rem; color: var(--text-muted);">Bündelt Ware, die JETZT raus muss, in verkaufsfertige Pakete</span>
+                                    <div class="analytics-section-title" style="margin:0;">📦 Konvolut-Generator <span class="vc-info" data-tip="Bündelt verkaufspriorisierte Geräte automatisch zu verkaufsfertigen Konvoluten (Paketen). Quick-Start für 4 typische Workflows oder fein justieren mit den Detail-Einstellungen. Mit „Für Kunde" werden Konvolute auf historische Kaufmuster eines konkreten Kunden zugeschnitten — maximaler Profit, gezielte Ansprache.">ⓘ</span></div>
+                                    <span style="font-size:0.7rem; color: var(--text-muted);">Quick-Start oder fein justieren · optional auf einen Kunden zuschneiden</span>
                                 </div>
-                                <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 0.75rem; align-items:end;">
+                                <!-- QUICK-PROFILE (4 Buttons für die häufigsten Workflows) -->
+                                <div style="display:flex; gap:0.5rem; flex-wrap:wrap; margin-bottom:0.85rem; padding:0.55rem; background:rgba(255,255,255,0.04); border-radius:8px; border:1px dashed var(--border);">
+                                    <span style="font-size:0.6rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em; align-self:center; padding:0 0.3rem;">⚡ Quick-Start:</span>
+                                    <button onclick="applyKonvolutProfile('marge')" style="flex:1; min-width:140px; padding:0.55rem 0.8rem; background:linear-gradient(135deg,#10b981,#06b6d4); color:white; border:none; border-radius:6px; font-size:0.75rem; font-weight:600; cursor:pointer;" title="Top-Marge-Pakete: höchste % Marge zuerst. Ideal für Profit-Maximierung.">💎 Beste Marge</button>
+                                    <button onclick="applyKonvolutProfile('hot')" style="flex:1; min-width:140px; padding:0.55rem 0.8rem; background:linear-gradient(135deg,#ef4444,#f97316); color:white; border:none; border-radius:6px; font-size:0.75rem; font-weight:600; cursor:pointer;" title="Was MUSS jetzt raus: nur HOT (Score ≥80) — alte/dringende Geräte.">🔥 Was muss raus</button>
+                                    <button onclick="applyKonvolutProfile('old')" style="flex:1; min-width:140px; padding:0.55rem 0.8rem; background:linear-gradient(135deg,#a855f7,#ec4899); color:white; border:none; border-radius:6px; font-size:0.75rem; font-weight:600; cursor:pointer;" title="Alt-Bestand-Pakete: längste Lagertage zuerst, gemischt — Lagerdrehung.">🐢 Alt-Bestand</button>
+                                    <button onclick="applyKonvolutProfile('kunde')" style="flex:1; min-width:140px; padding:0.55rem 0.8rem; background:linear-gradient(135deg,#0071e3,#6366f1); color:white; border:none; border-radius:6px; font-size:0.75rem; font-weight:600; cursor:pointer;" title="Für Top-Kunden bauen: System filtert auf passende WG/Marke für ausgewählten Kunden.">👤 Für Kunde</button>
+                                </div>
+
+                                <!-- DETAIL-EINSTELLUNGEN (6 Dropdowns + Button) -->
+                                <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0.6rem; align-items:end;">
                                     <div>
-                                        <label style="display:block; font-size:0.65rem; color: var(--text-muted); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:0.25rem;">Gruppieren nach <span class="vc-info" data-tip="Warengruppe = thematisch sortierte Pakete (z. B. „20 Waschmaschinen"). Marke = nach Hersteller. Lieferant = nach Bezugsquelle. Gemischt = bunt gemischte Restposten-Pakete.">ⓘ</span></label>
-                                        <select id="konvolut-groupby" style="width:100%; padding:0.4rem; font-size:0.75rem; border-radius:6px; background: var(--bg-secondary); border:1px solid var(--border); color: var(--text-primary);">
-                                            <option value="product_group">Warengruppe</option>
-                                            <option value="brand">Marke</option>
-                                            <option value="supply_type">Lieferant</option>
-                                            <option value="__mixed__">Gemischt (nur nach Score)</option>
+                                        <label style="display:block; font-size:0.6rem; color: var(--text-muted); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:0.2rem;">🎯 Sortieren nach <span class="vc-info" data-tip="Wie werden Geräte innerhalb der Konvolute priorisiert? Marge % = beste Profitabilität zuerst. Profit € = höchster absoluter Profit. Lagertage = Drehung (alt zuerst). Marge × Tage = Premium-Alt-Ware zuerst.">ⓘ</span></label>
+                                        <select id="konvolut-sortby" style="width:100%; padding:0.4rem; font-size:0.72rem; border-radius:6px; background: var(--bg-secondary); border:1px solid var(--border); color: var(--text-primary);">
+                                            <option value="score" selected>Score (Standard)</option>
+                                            <option value="marge_pct">Marge % ↓</option>
+                                            <option value="profit_eur">Profit € ↓</option>
+                                            <option value="lagertage">Lagertage ↓</option>
+                                            <option value="marge_x_tage">Marge × Lagertage ↓</option>
                                         </select>
                                     </div>
                                     <div>
-                                        <label style="display:block; font-size:0.65rem; color: var(--text-muted); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:0.25rem;">Mindest-Score <span class="vc-info" data-tip="Nur Geräte ab diesem Verkaufsprioritäts-Score kommen ins Konvolut. 80 = nur HOT (dringend), 60 = HOT+WARM, 40 = inkl. Neutral.">ⓘ</span></label>
-                                        <select id="konvolut-minscore" style="width:100%; padding:0.4rem; font-size:0.75rem; border-radius:6px; background: var(--bg-secondary); border:1px solid var(--border); color: var(--text-primary);">
-                                            <option value="80">Nur HOT (≥ 80)</option>
-                                            <option value="60" selected>HOT + WARM (≥ 60)</option>
-                                            <option value="40">HOT + WARM + Neutral (≥ 40)</option>
+                                        <label style="display:block; font-size:0.6rem; color: var(--text-muted); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:0.2rem;">📦 Gruppieren <span class="vc-info" data-tip="Warengruppe = thematische Pakete (Waschmaschinen, Kühlgeräte). Marke = nach Hersteller. Lieferant = nach Bezugsquelle. Gemischt = bunt durchmischt.">ⓘ</span></label>
+                                        <select id="konvolut-groupby" style="width:100%; padding:0.4rem; font-size:0.72rem; border-radius:6px; background: var(--bg-secondary); border:1px solid var(--border); color: var(--text-primary);">
+                                            <option value="product_group" selected>Warengruppe</option>
+                                            <option value="brand">Marke</option>
+                                            <option value="supply_type">Lieferant</option>
+                                            <option value="__mixed__">Gemischt</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label style="display:block; font-size:0.6rem; color: var(--text-muted); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:0.2rem;">🌡 Mindest-Score <span class="vc-info" data-tip="Score = Verkaufspriorität (Alter × Marge × Verfügbarkeit). 80 = nur HOT (dringend). 60 = HOT+WARM. 40 = inkl. Neutral. 0 = alle Geräte.">ⓘ</span></label>
+                                        <select id="konvolut-minscore" style="width:100%; padding:0.4rem; font-size:0.72rem; border-radius:6px; background: var(--bg-secondary); border:1px solid var(--border); color: var(--text-primary);">
+                                            <option value="80">HOT (≥ 80)</option>
+                                            <option value="60" selected>HOT+WARM (≥ 60)</option>
+                                            <option value="40">+ Neutral (≥ 40)</option>
                                             <option value="0">Alle Geräte</option>
                                         </select>
                                     </div>
                                     <div>
-                                        <label style="display:block; font-size:0.65rem; color: var(--text-muted); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:0.25rem;">Max. pro Konvolut <span class="vc-info" data-tip="Maximale Anzahl Geräte pro Konvolut. Große Gruppen werden in mehrere Pakete dieser Größe aufgeteilt (z. B. 80 Waschmaschinen → 3 Konvolute à 30).">ⓘ</span></label>
-                                        <select id="konvolut-maxsize" style="width:100%; padding:0.4rem; font-size:0.75rem; border-radius:6px; background: var(--bg-secondary); border:1px solid var(--border); color: var(--text-primary);">
+                                        <label style="display:block; font-size:0.6rem; color: var(--text-muted); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:0.2rem;">💰 Mindest-Marge <span class="vc-info" data-tip="Nur Geräte mit dieser Marge-Schwelle aufnehmen. Schützt vor Verlust-Konvoluten. 0% = alle, 30% = solide, 50% = nur Premium.">ⓘ</span></label>
+                                        <select id="konvolut-minmarge" style="width:100%; padding:0.4rem; font-size:0.72rem; border-radius:6px; background: var(--bg-secondary); border:1px solid var(--border); color: var(--text-primary);">
+                                            <option value="0" selected>≥ 0% (alle)</option>
+                                            <option value="20">≥ 20%</option>
+                                            <option value="30">≥ 30%</option>
+                                            <option value="50">≥ 50% (Premium)</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label style="display:block; font-size:0.6rem; color: var(--text-muted); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:0.2rem;">📏 Max. pro Konvolut <span class="vc-info" data-tip="Maximal-Größe je Konvolut. Große Gruppen werden in mehrere Pakete aufgeteilt. 30 = typische Großkunden-Bestellung. >100 = wird zum Mega-Bündel, Kundenmatch wird ungenau.">ⓘ</span></label>
+                                        <select id="konvolut-maxsize" style="width:100%; padding:0.4rem; font-size:0.72rem; border-radius:6px; background: var(--bg-secondary); border:1px solid var(--border); color: var(--text-primary);">
                                             <option value="15">15 Geräte</option>
                                             <option value="30" selected>30 Geräte</option>
                                             <option value="50">50 Geräte</option>
                                             <option value="100">100 Geräte</option>
-                                            <option value="9999">Unbegrenzt (1 pro Gruppe)</option>
+                                            <option value="9999">Unbegrenzt</option>
                                         </select>
                                     </div>
                                     <div>
-                                        <button onclick="generateKonvolute()" style="width:100%; padding:0.5rem 1rem; background: var(--gradient-green); color:white; border:none; border-radius:6px; font-size:0.8rem; font-weight:600; cursor:pointer;">
+                                        <label style="display:block; font-size:0.6rem; color: var(--text-muted); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:0.2rem;">👤 Für Kunde <span class="vc-info tip-left" data-tip="Optional: wähle einen Top-Kunden — System baut Konvolute nur aus WG+Marke-Kombis, die der Kunde historisch kauft. Empfehlung wird auf diesen Kunden zugeschnitten.">ⓘ</span></label>
+                                        <select id="konvolut-customer" style="width:100%; padding:0.4rem; font-size:0.72rem; border-radius:6px; background: var(--bg-secondary); border:1px solid var(--border); color: var(--text-primary);">
+                                            <option value="">— kein Kunde (allgemein) —</option>
+                                        </select>
+                                    </div>
+                                    <div style="grid-column: 1 / -1; display:flex; justify-content:flex-end;">
+                                        <button onclick="generateKonvolute()" style="min-width:200px; padding:0.6rem 1.2rem; background: var(--gradient-green); color:white; border:none; border-radius:6px; font-size:0.85rem; font-weight:700; cursor:pointer;">
                                             ⚙️ Konvolute erzeugen
                                         </button>
                                     </div>
@@ -9069,29 +9104,148 @@ Keine Erklärungen, kein Markdown.`;
             return list.slice(0, topN);
         }
 
-        // ====== KONVOLUT-GENERATOR ======
+        // ====== QUICK-PROFILE-APPLIER (4 Buttons) ======
+        // Setzt die Detail-Dropdowns auf vordefinierte Werte + startet sofort die Generierung.
+        function applyKonvolutProfile(profile) {
+            const setIf = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
+            switch (profile) {
+                case 'marge':  // 💎 Beste Marge — höchste % zuerst
+                    setIf('konvolut-sortby', 'marge_pct');
+                    setIf('konvolut-groupby', '__mixed__');
+                    setIf('konvolut-minscore', '0');
+                    setIf('konvolut-minmarge', '30');
+                    setIf('konvolut-maxsize', '30');
+                    setIf('konvolut-customer', '');
+                    showToast('💎 Profil "Beste Marge"', 'Höchste Marge zuerst · min 30 % · Top-30 pro Konvolut', 'info');
+                    break;
+                case 'hot':    // 🔥 Was muss raus — nur HOT
+                    setIf('konvolut-sortby', 'score');
+                    setIf('konvolut-groupby', '__mixed__');
+                    setIf('konvolut-minscore', '80');
+                    setIf('konvolut-minmarge', '0');
+                    setIf('konvolut-maxsize', '30');
+                    setIf('konvolut-customer', '');
+                    showToast('🔥 Profil "Was muss raus"', 'Nur HOT (Score ≥80) · sortiert nach Dringlichkeit', 'info');
+                    break;
+                case 'old':    // 🐢 Alt-Bestand — Lagertage absteigend
+                    setIf('konvolut-sortby', 'lagertage');
+                    setIf('konvolut-groupby', '__mixed__');
+                    setIf('konvolut-minscore', '0');
+                    setIf('konvolut-minmarge', '0');
+                    setIf('konvolut-maxsize', '30');
+                    setIf('konvolut-customer', '');
+                    showToast('🐢 Profil "Alt-Bestand"', 'Älteste Lagertage zuerst · alle Margen', 'info');
+                    break;
+                case 'kunde':  // 👤 Für Kunde — UI: Kunde wählen + generieren
+                    const sel = document.getElementById('konvolut-customer');
+                    if (sel && sel.options.length <= 1) {
+                        showToast('👤 Bitte erst All-Sold hochladen', 'Kunden-Dropdown wird daraus befüllt', 'warning');
+                        return;
+                    }
+                    setIf('konvolut-sortby', 'marge_x_tage');
+                    setIf('konvolut-groupby', '__mixed__');
+                    setIf('konvolut-minscore', '0');
+                    setIf('konvolut-minmarge', '0');
+                    setIf('konvolut-maxsize', '30');
+                    if (sel) { sel.focus(); sel.style.boxShadow = '0 0 0 3px var(--accent-cyan)'; setTimeout(()=>sel.style.boxShadow='', 2500); }
+                    showToast('👤 Profil "Für Kunde"', 'Bitte oben einen Kunden auswählen, dann "Konvolute erzeugen"', 'info');
+                    return; // generateKonvolute NICHT auslösen — User muss Kunden wählen
+            }
+            generateKonvolute();
+        }
+
+        // ====== KUNDEN-DROPDOWN befüllen ======
+        // Top-Kunden nach Σ Umsatz (oder nach Affinität wenn schon gebaut)
+        function populateCustomerDropdown() {
+            const sel = document.getElementById('konvolut-customer');
+            if (!sel) return;
+            const sold = dashboardState.allSoldData || [];
+            if (!sold.length) return;
+            const sums = new Map();
+            sold.forEach(s => {
+                const c = String(s.company || '').trim();
+                if (!c || c === 'Unbekannt') return;
+                const vk = parseFloat(s.jtlPrice) || parseFloat(s.vk) || 0;
+                sums.set(c, (sums.get(c) || 0) + vk);
+            });
+            const sorted = Array.from(sums.entries()).sort((a,b) => b[1] - a[1]).slice(0, 50);
+            // Bewahre aktuelle Auswahl
+            const current = sel.value;
+            sel.innerHTML = '<option value="">— kein Kunde (allgemein) —</option>'
+                + sorted.map(([c, v]) => `<option value="${_h(c)}">${_h(c)} (${(v/1000).toFixed(0)}k €)</option>`).join('');
+            if (current) sel.value = current;
+        }
+
+        // ====== KONVOLUT-GENERATOR (erweitert mit Sortby/MinMarge/Kunden-Filter) ======
         function generateKonvolute() {
             const items = dashboardState.potenzialScoredItems || [];
             if (items.length === 0) { showToast('warning', 'Keine Daten', 'Bitte zuerst Stock-Analysis hochladen.'); return; }
 
-            const groupBy = document.getElementById('konvolut-groupby').value;
-            const minScore = parseInt(document.getElementById('konvolut-minscore').value);
-            const maxSize = parseInt(document.getElementById('konvolut-maxsize').value);
+            const groupBy   = document.getElementById('konvolut-groupby').value;
+            const minScore  = parseInt(document.getElementById('konvolut-minscore').value);
+            const maxSize   = parseInt(document.getElementById('konvolut-maxsize').value);
+            const sortBy    = document.getElementById('konvolut-sortby')?.value || 'score';
+            const minMarge  = parseFloat(document.getElementById('konvolut-minmarge')?.value || '0');
+            const customer  = document.getElementById('konvolut-customer')?.value || '';
 
-            const relevant = items.filter(i => i.score >= minScore);
-            if (relevant.length === 0) { showToast('info', 'Keine Treffer', 'Kein Gerät erfüllt den Mindest-Score.'); return; }
+            // Filter: Score + Marge + (optional) Kunden-WG-Marke-Match
+            let relevant = items.filter(i => (i.score || 0) >= minScore && (i.marge || 0) >= minMarge);
+
+            // KUNDEN-FILTER: nur Geräte deren (WG, Marke) der Kunde historisch gekauft hat
+            let customerTuples = null;
+            if (customer) {
+                if (!dashboardState.customerAffinity) buildCustomerAffinity();
+                const aff = dashboardState.customerAffinity;
+                if (aff) {
+                    customerTuples = new Set();
+                    aff.affinity.forEach(p => {
+                        if (p.company === customer) {
+                            const tk = `${String(p.pg).toLowerCase()}||${String(p.brand).toUpperCase()}`;
+                            customerTuples.add(tk);
+                        }
+                    });
+                    if (customerTuples.size === 0) {
+                        showToast('warning', 'Keine Historie für Kunde', `${customer} hat keine Käufe in All-Sold mit gültiger WG+Marke.`);
+                        return;
+                    }
+                    relevant = relevant.filter(i => {
+                        const tk = `${String(i.product_group || '').toLowerCase()}||${String(i.brand || '').toUpperCase()}`;
+                        return customerTuples.has(tk);
+                    });
+                }
+            }
+
+            if (relevant.length === 0) {
+                showToast('info', 'Keine Treffer', customer ? `Kein Gerät passt zu ${customer}s Kaufhistorie + Filter.` : 'Kein Gerät erfüllt die Filter (Score/Marge).');
+                return;
+            }
+
+            // Sort-Comparator-Dispatcher (höher = besser)
+            const sortVal = (it) => {
+                switch (sortBy) {
+                    case 'marge_pct':    return it.marge || 0;
+                    case 'profit_eur':   return (parseFloat(it.Selling_Price)||0) - (parseFloat(it.Buying_Price)||0);
+                    case 'lagertage':    return it.product_life_days || 0;
+                    case 'marge_x_tage': return (it.marge || 0) * (it.product_life_days || 0) / 100;
+                    case 'score':
+                    default:             return it.score || 0;
+                }
+            };
 
             // Gruppieren
             const groups = {};
             relevant.forEach(i => {
-                const key = groupBy === '__mixed__' ? 'Gemischtes Konvolut' : ((i[groupBy] || 'Unbekannt').toString().trim() || 'Unbekannt');
+                let key;
+                if (customer) key = `${customer} — passend`;
+                else if (groupBy === '__mixed__') key = 'Gemischtes Konvolut';
+                else key = ((i[groupBy] || 'Unbekannt').toString().trim() || 'Unbekannt');
                 (groups[key] = groups[key] || []).push(i);
             });
 
             // In Konvolute der Größe maxSize aufteilen
             const konvolute = [];
             Object.entries(groups).forEach(([key, arr]) => {
-                arr.sort((a,b) => b.score - a.score);  // dringendste zuerst
+                arr.sort((a,b) => sortVal(b) - sortVal(a));  // nach gewähltem Kriterium absteigend
                 const teile = Math.ceil(arr.length / maxSize);
                 for (let t = 0; t < arr.length; t += maxSize) {
                     const chunk = arr.slice(t, t + maxSize);
@@ -9107,10 +9261,24 @@ Keine Erklärungen, kein Markdown.`;
                         marge: sumVK > 0 ? ((sumVK - sumEK) / sumVK * 100) : 0,
                         avgScore: Math.round(chunk.reduce((s,x)=>s+x.score,0)/chunk.length),
                         avgDays: Math.round(chunk.reduce((s,x)=>s+(x.product_life_days||0),0)/chunk.length),
+                        targetCustomer: customer || null,  // für gezielten Kunden-Modus
+                        sortBy: sortBy,                    // welcher Sortier-Modus aktiv war
                     });
                 }
             });
-            konvolute.sort((a,b) => b.avgScore - a.avgScore);  // dringendste Konvolute zuerst
+
+            // Konvolut-Reihenfolge: nach Sort-Modus (z.B. höchste Σ Marge € zuerst)
+            if (sortBy === 'marge_pct') {
+                konvolute.sort((a,b) => b.marge - a.marge);
+            } else if (sortBy === 'profit_eur') {
+                konvolute.sort((a,b) => (b.sumVK - b.sumEK) - (a.sumVK - a.sumEK));
+            } else if (sortBy === 'lagertage') {
+                konvolute.sort((a,b) => b.avgDays - a.avgDays);
+            } else if (sortBy === 'marge_x_tage') {
+                konvolute.sort((a,b) => (b.marge * b.avgDays) - (a.marge * a.avgDays));
+            } else {
+                konvolute.sort((a,b) => b.avgScore - a.avgScore);
+            }
 
             // KUNDEN-MATCH: Top-5 Käufer je Konvolut anreichern (wenn All-Sold geladen)
             if (dashboardState.allSoldLoaded) {
@@ -9190,8 +9358,45 @@ Keine Erklärungen, kein Markdown.`;
         }
 
         // Render-Helper: Top-Kunden-Block in jedem Konvolut (Phase 2026-05-28)
+        // Erweiterung 2026-06-03: bei targetCustomer rückt der ausgewählte Kunde nach oben + farbliche Markierung.
         function _renderTopCustomersBlock(k) {
-            const tops = k.topCustomers || [];
+            let tops = (k.topCustomers || []).slice();
+            const target = k.targetCustomer;
+            if (target && tops.length) {
+                // Ziel-Kunde nach vorne ziehen (oder ergänzen falls nicht in Top-5)
+                const idx = tops.findIndex(c => c.company === target);
+                if (idx > 0) {
+                    const [t] = tops.splice(idx, 1);
+                    tops.unshift(t);
+                } else if (idx < 0) {
+                    // Ziel-Kunde nicht in Top-5: aus Affinity nachladen und voranstellen
+                    const aff = dashboardState.customerAffinity;
+                    if (aff) {
+                        // Sample beliebiges Tupel des Kunden für Match
+                        let bestProfile = null, bestFit = 0;
+                        aff.affinity.forEach(p => {
+                            if (p.company === target && p.fitScore > bestFit) {
+                                bestFit = p.fitScore; bestProfile = p;
+                            }
+                        });
+                        if (bestProfile) {
+                            const pBuy = 1 - Math.exp(-bestProfile.fitScore * 0.5 / 1.5);
+                            tops.unshift({
+                                company: target,
+                                count: bestProfile.count,
+                                daysSinceLast: bestProfile.daysSinceLast,
+                                priceAchievement: bestProfile.priceAchievement,
+                                paymentScore: bestProfile.paymentScore,
+                                pBuy,
+                                expectedRevenue: (k.sumVK || 0) * pBuy,
+                                isTarget: true,
+                            });
+                            tops = tops.slice(0, 5);
+                        }
+                    }
+                }
+                if (tops[0]) tops[0].isTarget = true;
+            }
             if (!dashboardState.allSoldLoaded) {
                 return `<div style="padding:0.5rem; background:var(--bg-elevated); border-radius:6px; font-size:0.65rem; color:var(--text-muted);">💡 Top-Kunden-Vorschläge erscheinen, sobald <b>All-Sold</b> hochgeladen ist.</div>`;
             }
@@ -9203,14 +9408,16 @@ Keine Erklärungen, kein Markdown.`;
             const maxRev = Math.max(...tops.map(t => t.expectedRevenue), 1);
             const bestRev = tops[0].expectedRevenue;
             const rows = tops.map((c, i) => {
-                const pct = Math.round(c.pBuy * 100);
+                const pct = (c.pBuy * 100).toFixed(1);   // 1 Nachkomma — fixes Display-KILLCRITIC
                 const barW = Math.round((c.expectedRevenue / maxRev) * 100);
                 const pctColor = pct >= 60 ? 'var(--accent-green)' : pct >= 35 ? 'var(--accent-cyan)' : 'var(--text-muted)';
                 const trustIcons = c.paymentScore >= 0.95 ? '💳' : c.paymentScore >= 0.8 ? '' : '⚠️';
-                const priceLabel = c.priceAchievement >= 1.05 ? 'Premium-Käufer' : c.priceAchievement >= 0.9 ? 'Normalpreis' : 'Schnäppchenjäger';
-                return `<tr>
+                const priceLabel = c.priceAchievement >= 1.30 ? 'Premium ≥130%' : c.priceAchievement >= 1.05 ? 'Premium-Käufer' : c.priceAchievement >= 0.9 ? 'Normalpreis' : 'Schnäppchenjäger';
+                const targetMark = c.isTarget ? '<span style="background:var(--accent-cyan); color:white; font-size:0.55rem; font-weight:700; padding:1px 6px; border-radius:3px; margin-right:4px;">ZIEL</span>' : '';
+                const bgStyle = c.isTarget ? 'background:rgba(6,182,212,0.12);' : '';
+                return `<tr style="${bgStyle}">
                     <td style="font-size:0.62rem; font-weight:700; color:${i===0?'var(--accent-green)':'inherit'};">${i+1}.</td>
-                    <td style="font-size:0.65rem; max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${_h(c.company)}">${_h(c.company)} ${trustIcons}</td>
+                    <td style="font-size:0.65rem; max-width:240px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${_h(c.company)}">${targetMark}${_h(c.company)} ${trustIcons}</td>
                     <td class="mono" style="font-size:0.6rem; text-align:right;">${c.count}×</td>
                     <td class="mono" style="font-size:0.6rem; text-align:right;">${c.daysSinceLast === 9999 ? '?' : c.daysSinceLast + 'T'}</td>
                     <td style="font-size:0.6rem;" title="ØVK des Kunden ÷ ØVK Markt für dieses (WG, Marke)">${(c.priceAchievement*100).toFixed(0)}% <span style="color:var(--text-muted); font-size:0.55rem;">(${priceLabel})</span></td>
@@ -18086,6 +18293,7 @@ Keine Erklärungen, kein Markdown.`;
                     dashboardState.allSoldLoaded = true;
                     dashboardState.allSoldData = allSoldData;
                     bus.emit('data:all-sold-loaded', { count: allSoldData.length });
+                    try { populateCustomerDropdown(); } catch(e) { console.warn('[KonvolutCustomer] populate failed', e); }
                     dashboardState.allSoldCount = count;
                     dashboardState.allSoldProfit = totalProfit;
                     dashboardState.allSoldAvgProfit = count > 0 ? totalProfit / count : 0;
