@@ -4534,14 +4534,29 @@
                             <!-- KPI-CARDS Bestand -->
                             <div id="lv-kpis" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap:0.75rem; margin-bottom:1rem;"></div>
 
+                            <!-- DATENQUELLEN-HINWEIS -->
+                            <div id="lv-source-banner" style="padding:0.6rem 0.85rem; background:rgba(99,102,241,0.08); border:1px solid rgba(99,102,241,0.25); border-left:3px solid #6366f1; border-radius:8px; font-size:0.7rem; margin-bottom:1rem;"></div>
+
                             <!-- 2-Spalten-Layout: Geräte-Tabelle + Kunden-Match -->
                             <div style="display:grid; grid-template-columns: 1.5fr 1fr; gap:1rem;">
                                 <div style="background:var(--bg-card); border:1px solid var(--border); border-radius:10px; padding:0.9rem; min-height:300px;">
-                                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
-                                        <div style="font-size:0.85rem; font-weight:700;">📋 Bestand <span id="lv-count-badge" style="color:var(--text-muted); font-weight:400; font-size:0.7rem;"></span></div>
-                                        <div style="font-size:0.65rem; color:var(--text-muted);">sortiert nach Lagertage absteigend</div>
+                                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem; flex-wrap:wrap; gap:0.4rem;">
+                                        <div style="font-size:0.85rem; font-weight:700;">📋 Geräte <span id="lv-count-badge" style="color:var(--text-muted); font-weight:400; font-size:0.7rem;"></span></div>
+                                        <div style="display:flex; gap:0.4rem; align-items:center; flex-wrap:wrap;">
+                                            <label style="font-size:0.6rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em;">Anzeigen:</label>
+                                            <select id="lv-limit" onchange="updateLiveView()" style="padding:0.25rem 0.5rem; font-size:0.7rem; border-radius:4px; background:var(--bg-secondary); border:1px solid var(--border); color:var(--text-primary);">
+                                                <option value="50">Top 50</option>
+                                                <option value="100" selected>Top 100</option>
+                                                <option value="500">Top 500</option>
+                                                <option value="9999">Alle</option>
+                                            </select>
+                                            <button onclick="lvSelectAll()" style="padding:0.3rem 0.55rem; background:var(--bg-elevated); border:1px solid var(--border); border-radius:4px; font-size:0.65rem; cursor:pointer;" title="Alle aktuell sichtbaren Geräte markieren">☑ Alle</button>
+                                            <button onclick="lvClearSelection()" style="padding:0.3rem 0.55rem; background:var(--bg-elevated); border:1px solid var(--border); border-radius:4px; font-size:0.65rem; cursor:pointer;" title="Auswahl zurücksetzen">☐ Reset</button>
+                                            <button onclick="lvExportCSV()" style="padding:0.3rem 0.65rem; background:var(--accent-cyan); color:white; border:none; border-radius:4px; font-size:0.7rem; font-weight:700; cursor:pointer;" title="Markierte Geräte als CSV — wenn keine markiert: alle gefilterten">📥 CSV</button>
+                                            <span id="lv-selection-count" style="font-size:0.65rem; color:var(--accent-cyan); font-weight:700;"></span>
+                                        </div>
                                     </div>
-                                    <div id="lv-table-container" style="max-height:480px; overflow-y:auto;"></div>
+                                    <div id="lv-table-container" style="max-height:520px; overflow-y:auto;"></div>
                                 </div>
                                 <div style="background:linear-gradient(135deg, rgba(34,197,94,0.06), rgba(6,182,212,0.04)); border:1px solid rgba(34,197,94,0.25); border-radius:10px; padding:0.9rem; min-height:300px;">
                                     <div style="font-size:0.85rem; font-weight:700; margin-bottom:0.5rem;">🎯 Bester Kunde für diese Auswahl <span class="vc-info" data-tip="Top-5-Kunden, die historisch (All-Sold) diese WG+Marke-Kombi gekauft haben. Erw. Umsatz = aktueller Σ VK × P(Kauf). Profit-Score berücksichtigt zusätzlich Marge der historischen Käufe.">ⓘ</span></div>
@@ -9625,22 +9640,53 @@ Keine Erklärungen, kein Markdown.`;
                 ].join('');
             }
 
-            // Geräte-Tabelle (Top 100 nach Lagertage)
+            // Datenquellen-Banner (Cross-Check Stock ∩ BESTAND)
+            const banner = document.getElementById('lv-source-banner');
+            if (banner) {
+                const bestandSet = new Set((dashboardState.bestandRaw || []).map(b => String(b.lagerNr || b.lager_number || b['Lager-Nr'] || '').trim()).filter(Boolean));
+                const stockTotal = items.length;
+                const inBestand = stockTotal > 0 && bestandSet.size > 0
+                    ? items.filter(it => bestandSet.has(String(it.lager_number || '').trim())).length
+                    : null;
+                const bestandTotal = dashboardState.bestandRaw?.length || 0;
+                let bannerHtml = `<b style="color:#a5b4fc;">📊 Datenquelle:</b> Portal Stock-Analysis (verkaufsbereite Geräte, Status A/M/leer) — <b>${stockTotal.toLocaleString('de-DE')}</b> Geräte mit EK/VK-Preisen.`;
+                if (bestandTotal > 0 && inBestand !== null) {
+                    const pct = ((inBestand / stockTotal) * 100).toFixed(1);
+                    const missing = stockTotal - inBestand;
+                    bannerHtml += `<br><span style="color:var(--text-muted);">Cross-Check AMM-BESTAND: <b>${inBestand}</b> davon im aktuellen BESTAND (${pct}%) · <b>${missing}</b> nur im Portal (= Geister, siehe Pipeline-Reiter / Handlungsliste). BESTAND-Total: ${bestandTotal.toLocaleString('de-DE')} Zeilen (inkl. VS/AA/Paletten).</span>`;
+                } else if (bestandTotal === 0) {
+                    bannerHtml += `<br><span style="color:var(--accent-orange);">⚠️ AMM-BESTAND nicht geladen — Cross-Check für "wirklich im Lager?" nicht möglich.</span>`;
+                }
+                banner.innerHTML = bannerHtml;
+            }
+
+            // Geräte-Tabelle mit konfigurierbarem Limit + Checkbox-Auswahl
             const tc = document.getElementById('lv-table-container');
             const cb = document.getElementById('lv-count-badge');
-            if (cb) cb.textContent = filtered.length > 100 ? `(zeige Top 100 von ${filtered.length})` : `(${filtered.length})`;
+            const limit = parseInt(document.getElementById('lv-limit')?.value || '100');
+            const sorted = filtered.slice().sort((a,b) => (b.product_life_days || 0) - (a.product_life_days || 0));
+            const shown = sorted.slice(0, limit);
+            dashboardState._lvFiltered = sorted;  // für CSV-Export der Gesamtmenge
+            if (!dashboardState._lvSelection) dashboardState._lvSelection = new Set();
+            if (cb) cb.textContent = sorted.length > shown.length ? `(zeige ${shown.length} von ${sorted.length})` : `(${sorted.length})`;
+            _lvUpdateSelectionBadge();
             if (tc) {
-                if (!filtered.length) {
+                if (!shown.length) {
                     tc.innerHTML = '<div style="padding:2rem; text-align:center; color:var(--text-muted); font-size:0.8rem;">Keine Geräte für diese Filter-Kombination.</div>';
                 } else {
-                    const sorted = filtered.slice().sort((a,b) => (b.product_life_days || 0) - (a.product_life_days || 0)).slice(0, 100);
                     tc.innerHTML = `<table class="analyse-table" style="font-size:0.65rem; width:100%;">
-                        <thead><tr><th>Lager-Nr</th><th>Marke</th><th>Modell</th><th>WG</th><th>Tage</th><th>EK</th><th>VK</th><th>Marge%</th></tr></thead>
-                        <tbody>${sorted.map(it => {
+                        <thead><tr>
+                            <th style="width:24px;"><input type="checkbox" id="lv-check-all" onchange="lvToggleAll(this)" title="Alle sichtbaren markieren"></th>
+                            <th>Lager-Nr</th><th>Marke</th><th>Modell</th><th>WG</th><th>Tage</th><th>EK</th><th>VK</th><th>Marge%</th>
+                        </tr></thead>
+                        <tbody>${shown.map(it => {
+                            const lnr = String(it.lager_number || '');
                             const ek = parseFloat(it.Buying_Price)||0, vk = parseFloat(it.Selling_Price)||0;
                             const m = vk > 0 ? ((vk-ek)/vk*100) : 0;
+                            const checked = dashboardState._lvSelection.has(lnr) ? 'checked' : '';
                             return `<tr>
-                                <td class="mono" style="font-size:0.6rem;">${_h(it.lager_number||'—')}</td>
+                                <td><input type="checkbox" data-lnr="${_h(lnr)}" onchange="lvToggleRow(this)" ${checked}></td>
+                                <td class="mono" style="font-size:0.6rem;">${_h(lnr||'—')}</td>
                                 <td style="font-size:0.6rem;">${_h(it.brand||'—')}</td>
                                 <td style="font-size:0.6rem;">${_h(String(it.model||'—').substring(0,30))}</td>
                                 <td style="font-size:0.58rem; color:var(--text-muted);">${_h(String(it.product_group||'—').substring(0,18))}</td>
@@ -9699,6 +9745,89 @@ Keine Erklärungen, kein Markdown.`;
                 }
             }
         }
+        // ====== Live-View Selection + CSV-Export ======
+        function _lvUpdateSelectionBadge() {
+            const el = document.getElementById('lv-selection-count');
+            if (el) {
+                const n = (dashboardState._lvSelection || new Set()).size;
+                el.textContent = n > 0 ? `· ${n} markiert` : '';
+            }
+        }
+        function lvToggleRow(cb) {
+            const lnr = cb.getAttribute('data-lnr');
+            if (!lnr) return;
+            if (!dashboardState._lvSelection) dashboardState._lvSelection = new Set();
+            if (cb.checked) dashboardState._lvSelection.add(lnr);
+            else dashboardState._lvSelection.delete(lnr);
+            _lvUpdateSelectionBadge();
+        }
+        function lvToggleAll(cb) {
+            const rows = document.querySelectorAll('#lv-table-container input[type=checkbox][data-lnr]');
+            if (!dashboardState._lvSelection) dashboardState._lvSelection = new Set();
+            rows.forEach(r => {
+                r.checked = cb.checked;
+                const lnr = r.getAttribute('data-lnr');
+                if (cb.checked) dashboardState._lvSelection.add(lnr);
+                else dashboardState._lvSelection.delete(lnr);
+            });
+            _lvUpdateSelectionBadge();
+        }
+        function lvSelectAll() {
+            // Alle gefilterten (nicht nur sichtbare) markieren
+            if (!dashboardState._lvSelection) dashboardState._lvSelection = new Set();
+            (dashboardState._lvFiltered || []).forEach(it => {
+                const lnr = String(it.lager_number || '').trim();
+                if (lnr) dashboardState._lvSelection.add(lnr);
+            });
+            updateLiveView();  // re-render mit allen Checkboxen
+            showToast('☑ Alle markiert', `${dashboardState._lvSelection.size} Geräte ausgewählt — auch außerhalb der sichtbaren Top-N`, 'success');
+        }
+        function lvClearSelection() {
+            dashboardState._lvSelection = new Set();
+            updateLiveView();
+        }
+        function lvExportCSV() {
+            const sel = dashboardState._lvSelection || new Set();
+            const filtered = dashboardState._lvFiltered || [];
+            // Wenn Auswahl: nur markierte. Sonst: alle gefilterten.
+            const items = sel.size > 0
+                ? filtered.filter(it => sel.has(String(it.lager_number || '').trim()))
+                : filtered;
+            if (!items.length) { showToast('warning', 'Nichts zum Export', 'Keine Geräte in Auswahl oder Filter.'); return; }
+
+            const f = _liveFilters();
+            const filterNote = [f.supplier, f.wg, f.brand, f.model].filter(Boolean).join('_') || 'alle';
+            const headers = ['Lager-Nr','Marke','Modell','Artikel-Nr','Warengruppe','Lieferant','Status','Grade','Lagertage','EK','VK','Online','Marge%','Upload-Datum'];
+            const rows = items.map(it => {
+                const ek = parseFloat(it.Buying_Price)||0, vk = parseFloat(it.Selling_Price)||0;
+                const m = vk > 0 ? ((vk-ek)/vk*100) : 0;
+                return [
+                    it.lager_number||'',
+                    it.brand||'',
+                    String(it.model||'').replace(/;/g,','),
+                    it.article_number||'',
+                    String(it.product_group||'').replace(/;/g,','),
+                    it.supply_type||'',
+                    it.status||'',
+                    it.final_grade||'',
+                    it.product_life_days||0,
+                    ek.toFixed(2).replace('.', ','),
+                    vk.toFixed(2).replace('.', ','),
+                    (parseFloat(it.Online_Price)||0).toFixed(2).replace('.', ','),
+                    m.toFixed(1).replace('.', ','),
+                    it.datetime_upload ? String(it.datetime_upload).substring(0,10) : '',
+                ].join(';');
+            });
+            const csv = '﻿' + headers.join(';') + '\n' + rows.join('\n');
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            const dateStr = new Date().toISOString().split('T')[0];
+            a.download = `LiveView_${filterNote.replace(/[^a-zA-Z0-9_-]/g, '_').substring(0,40)}_${dateStr}.csv`;
+            a.click();
+            showToast('success', '📥 CSV exportiert', `${items.length} Geräte${sel.size > 0 ? ' (aus Auswahl)' : ' (aktuelle Filter)'}`);
+        }
+
         function liveViewToKonvolut() {
             const f = _liveFilters();
             // Wechsel zum Verkaufsprioritäts-Reiter + Voreinstellungen im Konvolut-Generator
