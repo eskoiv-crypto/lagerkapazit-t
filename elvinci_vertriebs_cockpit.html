@@ -3483,6 +3483,7 @@
                             <button class="analyse-tab" data-tab="potenzial" onclick="switchAnalyseTab('potenzial')" title="Verkaufspriorität: Geräte nach Dringlichkeit sortiert — alte Lagerware mit guter Marge zuerst verkaufen.">🎯 Verkaufspriorität</button>
                             <button class="analyse-tab" data-tab="topseller" onclick="switchAnalyseTab('topseller')" title="Bestseller: die am häufigsten und schnellsten verkauften Artikel/Warengruppen — ideal für Nachbestellung.">🏆 Top-Seller</button>
                             <button class="analyse-tab" data-tab="liveview" onclick="switchAnalyseTab('liveview')" id="tab-btn-liveview" style="background: linear-gradient(135deg, #6366f1, #06b6d4); color: white;" title="Live View: Drill-Down nach Lieferant × Warengruppe × Marke. Zeigt aktuellen Bestand und besten Kunden für diese Kombi in Echtzeit beim Filter-Klick.">🔍 Live View</button>
+                            <button class="analyse-tab" data-tab="pipeline" onclick="switchAnalyseTab('pipeline')" id="tab-btn-pipeline" style="background: linear-gradient(135deg, #6366f1, #a855f7); color: white;" title="Pipeline: aktuelle offene Aufträge aus AMM (AUFTRAG_STATUS). Überfällig-Alarm, Forecast 'diese Woche raus', Sync-Wächter JTL ↔ AMM.">📋 Pipeline</button>
                             <button class="analyse-tab" data-tab="angebotsanalyse" onclick="switchAnalyseTab('angebotsanalyse')" id="tab-btn-angebotsanalyse" style="background: linear-gradient(135deg, #10B981, #06B6D4); color: white;" title="Angebots-Analyse: lädt eine Angebots-/Auftragsdatei und gleicht sie gegen den verfügbaren Bestand ab — was kann sofort geliefert werden, was fehlt?">💼 Angebots-Analyse</button>
                         </div>
 
@@ -3493,6 +3494,7 @@
                             <span id="range-stock" style="display:none;"></span>
                             <span id="range-sold" style="display:none;"></span>
                             <span id="range-jtl" style="display:none;"></span>
+                            <span id="range-pipeline" style="display:none;"></span>
                             <span style="flex:1;"></span>
                             <span class="gf-label">Zeitraum-Filter</span>
                             <select id="global-time-filter" class="gf-select" onchange="onGlobalTimeFilterChange()">
@@ -4548,6 +4550,48 @@
                             </div>
                         </div>
 
+                        <!-- ========== TAB: PIPELINE (offene AMM-Aufträge) ========== -->
+                        <div id="tab-pipeline" class="analyse-tab-content" style="display: none; padding: 1rem;">
+                            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem; margin-bottom:0.75rem;">
+                                <div>
+                                    <div class="analytics-section-title" style="margin:0;">📋 Pipeline — offene AMM-Aufträge</div>
+                                    <span style="font-size:0.7rem; color:var(--text-muted);">Tägliche AMM-Datei AUFTRAG_STATUS · Überfälligkeit · Forecast · Sync-Wächter</span>
+                                </div>
+                                <div id="pipeline-stand-badge" style="font-size:0.65rem; color:var(--text-muted);"></div>
+                            </div>
+                            <div id="pipeline-no-data" style="padding:2rem; text-align:center; color:var(--text-muted); font-size:0.85rem; display:none;">
+                                💡 Bitte zuerst die <b>AMM-Pipeline-Datei</b> hochladen (AUFTRAG_STATUS_*.xlsx im Upload-Bereich oben).
+                            </div>
+                            <div id="pipeline-content" style="display:none;">
+                                <!-- KPI-Cards -->
+                                <div id="pipeline-kpis" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px,1fr)); gap:0.75rem; margin-bottom:1rem;"></div>
+
+                                <!-- 2 Spalten: Überfällig + Diese Woche -->
+                                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem; margin-bottom:1rem;">
+                                    <div style="background:var(--bg-card); border:1px solid var(--border); border-left:4px solid var(--accent-red); border-radius:10px; padding:0.9rem;">
+                                        <div style="font-size:0.85rem; font-weight:700; margin-bottom:0.5rem; color:var(--accent-red);">🚨 Überfällige Aufträge <span id="pipeline-overdue-count" style="color:var(--text-muted); font-weight:400; font-size:0.7rem;"></span></div>
+                                        <div id="pipeline-overdue-table" style="max-height:340px; overflow-y:auto;"></div>
+                                    </div>
+                                    <div style="background:var(--bg-card); border:1px solid var(--border); border-left:4px solid var(--accent-green); border-radius:10px; padding:0.9rem;">
+                                        <div style="font-size:0.85rem; font-weight:700; margin-bottom:0.5rem; color:var(--accent-green);">📅 Diese Woche raus <span id="pipeline-week-count" style="color:var(--text-muted); font-weight:400; font-size:0.7rem;"></span></div>
+                                        <div id="pipeline-week-table" style="max-height:340px; overflow-y:auto;"></div>
+                                    </div>
+                                </div>
+
+                                <!-- Sync-Wächter + Spediteur/Land -->
+                                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem;">
+                                    <div style="background:var(--bg-card); border:1px solid var(--border); border-left:4px solid var(--accent-orange); border-radius:10px; padding:0.9rem;">
+                                        <div style="font-size:0.85rem; font-weight:700; margin-bottom:0.5rem; color:var(--accent-orange);">🔄 JTL ↔ AMM-Sync-Wächter <span class="vc-info" data-tip="Aufträge die in AMM-Pipeline stehen, aber NICHT in JTL-Export auftauchen — potenzielle Sync-Lücke (wie der Mail-Fall AU2026060213698). Erfordert JTL-Export geladen.">ⓘ</span></div>
+                                        <div id="pipeline-sync-table" style="max-height:280px; overflow-y:auto;"></div>
+                                    </div>
+                                    <div style="background:var(--bg-card); border:1px solid var(--border); border-radius:10px; padding:0.9rem;">
+                                        <div style="font-size:0.85rem; font-weight:700; margin-bottom:0.5rem;">🌍 Aufschlüsselung Land × Spediteur</div>
+                                        <div id="pipeline-breakdown" style="max-height:280px; overflow-y:auto;"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
                         <!-- ========== TAB: ANGEBOTS-ANALYSE ========== -->
                         <div id="tab-angebotsanalyse" class="analyse-tab-content" style="display: none; padding: 1rem;">
                             <!-- Header mit Aktivierungs-Check -->
@@ -4793,7 +4837,7 @@
                         <div style="font-size: 0.65rem; font-weight: 600; color: var(--accent-green); margin-bottom: 0.4rem;">
                             1️⃣ STAMMDATEN <span style="font-weight: 400; opacity: 0.8;">(Basis)</span>
                         </div>
-                        <div class="import-grid">
+                        <div class="import-grid" style="grid-template-columns: repeat(2, 1fr);">
                             <div class="import-box" id="import-bestand" onclick="document.getElementById('file-bestand').click()" style="border-color: var(--accent-green);">
                                 <div class="import-icon">📦</div>
                                 <div class="import-label">BESTAND</div>
@@ -4801,6 +4845,14 @@
                                 <div class="import-status" id="status-bestand"></div>
                             </div>
                             <input type="file" class="file-input" id="file-bestand" accept=".csv" onchange="handleFileUpload(this, 'bestand')">
+
+                            <div class="import-box" id="import-pipeline" onclick="document.getElementById('file-pipeline').click()" style="border-color: #6366f1;">
+                                <div class="import-icon">📋</div>
+                                <div class="import-label">PIPELINE</div>
+                                <div class="import-desc">AMM: AUFTRAG_STATUS*.XLSX</div>
+                                <div class="import-status" id="status-pipeline"></div>
+                            </div>
+                            <input type="file" class="file-input" id="file-pipeline" accept=".xlsx,.xls" onchange="handleFileUpload(this, 'pipeline'); document.getElementById('status-pipeline').innerHTML='✓';">
                         </div>
                     </div>
                     
@@ -7640,6 +7692,7 @@ Keine Erklärungen, kein Markdown.`;
             'we-pipe': 'WE PIPELINE',
             'wa-pipe': 'FULFILMENT',
             'auftrag-status': 'AUFTRAG STATUS',
+            'pipeline': 'PIPELINE (AMM)',
             'planner': 'PLANNER'
         };
         
@@ -8589,6 +8642,9 @@ Keine Erklärungen, kein Markdown.`;
             if (tabName === 'liveview') {
                 try { updateLiveView(); } catch(e) { console.warn('[LiveView] init', e); }
             }
+            if (tabName === 'pipeline') {
+                try { renderPipelineTab(); } catch(e) { console.warn('[Pipeline] init', e); }
+            }
         }
         
         // ====== GLOBAL TIME FILTER (Phase 2) ======
@@ -9243,6 +9299,191 @@ Keine Erklärungen, kein Markdown.`;
         }
 
         // ============================================================
+        // PIPELINE-REITER — offene AMM-Aufträge (täglich AUFTRAG_STATUS)
+        // KILLCRITIC-Beachtung:
+        //  · Sub-Aufträge (.001, .002) gehören zum Root-Auftrag — Aggregat per auftragRoot
+        //  · "31.12.2026" = Default-Liefertag (hasDefaultDate=true) → nicht als überfällig zählen
+        //  · Sync-Wächter braucht JTL-Export — sonst leerer Block mit Hinweis
+        // ============================================================
+        function renderPipelineTab() {
+            const pipeline = dashboardState.pipelineData || [];
+            const noData = document.getElementById('pipeline-no-data');
+            const content = document.getElementById('pipeline-content');
+            if (!pipeline.length) {
+                if (noData) noData.style.display = 'block';
+                if (content) content.style.display = 'none';
+                return;
+            }
+            if (noData) noData.style.display = 'none';
+            if (content) content.style.display = 'block';
+
+            const standEl = document.getElementById('pipeline-stand-badge');
+            if (standEl) standEl.innerHTML = `<span class="src-pill src-bestand" data-tip="AMM Pipeline-Datei: AUFTRAG_STATUS_*.xlsx (täglicher Export). Zeigt alle offenen Aufträge mit Liefertermin, Kunde, Spediteur, Status (QU/AK/SU).">📋 PIPELINE</span> · ${pipeline.length} Zeilen geladen`;
+
+            // Aggregat per Root-Auftrag (Sub-Aufträge .001/.002 zusammenfassen)
+            const rootMap = new Map();
+            pipeline.forEach(p => {
+                const ex = rootMap.get(p.auftragRoot);
+                if (!ex) {
+                    rootMap.set(p.auftragRoot, {
+                        auftragRoot: p.auftragRoot, land: p.land, status: p.status,
+                        kundenName: p.kundenName, kundenStadt: p.kundenStadt, spediteur: p.spediteur,
+                        // frühester Liefertermin (Hauptzeile bzw. erste Sub)
+                        lieferDt: p.lieferDt, lieferStr: p.lieferStr, hasDefaultDate: p.hasDefaultDate,
+                        summe: p.summe, qu: p.qu, ak: p.ak, su: p.su,
+                        subCount: p.isSubOrder ? 1 : 0,
+                    });
+                } else {
+                    ex.summe += p.summe; ex.qu += p.qu; ex.ak += p.ak; ex.su += p.su;
+                    if (p.isSubOrder) ex.subCount++;
+                    // frühester Liefertermin gewinnt
+                    if (p.lieferDt && (!ex.lieferDt || p.lieferDt < ex.lieferDt)) {
+                        ex.lieferDt = p.lieferDt; ex.lieferStr = p.lieferStr; ex.hasDefaultDate = p.hasDefaultDate;
+                    }
+                }
+            });
+            const roots = Array.from(rootMap.values());
+
+            // KPIs
+            const now = new Date(); now.setHours(0,0,0,0);
+            const oneWeek = new Date(now.getTime() + 7 * 86400000);
+            const sumGeraete = roots.reduce((s,r) => s + r.summe, 0);
+            const sumQU = roots.reduce((s,r) => s + r.qu, 0);
+            const sumAK = roots.reduce((s,r) => s + r.ak, 0);
+            const sumSU = roots.reduce((s,r) => s + r.su, 0);
+            const overdue = roots.filter(r => r.lieferDt && !r.hasDefaultDate && r.lieferDt < now);
+            const thisWeek = roots.filter(r => r.lieferDt && !r.hasDefaultDate && r.lieferDt >= now && r.lieferDt < oneWeek);
+            const noTermin = roots.filter(r => !r.lieferDt || r.hasDefaultDate);
+
+            // Forecast Σ Umsatz: brauchen Stock-VK je Geräte-Schnitt
+            const stockData = dashboardState.stockAnalysisData;
+            let avgVK = null;
+            if (stockData) {
+                const vals = [];
+                (stockData instanceof Map ? Array.from(stockData.values()) : Object.values(stockData)).forEach(it => {
+                    const vk = parseFloat(it.Selling_Price); if (vk > 0) vals.push(vk);
+                });
+                if (vals.length) avgVK = vals.reduce((s,v)=>s+v,0) / vals.length;
+            }
+            const forecastWeek = avgVK ? thisWeek.reduce((s,r)=>s+r.summe,0) * avgVK : null;
+
+            function _kpi(label, value, sub, color) {
+                return `<div style="background:var(--bg-card); border:1px solid var(--border); border-left:3px solid ${color}; border-radius:8px; padding:0.7rem 0.9rem;">
+                    <div style="font-size:0.55rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em;">${label}</div>
+                    <div style="font-size:1.4rem; font-weight:700; line-height:1.15;">${value}</div>
+                    <div style="font-size:0.62rem; color:var(--text-muted); margin-top:1px;">${sub}</div>
+                </div>`;
+            }
+            document.getElementById('pipeline-kpis').innerHTML = [
+                _kpi('Offene Aufträge', roots.length.toLocaleString('de-DE'), `${sumGeraete.toLocaleString('de-DE')} Geräte gesamt`, '#6366f1'),
+                _kpi('🚨 Überfällig', overdue.length.toLocaleString('de-DE'), `${overdue.reduce((s,r)=>s+r.summe,0).toLocaleString('de-DE')} Geräte`, 'var(--accent-red)'),
+                _kpi('📅 Diese Woche', thisWeek.length.toLocaleString('de-DE'), `${thisWeek.reduce((s,r)=>s+r.summe,0).toLocaleString('de-DE')} Geräte`, 'var(--accent-green)'),
+                _kpi('Forecast Σ VK 7T', forecastWeek != null ? forecastWeek.toLocaleString('de-DE',{style:'currency',currency:'EUR',maximumFractionDigits:0}) : '— Stock nötig', forecastWeek != null ? `Ø VK ${avgVK.toFixed(0)} € × Stk` : 'Stock-Analysis laden', 'var(--accent-cyan)'),
+                _kpi('Kein Termin', noTermin.length.toLocaleString('de-DE'), `Default-Datum oder leer`, 'var(--text-muted)'),
+            ].join('');
+
+            // Überfällig-Tabelle
+            const overSorted = overdue.slice().sort((a,b) => a.lieferDt - b.lieferDt);
+            document.getElementById('pipeline-overdue-count').textContent = `(${overdue.length} · Σ ${overdue.reduce((s,r)=>s+r.summe,0)} Geräte)`;
+            const overdueTable = document.getElementById('pipeline-overdue-table');
+            if (overdueTable) {
+                if (!overSorted.length) {
+                    overdueTable.innerHTML = '<div style="padding:1rem; color:var(--text-muted); font-size:0.75rem;">✅ Keine überfälligen Aufträge.</div>';
+                } else {
+                    overdueTable.innerHTML = `<table class="analyse-table" style="font-size:0.66rem; width:100%;">
+                        <thead><tr><th>Auftrag</th><th>Kunde</th><th>Land</th><th>Tage über</th><th>Σ Geräte</th></tr></thead>
+                        <tbody>${overSorted.map(r => {
+                            const tage = Math.floor((now - r.lieferDt) / 86400000);
+                            const tageColor = tage > 30 ? 'var(--accent-red)' : tage > 14 ? 'var(--accent-orange)' : 'inherit';
+                            return `<tr>
+                                <td class="mono" style="font-size:0.62rem;">${_h(r.auftragRoot)}</td>
+                                <td style="font-size:0.62rem; max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${_h(r.kundenName)} · ${_h(r.kundenStadt)}">${_h(r.kundenName)}</td>
+                                <td style="font-size:0.62rem;">${_h(r.land)}</td>
+                                <td class="mono" style="font-size:0.65rem; font-weight:700; color:${tageColor};">+${tage} T</td>
+                                <td class="mono" style="font-size:0.65rem; text-align:right;">${r.summe}</td>
+                            </tr>`;
+                        }).join('')}</tbody>
+                    </table>`;
+                }
+            }
+
+            // Diese-Woche-Tabelle
+            const weekSorted = thisWeek.slice().sort((a,b) => a.lieferDt - b.lieferDt);
+            document.getElementById('pipeline-week-count').textContent = `(${thisWeek.length} · Σ ${thisWeek.reduce((s,r)=>s+r.summe,0)} Geräte)`;
+            const weekTable = document.getElementById('pipeline-week-table');
+            if (weekTable) {
+                if (!weekSorted.length) {
+                    weekTable.innerHTML = '<div style="padding:1rem; color:var(--text-muted); font-size:0.75rem;">Keine Aufträge mit Liefertermin in den nächsten 7 Tagen.</div>';
+                } else {
+                    weekTable.innerHTML = `<table class="analyse-table" style="font-size:0.66rem; width:100%;">
+                        <thead><tr><th>Liefertag</th><th>Auftrag</th><th>Kunde</th><th>Spediteur</th><th>Σ</th></tr></thead>
+                        <tbody>${weekSorted.map(r => `<tr>
+                            <td style="font-size:0.62rem; font-weight:700;">${r.lieferStr}</td>
+                            <td class="mono" style="font-size:0.62rem;">${_h(r.auftragRoot)}</td>
+                            <td style="font-size:0.62rem; max-width:160px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${_h(r.kundenName)}">${_h(r.kundenName)}</td>
+                            <td style="font-size:0.6rem; color:var(--text-muted);">${_h(r.spediteur)}</td>
+                            <td class="mono" style="font-size:0.65rem; text-align:right;">${r.summe}</td>
+                        </tr>`).join('')}</tbody>
+                    </table>`;
+                }
+            }
+
+            // JTL-Sync-Wächter
+            const syncTable = document.getElementById('pipeline-sync-table');
+            if (syncTable) {
+                const jtlOrders = dashboardState.jtlOrderNumbers; // Set falls geladen
+                if (!jtlOrders) {
+                    syncTable.innerHTML = '<div style="padding:0.8rem; color:var(--text-muted); font-size:0.7rem; background:rgba(255,255,255,0.03); border-radius:6px;">💡 JTL-Export laden für Sync-Check.<br>Sonst: Vergleich Pipeline-Aufträge ↔ JTL nicht möglich.</div>';
+                } else {
+                    const missing = roots.filter(r => !jtlOrders.has(r.auftragRoot));
+                    if (!missing.length) {
+                        syncTable.innerHTML = '<div style="padding:0.8rem; color:var(--accent-green); font-size:0.78rem; font-weight:600;">✅ Alle Pipeline-Aufträge sind auch in JTL — keine Sync-Lücke.</div>';
+                    } else {
+                        syncTable.innerHTML = `<div style="font-size:0.7rem; color:var(--accent-orange); margin-bottom:0.4rem;">${missing.length} Auftrag/Aufträge in Pipeline aber NICHT in JTL → manuell prüfen</div>
+                        <table class="analyse-table" style="font-size:0.66rem; width:100%;">
+                            <thead><tr><th>Auftrag</th><th>Kunde</th><th>Land</th><th>Σ</th></tr></thead>
+                            <tbody>${missing.map(r => `<tr>
+                                <td class="mono" style="font-size:0.62rem; font-weight:700; color:var(--accent-orange);">${_h(r.auftragRoot)}</td>
+                                <td style="font-size:0.62rem; max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${_h(r.kundenName)}</td>
+                                <td style="font-size:0.62rem;">${_h(r.land)}</td>
+                                <td class="mono" style="font-size:0.62rem; text-align:right;">${r.summe}</td>
+                            </tr>`).join('')}</tbody>
+                        </table>`;
+                    }
+                }
+            }
+
+            // Breakdown Land × Spediteur
+            const bdEl = document.getElementById('pipeline-breakdown');
+            if (bdEl) {
+                const byLand = {};
+                const bySped = {};
+                roots.forEach(r => {
+                    byLand[r.land] = (byLand[r.land] || 0) + r.summe;
+                    bySped[r.spediteur] = (bySped[r.spediteur] || 0) + r.summe;
+                });
+                function _bar(map, color) {
+                    const max = Math.max(...Object.values(map), 1);
+                    return Object.entries(map).sort((a,b) => b[1]-a[1]).slice(0,8).map(([k,v]) => {
+                        const w = Math.round(v/max*100);
+                        return `<div style="display:flex; align-items:center; gap:0.4rem; margin-bottom:0.2rem; font-size:0.65rem;">
+                            <span style="min-width:120px;">${_h(k)}</span>
+                            <div style="flex:1; height:6px; background:var(--bg-elevated); border-radius:3px; overflow:hidden;">
+                                <div style="width:${w}%; height:100%; background:${color};"></div>
+                            </div>
+                            <span class="mono" style="min-width:32px; text-align:right; font-weight:600;">${v}</span>
+                        </div>`;
+                    }).join('');
+                }
+                bdEl.innerHTML = `
+                    <div style="font-size:0.7rem; font-weight:600; margin-bottom:0.4rem;">Top-Länder (Σ Geräte)</div>
+                    ${_bar(byLand, 'var(--accent-cyan)')}
+                    <div style="font-size:0.7rem; font-weight:600; margin:0.6rem 0 0.4rem;">Spediteur</div>
+                    ${_bar(bySped, 'var(--accent-orange)')}`;
+            }
+        }
+
+        // ============================================================
         // LIVE VIEW — Drill-Down Lieferant × WG × Marke (2026-06-03)
         // Filter-Kombinationen liefern sofort:
         //  · KPI-Block: Anzahl Geräte, Σ EK/VK, Marge%, Ø Lagertage, ältestes Stück
@@ -9870,6 +10111,17 @@ Keine Erklärungen, kein Markdown.`;
                     elJtl.innerHTML = `<span class="src-pill src-jtl" data-tip="JTL (Warenwirtschaft): Artikelstamm-Export mit Artikelnummern, Marken, Warengruppen. Liefert Rechnungs-/Zahlungs-Stati und Stammdaten zur Verknüpfung mit All-Sold.">🟪 JTL</span> <b style="color:var(--accent-purple);">Artikelstamm:</b> <span style="color:var(--text-muted);">${jtlCount.toLocaleString('de-DE')} Positionen</span>`;
                     shown = true;
                 } else { elJtl.style.display = 'none'; }
+            }
+            // Pipeline — AMM-Auftragsstatus
+            const pipe = dashboardState.pipelineData || [];
+            const elPipe = document.getElementById('range-pipeline');
+            if (elPipe) {
+                if (pipe.length) {
+                    const sumDevices = pipe.reduce((s,p) => s + (p.summe || 0), 0);
+                    elPipe.style.display = 'inline';
+                    elPipe.innerHTML = `<span class="src-pill src-bestand" style="background:rgba(99,102,241,0.16); color:#a5b4fc; border-color:rgba(99,102,241,0.35);" data-tip="AMM Pipeline (AUFTRAG_STATUS, täglich): offene Aufträge mit Liefertermin, Kunde, Spediteur. Speist den Pipeline-Reiter (Überfälligkeits-Alarm, Forecast diese Woche, JTL-Sync-Wächter).">📋 PIPELINE</span> <b style="color:#a5b4fc;">offene Aufträge:</b> <span style="color:var(--text-muted);">${pipe.length} Zeilen · ${sumDevices.toLocaleString('de-DE')} Geräte</span>`;
+                    shown = true;
+                } else { elPipe.style.display = 'none'; }
             }
 
             bar.style.display = shown ? 'flex' : 'none';
@@ -17686,6 +17938,9 @@ Keine Erklärungen, kein Markdown.`;
                     dashboardState.jtlSalesData = jtlSalesData;
                     dashboardState.jtlSalesCount = count;
                     dashboardState.jtlSalesTotal = totalUmsatz;
+                    // Set der eindeutigen JTL-Auftragsnummern für Pipeline-Sync-Wächter
+                    dashboardState.jtlOrderNumbers = new Set(jtlSalesData.map(r => String(r.bestellNr || r['Bestell Nr.'] || '').trim()).filter(Boolean));
+                    try { renderPipelineTab(); } catch(_) {}
                     
                     // PHASE 2: Lookup speichern
                     dashboardState.artikelLookup = artikelLookup;
@@ -18428,6 +18683,67 @@ Keine Erklärungen, kein Markdown.`;
                     // NEU: Verkaufsanalyse PRO aktualisieren
                     updateAnalyseProPanel();
                     
+                } else if (type === 'pipeline') {
+                    // ====== AUFTRAG_STATUS (AMM-Pipeline-Datei, täglich) ======
+                    // Spalten: Auftrag · Land · Status · Liefertag · Kundenname · Spediteur · VSA · Summe · SU · AK · QU · Eintrag
+                    // Status auf Zeilen-Ebene: QU/AK/SU (Quartiert/Akquiriert/Summiert)
+                    // Sub-Aufträge: .001, .002 etc. — gehören zum Haupt-Auftrag
+                    // Liefertag "31.12.2026" = Default für "kein konkreter Termin"
+                    const sheetName = workbook.SheetNames[0];
+                    const sheet = workbook.Sheets[sheetName];
+                    const rows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+                    const _parseDe = v => {
+                        if (!v) return null;
+                        if (v instanceof Date) return isNaN(v.getTime()) ? null : v;
+                        const s = String(v).trim();
+                        let m = s.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})/);
+                        if (m) return new Date(+m[3], +m[2]-1, +m[1]);
+                        const d = new Date(s);
+                        return isNaN(d.getTime()) ? null : d;
+                    };
+                    const pipeline = rows.map(r => {
+                        const auftragRaw = String(r['Auftrag'] || '').trim();
+                        const auftragRoot = auftragRaw.split('.')[0];
+                        const lieferDt = _parseDe(r['Liefertag']);
+                        const eintragDt = _parseDe(r['Eintrag']);
+                        const isDefaultDate = lieferDt && lieferDt.getMonth() === 11 && lieferDt.getDate() === 31;
+                        // Kundenname per Backtick splitten: Name`AP`Land`PLZ`Stadt`Adresse`
+                        const kundenRaw = String(r['Kundenname'] || '').trim();
+                        const parts = kundenRaw.split('`');
+                        return {
+                            auftragRaw,
+                            auftragRoot,
+                            isSubOrder: auftragRaw.includes('.'),
+                            land: String(r['Land'] || '').trim(),
+                            status: String(r['Status'] || '').trim(),
+                            lieferDt,
+                            lieferStr: lieferDt && !isDefaultDate ? lieferDt.toLocaleDateString('de-DE') : '— offen —',
+                            hasDefaultDate: isDefaultDate,
+                            kundenName: parts[0] || kundenRaw,
+                            kundenAP: parts[1] || '',
+                            kundenStadt: parts[4] || '',
+                            spediteur: String(r['Spediteur'] || '').trim(),
+                            summe: parseInt(r['Summe']) || 0,
+                            qu: parseInt(r['QU']) || 0,
+                            ak: parseInt(r['AK']) || 0,
+                            su: parseInt(r['SU']) || 0,
+                            eintragDt,
+                        };
+                    }).filter(p => p.auftragRaw);
+
+                    dashboardState.pipelineData = pipeline;
+                    dashboardState.pipelineLoaded = true;
+                    dashboardState.pipelineCount = pipeline.length;
+                    if (statusEl) {
+                        statusEl.textContent = `✓ ${pipeline.length} Aufträge`;
+                        statusEl.style.color = 'var(--accent-green)';
+                    }
+                    if (boxEl) boxEl.classList.add('loaded');
+                    console.log(`[Pipeline] ${pipeline.length} Aufträge geladen · Σ Geräte = ${pipeline.reduce((s,p)=>s+p.summe,0)}`);
+                    try { bus.emit('data:pipeline-loaded', { count: pipeline.length }); } catch(e) {}
+                    try { renderDataRangeBar(); } catch(e) {}
+                    try { renderPipelineTab(); } catch(e) {}
+
                 } else if (type === 'all-sold') {
                     // ALL-SOLD (elvinci Portal Export - Verkaufshistorie)
                     // ERWEITERT: Alle Felder für Verkaufsanalyse PRO
@@ -18671,6 +18987,9 @@ Keine Erklärungen, kein Markdown.`;
                     dashboardState.jtlSalesData = jtlSalesData;
                     dashboardState.jtlSalesCount = count;
                     dashboardState.jtlSalesTotal = totalUmsatz;
+                    // Set der eindeutigen JTL-Auftragsnummern für Pipeline-Sync-Wächter
+                    dashboardState.jtlOrderNumbers = new Set(jtlSalesData.map(r => String(r.bestellNr || r['Bestell Nr.'] || '').trim()).filter(Boolean));
+                    try { renderPipelineTab(); } catch(_) {}
                     
                     // PHASE 2: Lookup speichern
                     dashboardState.artikelLookup = artikelLookup;
