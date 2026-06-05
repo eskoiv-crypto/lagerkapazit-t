@@ -9355,13 +9355,23 @@ Keine Erklärungen, kein Markdown.`;
             const thisWeek = roots.filter(r => r.lieferDt && !r.hasDefaultDate && r.lieferDt >= now && r.lieferDt < oneWeek);
             const noTermin = roots.filter(r => !r.lieferDt || r.hasDefaultDate);
 
-            // Forecast Σ Umsatz: brauchen Stock-VK je Geräte-Schnitt
-            const stockData = dashboardState.stockAnalysisData;
+            // Forecast Σ Umsatz: Ø VK aus Stock-Analysis (stockAnalysisRaw hat Großschreibung,
+            // stockAnalysisData hat lowercase Map-Format — beide Pfade absichern)
             let avgVK = null;
-            if (stockData) {
+            const rawArr = dashboardState.stockAnalysisRaw;
+            if (rawArr && rawArr.length) {
                 const vals = [];
-                (stockData instanceof Map ? Array.from(stockData.values()) : Object.values(stockData)).forEach(it => {
+                rawArr.forEach(it => {
                     const vk = parseFloat(it.Selling_Price); if (vk > 0) vals.push(vk);
+                });
+                if (vals.length) avgVK = vals.reduce((s,v)=>s+v,0) / vals.length;
+            }
+            // Fallback: lowercase Map (legacy)
+            if (avgVK === null && dashboardState.stockAnalysisData) {
+                const sd = dashboardState.stockAnalysisData;
+                const vals = [];
+                (sd instanceof Map ? Array.from(sd.values()) : Object.values(sd)).forEach(it => {
+                    const vk = parseFloat(it.vk ?? it.Selling_Price); if (vk > 0) vals.push(vk);
                 });
                 if (vals.length) avgVK = vals.reduce((s,v)=>s+v,0) / vals.length;
             }
