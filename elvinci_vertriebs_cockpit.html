@@ -4554,7 +4554,7 @@
                         <div id="tab-pipeline" class="analyse-tab-content" style="display: none; padding: 1rem;">
                             <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem; margin-bottom:0.75rem;">
                                 <div>
-                                    <div class="analytics-section-title" style="margin:0;">📋 Pipeline — offene AMM-Aufträge <span class="vc-info" data-tip="Definitionen: Eine 'Sendung' = eine Zeile aus AUFTRAG_STATUS (Sub-Aufträge .001/.002 sind eigene Sendungen mit eigenem Termin). 'Überfällig' = Status=QU UND Liefertag<heute UND nicht 31.12.-Default. 'QU' = Geräte noch im Lager / offen. 'AK/SU' = andere Stati (möglicherweise schon raus, separat ausgewiesen).">ⓘ</span></div>
+                                    <div class="analytics-section-title" style="margin:0;">📋 Pipeline — offene AMM-Aufträge <span class="vc-info" data-tip="Definitionen: 'Sendung' = eine Zeile aus AUFTRAG_STATUS. Sub-Aufträge (.001/.002 = 🚛 LKW-Reste, beim Verladen war kein Platz mehr im LKW, warten auf nächste Tour mit eigenem Termin). 'Überfällig' = Status=QU UND Liefertag<heute UND nicht 31.12.-Default. 'QU' = Geräte noch im Lager / offen. Überfälliger LKW-Rest = Versand-Stau verschlimmert sich.">ⓘ</span></div>
                                     <span style="font-size:0.7rem; color:var(--text-muted);">Tägliche AMM-Datei AUFTRAG_STATUS · Überfälligkeit (QU+vergangen) · Forecast · Sync-Wächter</span>
                                 </div>
                                 <div id="pipeline-stand-badge" style="font-size:0.65rem; color:var(--text-muted);"></div>
@@ -9350,6 +9350,10 @@ Keine Erklärungen, kein Markdown.`;
             const thisWeek = roots.filter(r => r.status === 'QU' && r.lieferDt && !r.hasDefaultDate && r.lieferDt >= now && r.lieferDt < oneWeek);
             const noTermin = roots.filter(r => !r.lieferDt || r.hasDefaultDate);
             const otherStatus = roots.filter(r => r.status !== 'QU' && r.lieferDt && !r.hasDefaultDate && r.lieferDt < now);
+            // NEU: Sub-Aufträge sind LKW-Reste (Nachlieferungen).
+            //   Überfälliger Sub = Versand-Stau verschlimmert sich, LKW-Platz fehlt seit länger.
+            const subOrders = roots.filter(r => r.isSubOrder);
+            const subOverdue = subOrders.filter(r => r.status === 'QU' && r.lieferDt && !r.hasDefaultDate && r.lieferDt < now);
 
             // Forecast Σ Umsatz: Ø VK aus Stock-Analysis (stockAnalysisRaw hat Großschreibung,
             // stockAnalysisData hat lowercase Map-Format — beide Pfade absichern)
@@ -9383,10 +9387,16 @@ Keine Erklärungen, kein Markdown.`;
             // Forecast nutzt jetzt openCount (QU, also wirklich noch offene Stück)
             const forecastWeekOpen = avgVK ? thisWeek.reduce((s,r)=>s+r.openCount,0) * avgVK : null;
 
+            const subColor = subOverdue.length > 0 ? 'var(--accent-red)' : 'var(--accent-orange)';
+            const subSub = subOverdue.length > 0
+                ? `<b style="color:var(--accent-red);">${subOverdue.length} davon überfällig</b> · LKW-Stau!`
+                : `${subOrders.length > 0 ? 'alle pünktlich/zukünftig' : 'keine'}`;
+
             document.getElementById('pipeline-kpis').innerHTML = [
                 _kpi('Offene Sendungen', roots.length.toLocaleString('de-DE'), `${sumQU.toLocaleString('de-DE')} QU · ${sumAK} AK · ${sumSU} SU`, '#6366f1'),
                 _kpi('🚨 Überfällig (QU)', overdue.length.toLocaleString('de-DE'), `${overdue.reduce((s,r)=>s+r.openCount,0).toLocaleString('de-DE')} offene Geräte (Status QU)`, 'var(--accent-red)'),
                 _kpi('📅 Diese Woche (QU)', thisWeek.length.toLocaleString('de-DE'), `${thisWeek.reduce((s,r)=>s+r.openCount,0).toLocaleString('de-DE')} offene Geräte`, 'var(--accent-green)'),
+                _kpi('🚛 LKW-Reste (Sub)', subOrders.length.toLocaleString('de-DE'), subSub, subColor),
                 _kpi('Forecast Σ VK 7T', forecastWeekOpen != null ? forecastWeekOpen.toLocaleString('de-DE',{style:'currency',currency:'EUR',maximumFractionDigits:0}) : '— Stock nötig', forecastWeekOpen != null ? `${thisWeek.reduce((s,r)=>s+r.openCount,0)} QU × Ø VK ${avgVK.toFixed(0)}€` : 'Stock-Analysis laden', 'var(--accent-cyan)'),
                 _kpi('Andere Stati', otherStatus.length.toLocaleString('de-DE'), `vergangener Termin · Status AK/SU (mögl. schon raus)`, 'var(--text-muted)'),
             ].join('');
@@ -9404,7 +9414,7 @@ Keine Erklärungen, kein Markdown.`;
                         <tbody>${overSorted.map(r => {
                             const tage = Math.floor((now - r.lieferDt) / 86400000);
                             const tageColor = tage > 30 ? 'var(--accent-red)' : tage > 14 ? 'var(--accent-orange)' : 'inherit';
-                            const sub = r.isSubOrder ? '<span style="color:var(--text-muted); font-size:0.55rem;"> (Sub)</span>' : '';
+                            const sub = r.isSubOrder ? '<span style="color:var(--accent-orange); font-size:0.55rem; cursor:help;" title="LKW-Rest: beim ursprünglichen Verladen kein Platz mehr im LKW. Wartet auf nächste Tour mit eigenem Liefertermin.">🚛 LKW-Rest</span>' : '';
                             return `<tr>
                                 <td class="mono" style="font-size:0.6rem;">${_h(r.auftragRoot)}${sub}</td>
                                 <td style="font-size:0.62rem; max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${_h(r.kundenName)} · ${_h(r.kundenStadt)}">${_h(r.kundenName)}</td>
@@ -9429,7 +9439,7 @@ Keine Erklärungen, kein Markdown.`;
                     weekTable.innerHTML = `<table class="analyse-table" style="font-size:0.66rem; width:100%;">
                         <thead><tr><th>Liefertag</th><th>Auftrag</th><th>Kunde</th><th>Spediteur</th><th>QU</th></tr></thead>
                         <tbody>${weekSorted.map(r => {
-                            const sub = r.isSubOrder ? '<span style="color:var(--text-muted); font-size:0.55rem;"> (Sub)</span>' : '';
+                            const sub = r.isSubOrder ? '<span style="color:var(--accent-orange); font-size:0.55rem; cursor:help;" title="LKW-Rest: beim ursprünglichen Verladen kein Platz mehr im LKW. Wartet auf nächste Tour mit eigenem Liefertermin.">🚛 LKW-Rest</span>' : '';
                             return `<tr>
                             <td style="font-size:0.62rem; font-weight:700;">${r.lieferStr}</td>
                             <td class="mono" style="font-size:0.6rem;">${_h(r.auftragRoot)}${sub}</td>
