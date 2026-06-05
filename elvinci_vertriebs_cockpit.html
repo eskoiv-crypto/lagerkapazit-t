@@ -4554,8 +4554,8 @@
                         <div id="tab-pipeline" class="analyse-tab-content" style="display: none; padding: 1rem;">
                             <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem; margin-bottom:0.75rem;">
                                 <div>
-                                    <div class="analytics-section-title" style="margin:0;">📋 Pipeline — offene AMM-Aufträge</div>
-                                    <span style="font-size:0.7rem; color:var(--text-muted);">Tägliche AMM-Datei AUFTRAG_STATUS · Überfälligkeit · Forecast · Sync-Wächter</span>
+                                    <div class="analytics-section-title" style="margin:0;">📋 Pipeline — offene AMM-Aufträge <span class="vc-info" data-tip="Definitionen: Eine 'Sendung' = eine Zeile aus AUFTRAG_STATUS (Sub-Aufträge .001/.002 sind eigene Sendungen mit eigenem Termin). 'Überfällig' = Status=QU UND Liefertag<heute UND nicht 31.12.-Default. 'QU' = Geräte noch im Lager / offen. 'AK/SU' = andere Stati (möglicherweise schon raus, separat ausgewiesen).">ⓘ</span></div>
+                                    <span style="font-size:0.7rem; color:var(--text-muted);">Tägliche AMM-Datei AUFTRAG_STATUS · Überfälligkeit (QU+vergangen) · Forecast · Sync-Wächter</span>
                                 </div>
                                 <div id="pipeline-stand-badge" style="font-size:0.65rem; color:var(--text-muted);"></div>
                             </div>
@@ -4569,7 +4569,7 @@
                                 <!-- 2 Spalten: Überfällig + Diese Woche -->
                                 <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem; margin-bottom:1rem;">
                                     <div style="background:var(--bg-card); border:1px solid var(--border); border-left:4px solid var(--accent-red); border-radius:10px; padding:0.9rem;">
-                                        <div style="font-size:0.85rem; font-weight:700; margin-bottom:0.5rem; color:var(--accent-red);">🚨 Überfällige Aufträge <span id="pipeline-overdue-count" style="color:var(--text-muted); font-weight:400; font-size:0.7rem;"></span></div>
+                                        <div style="font-size:0.85rem; font-weight:700; margin-bottom:0.5rem; color:var(--accent-red);">🚨 Überfällige Sendungen <span class="vc-info" data-tip="Filter: Status=QU UND Liefertag liegt in der Vergangenheit (heute 00:00) UND nicht Default-Datum 31.12.2026. Jede Pipeline-Zeile = eine Sendung (Sub-Aufträge .001/.002 zählen einzeln mit eigenem Termin). Geräte-Anzahl = QU-Spalte (= noch im Lager offen), NICHT die Summe-Spalte (= ursprüngliche Auftrags-Gesamtmenge).">ⓘ</span> <span id="pipeline-overdue-count" style="color:var(--text-muted); font-weight:400; font-size:0.7rem;"></span></div>
                                         <div id="pipeline-overdue-table" style="max-height:340px; overflow-y:auto;"></div>
                                     </div>
                                     <div style="background:var(--bg-card); border:1px solid var(--border); border-left:4px solid var(--accent-green); border-radius:10px; padding:0.9rem;">
@@ -9320,40 +9320,36 @@ Keine Erklärungen, kein Markdown.`;
             const standEl = document.getElementById('pipeline-stand-badge');
             if (standEl) standEl.innerHTML = `<span class="src-pill src-bestand" data-tip="AMM Pipeline-Datei: AUFTRAG_STATUS_*.xlsx (täglicher Export). Zeigt alle offenen Aufträge mit Liefertermin, Kunde, Spediteur, Status (QU/AK/SU).">📋 PIPELINE</span> · ${pipeline.length} Zeilen geladen`;
 
-            // Aggregat per Root-Auftrag (Sub-Aufträge .001/.002 zusammenfassen)
-            const rootMap = new Map();
-            pipeline.forEach(p => {
-                const ex = rootMap.get(p.auftragRoot);
-                if (!ex) {
-                    rootMap.set(p.auftragRoot, {
-                        auftragRoot: p.auftragRoot, land: p.land, status: p.status,
-                        kundenName: p.kundenName, kundenStadt: p.kundenStadt, spediteur: p.spediteur,
-                        // frühester Liefertermin (Hauptzeile bzw. erste Sub)
-                        lieferDt: p.lieferDt, lieferStr: p.lieferStr, hasDefaultDate: p.hasDefaultDate,
-                        summe: p.summe, qu: p.qu, ak: p.ak, su: p.su,
-                        subCount: p.isSubOrder ? 1 : 0,
-                    });
-                } else {
-                    ex.summe += p.summe; ex.qu += p.qu; ex.ak += p.ak; ex.su += p.su;
-                    if (p.isSubOrder) ex.subCount++;
-                    // frühester Liefertermin gewinnt
-                    if (p.lieferDt && (!ex.lieferDt || p.lieferDt < ex.lieferDt)) {
-                        ex.lieferDt = p.lieferDt; ex.lieferStr = p.lieferStr; ex.hasDefaultDate = p.hasDefaultDate;
-                    }
-                }
-            });
-            const roots = Array.from(rootMap.values());
+            // KILLCRITIC-Fix 2026-06-05: KEINE Aggregation von Sub-Aufträgen mehr!
+            // Jede Zeile (Haupt + .001 + .002) hat eigenen Liefertermin und Status —
+            // war fehlerhafterweise mit dem frühesten Root-Termin aggregiert.
+            // Jetzt: jede Pipeline-Zeile ist eigenständige Sendung.
+            // Geräte-Anzahl = QU-Spalte (noch offen), NICHT Summe (= Gesamt-Original-Anzahl)
+            const roots = pipeline.map(p => ({
+                auftragRoot: p.auftragRaw,       // mit Suffix .001 wenn Sub-Auftrag (= eigene Sendung)
+                land: p.land, status: p.status,
+                kundenName: p.kundenName, kundenStadt: p.kundenStadt, spediteur: p.spediteur,
+                lieferDt: p.lieferDt, lieferStr: p.lieferStr, hasDefaultDate: p.hasDefaultDate,
+                summe: p.summe,
+                qu: p.qu, ak: p.ak, su: p.su,
+                // "Offen-Anzahl" = QU (im Lager, noch nicht raus). AK + SU sind andere Stati.
+                openCount: p.qu,
+                isSubOrder: p.isSubOrder,
+            }));
 
-            // KPIs
+            // KPIs (Status-bewusst)
             const now = new Date(); now.setHours(0,0,0,0);
             const oneWeek = new Date(now.getTime() + 7 * 86400000);
             const sumGeraete = roots.reduce((s,r) => s + r.summe, 0);
             const sumQU = roots.reduce((s,r) => s + r.qu, 0);
             const sumAK = roots.reduce((s,r) => s + r.ak, 0);
             const sumSU = roots.reduce((s,r) => s + r.su, 0);
-            const overdue = roots.filter(r => r.lieferDt && !r.hasDefaultDate && r.lieferDt < now);
-            const thisWeek = roots.filter(r => r.lieferDt && !r.hasDefaultDate && r.lieferDt >= now && r.lieferDt < oneWeek);
+            // KILLCRITIC-Definition: "überfällig" = Status=QU UND Liefertag<heute UND nicht Default
+            // (AK/SU werden separat unter "Andere Stati" gezählt — möglicherweise schon versandt)
+            const overdue = roots.filter(r => r.status === 'QU' && r.lieferDt && !r.hasDefaultDate && r.lieferDt < now);
+            const thisWeek = roots.filter(r => r.status === 'QU' && r.lieferDt && !r.hasDefaultDate && r.lieferDt >= now && r.lieferDt < oneWeek);
             const noTermin = roots.filter(r => !r.lieferDt || r.hasDefaultDate);
+            const otherStatus = roots.filter(r => r.status !== 'QU' && r.lieferDt && !r.hasDefaultDate && r.lieferDt < now);
 
             // Forecast Σ Umsatz: Ø VK aus Stock-Analysis (stockAnalysisRaw hat Großschreibung,
             // stockAnalysisData hat lowercase Map-Format — beide Pfade absichern)
@@ -9384,56 +9380,63 @@ Keine Erklärungen, kein Markdown.`;
                     <div style="font-size:0.62rem; color:var(--text-muted); margin-top:1px;">${sub}</div>
                 </div>`;
             }
+            // Forecast nutzt jetzt openCount (QU, also wirklich noch offene Stück)
+            const forecastWeekOpen = avgVK ? thisWeek.reduce((s,r)=>s+r.openCount,0) * avgVK : null;
+
             document.getElementById('pipeline-kpis').innerHTML = [
-                _kpi('Offene Aufträge', roots.length.toLocaleString('de-DE'), `${sumGeraete.toLocaleString('de-DE')} Geräte gesamt`, '#6366f1'),
-                _kpi('🚨 Überfällig', overdue.length.toLocaleString('de-DE'), `${overdue.reduce((s,r)=>s+r.summe,0).toLocaleString('de-DE')} Geräte`, 'var(--accent-red)'),
-                _kpi('📅 Diese Woche', thisWeek.length.toLocaleString('de-DE'), `${thisWeek.reduce((s,r)=>s+r.summe,0).toLocaleString('de-DE')} Geräte`, 'var(--accent-green)'),
-                _kpi('Forecast Σ VK 7T', forecastWeek != null ? forecastWeek.toLocaleString('de-DE',{style:'currency',currency:'EUR',maximumFractionDigits:0}) : '— Stock nötig', forecastWeek != null ? `Ø VK ${avgVK.toFixed(0)} € × Stk` : 'Stock-Analysis laden', 'var(--accent-cyan)'),
-                _kpi('Kein Termin', noTermin.length.toLocaleString('de-DE'), `Default-Datum oder leer`, 'var(--text-muted)'),
+                _kpi('Offene Sendungen', roots.length.toLocaleString('de-DE'), `${sumQU.toLocaleString('de-DE')} QU · ${sumAK} AK · ${sumSU} SU`, '#6366f1'),
+                _kpi('🚨 Überfällig (QU)', overdue.length.toLocaleString('de-DE'), `${overdue.reduce((s,r)=>s+r.openCount,0).toLocaleString('de-DE')} offene Geräte (Status QU)`, 'var(--accent-red)'),
+                _kpi('📅 Diese Woche (QU)', thisWeek.length.toLocaleString('de-DE'), `${thisWeek.reduce((s,r)=>s+r.openCount,0).toLocaleString('de-DE')} offene Geräte`, 'var(--accent-green)'),
+                _kpi('Forecast Σ VK 7T', forecastWeekOpen != null ? forecastWeekOpen.toLocaleString('de-DE',{style:'currency',currency:'EUR',maximumFractionDigits:0}) : '— Stock nötig', forecastWeekOpen != null ? `${thisWeek.reduce((s,r)=>s+r.openCount,0)} QU × Ø VK ${avgVK.toFixed(0)}€` : 'Stock-Analysis laden', 'var(--accent-cyan)'),
+                _kpi('Andere Stati', otherStatus.length.toLocaleString('de-DE'), `vergangener Termin · Status AK/SU (mögl. schon raus)`, 'var(--text-muted)'),
             ].join('');
 
-            // Überfällig-Tabelle
+            // Überfällig-Tabelle (KILLCRITIC: nur QU-Status, openCount=QU, nicht Summe)
             const overSorted = overdue.slice().sort((a,b) => a.lieferDt - b.lieferDt);
-            document.getElementById('pipeline-overdue-count').textContent = `(${overdue.length} · Σ ${overdue.reduce((s,r)=>s+r.summe,0)} Geräte)`;
+            document.getElementById('pipeline-overdue-count').textContent = `(${overdue.length} Sendungen · Σ ${overdue.reduce((s,r)=>s+r.openCount,0)} offene Geräte QU)`;
             const overdueTable = document.getElementById('pipeline-overdue-table');
             if (overdueTable) {
                 if (!overSorted.length) {
-                    overdueTable.innerHTML = '<div style="padding:1rem; color:var(--text-muted); font-size:0.75rem;">✅ Keine überfälligen Aufträge.</div>';
+                    overdueTable.innerHTML = '<div style="padding:1rem; color:var(--text-muted); font-size:0.75rem;">✅ Keine überfälligen QU-Sendungen.</div>';
                 } else {
                     overdueTable.innerHTML = `<table class="analyse-table" style="font-size:0.66rem; width:100%;">
-                        <thead><tr><th>Auftrag</th><th>Kunde</th><th>Land</th><th>Tage über</th><th>Σ Geräte</th></tr></thead>
+                        <thead><tr><th>Auftrag</th><th>Kunde</th><th>Land</th><th>St</th><th>Tage über</th><th title="QU = noch im Lager, offen">QU</th></tr></thead>
                         <tbody>${overSorted.map(r => {
                             const tage = Math.floor((now - r.lieferDt) / 86400000);
                             const tageColor = tage > 30 ? 'var(--accent-red)' : tage > 14 ? 'var(--accent-orange)' : 'inherit';
+                            const sub = r.isSubOrder ? '<span style="color:var(--text-muted); font-size:0.55rem;"> (Sub)</span>' : '';
                             return `<tr>
-                                <td class="mono" style="font-size:0.62rem;">${_h(r.auftragRoot)}</td>
-                                <td style="font-size:0.62rem; max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${_h(r.kundenName)} · ${_h(r.kundenStadt)}">${_h(r.kundenName)}</td>
+                                <td class="mono" style="font-size:0.6rem;">${_h(r.auftragRoot)}${sub}</td>
+                                <td style="font-size:0.62rem; max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${_h(r.kundenName)} · ${_h(r.kundenStadt)}">${_h(r.kundenName)}</td>
                                 <td style="font-size:0.62rem;">${_h(r.land)}</td>
+                                <td style="font-size:0.58rem; color:var(--accent-cyan); font-weight:700;">${_h(r.status)}</td>
                                 <td class="mono" style="font-size:0.65rem; font-weight:700; color:${tageColor};">+${tage} T</td>
-                                <td class="mono" style="font-size:0.65rem; text-align:right;">${r.summe}</td>
+                                <td class="mono" style="font-size:0.65rem; text-align:right; font-weight:700;">${r.openCount}</td>
                             </tr>`;
                         }).join('')}</tbody>
                     </table>`;
                 }
             }
 
-            // Diese-Woche-Tabelle
+            // Diese-Woche-Tabelle (nur QU mit Termin in nächsten 7 Tagen)
             const weekSorted = thisWeek.slice().sort((a,b) => a.lieferDt - b.lieferDt);
-            document.getElementById('pipeline-week-count').textContent = `(${thisWeek.length} · Σ ${thisWeek.reduce((s,r)=>s+r.summe,0)} Geräte)`;
+            document.getElementById('pipeline-week-count').textContent = `(${thisWeek.length} Sendungen · Σ ${thisWeek.reduce((s,r)=>s+r.openCount,0)} offene Geräte QU)`;
             const weekTable = document.getElementById('pipeline-week-table');
             if (weekTable) {
                 if (!weekSorted.length) {
-                    weekTable.innerHTML = '<div style="padding:1rem; color:var(--text-muted); font-size:0.75rem;">Keine Aufträge mit Liefertermin in den nächsten 7 Tagen.</div>';
+                    weekTable.innerHTML = '<div style="padding:1rem; color:var(--text-muted); font-size:0.75rem;">Keine QU-Sendungen mit Liefertermin in den nächsten 7 Tagen.</div>';
                 } else {
                     weekTable.innerHTML = `<table class="analyse-table" style="font-size:0.66rem; width:100%;">
-                        <thead><tr><th>Liefertag</th><th>Auftrag</th><th>Kunde</th><th>Spediteur</th><th>Σ</th></tr></thead>
-                        <tbody>${weekSorted.map(r => `<tr>
+                        <thead><tr><th>Liefertag</th><th>Auftrag</th><th>Kunde</th><th>Spediteur</th><th>QU</th></tr></thead>
+                        <tbody>${weekSorted.map(r => {
+                            const sub = r.isSubOrder ? '<span style="color:var(--text-muted); font-size:0.55rem;"> (Sub)</span>' : '';
+                            return `<tr>
                             <td style="font-size:0.62rem; font-weight:700;">${r.lieferStr}</td>
-                            <td class="mono" style="font-size:0.62rem;">${_h(r.auftragRoot)}</td>
+                            <td class="mono" style="font-size:0.6rem;">${_h(r.auftragRoot)}${sub}</td>
                             <td style="font-size:0.62rem; max-width:160px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${_h(r.kundenName)}">${_h(r.kundenName)}</td>
                             <td style="font-size:0.6rem; color:var(--text-muted);">${_h(r.spediteur)}</td>
-                            <td class="mono" style="font-size:0.65rem; text-align:right;">${r.summe}</td>
-                        </tr>`).join('')}</tbody>
+                            <td class="mono" style="font-size:0.65rem; text-align:right; font-weight:700;">${r.openCount}</td>
+                        </tr>`;}).join('')}</tbody>
                     </table>`;
                 }
             }
@@ -9445,18 +9448,29 @@ Keine Erklärungen, kein Markdown.`;
                 if (!jtlOrders) {
                     syncTable.innerHTML = '<div style="padding:0.8rem; color:var(--text-muted); font-size:0.7rem; background:rgba(255,255,255,0.03); border-radius:6px;">💡 JTL-Export laden für Sync-Check.<br>Sonst: Vergleich Pipeline-Aufträge ↔ JTL nicht möglich.</div>';
                 } else {
-                    const missing = roots.filter(r => !jtlOrders.has(r.auftragRoot));
+                    // Vergleich gegen Root-Auftragsnummer (ohne .001 Suffix)
+                    const uniqueRoots = Array.from(new Set(pipeline.map(p => p.auftragRoot))).map(rn => {
+                        const sample = pipeline.find(p => p.auftragRoot === rn);
+                        const allRows = pipeline.filter(p => p.auftragRoot === rn);
+                        return {
+                            auftragRoot: rn,
+                            kundenName: sample.kundenName,
+                            land: sample.land,
+                            openCount: allRows.reduce((s,p) => s + p.qu, 0),
+                        };
+                    });
+                    const missing = uniqueRoots.filter(r => !jtlOrders.has(r.auftragRoot));
                     if (!missing.length) {
                         syncTable.innerHTML = '<div style="padding:0.8rem; color:var(--accent-green); font-size:0.78rem; font-weight:600;">✅ Alle Pipeline-Aufträge sind auch in JTL — keine Sync-Lücke.</div>';
                     } else {
                         syncTable.innerHTML = `<div style="font-size:0.7rem; color:var(--accent-orange); margin-bottom:0.4rem;">${missing.length} Auftrag/Aufträge in Pipeline aber NICHT in JTL → manuell prüfen</div>
                         <table class="analyse-table" style="font-size:0.66rem; width:100%;">
-                            <thead><tr><th>Auftrag</th><th>Kunde</th><th>Land</th><th>Σ</th></tr></thead>
+                            <thead><tr><th>Auftrag (Root)</th><th>Kunde</th><th>Land</th><th>QU</th></tr></thead>
                             <tbody>${missing.map(r => `<tr>
                                 <td class="mono" style="font-size:0.62rem; font-weight:700; color:var(--accent-orange);">${_h(r.auftragRoot)}</td>
                                 <td style="font-size:0.62rem; max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${_h(r.kundenName)}</td>
                                 <td style="font-size:0.62rem;">${_h(r.land)}</td>
-                                <td class="mono" style="font-size:0.62rem; text-align:right;">${r.summe}</td>
+                                <td class="mono" style="font-size:0.62rem; text-align:right;">${r.openCount}</td>
                             </tr>`).join('')}</tbody>
                         </table>`;
                     }
@@ -9469,8 +9483,8 @@ Keine Erklärungen, kein Markdown.`;
                 const byLand = {};
                 const bySped = {};
                 roots.forEach(r => {
-                    byLand[r.land] = (byLand[r.land] || 0) + r.summe;
-                    bySped[r.spediteur] = (bySped[r.spediteur] || 0) + r.summe;
+                    byLand[r.land] = (byLand[r.land] || 0) + r.openCount;
+                    bySped[r.spediteur] = (bySped[r.spediteur] || 0) + r.openCount;
                 });
                 function _bar(map, color) {
                     const max = Math.max(...Object.values(map), 1);
@@ -9486,9 +9500,9 @@ Keine Erklärungen, kein Markdown.`;
                     }).join('');
                 }
                 bdEl.innerHTML = `
-                    <div style="font-size:0.7rem; font-weight:600; margin-bottom:0.4rem;">Top-Länder (Σ Geräte)</div>
+                    <div style="font-size:0.7rem; font-weight:600; margin-bottom:0.4rem;">Top-Länder (Σ offene QU-Geräte)</div>
                     ${_bar(byLand, 'var(--accent-cyan)')}
-                    <div style="font-size:0.7rem; font-weight:600; margin:0.6rem 0 0.4rem;">Spediteur</div>
+                    <div style="font-size:0.7rem; font-weight:600; margin:0.6rem 0 0.4rem;">Spediteur (Σ QU)</div>
                     ${_bar(bySped, 'var(--accent-orange)')}`;
             }
         }
