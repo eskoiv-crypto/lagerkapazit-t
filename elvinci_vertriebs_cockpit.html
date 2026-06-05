@@ -17900,9 +17900,11 @@ Keine Erklärungen, kein Markdown.`;
                     const colBezeichnung = headerMap['Bezeichnung'] ?? headerMap['Description'] ?? headerMap['Name'] ?? 2;
                     const colMenge = headerMap['Menge'] ?? headerMap['Quantity'] ?? 3;
                     const colNettoGesamt = headerMap['Netto Gesamt'] ?? headerMap['VK Netto'] ?? headerMap['Total'] ?? headerMap['Price'] ?? 5;
-                    
+                    const colBestellNr = headerMap['Bestell Nr.'] ?? headerMap['Bestell-Nr'] ?? headerMap['BestellNr'] ?? headerMap['Order Nr.'] ?? 0;
+
                     let totalUmsatz = 0, totalMenge = 0, count = 0;
                     const jtlSalesData = {};
+                    const jtlOrderSet = new Set();  // Pipeline-Sync-Wächter
                     
                     // PHASE 2: Artikelnummer→Faktor Lookup generieren
                     const artikelLookup = {};
@@ -17919,11 +17921,17 @@ Keine Erklärungen, kein Markdown.`;
                         const nettoGesamt = parseFloat((row[colNettoGesamt] || '').toString().replace(',', '.')) || 0;
                         
                         if (!artikel) continue;
-                        
+
+                        // Bestell-Nr sammeln (Root, ohne .001 Suffix) — für Pipeline-Sync-Wächter
+                        const bestellRaw = (row[colBestellNr] || '').toString().trim();
+                        if (bestellRaw) {
+                            jtlOrderSet.add(bestellRaw.split('.')[0]);
+                        }
+
                         totalUmsatz += nettoGesamt;
                         totalMenge += menge;
                         count++;
-                        
+
                         // Aggregiere pro Artikel (mit Bezeichnung)
                         if (!jtlSalesData[artikel]) {
                             jtlSalesData[artikel] = { vk: 0, count: 0, bezeichnung: bezeichnung };
@@ -17949,7 +17957,9 @@ Keine Erklärungen, kein Markdown.`;
                     dashboardState.jtlSalesCount = count;
                     dashboardState.jtlSalesTotal = totalUmsatz;
                     // Set der eindeutigen JTL-Auftragsnummern für Pipeline-Sync-Wächter
-                    dashboardState.jtlOrderNumbers = new Set(jtlSalesData.map(r => String(r.bestellNr || r['Bestell Nr.'] || '').trim()).filter(Boolean));
+                    // (im Loop oben gesammelt — jtlSalesData ist Dictionary, kein Array!)
+                    dashboardState.jtlOrderNumbers = jtlOrderSet;
+                    console.log(`[JTL] ${jtlOrderSet.size} eindeutige Bestell-Nrn für Sync-Wächter`);
                     try { renderPipelineTab(); } catch(_) {}
                     
                     // PHASE 2: Lookup speichern
@@ -18949,9 +18959,11 @@ Keine Erklärungen, kein Markdown.`;
                     const colMenge = headerMap['Menge'] ?? headerMap['Quantity'];
                     const colVKNetto = headerMap['VK Netto'] ?? headerMap['Netto Gesamt'] ?? headerMap['Price'];
                     const colNettoGesamt = headerMap['Netto Gesamt'] ?? headerMap['Total'];
-                    
+                    const colBestellNr = headerMap['Bestell Nr.'] ?? headerMap['Bestell-Nr'] ?? headerMap['BestellNr'] ?? headerMap['Order Nr.'] ?? 0;
+
                     let totalUmsatz = 0, totalMenge = 0, count = 0;
                     const jtlSalesData = {};
+                    const jtlOrderSet = new Set();  // Pipeline-Sync-Wächter
                     
                     // PHASE 2: Artikelnummer→Faktor Lookup generieren
                     const artikelLookup = {};
@@ -18968,11 +18980,17 @@ Keine Erklärungen, kein Markdown.`;
                         const nettoGesamt = parseFloat((row[colNettoGesamt] || '').toString().replace(',', '.')) || 0;
                         
                         if (!artikel) continue;
-                        
+
+                        // Bestell-Nr sammeln (Root, ohne .001 Suffix) — für Pipeline-Sync-Wächter
+                        const bestellRaw = (row[colBestellNr] || '').toString().trim();
+                        if (bestellRaw) {
+                            jtlOrderSet.add(bestellRaw.split('.')[0]);
+                        }
+
                         totalUmsatz += nettoGesamt;
                         totalMenge += menge;
                         count++;
-                        
+
                         // Aggregiere pro Artikel (mit Bezeichnung)
                         if (!jtlSalesData[artikel]) {
                             jtlSalesData[artikel] = { vk: 0, count: 0, bezeichnung: bezeichnung };
@@ -18998,7 +19016,9 @@ Keine Erklärungen, kein Markdown.`;
                     dashboardState.jtlSalesCount = count;
                     dashboardState.jtlSalesTotal = totalUmsatz;
                     // Set der eindeutigen JTL-Auftragsnummern für Pipeline-Sync-Wächter
-                    dashboardState.jtlOrderNumbers = new Set(jtlSalesData.map(r => String(r.bestellNr || r['Bestell Nr.'] || '').trim()).filter(Boolean));
+                    // (im Loop oben gesammelt — jtlSalesData ist Dictionary, kein Array!)
+                    dashboardState.jtlOrderNumbers = jtlOrderSet;
+                    console.log(`[JTL] ${jtlOrderSet.size} eindeutige Bestell-Nrn für Sync-Wächter`);
                     try { renderPipelineTab(); } catch(_) {}
                     
                     // PHASE 2: Lookup speichern
