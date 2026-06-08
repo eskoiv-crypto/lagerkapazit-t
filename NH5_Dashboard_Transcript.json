@@ -1,0 +1,291 @@
+{
+  "project": {
+    "name": "NH5 Lagerkapazitäts-Dashboard",
+    "company": "elvinci.de GmbH",
+    "location": "NH5 Nürnberg",
+    "version": "1.0",
+    "date": "2026-04-09",
+    "author": "Dustin Eskofier",
+    "file": "elvinci_lagerkapazitaet_dashboard.html"
+  },
+
+  "description": "Standalone HTML Dashboard für Lagerkapazitäts-Monitoring mit Prognose, Effizienz-Tracking und Blockierer-Erkennung. Läuft lokal im Browser, speichert Einstellungen in localStorage.",
+
+  "tech_stack": {
+    "frontend": "Vanilla HTML/CSS/JavaScript",
+    "libraries": {
+      "chart_js": "https://cdn.jsdelivr.net/npm/chart.js",
+      "xlsx": "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js",
+      "papaparse": "https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js",
+      "jspdf": "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"
+    },
+    "storage": "localStorage"
+  },
+
+  "data_sources": {
+    "amm_orange_folders": {
+      "description": "Daten vom Logistikpartner AMM Spedition",
+      "files": [
+        {
+          "type": "bestand",
+          "filename": "BESTAND134_YYYYMMDD.CSV",
+          "format": "CSV semicolon-separated",
+          "encoding": "ISO-8859-1",
+          "columns": {
+            "0": "Palette",
+            "1": "Artikel (Artikelnummer)",
+            "2": "Bezeichner (Artikeltyp)",
+            "4": "Lagerplatz (lgPlatz)",
+            "6": "Menge",
+            "7": "WE-Datum",
+            "9": "Status (QE/VS/AA)",
+            "10": "Auftragsnummer"
+          }
+        },
+        {
+          "type": "we-ist",
+          "filename": "WE_YYYYMMDD.CSV",
+          "format": "CSV semicolon-separated",
+          "note": "Zeile 1 = Zusammenfassung (ignorieren), Zeile 2 = Header, ab Zeile 3 = Daten",
+          "columns": {
+            "2": "Bezeichner",
+            "5": "Bestell-Nr",
+            "6": "Menge"
+          }
+        },
+        {
+          "type": "wa-ist",
+          "filename": "WA_YYYYMMDD.CSV",
+          "format": "CSV semicolon-separated",
+          "note": "Zeile 1 = Zusammenfassung (ignorieren), Zeile 2 = Header, ab Zeile 3 = Daten",
+          "columns": {
+            "2": "Bezeichner",
+            "5": "Empfänger",
+            "6": "Auftrag/Beleg",
+            "7": "Menge"
+          }
+        }
+      ]
+    },
+    "elvinci_blue_folders": {
+      "description": "Interne elvinci Daten",
+      "files": [
+        {
+          "type": "we-pipe",
+          "filename": "WARENEINGANG_PIPELINE.xlsx",
+          "source": "SharePoint"
+        },
+        {
+          "type": "wa-pipe",
+          "filename": "FULFILMENT_PIPELINE.xlsx",
+          "source": "SharePoint",
+          "key_columns": ["Auftragsnummer", "Versanddatum", "Spediteur", "Kunde", "Land"]
+        },
+        {
+          "type": "auftrag-status",
+          "filename": "AUFTRAG_STATUS.xlsx",
+          "source": "JTL Wawi Export"
+        },
+        {
+          "type": "planner",
+          "filename": "Auftragsbearbeitung.xlsx",
+          "source": "Teams Planner Export"
+        }
+      ]
+    }
+  },
+
+  "capacity_calculation": {
+    "unit": "PUNKTE (nicht Geräte!)",
+    "formula": "Bodenfläche = Fläche(qm) × Paletten/qm × Punkte/Palette",
+    "defaults": {
+      "flaecheQm": 2766,
+      "palettenProQm": 0.565,
+      "punkteProPalette": 4,
+      "regalHalle1": 702,
+      "regalHalle2": 828,
+      "quKapazitaet": 2350
+    },
+    "calculated": {
+      "bodenKapazitaet": 6251,
+      "regalKapazitaet": 1530,
+      "lagerKapazitaet": 7781,
+      "gesamtNH5": 10131
+    }
+  },
+
+  "gewichtungsfaktoren": {
+    "description": "Faktor = wie viel Palettenplatz ein Gerät belegt",
+    "faktoren": {
+      "4.0": ["Side-by-Side Kühlschrank", "Gefriertruhe", "Freistehender Gefrierschrank"],
+      "2.0": ["Kühlschrank", "Kühl-/Gefrierkombination", "Einbaukühlschrank", "Fernseher"],
+      "1.0": ["Waschmaschine", "Trockner", "Geschirrspüler", "Backofen", "Herd", "Dunstabzugshaube", "Klimagerät", "Weinkühlschrank"],
+      "0.8": ["Luftreiniger"],
+      "0.5": ["Set-Artikel (Fallback)"],
+      "0.4": ["Mikrowelle", "Staubsauger", "Saugroboter", "Kaffeevollautomat"],
+      "0.2": ["Kochfeld", "Monitor"]
+    },
+    "set_artikel_logic": {
+      "description": "Artikelnummer-Endung bestimmt Faktor",
+      ".001": "Hauptgerät (Herd) = 1.0",
+      ".002": "Zubehör (Kochfeld) = 0.2",
+      "default": "Fallback = 0.5"
+    }
+  },
+
+  "blockierer_logic": {
+    "blockierer": "Status QU + kein zukünftiger gültiger Abholtermin",
+    "kritischer_blockierer": "Blockierer seit >= 3 Tagen",
+    "ueberfaellig": "Versanddatum in Vergangenheit",
+    "problemfall_kriterien": [
+      "istKritischerBlockierer (>= 3 Tage)",
+      "Planner-Label vorhanden",
+      "istUeberfaellig && tageUeberfaellig >= 3",
+      "istWarteText && istBlockierer",
+      "AK mit tageUeberfaellig >= 7"
+    ],
+    "sortierung": [
+      "1. Kritische Blockierer (älteste zuerst)",
+      "2. Echte Problemfälle",
+      "3. Normale Blockierer",
+      "4. Überfällige",
+      "5. Heute fällig",
+      "6. Geplant (nächstes Datum zuerst)",
+      "7. Fallback: nach Artikelanzahl"
+    ]
+  },
+
+  "effizienz_tracker": {
+    "formel": "Tagesleistung = WE-Geräte + WA-Geräte",
+    "ziel": 470,
+    "storage_key": "elvinci_effizienz_daily",
+    "historie_tage": 90,
+    "datenformat": {
+      "example": {
+        "2026-04-07": { "we": 159, "wa": 420, "total": 579 }
+      }
+    }
+  },
+
+  "localstorage_keys": {
+    "elvinci_dashboard_settings": "Kapazitäts-Parameter und Faktoren",
+    "elvinci_effizienz_daily": "Effizienz-Tracker Historie (90 Tage)",
+    "elvinci_bestand_snapshots": "Tägliche BESTAND-Snapshots"
+  },
+
+  "dashboard_state": {
+    "flags": {
+      "bestandLoaded": "BESTAND CSV wurde hochgeladen",
+      "weLoaded": "WE-Pipeline wurde hochgeladen",
+      "waLoaded": "FULFILMENT-Pipeline wurde hochgeladen",
+      "weIstLoaded": "WE-IST wurde hochgeladen",
+      "waIstLoaded": "WA-IST wurde hochgeladen"
+    },
+    "data_maps": {
+      "fulfillmentDataMap": "Map AU-Nr → {kunde, land, versanddatum, spediteur, summe}",
+      "auftragStatusMap": "Map AU-Nr → {status, kunde, land, artikel, spediteur}",
+      "plannerDataMap": "Map AU-Nr → Planner-Notiz"
+    }
+  },
+
+  "key_functions": {
+    "upload": [
+      "handleFileUpload(input, type)",
+      "handleMultiFileUpload(input, type)",
+      "processCSV(rows, type, filename)",
+      "processExcel(workbook, type, filename)"
+    ],
+    "capacity": [
+      "updateCapacity()",
+      "updateGauge()",
+      "updateStats()",
+      "updateQUDisplay()"
+    ],
+    "forecast": [
+      "renderForecastTable()",
+      "updateChart()",
+      "getWorkdays(startDate, count)"
+    ],
+    "efficiency": [
+      "saveEffizienzTag(datum, we, wa)",
+      "loadEffizienzHistorie()",
+      "updateEffizienzTracker()",
+      "parseAMMFile(text, filename, type)"
+    ],
+    "validation": [
+      "runValidation()",
+      "renderAuftraege(filter)"
+    ],
+    "admin": [
+      "openSettingsPanel()",
+      "saveAllSettings()",
+      "resetToDefaults()",
+      "clearAllLocalStorage()"
+    ]
+  },
+
+  "known_issues": {
+    "current": [
+      {
+        "issue": "Upload funktioniert nicht",
+        "status": "DEBUGGING",
+        "debug_version": "Console.log Ausgaben hinzugefügt",
+        "test_file": "upload_test.html"
+      }
+    ],
+    "resolved": [
+      "Kapazitätswerte werden nicht angezeigt → Sofort-Initialisierung nach Sidebar",
+      "Multi-Upload korrumpiert Datei-Referenz → Array.from() Kopie",
+      "clearAllLocalStorage() fehlte → Funktion hinzugefügt"
+    ]
+  },
+
+  "admin_panel": {
+    "password": "elvinci",
+    "sections": [
+      "Kapazitäts-Parameter",
+      "Gewichtungsfaktoren",
+      "Wartung & Reset"
+    ]
+  },
+
+  "ui_labels": {
+    "lager": "LAGER (eingelagert)",
+    "versandflaeche": "VERSANDFLÄCHE",
+    "we_zone": "WE-Zone",
+    "gauge": "LAGER – Auslastung"
+  },
+
+  "lagerplatz_parsing": {
+    "H05-WA-*": "Kommissionierfläche / Versandfläche",
+    "H05-WE-*": "WE-Zone",
+    "default": "Lager (eingelagert)"
+  },
+
+  "files": {
+    "dashboard": "/mnt/user-data/outputs/elvinci_lagerkapazitaet_dashboard.html",
+    "anleitung_pdf": "/mnt/user-data/outputs/NH5_Dashboard_Anleitung.pdf",
+    "upload_test": "/mnt/user-data/outputs/upload_test.html"
+  },
+
+  "sharepoint_structure": {
+    "path": "Spedition+Logistik > AMM DASHBOARD",
+    "orange_amm": [
+      "Auftragsstatus AMM",
+      "Bestandslisten AMM",
+      "Warenausgangslisten AMM",
+      "Wareneingangslisten AMM"
+    ],
+    "blue_elvinci": [
+      "Fulfilment Pipeline elvinci",
+      "Teams Kärtchen elvinci",
+      "WE Pipeline elvinci"
+    ]
+  },
+
+  "contacts": {
+    "amm_spedition": ["Stefan Dehm", "Björn Stadler"],
+    "gbl_logistics": ["Sebastian Reidl"],
+    "internal": ["Mirko Kempter", "Janna", "Igor", "Siyad", "Johannes", "Nikoloz", "Inesa", "Konstantinos Vasiadis"]
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "name": "nh5-dashboard-tests",
+  "version": "2026.04.20",
+  "description": "Playwright regression tests for the NH5 Lagerkapazitäts-Dashboard (single-file HTML).",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "test:ui": "playwright test --ui",
+    "test:report": "playwright show-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.48.0"
+  }
+}

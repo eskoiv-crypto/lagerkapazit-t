@@ -75,10 +75,22 @@ Gesamt NH5     = 7781 + 2350 = 10131
 C:\Users\DustinEskofier\Projekt\lagerkapazität
 ```
 
+## Project Documents
+
+- `CLAUDE_CODE_HANDOFF_2026-04-20.md` — full project manifest (architecture, state model, data flow)
+- `MASTER_TODO_2026-04-20.md` — audit, sprint plan & 10X roadmap
+
 ## Author
 
 **Dustin Eskofier** — elvinci.de GmbH
 
 ## Version
 
-v1.0 — 2026-04-09
+v2026-04-20 — Sprints 1–3 applied (P0 bug fixes, data-integrity hardening, security & cleanup).
+Current file: `elvinci_lagerkapazitaet_dashboard_v2026-04-20.html` (~15,660 lines).
+
+### Recent highlights
+
+- **Sprint 1 (P0):** Division-by-zero guards, CSS var fixes, header-based BESTAND column mapping.
+- **Sprint 2 (P1 integrity):** Upload queue (serial), unified `refreshAllDashboards()`, full state reset, encoding/delimiter/magic-number autodetection, 4-way cross-check (BESTAND × STATUS × Fulfillment × Planner).
+- **Sprint 3 (P1 security + perf):** `escapeHtml()` applied to customer/brand/model render paths, DSGVO-minimized filenames in snapshots, memoized faktor lookup, loading overlay during parse, 4-way orphan UI.
