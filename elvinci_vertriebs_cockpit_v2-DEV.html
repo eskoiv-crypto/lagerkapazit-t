@@ -3525,6 +3525,7 @@
                             <button class="analyse-tab" data-tab="topseller" onclick="switchAnalyseTab('topseller')" title="Bestseller: die am häufigsten und schnellsten verkauften Artikel/Warengruppen — ideal für Nachbestellung.">🏆 Top-Seller</button>
                             <button class="analyse-tab" data-tab="clv" onclick="switchAnalyseTab('clv')" id="tab-btn-clv" style="background: linear-gradient(135deg, #a855f7, #ec4899); color: white;" title="Customer Lifetime Value: Kundenrangliste nach historischem Brutto-Umsatz über 4 Jahre. Segmentiert in aktiv / pre-churn / high-value-churn / churned. Benötigt JTL-4-Jahre + Stammdaten.">💎 CLV</button>
                             <button class="analyse-tab" data-tab="churn" onclick="switchAnalyseTab('churn')" id="tab-btn-churn" style="background: linear-gradient(135deg, #ef4444, #f97316); color: white;" title="Churn-Alert: Already-Churned-Liste + Pre-Churn-Forecast (welche Kunden reißen in den nächsten 30 Tagen die 180-T-Schwelle?). Status-Spalte zum Abhaken pro Kunde. Benötigt JTL-4-Jahre + Stammdaten.">🚨 Churn-Alert</button>
+                            <button class="analyse-tab" data-tab="reakt" onclick="switchAnalyseTab('reakt')" id="tab-btn-reakt" style="background: linear-gradient(135deg, #10b981, #06b6d4); color: white;" title="Reaktivierung: gezielte Win-Back-Liste mit Konvolut-Vorschlag pro Kunde. Filter nach LTV-Range + Inaktivitäts-Range + Land. Match-Score zeigt wieviel aus seiner Kaufhistorie wir aktuell im Lager haben. Klick auf '🎯 Konvolut bauen' springt zum Konvolut-Generator mit voreingestelltem Kunden-Filter.">🌙 Reaktivierung</button>
                             <button class="analyse-tab" data-tab="liveview" onclick="switchAnalyseTab('liveview')" id="tab-btn-liveview" style="background: linear-gradient(135deg, #6366f1, #06b6d4); color: white;" title="Live View: Drill-Down nach Lieferant × Warengruppe × Marke. Zeigt aktuellen Bestand und besten Kunden für diese Kombi in Echtzeit beim Filter-Klick.">🔍 Live View</button>
                             <button class="analyse-tab" data-tab="pipeline" onclick="switchAnalyseTab('pipeline')" id="tab-btn-pipeline" style="background: linear-gradient(135deg, #6366f1, #a855f7); color: white;" title="Pipeline: aktuelle offene Aufträge aus AMM (AUFTRAG_STATUS). Überfällig-Alarm, Forecast 'diese Woche raus', Sync-Wächter JTL ↔ AMM.">📋 Pipeline</button>
                             <button class="analyse-tab" data-tab="angebotsanalyse" onclick="switchAnalyseTab('angebotsanalyse')" id="tab-btn-angebotsanalyse" style="background: linear-gradient(135deg, #10B981, #06B6D4); color: white;" title="Angebots-Analyse: lädt eine Angebots-/Auftragsdatei und gleicht sie gegen den verfügbaren Bestand ab — was kann sofort geliefert werden, was fehlt?">💼 Angebots-Analyse</button>
@@ -4662,6 +4663,66 @@
                                 <div style="background:var(--bg-card); border:1px solid var(--border); border-radius:10px; padding:0.9rem;">
                                     <div style="font-size:0.85rem; font-weight:700; margin-bottom:0.5rem;">📊 Churn-Pattern — Land × Inaktivitäts-Stufe <span class="vc-info" data-tip="Wie verteilt sich Churn nach Land? Hohe Zahl bei 540+ T = strukturelles Land-Problem (Markt verloren, Vertriebslücke, etc.).">ⓘ</span></div>
                                     <div id="churn-pattern" style="max-height:300px; overflow-y:auto;"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- ========== TAB: 🌙 REAKTIVIERUNG ========== -->
+                        <div id="tab-reakt" class="analyse-tab-content" style="display: none; padding: 1rem;">
+                            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem; margin-bottom:0.75rem;">
+                                <div>
+                                    <div class="analytics-section-title" style="margin:0;">🌙 Reaktivierungs-Pool <span class="vc-info" data-tip="Gezielte Win-Back-Liste: Kunden mit historischem Wert + Inaktivität im 'Sweet-Spot' (Default 180-540T = 6-18 Monate, gut reaktivierbar). Pro Kunde: Match-Score zeigt wieviel seiner Top-Kauf-Bezeichnungen aktuell im Lager. '🎯 Konvolut bauen' generiert maßgeschneidertes Angebot.">ⓘ</span></div>
+                                    <span style="font-size:0.7rem; color:var(--text-muted);">Win-Back-Workflow: filtere Pool · siehe Match-Score · klicke "🎯 Konvolut bauen" für direktes Angebot</span>
+                                </div>
+                                <div id="reakt-stand-badge" style="font-size:0.65rem; color:var(--text-muted);"></div>
+                            </div>
+
+                            <div id="reakt-no-data" style="padding:2rem; text-align:center; color:var(--text-muted); font-size:0.85rem; display:none;">
+                                💡 Bitte zuerst <b>JTL 4-Jahre</b> + <b>Kunden-Stammdaten</b> im Datenimport-Block <b>2b</b> hochladen. Für Match-Score zusätzlich Stock-Analysis (oben).
+                            </div>
+
+                            <div id="reakt-content" style="display:none;">
+                                <!-- KPI-Cards -->
+                                <div id="reakt-kpis" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(170px,1fr)); gap:0.75rem; margin-bottom:1rem;"></div>
+
+                                <!-- Filter-Konfiguration -->
+                                <div style="display:flex; gap:0.6rem; padding:0.6rem 0.85rem; background:linear-gradient(135deg,rgba(16,185,129,0.06),rgba(6,182,212,0.06)); border:1px solid rgba(16,185,129,0.25); border-radius:8px; margin-bottom:1rem; flex-wrap:wrap; align-items:center;">
+                                    <span style="font-size:0.65rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em;">🎯 Pool-Definition:</span>
+                                    <label style="font-size:0.7rem; display:flex; align-items:center; gap:0.3rem;">LTV von € <input type="number" id="reakt-ltv-min" value="20000" oninput="renderReaktTab()" style="width:80px; padding:0.2rem; font-size:0.7rem; border-radius:4px; background:var(--bg-secondary); border:1px solid var(--border); color:var(--text-primary);"></label>
+                                    <label style="font-size:0.7rem; display:flex; align-items:center; gap:0.3rem;">bis € <input type="number" id="reakt-ltv-max" placeholder="leer = oben offen" oninput="renderReaktTab()" style="width:80px; padding:0.2rem; font-size:0.7rem; border-radius:4px; background:var(--bg-secondary); border:1px solid var(--border); color:var(--text-primary);"></label>
+                                    <label style="font-size:0.7rem; display:flex; align-items:center; gap:0.3rem;">Inaktiv von T <input type="number" id="reakt-days-min" value="180" oninput="renderReaktTab()" style="width:70px; padding:0.2rem; font-size:0.7rem; border-radius:4px; background:var(--bg-secondary); border:1px solid var(--border); color:var(--text-primary);"></label>
+                                    <label style="font-size:0.7rem; display:flex; align-items:center; gap:0.3rem;">bis T <input type="number" id="reakt-days-max" value="540" oninput="renderReaktTab()" style="width:70px; padding:0.2rem; font-size:0.7rem; border-radius:4px; background:var(--bg-secondary); border:1px solid var(--border); color:var(--text-primary);"></label>
+                                    <label style="font-size:0.7rem; display:flex; align-items:center; gap:0.3rem;">
+                                        <details class="lv-multi" data-field="reakt-land" style="min-width:140px;">
+                                            <summary class="lv-multi-summary" id="reakt-land-summary" style="padding:0.2rem 0.4rem; font-size:0.7rem;">— alle Länder —</summary>
+                                            <div class="lv-multi-panel" id="reakt-land-panel"></div>
+                                        </details>
+                                    </label>
+                                    <span style="flex:1;"></span>
+                                    <button onclick="exportReaktCsv()" style="padding:0.35rem 0.7rem; background:var(--accent-cyan); color:white; border:none; border-radius:4px; font-size:0.7rem; font-weight:700; cursor:pointer;">📥 CSV</button>
+                                </div>
+
+                                <!-- Pool-Tabelle -->
+                                <div style="background:var(--bg-card); border:1px solid var(--border); border-radius:10px; padding:0.9rem;">
+                                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem; flex-wrap:wrap; gap:0.4rem;">
+                                        <div style="font-size:0.85rem; font-weight:700;">🎯 Reaktivierungs-Kandidaten <span id="reakt-count-badge" style="color:var(--text-muted); font-weight:400; font-size:0.7rem;"></span></div>
+                                        <div style="display:flex; gap:0.4rem; align-items:center; flex-wrap:wrap;">
+                                            <label style="font-size:0.6rem; color:var(--text-muted); text-transform:uppercase;">Sortieren:</label>
+                                            <select id="reakt-sort" onchange="renderReaktTab()" style="padding:0.25rem 0.5rem; font-size:0.7rem; border-radius:4px; background:var(--bg-secondary); border:1px solid var(--border); color:var(--text-primary);">
+                                                <option value="match">Match-Score ↓ (Default)</option>
+                                                <option value="ltv">LTV ↓</option>
+                                                <option value="tageInaktiv">Tage inaktiv ↑</option>
+                                                <option value="ø_jahresumsatz">Ø Jahresumsatz ↓</option>
+                                            </select>
+                                            <label style="font-size:0.6rem; color:var(--text-muted); text-transform:uppercase;">Anzeigen:</label>
+                                            <select id="reakt-limit" onchange="renderReaktTab()" style="padding:0.25rem 0.5rem; font-size:0.7rem; border-radius:4px; background:var(--bg-secondary); border:1px solid var(--border); color:var(--text-primary);">
+                                                <option value="50">Top 50</option>
+                                                <option value="100" selected>Top 100</option>
+                                                <option value="9999">Alle</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div id="reakt-table-container" style="max-height:560px; overflow-y:auto;"></div>
                                 </div>
                             </div>
                         </div>
@@ -8872,6 +8933,9 @@ Keine Erklärungen, kein Markdown.`;
             if (tabName === 'churn') {
                 try { renderChurnTab(); } catch(e) { console.warn('[Churn] init', e); }
             }
+            if (tabName === 'reakt') {
+                try { renderReaktTab(); } catch(e) { console.warn('[Reakt] init', e); }
+            }
             // Zeitraum-Filter tab-bewusst ein-/ausblenden
             // SALES-Tabs nutzen All-Sold → Filter wirksam
             // SNAPSHOT-Tabs (Bestand/Stock/Pipeline) → Filter ausblenden
@@ -10116,6 +10180,274 @@ Keine Erklärungen, kein Markdown.`;
             a.download = `Churn-Alert_${hvc.length}HVC_${pre.length}Pre_${new Date().toISOString().split('T')[0]}.csv`;
             a.click();
             showToast('success', '📥 CSV exportiert', `${hvc.length + pre.length} Kunden (inkl. Status-Spalte)`);
+        }
+
+        // ============================================================
+        // 🌙 REAKTIVIERUNGS-REITER (Phase 4 — DEV v2)
+        // Aktionsorientierter Pool: Kunden im Sweet-Spot (LTV-Range + Inaktivitäts-
+        // Range) mit Match-Score (wieviel ihrer Historie wir aktuell im Lager haben)
+        // + 🎯 Konvolut-bauen-Button (verlinkt mit Konvolut-Generator).
+        // ============================================================
+        function _reaktMulti() {
+            if (!dashboardState._reaktMulti) {
+                dashboardState._reaktMulti = { land: new Set() };
+            }
+            return dashboardState._reaktMulti;
+        }
+
+        // Match-Score: für einen Kunden, wie viel seiner Top-Bezeichnungen im aktuellen Stock vorhanden?
+        // → Heuristik: matched Stock-Items via Bezeichnung-Substring zu seinen Top-3-Artikeln
+        function _reaktMatchScore(profile) {
+            const stockRaw = dashboardState.stockAnalysisRaw;
+            if (!stockRaw || !stockRaw.length || !profile.top3Artikel || !profile.top3Artikel.length) {
+                return { score: 0, matches: 0, matchedItems: [] };
+            }
+            // Top-Bezeichnungen des Kunden in Tokens zerlegen (z.B. "Backofen Set" → ["backofen","set"])
+            const customerTokens = new Set();
+            profile.top3Artikel.forEach(t => {
+                t.bez.toLowerCase().split(/[\s\-\/,]+/).forEach(w => {
+                    if (w.length >= 4) customerTokens.add(w);  // Stopwords-Filter
+                });
+            });
+            if (customerTokens.size === 0) return { score: 0, matches: 0, matchedItems: [] };
+            // Stock-Items: prüfen ob Bezeichnung/Modell Tokens enthält
+            const matched = [];
+            stockRaw.forEach(item => {
+                const text = `${item.brand || ''} ${item.model || ''} ${item.product_group || ''}`.toLowerCase();
+                let hitCount = 0;
+                for (const tok of customerTokens) {
+                    if (text.includes(tok)) hitCount++;
+                }
+                if (hitCount > 0) matched.push({ item, hits: hitCount });
+            });
+            // Score: Anzahl gematchter Stock-Items, normalisiert auf 0-100
+            const total = stockRaw.length;
+            const score = Math.min(100, Math.round((matched.length / total) * 100 * 10));  // *10 weil seltene Matches
+            return { score, matches: matched.length, matchedItems: matched.slice(0, 20) };
+        }
+
+        function renderReaktTab() {
+            const profiles = dashboardState.customerProfiles;
+            const noData = document.getElementById('reakt-no-data');
+            const content = document.getElementById('reakt-content');
+            if (!profiles || Object.keys(profiles).length === 0) {
+                if (noData) noData.style.display = 'block';
+                if (content) content.style.display = 'none';
+                return;
+            }
+            if (noData) noData.style.display = 'none';
+            if (content) content.style.display = 'block';
+
+            const all = Object.values(profiles);
+            const ltvMin = parseFloat(document.getElementById('reakt-ltv-min')?.value) || 0;
+            const ltvMaxRaw = document.getElementById('reakt-ltv-max')?.value;
+            const ltvMax = ltvMaxRaw && ltvMaxRaw !== '' ? parseFloat(ltvMaxRaw) : Infinity;
+            const daysMin = parseInt(document.getElementById('reakt-days-min')?.value) || 0;
+            const daysMax = parseInt(document.getElementById('reakt-days-max')?.value) || 9999;
+            const m = _reaktMulti();
+
+            // Land-Optionen aufbauen (alle Länder die nach LTV/Tage-Filter übrig bleiben)
+            const landCounts = {};
+            all.forEach(p => {
+                if (p.ltv < ltvMin || p.ltv > ltvMax) return;
+                if (p.tageInaktiv < daysMin || p.tageInaktiv > daysMax) return;
+                const l = p.land || '(?)';
+                landCounts[l] = (landCounts[l] || 0) + 1;
+            });
+            renderReaktMultiPanel('land', landCounts, m.land);
+            const sumEl = id => document.getElementById(id);
+            if (sumEl('reakt-land-summary')) {
+                sumEl('reakt-land-summary').textContent = _lvSummaryText(m.land, Object.keys(landCounts).length, '— alle Länder —');
+            }
+
+            // Filter anwenden
+            const pool = all.filter(p => {
+                if (p.ltv < ltvMin || p.ltv > ltvMax) return false;
+                if (p.tageInaktiv < daysMin || p.tageInaktiv > daysMax) return false;
+                if (m.land.size > 0 && !m.land.has(p.land || '(?)')) return false;
+                return true;
+            });
+
+            // Match-Score je Kunde berechnen
+            pool.forEach(p => {
+                if (!p._matchCache) p._matchCache = _reaktMatchScore(p);
+            });
+
+            // Stand-Badge
+            const standEl = document.getElementById('reakt-stand-badge');
+            const stockN = dashboardState.stockAnalysisRaw?.length || 0;
+            if (standEl) {
+                standEl.innerHTML = `<span class="src-pill src-jtl">📚 JTL 4-JAHRE</span> ${all.length.toLocaleString('de-DE')} Kunden ${stockN > 0 ? `· <span class="src-pill src-stock">🟩 STOCK</span> ${stockN.toLocaleString('de-DE')} Geräte für Match-Score` : '<span style="color:var(--accent-orange);">· ⚠️ Stock-Analysis fehlt → Match-Score = 0</span>'}`;
+            }
+
+            // KPIs
+            const σLtv = pool.reduce((s, p) => s + p.ltv, 0);
+            const σPotenz = pool.reduce((s, p) => s + p.øJahresumsatz, 0);
+            const conversionForecast = σPotenz * 0.25;  // 25% Reaktivierungs-Annahme
+            const withMatches = pool.filter(p => p._matchCache.matches > 0);
+            function _kpi(label, value, sub, color) {
+                return `<div style="background:var(--bg-card); border:1px solid var(--border); border-left:3px solid ${color}; border-radius:8px; padding:0.7rem 0.9rem;">
+                    <div style="font-size:0.55rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em;">${label}</div>
+                    <div style="font-size:1.4rem; font-weight:700; line-height:1.15;">${value}</div>
+                    <div style="font-size:0.62rem; color:var(--text-muted); margin-top:1px;">${sub}</div>
+                </div>`;
+            }
+            document.getElementById('reakt-kpis').innerHTML = [
+                _kpi('Pool-Größe', pool.length.toLocaleString('de-DE'), `Σ ${(σLtv/1000).toLocaleString('de-DE',{maximumFractionDigits:0})} k € histor. LTV`, '#10b981'),
+                _kpi('Mit Stock-Match', withMatches.length.toLocaleString('de-DE'), `${pool.length > 0 ? ((withMatches.length/pool.length)*100).toFixed(0) : 0}% des Pools — sofort ansprechbar`, '#06b6d4'),
+                _kpi('Ø Jahresumsatz', `${(pool.length > 0 ? σPotenz/pool.length/1000 : 0).toLocaleString('de-DE',{maximumFractionDigits:1})} k €`, 'historisch im Pool', 'var(--accent-cyan)'),
+                _kpi('Forecast bei 25%', conversionForecast.toLocaleString('de-DE',{style:'currency',currency:'EUR',maximumFractionDigits:0}), 'Reaktivierungs-Annahme · 1 Jahr', 'var(--accent-green)'),
+            ].join('');
+
+            // Sort
+            const sortBy = document.getElementById('reakt-sort')?.value || 'match';
+            const sortFn = {
+                'match':          (a,b) => b._matchCache.matches - a._matchCache.matches || b.ltv - a.ltv,
+                'ltv':            (a,b) => b.ltv - a.ltv,
+                'tageInaktiv':    (a,b) => a.tageInaktiv - b.tageInaktiv,
+                'ø_jahresumsatz': (a,b) => b.øJahresumsatz - a.øJahresumsatz,
+            };
+            const sorted = pool.slice().sort(sortFn[sortBy] || sortFn.match);
+            const limit = parseInt(document.getElementById('reakt-limit')?.value || '100');
+            const shown = sorted.slice(0, limit);
+            dashboardState._reaktPool = sorted;  // für CSV-Export
+            const cb = document.getElementById('reakt-count-badge');
+            if (cb) cb.textContent = sorted.length > shown.length ? `(zeige ${shown.length} von ${sorted.length})` : `(${sorted.length})`;
+
+            // Tabelle
+            const tc = document.getElementById('reakt-table-container');
+            if (tc) {
+                if (!shown.length) {
+                    tc.innerHTML = '<div style="padding:2rem; text-align:center; color:var(--text-muted); font-size:0.8rem;">Keine Kandidaten in dieser Filter-Range. Versuche LTV/Tage-Range weiter zu öffnen.</div>';
+                } else {
+                    tc.innerHTML = `<table class="analyse-table" style="font-size:0.66rem; width:100%;">
+                        <thead><tr>
+                            <th style="width:24px;">#</th><th>Firma / Kunden-Nr</th><th>L</th>
+                            <th style="text-align:right;">LTV</th><th style="text-align:right;">Ø Jahr</th>
+                            <th style="text-align:right;">Tage</th>
+                            <th>Top-3 Kauf-Bezeichnungen</th>
+                            <th style="text-align:center;">Match</th>
+                            <th>Kontakt</th><th>Aktion</th>
+                        </tr></thead>
+                        <tbody>${shown.map((p, i) => {
+                            const firma = p.firma || `Kunde ${p.kundenNr}`;
+                            const allTop = (p.top3Artikel || []).map(t => `${t.n}× ${_h(t.bez)}`).join(' · ');
+                            const top3html = (p.top3Artikel || []).slice(0,3).map(t => `<div style="font-size:0.6rem; color:var(--text-secondary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:280px;">${t.n}× ${_h(t.bez.substring(0,38))}</div>`).join('');
+                            const matchCount = p._matchCache.matches;
+                            const matchBg = matchCount >= 50 ? 'rgba(16,185,129,0.25)' : matchCount >= 20 ? 'rgba(6,182,212,0.2)' : matchCount > 0 ? 'rgba(255,255,255,0.05)' : 'rgba(239,68,68,0.1)';
+                            const matchColor = matchCount >= 50 ? 'var(--accent-green)' : matchCount >= 20 ? 'var(--accent-cyan)' : matchCount > 0 ? 'inherit' : 'var(--text-muted)';
+                            const matchBadge = `<span style="background:${matchBg}; color:${matchColor}; font-size:0.7rem; font-weight:700; padding:3px 8px; border-radius:6px;">${matchCount}</span>`;
+                            const kontakt = (p.email ? `<a href="mailto:${_h(p.email)}" title="${_h(p.email)}" style="text-decoration:none;">📧</a>` : '') + (p.telefon || p.mobil ? `<span title="${_h(p.telefon || p.mobil)}">📞</span>` : '');
+                            const tageColor = p.tageInaktiv > 365 ? 'var(--accent-red)' : p.tageInaktiv > 270 ? 'var(--accent-orange)' : '#d97706';
+                            return `<tr>
+                                <td style="font-size:0.6rem; color:var(--text-muted);">${i+1}</td>
+                                <td style="font-size:0.66rem; max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${_h(firma)} (${p.kundenNr})${p.ort ? ' · ' + _h(p.ort) : ''}"><b>${_h(firma)}</b></td>
+                                <td style="font-size:0.6rem;">${_h(p.land || '?')}</td>
+                                <td class="mono" style="font-size:0.7rem; text-align:right; font-weight:700;">${(p.ltv/1000).toFixed(0)} k €</td>
+                                <td class="mono" style="font-size:0.65rem; text-align:right; color:var(--text-secondary);">${(p.øJahresumsatz/1000).toFixed(0)} k €</td>
+                                <td class="mono" style="font-size:0.65rem; text-align:right; font-weight:700; color:${tageColor};">${p.tageInaktiv}T</td>
+                                <td title="${_h(allTop)}">${top3html}</td>
+                                <td style="text-align:center;" title="${matchCount} Stock-Geräte matchen die Top-Kauf-Tokens dieses Kunden">${matchBadge}</td>
+                                <td style="text-align:center; font-size:0.8rem;">${kontakt}</td>
+                                <td><button onclick="reaktBuildKonvolut('${p.kundenNr}','${_h(firma).replace(/'/g, "\\'")}')" style="padding:0.25rem 0.5rem; background:var(--gradient-green); color:white; border:none; border-radius:4px; font-size:0.62rem; font-weight:700; cursor:pointer; white-space:nowrap;">🎯 Konvolut</button></td>
+                            </tr>`;
+                        }).join('')}</tbody>
+                    </table>`;
+                }
+            }
+        }
+        function renderReaktMultiPanel(field, counts, selectedSet) {
+            const panel = document.getElementById(`reakt-${field}-panel`);
+            if (!panel) return;
+            const sorted = Object.entries(counts).sort((a,b) => b[1]-a[1]);
+            panel.innerHTML = `
+                <div class="lv-multi-toolbar">
+                    <button onclick="reaktMultiSelectAll('${field}')">☑ Alle</button>
+                    <button onclick="reaktMultiClear('${field}')">☐ Keine</button>
+                </div>
+                ${sorted.map(([k,v]) => {
+                    const checked = selectedSet.has(k) ? 'checked' : '';
+                    return `<label><input type="checkbox" data-val="${_h(k)}" ${checked} onchange="reaktMultiToggle('${field}', this)"><span>${_h(k)}</span><span class="count">${v}</span></label>`;
+                }).join('')}
+            `;
+            if (!dashboardState._reaktLastCounts) dashboardState._reaktLastCounts = {};
+            dashboardState._reaktLastCounts[field] = counts;
+        }
+        function reaktMultiToggle(field, cb) {
+            const set = _reaktMulti()[field];
+            const val = cb.getAttribute('data-val');
+            if (cb.checked) set.add(val); else set.delete(val);
+            renderReaktTab();
+        }
+        function reaktMultiSelectAll(field) {
+            const set = _reaktMulti()[field];
+            Object.keys((dashboardState._reaktLastCounts || {})[field] || {}).forEach(k => set.add(k));
+            renderReaktTab();
+        }
+        function reaktMultiClear(field) {
+            _reaktMulti()[field].clear();
+            renderReaktTab();
+        }
+        function reaktBuildKonvolut(kundenNr, firma) {
+            // Wechsel zum Verkaufsprioritäts-Reiter + Voreinstellungen
+            switchAnalyseTab('potenzial');
+            const setIf = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
+            // Konvolut-Customer-Dropdown ergänzen (falls Kunde nicht in Top-50)
+            const sel = document.getElementById('konvolut-customer');
+            if (sel) {
+                // Mit Stammdaten-Firma als Wert
+                let exists = false;
+                for (let i = 0; i < sel.options.length; i++) {
+                    if (sel.options[i].value === firma || sel.options[i].text.startsWith(firma)) {
+                        sel.selectedIndex = i;
+                        exists = true;
+                        break;
+                    }
+                }
+                if (!exists) {
+                    const opt = document.createElement('option');
+                    opt.value = firma;
+                    opt.text = `${firma} (Reaktivierung)`;
+                    opt.selected = true;
+                    sel.add(opt);
+                }
+                sel.focus();
+                sel.style.boxShadow = '0 0 0 3px var(--accent-green)';
+                setTimeout(() => sel.style.boxShadow = '', 3000);
+            }
+            setIf('konvolut-sortby', 'marge_x_tage');
+            setIf('konvolut-groupby', '__mixed__');
+            setIf('konvolut-minscore', '0');
+            setIf('konvolut-minmarge', '0');
+            setIf('konvolut-maxsize', '30');
+            showToast('🎯 Konvolut-Generator vorbereitet', `Kunde "${firma}" ausgewählt. Klick "⚙️ Konvolute erzeugen" für maßgeschneidertes Angebot. Hinweis: Engine matched auf Marken/Warengruppen-Tupel des Kunden — historische Kauf-Bezeichnungen müssen als WG/Marke vorliegen.`);
+        }
+        function exportReaktCsv() {
+            const pool = dashboardState._reaktPool || [];
+            if (!pool.length) { showToast('warning', 'Nichts zum Export', 'Keine Kandidaten im aktuellen Filter.'); return; }
+            const headers = ['Rang','Kunden-Nr','Firma','Land','Ort','LTV','Ø Jahresumsatz','Aufträge','Erster Kauf','Letzter Kauf','Tage inaktiv','Top-Artikel-1','Top-Artikel-2','Top-Artikel-3','Match-Score (Stock-Geräte)','E-Mail','Telefon','Mobil'];
+            const rows = pool.map((p, i) => {
+                const t = (idx) => p.top3Artikel && p.top3Artikel[idx] ? `${p.top3Artikel[idx].n}× ${p.top3Artikel[idx].bez.replace(/;/g,',')}` : '';
+                return [
+                    i+1, p.kundenNr, (p.firma||'').replace(/;/g,','), p.land, (p.ort||'').replace(/;/g,','),
+                    p.ltv.toFixed(2).replace('.', ','),
+                    p.øJahresumsatz.toFixed(2).replace('.', ','),
+                    p.nAufträge,
+                    p.erstesKaufDt ? p.erstesKaufDt.toLocaleDateString('de-DE') : '',
+                    p.letztesKaufDt ? p.letztesKaufDt.toLocaleDateString('de-DE') : '',
+                    p.tageInaktiv,
+                    t(0), t(1), t(2),
+                    p._matchCache?.matches || 0,
+                    (p.email||'').replace(/;/g,','), (p.telefon||'').replace(/;/g,','), (p.mobil||'').replace(/;/g,','),
+                ].join(';');
+            });
+            const csv = '﻿' + headers.join(';') + '\n' + rows.join('\n');
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `Reaktivierungs-Pool_${pool.length}-Kunden_${new Date().toISOString().split('T')[0]}.csv`;
+            a.click();
+            showToast('success', '📥 CSV exportiert', `${pool.length} Reaktivierungs-Kandidaten mit Match-Score + Kontakt`);
         }
 
         function renderPipelineTab() {
