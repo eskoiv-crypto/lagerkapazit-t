@@ -3496,18 +3496,21 @@
                             <span id="range-jtl" style="display:none;"></span>
                             <span id="range-pipeline" style="display:none;"></span>
                             <span style="flex:1;"></span>
-                            <span class="gf-label">Zeitraum-Filter</span>
-                            <select id="global-time-filter" class="gf-select" onchange="onGlobalTimeFilterChange()">
-                                <option value="all">Alle Daten</option>
-                                <option value="last-30d">Letzte 30 Tage</option>
-                                <option value="last-90d">Letzte 90 Tage</option>
-                                <option value="q1-2026">Q1 2026 (Jan–Mär)</option>
-                                <option value="2026-ytd">2026 YTD</option>
-                                <option value="last-12m">Letzte 12 Monate</option>
-                                <option value="2025">Gesamt 2025</option>
-                            </select>
-                            <span class="vc-info tip-left" data-tip="Phase 2: Filter wirkt aktuell auf die Reiter Kunden, Kunden×WG und Lieferanten (sie re-aggregieren live aus All-Sold). Übersicht, Verkäufer, Warengruppen, Marken und Top-Seller nutzen vorberechnete Aggregationen — diese werden in Phase 3 nachgezogen. Bestand-Reiter (Dead Stock, Verkaufspriorität, Datenqualität) sind stichtagsbezogen und vom Filter NICHT betroffen.">ⓘ</span>
-                            <span id="global-time-filter-window" style="font-size:0.62rem; color:var(--text-muted); font-style:italic;"></span>
+                            <span id="gf-container" style="display:flex; align-items:center; gap:0.5rem;">
+                                <span class="gf-label" id="gf-label-text">Zeitraum-Filter</span>
+                                <select id="global-time-filter" class="gf-select" onchange="onGlobalTimeFilterChange()">
+                                    <option value="all">Alle Daten</option>
+                                    <option value="last-30d">Letzte 30 Tage</option>
+                                    <option value="last-90d">Letzte 90 Tage</option>
+                                    <option value="q1-2026">Q1 2026 (Jan–Mär)</option>
+                                    <option value="2026-ytd">2026 YTD</option>
+                                    <option value="last-12m">Letzte 12 Monate</option>
+                                    <option value="2025">Gesamt 2025</option>
+                                </select>
+                                <span class="vc-info tip-left" id="gf-info-tip" data-tip="Filter wirkt auf alle Verkaufsdaten-basierten Reiter (Übersicht, Verkäufer, Kunden, Kunden×WG, Warengruppen, Marken, Lieferanten, Top-Seller) — sie re-aggregieren live aus All-Sold. Bestand-/Snapshot-Reiter (Datenqualität, Dead Stock, Verkaufspriorität, Live View, Pipeline) sind stichtagsbezogen und vom Filter NICHT betroffen — dort wird der Filter ausgeblendet.">ⓘ</span>
+                                <span id="global-time-filter-window" style="font-size:0.62rem; color:var(--text-muted); font-style:italic;"></span>
+                            </span>
+                            <span id="gf-not-applicable" style="display:none; font-size:0.65rem; color:var(--text-muted); font-style:italic;">⏱ Stichtag-Reiter · Zeitraum-Filter wirkt hier nicht</span>
                         </div>
 
                         <!-- TAB: ÜBERSICHT -->
@@ -8660,6 +8663,15 @@ Keine Erklärungen, kein Markdown.`;
             if (tabName === 'pipeline') {
                 try { renderPipelineTab(); } catch(e) { console.warn('[Pipeline] init', e); }
             }
+            // Zeitraum-Filter tab-bewusst ein-/ausblenden
+            // SALES-Tabs nutzen All-Sold → Filter wirksam
+            // SNAPSHOT-Tabs (Bestand/Stock/Pipeline) → Filter ausblenden
+            const SALES_TABS = new Set(['uebersicht','verkaeufer','kunden','kundenmatrix','produktgruppen','brands','lieferanten','topseller']);
+            const gfContainer = document.getElementById('gf-container');
+            const gfNotApplicable = document.getElementById('gf-not-applicable');
+            const isFiltered = SALES_TABS.has(tabName);
+            if (gfContainer) gfContainer.style.display = isFiltered ? 'flex' : 'none';
+            if (gfNotApplicable) gfNotApplicable.style.display = isFiltered ? 'none' : 'inline';
         }
         
         // ====== GLOBAL TIME FILTER (Phase 2) ======
@@ -8697,6 +8709,86 @@ Keine Erklärungen, kein Markdown.`;
                 return !isNaN(d.getTime()) && d >= win.from && d <= win.to;
             });
         }
+        // === REBUILD-HELPER: Aggregationen aus gefilterter All-Sold ===
+        // Speichert Originale beim 1. Aufruf, überschreibt dashboardState.* mit
+        // gefilterten Werten, restored Originale wenn preset='all'.
+        function _rebuildFilteredSalesStats(filteredRows) {
+            // Originale einmalig sichern
+            if (!dashboardState._origStats) {
+                dashboardState._origStats = {
+                    allSoldCount: dashboardState.allSoldCount,
+                    allSoldProfit: dashboardState.allSoldProfit,
+                    allSoldAvgProfit: dashboardState.allSoldAvgProfit,
+                    allSoldAvgVK: dashboardState.allSoldAvgVK,
+                    allSoldTotalEK: dashboardState.allSoldTotalEK,
+                    allSoldTotalVK: dashboardState.allSoldTotalVK,
+                    soldPgStats: dashboardState.soldPgStats,
+                    soldBrandStats: dashboardState.soldBrandStats,
+                    soldByStats: dashboardState.soldByStats,
+                    margeDistribution: dashboardState.margeDistribution,
+                };
+            }
+            // Aggregate aus filteredRows neu berechnen
+            let totalEK = 0, totalVK = 0, totalProfit = 0;
+            const soldPgStats = {}, soldBrandStats = {}, soldByStats = {};
+            const margeDistribution = { negativ: 0, niedrig: 0, mittel: 0, hoch: 0 };
+            filteredRows.forEach(s => {
+                const ek = parseFloat(s.ek) || 0;
+                const vk = parseFloat(s.vk) || 0;
+                const profit = parseFloat(s.profit) || 0;
+                const pg = String(s.pg || '').toLowerCase();
+                const brand = String(s.brand || '').toUpperCase();
+                const soldBy = String(s.soldBy || '').trim();
+                totalEK += ek; totalVK += vk; totalProfit += profit;
+                if (profit < 0) margeDistribution.negativ++;
+                else if (profit < 50) margeDistribution.niedrig++;
+                else if (profit < 150) margeDistribution.mittel++;
+                else margeDistribution.hoch++;
+                if (pg) {
+                    if (!soldPgStats[pg]) soldPgStats[pg] = { count:0, ekSum:0, vkSum:0, profit:0 };
+                    soldPgStats[pg].count++; soldPgStats[pg].ekSum += ek;
+                    soldPgStats[pg].vkSum += vk; soldPgStats[pg].profit += profit;
+                }
+                if (brand) {
+                    if (!soldBrandStats[brand]) soldBrandStats[brand] = { count:0, ekSum:0, vkSum:0, profit:0 };
+                    soldBrandStats[brand].count++; soldBrandStats[brand].ekSum += ek;
+                    soldBrandStats[brand].vkSum += vk; soldBrandStats[brand].profit += profit;
+                }
+                if (soldBy) {
+                    const jp = parseFloat(s.jtlPrice) || vk;
+                    if (!soldByStats[soldBy]) soldByStats[soldBy] = { count:0, profit:0, umsatz:0 };
+                    soldByStats[soldBy].count++;
+                    soldByStats[soldBy].profit += profit;
+                    soldByStats[soldBy].umsatz += jp;
+                }
+            });
+            const n = filteredRows.length;
+            dashboardState.allSoldCount    = n;
+            dashboardState.allSoldProfit   = totalProfit;
+            dashboardState.allSoldAvgProfit= n > 0 ? totalProfit / n : 0;
+            dashboardState.allSoldAvgVK    = n > 0 ? totalVK / n : 0;
+            dashboardState.allSoldTotalEK  = totalEK;
+            dashboardState.allSoldTotalVK  = totalVK;
+            dashboardState.soldPgStats     = soldPgStats;
+            dashboardState.soldBrandStats  = soldBrandStats;
+            dashboardState.soldByStats     = soldByStats;
+            dashboardState.margeDistribution = margeDistribution;
+        }
+        function _restoreOriginalSalesStats() {
+            const o = dashboardState._origStats;
+            if (!o) return;
+            dashboardState.allSoldCount    = o.allSoldCount;
+            dashboardState.allSoldProfit   = o.allSoldProfit;
+            dashboardState.allSoldAvgProfit= o.allSoldAvgProfit;
+            dashboardState.allSoldAvgVK    = o.allSoldAvgVK;
+            dashboardState.allSoldTotalEK  = o.allSoldTotalEK;
+            dashboardState.allSoldTotalVK  = o.allSoldTotalVK;
+            dashboardState.soldPgStats     = o.soldPgStats;
+            dashboardState.soldBrandStats  = o.soldBrandStats;
+            dashboardState.soldByStats     = o.soldByStats;
+            dashboardState.margeDistribution = o.margeDistribution;
+        }
+
         function onGlobalTimeFilterChange() {
             const sel = document.getElementById('global-time-filter');
             if (!sel) return;
@@ -8707,8 +8799,14 @@ Keine Erklärungen, kein Markdown.`;
             const lbl = document.getElementById('global-time-filter-window');
             if (lbl) {
                 lbl.innerHTML = win
-                    ? `→ ${_gfFormat(win.from)} – ${_gfFormat(win.to)} <span style="color:var(--accent-cyan);">· wirkt auf: Kunden · Kunden×WG · Lieferanten</span>`
+                    ? `→ ${_gfFormat(win.from)} – ${_gfFormat(win.to)} <span style="color:var(--accent-cyan);">· wirkt auf alle Verkaufsdaten-Reiter</span>`
                     : '';
+            }
+            // PHASE 3: Aggregationen rebuilden ODER Originale restoren
+            if (preset === 'all') {
+                _restoreOriginalSalesStats();
+            } else {
+                _rebuildFilteredSalesStats(getFilteredSold());
             }
             // Re-Render aller Sales-Tabs
             try { updateAnalyseProPanel(); } catch(e) { console.warn('[GF] re-render error', e); }
