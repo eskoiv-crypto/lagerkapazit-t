@@ -3524,6 +3524,7 @@
                             <button class="analyse-tab" data-tab="potenzial" onclick="switchAnalyseTab('potenzial')" title="Verkaufspriorität: Geräte nach Dringlichkeit sortiert — alte Lagerware mit guter Marge zuerst verkaufen.">🎯 Verkaufspriorität</button>
                             <button class="analyse-tab" data-tab="topseller" onclick="switchAnalyseTab('topseller')" title="Bestseller: die am häufigsten und schnellsten verkauften Artikel/Warengruppen — ideal für Nachbestellung.">🏆 Top-Seller</button>
                             <button class="analyse-tab" data-tab="clv" onclick="switchAnalyseTab('clv')" id="tab-btn-clv" style="background: linear-gradient(135deg, #a855f7, #ec4899); color: white;" title="Customer Lifetime Value: Kundenrangliste nach historischem Brutto-Umsatz über 4 Jahre. Segmentiert in aktiv / pre-churn / high-value-churn / churned. Benötigt JTL-4-Jahre + Stammdaten.">💎 CLV</button>
+                            <button class="analyse-tab" data-tab="churn" onclick="switchAnalyseTab('churn')" id="tab-btn-churn" style="background: linear-gradient(135deg, #ef4444, #f97316); color: white;" title="Churn-Alert: Already-Churned-Liste + Pre-Churn-Forecast (welche Kunden reißen in den nächsten 30 Tagen die 180-T-Schwelle?). Status-Spalte zum Abhaken pro Kunde. Benötigt JTL-4-Jahre + Stammdaten.">🚨 Churn-Alert</button>
                             <button class="analyse-tab" data-tab="liveview" onclick="switchAnalyseTab('liveview')" id="tab-btn-liveview" style="background: linear-gradient(135deg, #6366f1, #06b6d4); color: white;" title="Live View: Drill-Down nach Lieferant × Warengruppe × Marke. Zeigt aktuellen Bestand und besten Kunden für diese Kombi in Echtzeit beim Filter-Klick.">🔍 Live View</button>
                             <button class="analyse-tab" data-tab="pipeline" onclick="switchAnalyseTab('pipeline')" id="tab-btn-pipeline" style="background: linear-gradient(135deg, #6366f1, #a855f7); color: white;" title="Pipeline: aktuelle offene Aufträge aus AMM (AUFTRAG_STATUS). Überfällig-Alarm, Forecast 'diese Woche raus', Sync-Wächter JTL ↔ AMM.">📋 Pipeline</button>
                             <button class="analyse-tab" data-tab="angebotsanalyse" onclick="switchAnalyseTab('angebotsanalyse')" id="tab-btn-angebotsanalyse" style="background: linear-gradient(135deg, #10B981, #06B6D4); color: white;" title="Angebots-Analyse: lädt eine Angebots-/Auftragsdatei und gleicht sie gegen den verfügbaren Bestand ab — was kann sofort geliefert werden, was fehlt?">💼 Angebots-Analyse</button>
@@ -4608,6 +4609,59 @@
                                         </div>
                                     </div>
                                     <div id="clv-table-container" style="max-height:560px; overflow-y:auto;"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- ========== TAB: 🚨 CHURN-ALERT ========== -->
+                        <div id="tab-churn" class="analyse-tab-content" style="display: none; padding: 1rem;">
+                            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem; margin-bottom:0.75rem;">
+                                <div>
+                                    <div class="analytics-section-title" style="margin:0;">🚨 Churn-Alert <span class="vc-info" data-tip="Zwei Blöcke: (1) Already Churned = LTV≥50k + >180T inaktiv = sofort kontaktieren. (2) Pre-Churn-Forecast = LTV≥30k + 150-180T inaktiv = präventiv anrufen bevor sie die Schwelle reißen. Status zum Abhaken pro Kunde.">ⓘ</span></div>
+                                    <span style="font-size:0.7rem; color:var(--text-muted);">High-Value Churns (>180T) + Pre-Churn-Warnung (150-180T) · Wer ist neu gechurnt seit letzter Woche?</span>
+                                </div>
+                                <div id="churn-stand-badge" style="font-size:0.65rem; color:var(--text-muted);"></div>
+                            </div>
+
+                            <div id="churn-no-data" style="padding:2rem; text-align:center; color:var(--text-muted); font-size:0.85rem; display:none;">
+                                💡 Bitte zuerst <b>JTL 4-Jahre</b> + <b>Kunden-Stammdaten</b> im Datenimport-Block <b>2b</b> hochladen.
+                            </div>
+
+                            <div id="churn-content" style="display:none;">
+                                <!-- KPI-Cards -->
+                                <div id="churn-kpis" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(170px,1fr)); gap:0.75rem; margin-bottom:1rem;"></div>
+
+                                <!-- Schwellwert-Konfiguration -->
+                                <div style="display:flex; gap:0.6rem; padding:0.6rem 0.85rem; background:rgba(239,68,68,0.05); border:1px solid rgba(239,68,68,0.2); border-radius:8px; margin-bottom:1rem; flex-wrap:wrap; align-items:center;">
+                                    <span style="font-size:0.65rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em;">⚙️ Schwellwerte:</span>
+                                    <label style="font-size:0.7rem; display:flex; align-items:center; gap:0.3rem;">Min-LTV Churn (€) <input type="number" id="churn-min-ltv" value="50000" oninput="renderChurnTab()" style="width:80px; padding:0.2rem; font-size:0.7rem; border-radius:4px; background:var(--bg-secondary); border:1px solid var(--border); color:var(--text-primary);"></label>
+                                    <label style="font-size:0.7rem; display:flex; align-items:center; gap:0.3rem;">Min-LTV Pre-Churn (€) <input type="number" id="churn-min-ltv-pre" value="30000" oninput="renderChurnTab()" style="width:80px; padding:0.2rem; font-size:0.7rem; border-radius:4px; background:var(--bg-secondary); border:1px solid var(--border); color:var(--text-primary);"></label>
+                                    <span style="flex:1;"></span>
+                                    <button onclick="exportChurnCsv()" style="padding:0.35rem 0.7rem; background:var(--accent-cyan); color:white; border:none; border-radius:4px; font-size:0.7rem; font-weight:700; cursor:pointer;">📥 CSV Export</button>
+                                </div>
+
+                                <!-- 2 Spalten: Already Churned + Pre-Churn-Forecast -->
+                                <div style="display:grid; grid-template-columns: 1.4fr 1fr; gap:1rem; margin-bottom:1rem;">
+                                    <div style="background:var(--bg-card); border:1px solid var(--border); border-left:4px solid var(--accent-red); border-radius:10px; padding:0.9rem;">
+                                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
+                                            <div style="font-size:0.85rem; font-weight:700; color:var(--accent-red);">🚨 Already Churned <span id="churn-hvc-badge" style="color:var(--text-muted); font-weight:400; font-size:0.7rem;"></span></div>
+                                            <div style="font-size:0.6rem; color:var(--text-muted);">sortiert nach LTV ↓</div>
+                                        </div>
+                                        <div id="churn-hvc-table" style="max-height:520px; overflow-y:auto;"></div>
+                                    </div>
+                                    <div style="background:var(--bg-card); border:1px solid var(--border); border-left:4px solid var(--accent-orange); border-radius:10px; padding:0.9rem;">
+                                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
+                                            <div style="font-size:0.85rem; font-weight:700; color:var(--accent-orange);">⏰ Pre-Churn-Forecast <span id="churn-pre-badge" style="color:var(--text-muted); font-weight:400; font-size:0.7rem;"></span></div>
+                                            <div style="font-size:0.6rem; color:var(--text-muted);">150-180 T inaktiv</div>
+                                        </div>
+                                        <div id="churn-pre-table" style="max-height:520px; overflow-y:auto;"></div>
+                                    </div>
+                                </div>
+
+                                <!-- Churn-Pattern: Land × Zeit-Bucket -->
+                                <div style="background:var(--bg-card); border:1px solid var(--border); border-radius:10px; padding:0.9rem;">
+                                    <div style="font-size:0.85rem; font-weight:700; margin-bottom:0.5rem;">📊 Churn-Pattern — Land × Inaktivitäts-Stufe <span class="vc-info" data-tip="Wie verteilt sich Churn nach Land? Hohe Zahl bei 540+ T = strukturelles Land-Problem (Markt verloren, Vertriebslücke, etc.).">ⓘ</span></div>
+                                    <div id="churn-pattern" style="max-height:300px; overflow-y:auto;"></div>
                                 </div>
                             </div>
                         </div>
@@ -8815,6 +8869,9 @@ Keine Erklärungen, kein Markdown.`;
             if (tabName === 'clv') {
                 try { renderCLVTab(); } catch(e) { console.warn('[CLV] init', e); }
             }
+            if (tabName === 'churn') {
+                try { renderChurnTab(); } catch(e) { console.warn('[Churn] init', e); }
+            }
             // Zeitraum-Filter tab-bewusst ein-/ausblenden
             // SALES-Tabs nutzen All-Sold → Filter wirksam
             // SNAPSHOT-Tabs (Bestand/Stock/Pipeline) → Filter ausblenden
@@ -9879,6 +9936,186 @@ Keine Erklärungen, kein Markdown.`;
             a.download = `CLV-Ranking_${filtered.length}-Kunden_sort-${sortBy}_${dateStr}.csv`;
             a.click();
             showToast('success', '📥 CSV exportiert', `${filtered.length} Kunden`);
+        }
+
+        // ============================================================
+        // 🚨 CHURN-ALERT-REITER (Phase 3 — DEV v2)
+        // Zwei Blöcke:
+        //  · Already Churned: LTV>=50k (default) + >180T inaktiv
+        //  · Pre-Churn-Forecast: LTV>=30k (default) + 150-180T inaktiv
+        // Plus Status-Spalte zum Abhaken (im Browser-Session-Memory).
+        // ============================================================
+        function renderChurnTab() {
+            const profiles = dashboardState.customerProfiles;
+            const noData = document.getElementById('churn-no-data');
+            const content = document.getElementById('churn-content');
+            if (!profiles || Object.keys(profiles).length === 0) {
+                if (noData) noData.style.display = 'block';
+                if (content) content.style.display = 'none';
+                return;
+            }
+            if (noData) noData.style.display = 'none';
+            if (content) content.style.display = 'block';
+
+            const all = Object.values(profiles);
+            const minLtvHvc = parseFloat(document.getElementById('churn-min-ltv')?.value) || 50000;
+            const minLtvPre = parseFloat(document.getElementById('churn-min-ltv-pre')?.value) || 30000;
+
+            // Already Churned: >180T + LTV>=minLtvHvc
+            const hvc = all.filter(p => p.tageInaktiv > 180 && p.ltv >= minLtvHvc).sort((a,b) => b.ltv - a.ltv);
+            // Pre-Churn: 150-180T + LTV>=minLtvPre
+            const pre = all.filter(p => p.tageInaktiv >= 150 && p.tageInaktiv <= 180 && p.ltv >= minLtvPre).sort((a,b) => b.tageInaktiv - a.tageInaktiv);
+
+            // Speichern für Export
+            dashboardState._churnHvc = hvc;
+            dashboardState._churnPre = pre;
+            if (!dashboardState._churnStatus) dashboardState._churnStatus = {};
+
+            // Stand-Badge
+            const standEl = document.getElementById('churn-stand-badge');
+            if (standEl) standEl.innerHTML = `<span class="src-pill src-jtl">📚 JTL 4-JAHRE</span> ${all.length.toLocaleString('de-DE')} Kunden geladen`;
+
+            // KPI-Cards
+            const σHvc = hvc.reduce((s,p) => s + p.ltv, 0);
+            const σPre = pre.reduce((s,p) => s + p.ltv, 0);
+            const churnRate = all.length > 0 ? (hvc.length / all.length * 100).toFixed(1) : 0;
+            const days1Y = hvc.filter(p => p.tageInaktiv > 365).length;
+            function _kpi(label, value, sub, color) {
+                return `<div style="background:var(--bg-card); border:1px solid var(--border); border-left:3px solid ${color}; border-radius:8px; padding:0.7rem 0.9rem;">
+                    <div style="font-size:0.55rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em;">${label}</div>
+                    <div style="font-size:1.4rem; font-weight:700; line-height:1.15;">${value}</div>
+                    <div style="font-size:0.62rem; color:var(--text-muted); margin-top:1px;">${sub}</div>
+                </div>`;
+            }
+            document.getElementById('churn-kpis').innerHTML = [
+                _kpi('🚨 Already Churned', hvc.length.toLocaleString('de-DE'), `Σ ${(σHvc/1000).toLocaleString('de-DE',{maximumFractionDigits:0})} k € verlorener LTV`, 'var(--accent-red)'),
+                _kpi('⏰ Pre-Churn-Risiko', pre.length.toLocaleString('de-DE'), `Σ ${(σPre/1000).toLocaleString('de-DE',{maximumFractionDigits:0})} k € Risiko-LTV`, 'var(--accent-orange)'),
+                _kpi('Churn-Rate', churnRate + ' %', `${hvc.length} von ${all.length} High-Value-Kunden`, 'var(--text-secondary)'),
+                _kpi('Davon > 1 Jahr weg', days1Y.toLocaleString('de-DE'), 'kritisch — Reaktivierung schwer', '#7f1d1d'),
+            ].join('');
+
+            // Helper für Kunde-Zeile
+            function _row(p, showDays = true, isHvc = false) {
+                const firma = (p.firma || `Kunde ${p.kundenNr}`);
+                const status = dashboardState._churnStatus[p.kundenNr] || 'OFFEN';
+                const tageColor = p.tageInaktiv > 730 ? '#7f1d1d' : p.tageInaktiv > 365 ? 'var(--accent-red)' : p.tageInaktiv > 200 ? '#d97706' : 'var(--accent-orange)';
+                const kontakt = (p.email ? `<a href="mailto:${_h(p.email)}" title="${_h(p.email)}" style="text-decoration:none;">📧</a>` : '') + (p.telefon || p.mobil ? `<span title="${_h(p.telefon || p.mobil)}">📞</span>` : '');
+                const statusColor = status === 'ERLEDIGT' ? 'var(--accent-green)' : status === 'KONTAKTIERT' ? 'var(--accent-cyan)' : status === 'KEIN_INTERESSE' ? 'var(--text-muted)' : 'var(--accent-orange)';
+                return `<tr>
+                    <td style="font-size:0.65rem; max-width:170px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${_h(firma)} (${p.kundenNr})${p.ort ? ' · ' + _h(p.ort) : ''}"><b>${_h(firma)}</b></td>
+                    <td style="font-size:0.6rem;">${_h(p.land || '?')}</td>
+                    <td class="mono" style="font-size:0.7rem; text-align:right; font-weight:700;">${(p.ltv/1000).toFixed(0)} k €</td>
+                    ${showDays ? `<td class="mono" style="font-size:0.65rem; text-align:right; font-weight:700; color:${tageColor};">${p.tageInaktiv}T</td>` : ''}
+                    <td style="font-size:0.6rem; text-align:center;">${kontakt}</td>
+                    <td>
+                        <select data-kn="${p.kundenNr}" onchange="churnSetStatus(this)" style="padding:0.15rem 0.3rem; font-size:0.6rem; border-radius:3px; background:var(--bg-secondary); border:1px solid var(--border); color:${statusColor}; font-weight:700;">
+                            <option value="OFFEN" ${status==='OFFEN'?'selected':''}>OFFEN</option>
+                            <option value="KONTAKTIERT" ${status==='KONTAKTIERT'?'selected':''}>KONTAKTIERT</option>
+                            <option value="INTERESSE" ${status==='INTERESSE'?'selected':''}>INTERESSE</option>
+                            <option value="KEIN_INTERESSE" ${status==='KEIN_INTERESSE'?'selected':''}>KEIN INTERESSE</option>
+                            <option value="ERLEDIGT" ${status==='ERLEDIGT'?'selected':''}>ERLEDIGT</option>
+                        </select>
+                    </td>
+                </tr>`;
+            }
+
+            // HVC-Tabelle
+            const hvcEl = document.getElementById('churn-hvc-table');
+            const hvcBadge = document.getElementById('churn-hvc-badge');
+            if (hvcBadge) hvcBadge.textContent = `(${hvc.length} · Σ ${(σHvc/1000).toFixed(0)} k €)`;
+            if (hvcEl) {
+                if (!hvc.length) {
+                    hvcEl.innerHTML = '<div style="padding:1.5rem; text-align:center; color:var(--accent-green); font-size:0.78rem;">✅ Keine High-Value-Churns mit aktueller Schwelle.</div>';
+                } else {
+                    hvcEl.innerHTML = `<table class="analyse-table" style="font-size:0.66rem; width:100%;">
+                        <thead><tr><th>Firma</th><th>L</th><th style="text-align:right;">LTV</th><th style="text-align:right;">Tage</th><th>Kontakt</th><th>Status</th></tr></thead>
+                        <tbody>${hvc.map(p => _row(p, true, true)).join('')}</tbody>
+                    </table>`;
+                }
+            }
+
+            // Pre-Churn-Tabelle
+            const preEl = document.getElementById('churn-pre-table');
+            const preBadge = document.getElementById('churn-pre-badge');
+            if (preBadge) preBadge.textContent = `(${pre.length} · Σ ${(σPre/1000).toFixed(0)} k €)`;
+            if (preEl) {
+                if (!pre.length) {
+                    preEl.innerHTML = '<div style="padding:1.5rem; text-align:center; color:var(--text-muted); font-size:0.78rem;">Keine Kunden in der Pre-Churn-Zone (150-180 T).</div>';
+                } else {
+                    preEl.innerHTML = `<table class="analyse-table" style="font-size:0.66rem; width:100%;">
+                        <thead><tr><th>Firma</th><th>L</th><th style="text-align:right;">LTV</th><th style="text-align:right;">Tage</th><th>K</th><th>Status</th></tr></thead>
+                        <tbody>${pre.map(p => _row(p, true, false)).join('')}</tbody>
+                    </table>`;
+                }
+            }
+
+            // Churn-Pattern: Land × Inaktivitäts-Buckets
+            const patEl = document.getElementById('churn-pattern');
+            if (patEl) {
+                const buckets = [
+                    { label: '180-365 T', min: 180, max: 365 },
+                    { label: '365-730 T', min: 365, max: 730 },
+                    { label: '> 730 T',   min: 730, max: 99999 },
+                ];
+                const landBuckets = {};
+                all.filter(p => p.tageInaktiv > 180).forEach(p => {
+                    const l = p.land || '(?)';
+                    if (!landBuckets[l]) landBuckets[l] = { land: l, total: 0, totalLtv: 0 };
+                    landBuckets[l].total++;
+                    landBuckets[l].totalLtv += p.ltv;
+                    buckets.forEach(b => {
+                        if (p.tageInaktiv > b.min && p.tageInaktiv <= b.max) {
+                            landBuckets[l][b.label] = (landBuckets[l][b.label] || 0) + 1;
+                        }
+                    });
+                });
+                const sorted = Object.values(landBuckets).sort((a,b) => b.totalLtv - a.totalLtv).slice(0, 15);
+                patEl.innerHTML = `<table class="analyse-table" style="font-size:0.66rem; width:100%;">
+                    <thead><tr><th>Land</th>${buckets.map(b => `<th style="text-align:right;">${b.label}</th>`).join('')}<th style="text-align:right;">Σ Kunden</th><th style="text-align:right;">Σ Verlust LTV</th></tr></thead>
+                    <tbody>${sorted.map(r => `<tr>
+                        <td style="font-weight:600;">${_h(r.land)}</td>
+                        ${buckets.map(b => `<td class="mono" style="text-align:right; color:${(r[b.label]||0) > 5 ? 'var(--accent-red)' : 'inherit'};">${r[b.label] || 0}</td>`).join('')}
+                        <td class="mono" style="text-align:right; font-weight:700;">${r.total}</td>
+                        <td class="mono" style="text-align:right; font-weight:700; color:var(--accent-red);">${(r.totalLtv/1000).toFixed(0)} k €</td>
+                    </tr>`).join('')}</tbody>
+                </table>`;
+            }
+        }
+        function churnSetStatus(sel) {
+            const kn = sel.getAttribute('data-kn');
+            if (!dashboardState._churnStatus) dashboardState._churnStatus = {};
+            dashboardState._churnStatus[kn] = sel.value;
+            // Farbe aktualisieren
+            const map = { 'ERLEDIGT':'var(--accent-green)', 'KONTAKTIERT':'var(--accent-cyan)', 'INTERESSE':'#06b6d4', 'KEIN_INTERESSE':'var(--text-muted)', 'OFFEN':'var(--accent-orange)' };
+            sel.style.color = map[sel.value] || 'var(--text-primary)';
+        }
+        function exportChurnCsv() {
+            const hvc = dashboardState._churnHvc || [];
+            const pre = dashboardState._churnPre || [];
+            const stat = dashboardState._churnStatus || {};
+            if (!hvc.length && !pre.length) { showToast('warning', 'Nichts zum Export', 'Keine Churn-Kandidaten in aktueller Schwelle.'); return; }
+            const headers = ['Bucket','Rang','Kunden-Nr','Firma','Land','Ort','LTV','Ø Jahresumsatz','Aufträge','Erster Kauf','Letzter Kauf','Tage inaktiv','E-Mail','Telefon','Mobil','Status'];
+            const buildRow = (bucket, p, rank) => [
+                bucket, rank, p.kundenNr, (p.firma||'').replace(/;/g,','), p.land, (p.ort||'').replace(/;/g,','),
+                p.ltv.toFixed(2).replace('.', ','),
+                p.øJahresumsatz.toFixed(2).replace('.', ','),
+                p.nAufträge,
+                p.erstesKaufDt ? p.erstesKaufDt.toLocaleDateString('de-DE') : '',
+                p.letztesKaufDt ? p.letztesKaufDt.toLocaleDateString('de-DE') : '',
+                p.tageInaktiv,
+                (p.email||'').replace(/;/g,','), (p.telefon||'').replace(/;/g,','), (p.mobil||'').replace(/;/g,','),
+                stat[p.kundenNr] || 'OFFEN',
+            ].join(';');
+            const rows = [];
+            hvc.forEach((p,i) => rows.push(buildRow('Already-Churned', p, i+1)));
+            pre.forEach((p,i) => rows.push(buildRow('Pre-Churn-Warnung', p, i+1)));
+            const csv = '﻿' + headers.join(';') + '\n' + rows.join('\n');
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `Churn-Alert_${hvc.length}HVC_${pre.length}Pre_${new Date().toISOString().split('T')[0]}.csv`;
+            a.click();
+            showToast('success', '📥 CSV exportiert', `${hvc.length + pre.length} Kunden (inkl. Status-Spalte)`);
         }
 
         function renderPipelineTab() {
