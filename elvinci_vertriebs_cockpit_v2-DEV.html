@@ -3523,6 +3523,7 @@
                             <button class="analyse-tab" data-tab="deadstock" onclick="switchAnalyseTab('deadstock')" title="Ladenhüter: Geräte, die ungewöhnlich lange im Lager liegen, ohne verkauft zu werden. Kandidaten für Abverkauf/Rabatt.">💀 Dead Stock</button>
                             <button class="analyse-tab" data-tab="potenzial" onclick="switchAnalyseTab('potenzial')" title="Verkaufspriorität: Geräte nach Dringlichkeit sortiert — alte Lagerware mit guter Marge zuerst verkaufen.">🎯 Verkaufspriorität</button>
                             <button class="analyse-tab" data-tab="topseller" onclick="switchAnalyseTab('topseller')" title="Bestseller: die am häufigsten und schnellsten verkauften Artikel/Warengruppen — ideal für Nachbestellung.">🏆 Top-Seller</button>
+                            <button class="analyse-tab" data-tab="clv" onclick="switchAnalyseTab('clv')" id="tab-btn-clv" style="background: linear-gradient(135deg, #a855f7, #ec4899); color: white;" title="Customer Lifetime Value: Kundenrangliste nach historischem Brutto-Umsatz über 4 Jahre. Segmentiert in aktiv / pre-churn / high-value-churn / churned. Benötigt JTL-4-Jahre + Stammdaten.">💎 CLV</button>
                             <button class="analyse-tab" data-tab="liveview" onclick="switchAnalyseTab('liveview')" id="tab-btn-liveview" style="background: linear-gradient(135deg, #6366f1, #06b6d4); color: white;" title="Live View: Drill-Down nach Lieferant × Warengruppe × Marke. Zeigt aktuellen Bestand und besten Kunden für diese Kombi in Echtzeit beim Filter-Klick.">🔍 Live View</button>
                             <button class="analyse-tab" data-tab="pipeline" onclick="switchAnalyseTab('pipeline')" id="tab-btn-pipeline" style="background: linear-gradient(135deg, #6366f1, #a855f7); color: white;" title="Pipeline: aktuelle offene Aufträge aus AMM (AUFTRAG_STATUS). Überfällig-Alarm, Forecast 'diese Woche raus', Sync-Wächter JTL ↔ AMM.">📋 Pipeline</button>
                             <button class="analyse-tab" data-tab="angebotsanalyse" onclick="switchAnalyseTab('angebotsanalyse')" id="tab-btn-angebotsanalyse" style="background: linear-gradient(135deg, #10B981, #06B6D4); color: white;" title="Angebots-Analyse: lädt eine Angebots-/Auftragsdatei und gleicht sie gegen den verfügbaren Bestand ab — was kann sofort geliefert werden, was fehlt?">💼 Angebots-Analyse</button>
@@ -4536,6 +4537,81 @@
                             </div>
                         </div>
                         
+                        <!-- ========== TAB: 💎 CLV (Customer Lifetime Value) ========== -->
+                        <div id="tab-clv" class="analyse-tab-content" style="display: none; padding: 1rem;">
+                            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem; margin-bottom:0.75rem;">
+                                <div>
+                                    <div class="analytics-section-title" style="margin:0;">💎 Customer Lifetime Value <span class="vc-info" data-tip="Ranking aller Kunden nach historischem Brutto-Umsatz aus 4-Jahres-JTL-Auftragshistorie. Segmentiert in 4 Klassen: aktiv (<90T inaktiv), pre-churn (90-180T), high-value-churn (>180T + LTV≥50k), churned (Rest). Benötigt JTL-4-Jahre + Stammdaten Upload (siehe Block 2b).">ⓘ</span></div>
+                                    <span style="font-size:0.7rem; color:var(--text-muted);">Wer ist über die Jahre am wertvollsten? · Filtern nach Segment, Land, Min-LTV · CSV-Export</span>
+                                </div>
+                                <div id="clv-stand-badge" style="font-size:0.65rem; color:var(--text-muted);"></div>
+                            </div>
+
+                            <div id="clv-no-data" style="padding:2rem; text-align:center; color:var(--text-muted); font-size:0.85rem; display:none;">
+                                💡 Bitte zuerst <b>JTL 4-Jahre</b> + <b>Kunden-Stammdaten</b> im Datenimport-Block <b>2b</b> hochladen.
+                            </div>
+
+                            <div id="clv-content" style="display:none;">
+                                <!-- FILTER-LEISTE -->
+                                <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:0.6rem; padding:0.85rem; background:linear-gradient(135deg, rgba(168,85,247,0.08), rgba(236,72,153,0.08)); border:1px solid rgba(168,85,247,0.3); border-radius:10px; margin-bottom:1rem;">
+                                    <div>
+                                        <label style="display:block; font-size:0.6rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:0.2rem;">🎯 Segment</label>
+                                        <details class="lv-multi" data-field="clv-segment">
+                                            <summary class="lv-multi-summary" id="clv-segment-summary">— alle Segmente —</summary>
+                                            <div class="lv-multi-panel" id="clv-segment-panel"></div>
+                                        </details>
+                                    </div>
+                                    <div>
+                                        <label style="display:block; font-size:0.6rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:0.2rem;">🌍 Land</label>
+                                        <details class="lv-multi" data-field="clv-land">
+                                            <summary class="lv-multi-summary" id="clv-land-summary">— alle Länder —</summary>
+                                            <div class="lv-multi-panel" id="clv-land-panel"></div>
+                                        </details>
+                                    </div>
+                                    <div>
+                                        <label style="display:block; font-size:0.6rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:0.2rem;">💰 Min. LTV (€)</label>
+                                        <input type="number" id="clv-min-ltv" placeholder="z.B. 10000" oninput="renderCLVTab()" style="width:100%; padding:0.4rem; font-size:0.78rem; border-radius:6px; background:var(--bg-secondary); border:1px solid var(--border); color:var(--text-primary);">
+                                    </div>
+                                    <div>
+                                        <label style="display:block; font-size:0.6rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:0.2rem;">🔎 Suche (Firma)</label>
+                                        <input type="text" id="clv-search" placeholder="z.B. Hanseatic..." oninput="renderCLVTab()" style="width:100%; padding:0.4rem; font-size:0.78rem; border-radius:6px; background:var(--bg-secondary); border:1px solid var(--border); color:var(--text-primary);">
+                                    </div>
+                                    <div style="display:flex; align-items:end; gap:0.4rem;">
+                                        <button onclick="resetCLVFilters()" style="padding:0.45rem 0.7rem; background:var(--bg-elevated); color:var(--text-primary); border:1px solid var(--border); border-radius:6px; font-size:0.72rem; cursor:pointer; flex:1;">↺ Reset</button>
+                                        <button onclick="exportCLVCsv()" style="padding:0.45rem 0.7rem; background:var(--accent-cyan); color:white; border:none; border-radius:6px; font-size:0.72rem; font-weight:700; cursor:pointer; flex:1;">📥 CSV</button>
+                                    </div>
+                                </div>
+
+                                <!-- KPI-CARDS -->
+                                <div id="clv-kpis" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(160px,1fr)); gap:0.75rem; margin-bottom:1rem;"></div>
+
+                                <!-- TABELLE mit Limit + Header -->
+                                <div style="background:var(--bg-card); border:1px solid var(--border); border-radius:10px; padding:0.9rem;">
+                                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem; flex-wrap:wrap; gap:0.4rem;">
+                                        <div style="font-size:0.85rem; font-weight:700;">📋 Kunden-Ranking <span id="clv-count-badge" style="color:var(--text-muted); font-weight:400; font-size:0.7rem;"></span></div>
+                                        <div style="display:flex; gap:0.4rem; align-items:center; flex-wrap:wrap;">
+                                            <label style="font-size:0.6rem; color:var(--text-muted); text-transform:uppercase;">Sortieren:</label>
+                                            <select id="clv-sort" onchange="renderCLVTab()" style="padding:0.25rem 0.5rem; font-size:0.7rem; border-radius:4px; background:var(--bg-secondary); border:1px solid var(--border); color:var(--text-primary);">
+                                                <option value="ltv">LTV ↓</option>
+                                                <option value="ø_jahresumsatz">Ø Jahresumsatz ↓</option>
+                                                <option value="tageInaktiv">Tage inaktiv ↑</option>
+                                                <option value="nAufträge">Aufträge ↓</option>
+                                                <option value="letztTs">Letzter Kauf ↓</option>
+                                            </select>
+                                            <label style="font-size:0.6rem; color:var(--text-muted); text-transform:uppercase;">Anzeigen:</label>
+                                            <select id="clv-limit" onchange="renderCLVTab()" style="padding:0.25rem 0.5rem; font-size:0.7rem; border-radius:4px; background:var(--bg-secondary); border:1px solid var(--border); color:var(--text-primary);">
+                                                <option value="50">Top 50</option>
+                                                <option value="100" selected>Top 100</option>
+                                                <option value="500">Top 500</option>
+                                                <option value="9999">Alle</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div id="clv-table-container" style="max-height:560px; overflow-y:auto;"></div>
+                                </div>
+                            </div>
+                        </div>
+
                         <!-- ========== TAB: LIVE VIEW (Drill-Down Lieferant × WG × Marke) ========== -->
                         <div id="tab-liveview" class="analyse-tab-content" style="display: none; padding: 1rem;">
                             <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem; margin-bottom:0.75rem;">
@@ -8736,9 +8812,14 @@ Keine Erklärungen, kein Markdown.`;
             if (tabName === 'pipeline') {
                 try { renderPipelineTab(); } catch(e) { console.warn('[Pipeline] init', e); }
             }
+            if (tabName === 'clv') {
+                try { renderCLVTab(); } catch(e) { console.warn('[CLV] init', e); }
+            }
             // Zeitraum-Filter tab-bewusst ein-/ausblenden
             // SALES-Tabs nutzen All-Sold → Filter wirksam
             // SNAPSHOT-Tabs (Bestand/Stock/Pipeline) → Filter ausblenden
+            // CLV bewusst NICHT in SALES_TABS — der Reiter zeigt 4-Jahres-Lifetime-Werte,
+            // Zeitraum-Filter wäre konzeptionell falsch (LTV ≠ "in den letzten 30 Tagen").
             const SALES_TABS = new Set(['uebersicht','verkaeufer','kunden','kundenmatrix','produktgruppen','brands','lieferanten','topseller']);
             const gfContainer = document.getElementById('gf-container');
             const gfNotApplicable = document.getElementById('gf-not-applicable');
@@ -9586,6 +9667,220 @@ Keine Erklärungen, kein Markdown.`;
         //  · "31.12.2026" = Default-Liefertag (hasDefaultDate=true) → nicht als überfällig zählen
         //  · Sync-Wächter braucht JTL-Export — sonst leerer Block mit Hinweis
         // ============================================================
+        // ============================================================
+        // 💎 CLV-REITER (Phase 2 — DEV v2)
+        // Konsumiert dashboardState.customerProfiles aus buildCustomerProfiles().
+        // ============================================================
+        function _clvMulti() {
+            if (!dashboardState._clvMulti) {
+                dashboardState._clvMulti = { segment: new Set(), land: new Set() };
+            }
+            return dashboardState._clvMulti;
+        }
+        function resetCLVFilters() {
+            _clvMulti().segment.clear();
+            _clvMulti().land.clear();
+            const inp1 = document.getElementById('clv-min-ltv'); if (inp1) inp1.value = '';
+            const inp2 = document.getElementById('clv-search'); if (inp2) inp2.value = '';
+            document.querySelectorAll('#tab-clv .lv-multi[open]').forEach(d => d.removeAttribute('open'));
+            renderCLVTab();
+        }
+        function renderCLVTab() {
+            const profiles = dashboardState.customerProfiles;
+            const noData = document.getElementById('clv-no-data');
+            const content = document.getElementById('clv-content');
+            if (!profiles || Object.keys(profiles).length === 0) {
+                if (noData) noData.style.display = 'block';
+                if (content) content.style.display = 'none';
+                return;
+            }
+            if (noData) noData.style.display = 'none';
+            if (content) content.style.display = 'block';
+
+            const all = Object.values(profiles);
+            const standEl = document.getElementById('clv-stand-badge');
+            if (standEl) standEl.innerHTML = `<span class="src-pill src-jtl">📚 JTL 4-JAHRE</span> ${all.length.toLocaleString('de-DE')} Kunden geladen`;
+
+            // Multi-Select Panels befüllen (Segment + Land) — kaskadierend
+            const m = _clvMulti();
+            const minLtv = parseFloat(document.getElementById('clv-min-ltv')?.value) || 0;
+            const search = (document.getElementById('clv-search')?.value || '').toLowerCase().trim();
+
+            const segCounts = {}, landCounts = {};
+            all.forEach(p => {
+                const matchSeg = m.segment.size === 0 || m.segment.has(p.segment);
+                const matchLand = m.land.size === 0 || m.land.has(p.land || '(?)');
+                const matchLtv = p.ltv >= minLtv;
+                const matchSearch = !search || (p.firma || '').toLowerCase().includes(search) || (p.kundenNr || '').includes(search);
+                // Counts: jedes Dropdown ohne seinen eigenen Filter
+                if (matchLand && matchLtv && matchSearch) segCounts[p.segment] = (segCounts[p.segment] || 0) + 1;
+                if (matchSeg && matchLtv && matchSearch)  landCounts[p.land || '(?)'] = (landCounts[p.land || '(?)'] || 0) + 1;
+            });
+            renderClvMultiPanel('segment', segCounts, m.segment);
+            renderClvMultiPanel('land', landCounts, m.land);
+            // Summary
+            const sumEl = id => document.getElementById(id);
+            const tot = c => Object.keys(c).length;
+            if (sumEl('clv-segment-summary')) sumEl('clv-segment-summary').textContent = _lvSummaryText(m.segment, tot(segCounts), '— alle Segmente —');
+            if (sumEl('clv-land-summary'))    sumEl('clv-land-summary').textContent    = _lvSummaryText(m.land,    tot(landCounts),'— alle Länder —');
+
+            // Filter anwenden
+            const filtered = all.filter(p => {
+                if (m.segment.size > 0 && !m.segment.has(p.segment)) return false;
+                if (m.land.size > 0 && !m.land.has(p.land || '(?)')) return false;
+                if (p.ltv < minLtv) return false;
+                if (search && !(p.firma || '').toLowerCase().includes(search) && !(p.kundenNr || '').includes(search)) return false;
+                return true;
+            });
+
+            // KPI-Cards
+            const σLtv = filtered.reduce((s, p) => s + p.ltv, 0);
+            const σAufträge = filtered.reduce((s, p) => s + p.nAufträge, 0);
+            const ø = filtered.length > 0 ? σLtv / filtered.length : 0;
+            const top10pct = Math.max(1, Math.round(filtered.length * 0.1));
+            const σTop10 = filtered.slice().sort((a,b)=>b.ltv-a.ltv).slice(0,top10pct).reduce((s,p)=>s+p.ltv,0);
+            function _kpi(label, value, sub, color) {
+                return `<div style="background:var(--bg-card); border:1px solid var(--border); border-left:3px solid ${color}; border-radius:8px; padding:0.7rem 0.9rem;">
+                    <div style="font-size:0.55rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em;">${label}</div>
+                    <div style="font-size:1.35rem; font-weight:700; line-height:1.2;">${value}</div>
+                    <div style="font-size:0.62rem; color:var(--text-muted); margin-top:1px;">${sub}</div>
+                </div>`;
+            }
+            document.getElementById('clv-kpis').innerHTML = [
+                _kpi('Gefilterte Kunden', filtered.length.toLocaleString('de-DE'), `${σAufträge.toLocaleString('de-DE')} Aufträge gesamt`, '#a855f7'),
+                _kpi('Σ LTV (Brutto)', σLtv.toLocaleString('de-DE',{style:'currency',currency:'EUR',maximumFractionDigits:0}), '4-Jahres-Historie', '#ec4899'),
+                _kpi('Ø LTV / Kunde', ø.toLocaleString('de-DE',{style:'currency',currency:'EUR',maximumFractionDigits:0}), '', 'var(--accent-cyan)'),
+                _kpi(`Top-10% (n=${top10pct})`, σTop10.toLocaleString('de-DE',{style:'currency',currency:'EUR',maximumFractionDigits:0}), `${σLtv > 0 ? ((σTop10/σLtv)*100).toFixed(0) : 0}% des Gesamt`, 'var(--accent-green)'),
+            ].join('');
+
+            // Sort
+            const sortBy = document.getElementById('clv-sort')?.value || 'ltv';
+            const sortFn = {
+                'ltv':            (a,b) => b.ltv - a.ltv,
+                'ø_jahresumsatz': (a,b) => b.øJahresumsatz - a.øJahresumsatz,
+                'tageInaktiv':    (a,b) => a.tageInaktiv - b.tageInaktiv,
+                'nAufträge':      (a,b) => b.nAufträge - a.nAufträge,
+                'letztTs':        (a,b) => b.letztTs - a.letztTs,
+            };
+            const sorted = filtered.slice().sort(sortFn[sortBy] || sortFn.ltv);
+            const limit = parseInt(document.getElementById('clv-limit')?.value || '100');
+            const shown = sorted.slice(0, limit);
+            dashboardState._clvFiltered = sorted;  // für CSV-Export
+            const cb = document.getElementById('clv-count-badge');
+            if (cb) cb.textContent = sorted.length > shown.length ? `(zeige ${shown.length} von ${sorted.length})` : `(${sorted.length})`;
+
+            // Segment-Badge-Helper
+            const segBadge = (seg) => {
+                const map = {
+                    'aktiv':            { c:'var(--accent-green)', bg:'rgba(34,197,94,0.15)',  t:'AKTIV' },
+                    'pre-churn':        { c:'var(--accent-orange)',bg:'rgba(249,115,22,0.15)', t:'PRE-CHURN' },
+                    'high-value-churn': { c:'var(--accent-red)',   bg:'rgba(239,68,68,0.15)',  t:'HIGH-VALUE CHURN' },
+                    'churned':          { c:'var(--text-muted)',   bg:'rgba(148,163,184,0.15)',t:'CHURNED' },
+                }[seg] || { c:'var(--text-muted)', bg:'rgba(148,163,184,0.1)', t:seg.toUpperCase() };
+                return `<span style="background:${map.bg}; color:${map.c}; font-size:0.55rem; font-weight:700; padding:1px 6px; border-radius:3px;">${map.t}</span>`;
+            };
+
+            // Tabelle
+            const tc = document.getElementById('clv-table-container');
+            if (tc) {
+                if (!shown.length) {
+                    tc.innerHTML = '<div style="padding:2rem; text-align:center; color:var(--text-muted); font-size:0.8rem;">Keine Kunden für diese Filter-Kombination.</div>';
+                } else {
+                    tc.innerHTML = `<table class="analyse-table" style="font-size:0.66rem; width:100%;">
+                        <thead><tr>
+                            <th style="width:24px;">#</th><th>Firma / Kunden-Nr</th><th>Segment</th><th>Land</th>
+                            <th style="text-align:right;">LTV</th><th style="text-align:right;">Ø Jahr</th>
+                            <th style="text-align:right;">Aufträge</th><th style="text-align:center;">Letzter Kauf</th>
+                            <th style="text-align:right;">Tage</th><th>Top-Artikel</th><th>Kontakt</th>
+                        </tr></thead>
+                        <tbody>${shown.map((p, i) => {
+                            const top1 = p.top3Artikel && p.top3Artikel[0] ? `${p.top3Artikel[0].n}× ${_h(p.top3Artikel[0].bez.substring(0,28))}` : '—';
+                            const allTop = (p.top3Artikel || []).map(t => `${t.n}× ${_h(t.bez)}`).join('  ·  ');
+                            const kontakt = p.email ? `<span title="${_h(p.email)}">📧</span>` : '';
+                            const tel = p.telefon || p.mobil ? `<span title="${_h(p.telefon || p.mobil)}">📞</span>` : '';
+                            const firmaDisplay = p.firma || `<span style="color:var(--text-muted); font-style:italic;">Kunde ${p.kundenNr}</span>`;
+                            const tageColor = p.tageInaktiv > 365 ? 'var(--accent-red)' : p.tageInaktiv > 180 ? 'var(--accent-orange)' : p.tageInaktiv > 90 ? '#d97706' : 'var(--accent-green)';
+                            return `<tr>
+                                <td style="font-size:0.6rem; color:var(--text-muted);">${i+1}</td>
+                                <td style="font-size:0.66rem; max-width:240px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${_h(p.firma)} (${p.kundenNr})${p.ort ? ' · ' + _h(p.ort) : ''}">${firmaDisplay}</td>
+                                <td>${segBadge(p.segment)}</td>
+                                <td style="font-size:0.65rem; font-weight:600;">${_h(p.land || '?')}</td>
+                                <td class="mono" style="font-size:0.7rem; text-align:right; font-weight:700;">${p.ltv.toLocaleString('de-DE',{style:'currency',currency:'EUR',maximumFractionDigits:0})}</td>
+                                <td class="mono" style="font-size:0.65rem; text-align:right; color:var(--text-secondary);">${p.øJahresumsatz.toLocaleString('de-DE',{style:'currency',currency:'EUR',maximumFractionDigits:0})}</td>
+                                <td class="mono" style="font-size:0.65rem; text-align:right;">${p.nAufträge}</td>
+                                <td class="mono" style="font-size:0.6rem; text-align:center;">${p.letztesKaufDt ? p.letztesKaufDt.toLocaleDateString('de-DE') : '—'}</td>
+                                <td class="mono" style="font-size:0.65rem; text-align:right; font-weight:700; color:${tageColor};">${p.tageInaktiv}</td>
+                                <td style="font-size:0.58rem; max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--text-secondary);" title="${_h(allTop)}">${top1}</td>
+                                <td style="text-align:center; font-size:0.8rem;">${kontakt}${tel}</td>
+                            </tr>`;
+                        }).join('')}</tbody>
+                    </table>`;
+                }
+            }
+        }
+        function renderClvMultiPanel(field, counts, selectedSet) {
+            const panel = document.getElementById(`clv-${field}-panel`);
+            if (!panel) return;
+            const sorted = Object.entries(counts).sort((a,b) => b[1]-a[1]);
+            panel.innerHTML = `
+                <div class="lv-multi-toolbar">
+                    <button onclick="clvMultiSelectAll('${field}')">☑ Alle</button>
+                    <button onclick="clvMultiClear('${field}')">☐ Keine</button>
+                </div>
+                ${sorted.map(([k,v]) => {
+                    const checked = selectedSet.has(k) ? 'checked' : '';
+                    return `<label><input type="checkbox" data-val="${_h(k)}" ${checked} onchange="clvMultiToggle('${field}', this)"><span>${_h(k)}</span><span class="count">${v}</span></label>`;
+                }).join('')}
+            `;
+            if (!dashboardState._clvLastCounts) dashboardState._clvLastCounts = {};
+            dashboardState._clvLastCounts[field] = counts;
+        }
+        function clvMultiToggle(field, cb) {
+            const set = _clvMulti()[field];
+            const val = cb.getAttribute('data-val');
+            if (cb.checked) set.add(val); else set.delete(val);
+            renderCLVTab();
+        }
+        function clvMultiSelectAll(field) {
+            const set = _clvMulti()[field];
+            Object.keys((dashboardState._clvLastCounts || {})[field] || {}).forEach(k => set.add(k));
+            renderCLVTab();
+        }
+        function clvMultiClear(field) {
+            _clvMulti()[field].clear();
+            renderCLVTab();
+        }
+        function exportCLVCsv() {
+            const filtered = dashboardState._clvFiltered || [];
+            if (!filtered.length) { showToast('warning', 'Nichts zum Export', 'Keine Kunden im aktuellen Filter.'); return; }
+            const headers = ['Rang','Kunden-Nr','Firma','Land','Ort','Segment','LTV (Brutto)','Ø Jahresumsatz','Aufträge','Positionen','Erster Kauf','Letzter Kauf','Tage inaktiv','Jahre aktiv','Top-Artikel-1','Top-Artikel-2','Top-Artikel-3','E-Mail','Telefon','Mobil'];
+            const sortBy = document.getElementById('clv-sort')?.value || 'ltv';
+            const rows = filtered.map((p, i) => {
+                const t = (idx) => p.top3Artikel && p.top3Artikel[idx] ? `${p.top3Artikel[idx].n}× ${p.top3Artikel[idx].bez.replace(/;/g,',')}` : '';
+                return [
+                    i+1, p.kundenNr, (p.firma||'').replace(/;/g,','), p.land, (p.ort||'').replace(/;/g,','),
+                    p.segment,
+                    p.ltv.toFixed(2).replace('.', ','),
+                    p.øJahresumsatz.toFixed(2).replace('.', ','),
+                    p.nAufträge, p.positionen,
+                    p.erstesKaufDt ? p.erstesKaufDt.toLocaleDateString('de-DE') : '',
+                    p.letztesKaufDt ? p.letztesKaufDt.toLocaleDateString('de-DE') : '',
+                    p.tageInaktiv,
+                    p.jahreAktiv.toFixed(1).replace('.', ','),
+                    t(0), t(1), t(2),
+                    (p.email||'').replace(/;/g,','), (p.telefon||'').replace(/;/g,','), (p.mobil||'').replace(/;/g,','),
+                ].join(';');
+            });
+            const csv = '﻿' + headers.join(';') + '\n' + rows.join('\n');
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            const dateStr = new Date().toISOString().split('T')[0];
+            a.download = `CLV-Ranking_${filtered.length}-Kunden_sort-${sortBy}_${dateStr}.csv`;
+            a.click();
+            showToast('success', '📥 CSV exportiert', `${filtered.length} Kunden`);
+        }
+
         function renderPipelineTab() {
             const pipeline = dashboardState.pipelineData || [];
             const noData = document.getElementById('pipeline-no-data');
