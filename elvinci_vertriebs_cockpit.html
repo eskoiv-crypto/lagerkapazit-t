@@ -192,6 +192,47 @@
             cursor: pointer; outline: none;
         }
         .gf-select:hover, .gf-select:focus { border-color: var(--accent-cyan, #06b6d4); }
+
+        /* Multi-Select via <details>/<summary> (Live View Filter) */
+        .lv-multi { position: relative; }
+        .lv-multi-summary {
+            list-style: none; cursor: pointer; user-select: none;
+            display: block; width: 100%; padding: 0.4rem 0.5rem;
+            font-size: 0.78rem; border-radius: 6px;
+            background: var(--bg-secondary); border: 1px solid var(--border); color: var(--text-primary);
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
+        .lv-multi-summary::-webkit-details-marker { display: none; }
+        .lv-multi-summary::after { content: ' ▾'; color: var(--text-muted); float: right; }
+        .lv-multi[open] .lv-multi-summary { border-color: var(--accent-cyan); }
+        .lv-multi[open] .lv-multi-summary::after { content: ' ▴'; color: var(--accent-cyan); }
+        .lv-multi-panel {
+            position: absolute; top: calc(100% + 4px); left: 0; right: 0;
+            max-height: 320px; overflow-y: auto;
+            background: var(--bg-card, #161e29); border: 1px solid var(--accent-cyan);
+            border-radius: 6px; padding: 0.4rem; z-index: 100;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.45);
+        }
+        .lv-multi-panel .lv-multi-search {
+            width: 100%; padding: 0.3rem 0.45rem; font-size: 0.7rem;
+            background: var(--bg-secondary); border: 1px solid var(--border); color: var(--text-primary);
+            border-radius: 4px; margin-bottom: 0.3rem;
+        }
+        .lv-multi-panel .lv-multi-toolbar {
+            display: flex; gap: 0.3rem; margin-bottom: 0.3rem; padding-bottom: 0.3rem; border-bottom: 1px solid var(--border);
+        }
+        .lv-multi-panel .lv-multi-toolbar button {
+            flex: 1; padding: 0.25rem; font-size: 0.62rem; cursor: pointer;
+            background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 4px; color: var(--text-primary);
+        }
+        .lv-multi-panel .lv-multi-toolbar button:hover { border-color: var(--accent-cyan); }
+        .lv-multi-panel label {
+            display: flex; align-items: center; gap: 0.4rem; padding: 0.25rem 0.35rem;
+            font-size: 0.7rem; cursor: pointer; border-radius: 3px;
+        }
+        .lv-multi-panel label:hover { background: var(--bg-elevated); }
+        .lv-multi-panel label input { margin: 0; }
+        .lv-multi-panel label .count { margin-left: auto; color: var(--text-muted); font-size: 0.62rem; }
         .gf-label { font-size: 0.65rem; font-weight: 600; color: var(--text-muted, #8b9cad); text-transform: uppercase; letter-spacing: 0.04em; }
 
         .dept-btn:hover { border-color: var(--accent-blue) !important; }
@@ -4504,25 +4545,28 @@
                                 </div>
                             </div>
 
-                            <!-- FILTER-LEISTE -->
+                            <!-- FILTER-LEISTE (Multi-Select per Filter, kombinierbar) -->
                             <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:0.6rem; padding:0.9rem; background:linear-gradient(135deg, rgba(99,102,241,0.08), rgba(6,182,212,0.08)); border:1px solid rgba(99,102,241,0.3); border-radius:10px; margin-bottom:1rem;">
                                 <div>
-                                    <label style="display:block; font-size:0.6rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:0.2rem;">📦 Lieferant (supply_type) <span class="vc-info" data-tip="Bezugsquelle: von wem haben wir die Ware? Werte aus Stock-Analysis (z.B. AEG_Italien, OTTO_MIX). Leer = alle.">ⓘ</span></label>
-                                    <select id="lv-supplier" onchange="updateLiveView()" style="width:100%; padding:0.4rem; font-size:0.78rem; border-radius:6px; background:var(--bg-secondary); border:1px solid var(--border); color:var(--text-primary);">
-                                        <option value="">— alle Lieferanten —</option>
-                                    </select>
+                                    <label style="display:block; font-size:0.6rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:0.2rem;">📦 Lieferant (supply_type) <span class="vc-info" data-tip="Multi-Select: mehrere Lieferanten ankreuzen kombiniert sie (ODER-Verknüpfung). Werte aus Stock-Analysis (z.B. AEG_Italien, OTTO_MIX). Optionen filtern sich nach Warengruppe + Marke.">ⓘ</span></label>
+                                    <details class="lv-multi" data-field="supplier">
+                                        <summary class="lv-multi-summary" id="lv-supplier-summary">— alle Lieferanten —</summary>
+                                        <div class="lv-multi-panel" id="lv-supplier-panel"></div>
+                                    </details>
                                 </div>
                                 <div>
-                                    <label style="display:block; font-size:0.6rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:0.2rem;">🏷️ Warengruppe <span class="vc-info" data-tip="Produktkategorie (z.B. Waschmaschine). Optionen filtern sich nach Lieferant-Wahl.">ⓘ</span></label>
-                                    <select id="lv-wg" onchange="updateLiveView()" style="width:100%; padding:0.4rem; font-size:0.78rem; border-radius:6px; background:var(--bg-secondary); border:1px solid var(--border); color:var(--text-primary);">
-                                        <option value="">— alle Warengruppen —</option>
-                                    </select>
+                                    <label style="display:block; font-size:0.6rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:0.2rem;">🏷️ Warengruppe <span class="vc-info" data-tip="Multi-Select: mehrere Warengruppen kombinieren. Optionen filtern sich nach Lieferant + Marke (kaskadierend).">ⓘ</span></label>
+                                    <details class="lv-multi" data-field="wg">
+                                        <summary class="lv-multi-summary" id="lv-wg-summary">— alle Warengruppen —</summary>
+                                        <div class="lv-multi-panel" id="lv-wg-panel"></div>
+                                    </details>
                                 </div>
                                 <div>
-                                    <label style="display:block; font-size:0.6rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:0.2rem;">🏭 Marke <span class="vc-info" data-tip="Hersteller-Marke (z.B. AEG). Optionen filtern sich nach Lieferant + Warengruppe.">ⓘ</span></label>
-                                    <select id="lv-brand" onchange="updateLiveView()" style="width:100%; padding:0.4rem; font-size:0.78rem; border-radius:6px; background:var(--bg-secondary); border:1px solid var(--border); color:var(--text-primary);">
-                                        <option value="">— alle Marken —</option>
-                                    </select>
+                                    <label style="display:block; font-size:0.6rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:0.2rem;">🏭 Marke <span class="vc-info" data-tip="Multi-Select: mehrere Marken kombinieren. Optionen filtern sich nach Lieferant + Warengruppe (kaskadierend).">ⓘ</span></label>
+                                    <details class="lv-multi" data-field="brand">
+                                        <summary class="lv-multi-summary" id="lv-brand-summary">— alle Marken —</summary>
+                                        <div class="lv-multi-panel" id="lv-brand-panel"></div>
+                                    </details>
                                 </div>
                                 <div>
                                     <label style="display:block; font-size:0.6rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:0.2rem;">🔎 Modell-Suche <span class="vc-info tip-left" data-tip="Freitext-Suche im Modell-Feld (Substring, case-insensitive). Z.B. „L6FB" für AEG Lavamat L6FB-Modelle.">ⓘ</span></label>
@@ -9643,59 +9687,108 @@ Keine Erklärungen, kein Markdown.`;
         function _liveItems() {
             return (dashboardState.potenzialScoredItems || []);
         }
+        // Multi-Select-State (statt einzelner Werte)
+        function _lvMulti() {
+            if (!dashboardState._liveMulti) {
+                dashboardState._liveMulti = { supplier: new Set(), wg: new Set(), brand: new Set() };
+            }
+            return dashboardState._liveMulti;
+        }
         function _liveFilters() {
+            const m = _lvMulti();
             return {
-                supplier: document.getElementById('lv-supplier')?.value || '',
-                wg: document.getElementById('lv-wg')?.value || '',
-                brand: document.getElementById('lv-brand')?.value || '',
+                suppliers: m.supplier,   // Set
+                wgs:       m.wg,         // Set
+                brands:    m.brand,      // Set
                 model: (document.getElementById('lv-model')?.value || '').trim().toLowerCase(),
             };
         }
         function _liveFilterItems(items, f) {
             return items.filter(i => {
-                if (f.supplier && String(i.supply_type || '').trim() !== f.supplier) return false;
-                if (f.wg && String(i.product_group || '').trim() !== f.wg) return false;
-                if (f.brand && String(i.brand || '').trim() !== f.brand) return false;
+                const sp = String(i.supply_type || '').trim();
+                const wg = String(i.product_group || '').trim();
+                const br = String(i.brand || '').trim();
+                if (f.suppliers.size > 0 && !f.suppliers.has(sp)) return false;
+                if (f.wgs.size > 0 && !f.wgs.has(wg)) return false;
+                if (f.brands.size > 0 && !f.brands.has(br)) return false;
                 if (f.model && !String(i.model || '').toLowerCase().includes(f.model)) return false;
                 return true;
             });
         }
+        function _lvSummaryText(set, total, allLabel) {
+            if (set.size === 0) return allLabel;
+            if (set.size === 1) return Array.from(set)[0];
+            if (set.size === total) return allLabel + ' (alle)';
+            return `${set.size} ausgewählt`;
+        }
         function populateLiveViewDropdowns() {
             const items = _liveItems();
-            const f = _liveFilters();
-            // Lieferant: alle distinct supply_type — counts mit aktuellen Brand/WG-Filtern aber OHNE Lieferant-Filter
+            const m = _lvMulti();
+            // Cascading: jedes Dropdown sieht NICHT seinen eigenen Filter, aber die anderen
             const suppCounts = {}, wgCounts = {}, brandCounts = {};
             items.forEach(i => {
                 const sp = String(i.supply_type || '').trim() || '(unbekannt)';
                 const wg = String(i.product_group || '').trim() || '(unbekannt)';
                 const br = String(i.brand || '').trim() || '(unbekannt)';
-                // Lieferant-Dropdown: filter ohne supplier
-                if ((!f.wg || wg === f.wg) && (!f.brand || br === f.brand)) {
-                    suppCounts[sp] = (suppCounts[sp] || 0) + 1;
-                }
-                // WG-Dropdown: filter ohne wg
-                if ((!f.supplier || sp === f.supplier) && (!f.brand || br === f.brand)) {
-                    wgCounts[wg] = (wgCounts[wg] || 0) + 1;
-                }
-                // Brand-Dropdown: filter ohne brand
-                if ((!f.supplier || sp === f.supplier) && (!f.wg || wg === f.wg)) {
-                    brandCounts[br] = (brandCounts[br] || 0) + 1;
-                }
+                const matchSupp = m.supplier.size === 0 || m.supplier.has(sp);
+                const matchWg   = m.wg.size === 0 || m.wg.has(wg);
+                const matchBr   = m.brand.size === 0 || m.brand.has(br);
+                if (matchWg && matchBr) suppCounts[sp] = (suppCounts[sp] || 0) + 1;
+                if (matchSupp && matchBr) wgCounts[wg] = (wgCounts[wg] || 0) + 1;
+                if (matchSupp && matchWg) brandCounts[br] = (brandCounts[br] || 0) + 1;
             });
-            function fill(id, counts, currentVal, defaultLabel) {
-                const sel = document.getElementById(id);
-                if (!sel) return;
-                const sorted = Object.entries(counts).sort((a,b) => b[1]-a[1]);
-                sel.innerHTML = `<option value="">${defaultLabel}</option>`
-                    + sorted.map(([k,v]) => `<option value="${_h(k)}"${k===currentVal?' selected':''}>${_h(k)} (${v})</option>`).join('');
-            }
-            fill('lv-supplier', suppCounts, f.supplier, '— alle Lieferanten —');
-            fill('lv-wg', wgCounts, f.wg, '— alle Warengruppen —');
-            fill('lv-brand', brandCounts, f.brand, '— alle Marken —');
+            renderLvMultiPanel('supplier', suppCounts, m.supplier);
+            renderLvMultiPanel('wg', wgCounts, m.wg);
+            renderLvMultiPanel('brand', brandCounts, m.brand);
+            // Summary-Texte aktualisieren
+            const sumEl = id => document.getElementById(id);
+            const tot = (counts) => Object.keys(counts).length;
+            if (sumEl('lv-supplier-summary')) sumEl('lv-supplier-summary').textContent = _lvSummaryText(m.supplier, tot(suppCounts), '— alle Lieferanten —');
+            if (sumEl('lv-wg-summary'))       sumEl('lv-wg-summary').textContent       = _lvSummaryText(m.wg,       tot(wgCounts),   '— alle Warengruppen —');
+            if (sumEl('lv-brand-summary'))    sumEl('lv-brand-summary').textContent    = _lvSummaryText(m.brand,    tot(brandCounts),'— alle Marken —');
+        }
+        function renderLvMultiPanel(field, counts, selectedSet) {
+            const panel = document.getElementById(`lv-${field}-panel`);
+            if (!panel) return;
+            const sorted = Object.entries(counts).sort((a,b) => b[1]-a[1]);
+            const search = panel.querySelector('.lv-multi-search')?.value || '';
+            panel.innerHTML = `
+                <input type="text" class="lv-multi-search" placeholder="Suchen…" value="${_h(search)}" oninput="renderLvMultiPanel('${field}', dashboardState._lvLastCounts['${field}'], _lvMulti()['${field}'])">
+                <div class="lv-multi-toolbar">
+                    <button onclick="lvMultiSelectAll('${field}')">☑ Alle</button>
+                    <button onclick="lvMultiClear('${field}')">☐ Keine</button>
+                </div>
+                ${sorted.filter(([k,v]) => !search || k.toLowerCase().includes(search.toLowerCase())).map(([k,v]) => {
+                    const checked = selectedSet.has(k) ? 'checked' : '';
+                    return `<label><input type="checkbox" data-val="${_h(k)}" ${checked} onchange="lvMultiToggle('${field}', this)"><span>${_h(k)}</span><span class="count">${v}</span></label>`;
+                }).join('')}
+            `;
+            // Counts merken für Re-Render bei Such-Eingabe
+            if (!dashboardState._lvLastCounts) dashboardState._lvLastCounts = {};
+            dashboardState._lvLastCounts[field] = counts;
+        }
+        function lvMultiToggle(field, cb) {
+            const set = _lvMulti()[field];
+            const val = cb.getAttribute('data-val');
+            if (cb.checked) set.add(val); else set.delete(val);
+            updateLiveView();
+        }
+        function lvMultiSelectAll(field) {
+            const set = _lvMulti()[field];
+            const counts = (dashboardState._lvLastCounts || {})[field] || {};
+            Object.keys(counts).forEach(k => set.add(k));
+            updateLiveView();
+        }
+        function lvMultiClear(field) {
+            _lvMulti()[field].clear();
+            updateLiveView();
         }
         function resetLiveViewFilters() {
-            ['lv-supplier','lv-wg','lv-brand'].forEach(id => { const e = document.getElementById(id); if (e) e.value = ''; });
-            const m = document.getElementById('lv-model'); if (m) m.value = '';
+            const m = _lvMulti();
+            m.supplier.clear(); m.wg.clear(); m.brand.clear();
+            const mo = document.getElementById('lv-model'); if (mo) mo.value = '';
+            // Auch geöffnete Panels schließen
+            document.querySelectorAll('.lv-multi[open]').forEach(d => d.removeAttribute('open'));
             updateLiveView();
         }
         function updateLiveView() {
@@ -9704,14 +9797,19 @@ Keine Erklärungen, kein Markdown.`;
             const f = _liveFilters();
             const filtered = _liveFilterItems(items, f);
 
-            // Breadcrumb
+            // Breadcrumb (Multi-Select: zeigt alle ausgewählten Werte je Filter als Chips)
             const bc = document.getElementById('lv-breadcrumb');
             if (bc) {
+                const _list = (set, max=3) => {
+                    const arr = Array.from(set);
+                    if (arr.length <= max) return arr.join(', ');
+                    return arr.slice(0,max).join(', ') + ` +${arr.length-max}`;
+                };
                 const parts = [];
-                if (f.supplier) parts.push(`<span style="color:var(--accent-cyan); font-weight:600;">📦 ${_h(f.supplier)}</span>`);
-                if (f.wg)       parts.push(`<span style="color:var(--accent-cyan); font-weight:600;">🏷️ ${_h(f.wg)}</span>`);
-                if (f.brand)    parts.push(`<span style="color:var(--accent-cyan); font-weight:600;">🏭 ${_h(f.brand)}</span>`);
-                if (f.model)    parts.push(`<span style="color:var(--accent-cyan); font-weight:600;">🔎 "${_h(f.model)}"</span>`);
+                if (f.suppliers.size > 0) parts.push(`<span style="color:var(--accent-cyan); font-weight:600;">📦 ${_h(_list(f.suppliers))}</span>`);
+                if (f.wgs.size > 0)       parts.push(`<span style="color:var(--accent-cyan); font-weight:600;">🏷️ ${_h(_list(f.wgs))}</span>`);
+                if (f.brands.size > 0)    parts.push(`<span style="color:var(--accent-cyan); font-weight:600;">🏭 ${_h(_list(f.brands))}</span>`);
+                if (f.model)              parts.push(`<span style="color:var(--accent-cyan); font-weight:600;">🔎 "${_h(f.model)}"</span>`);
                 bc.innerHTML = parts.length ? `Aktive Filter: ${parts.join(' · ')} → <b>${filtered.length}</b> Geräte` : `<span style="color:var(--text-muted);">Keine Filter aktiv — Live View zeigt alle ${filtered.length} verkaufsbereiten Geräte. Wähle einen Filter für gezieltes Drill-Down.</span>`;
             }
 
@@ -9897,7 +9995,8 @@ Keine Erklärungen, kein Markdown.`;
             if (!items.length) { showToast('warning', 'Nichts zum Export', 'Keine Geräte in Auswahl oder Filter.'); return; }
 
             const f = _liveFilters();
-            const filterNote = [f.supplier, f.wg, f.brand, f.model].filter(Boolean).join('_') || 'alle';
+            const _join = set => Array.from(set).join('+');
+            const filterNote = [_join(f.suppliers), _join(f.wgs), _join(f.brands), f.model].filter(Boolean).join('_') || 'alle';
             const headers = ['Lager-Nr','Marke','Modell','Artikel-Nr','Warengruppe','Lieferant','Status','Grade','Lagertage','EK','VK','Online','Marge%','Upload-Datum'];
             const rows = items.map(it => {
                 const ek = parseFloat(it.Buying_Price)||0, vk = parseFloat(it.Selling_Price)||0;
@@ -9931,18 +10030,21 @@ Keine Erklärungen, kein Markdown.`;
 
         function liveViewToKonvolut() {
             const f = _liveFilters();
-            // Wechsel zum Verkaufsprioritäts-Reiter + Voreinstellungen im Konvolut-Generator
             switchAnalyseTab('potenzial');
             const setIf = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
-            if (f.brand)    setIf('konvolut-groupby', 'brand');
-            else if (f.wg)  setIf('konvolut-groupby', 'product_group');
-            else            setIf('konvolut-groupby', '__mixed__');
+            if (f.brands.size > 0)    setIf('konvolut-groupby', 'brand');
+            else if (f.wgs.size > 0)  setIf('konvolut-groupby', 'product_group');
+            else                      setIf('konvolut-groupby', '__mixed__');
             setIf('konvolut-minscore', '0');
             setIf('konvolut-minmarge', '0');
             setIf('konvolut-maxsize', '30');
-            // Hinweis: aktueller Konvolut-Generator filtert nicht nach Lieferant — wir markieren das
+            const summary = [
+                f.suppliers.size > 0 ? `${f.suppliers.size} Lieferant(en)` : null,
+                f.wgs.size > 0 ? `${f.wgs.size} WG` : null,
+                f.brands.size > 0 ? `${f.brands.size} Marke(n)` : null,
+            ].filter(Boolean).join(' · ') || 'alle';
             setTimeout(() => {
-                showToast('info', 'Voreingestellt im Konvolut-Generator', `Filter "${f.supplier||f.wg||f.brand||'alle'}" wurde übernommen. Klick "⚙️ Konvolute erzeugen".`);
+                showToast('info', 'Voreingestellt im Konvolut-Generator', `Filter (${summary}) übernommen. Klick "⚙️ Konvolute erzeugen". Hinweis: Konvolut-Generator filtert nicht direkt nach Lieferant — Live-View-Auswahl muss ggf. dort nachgeklickt werden.`);
             }, 250);
         }
 
