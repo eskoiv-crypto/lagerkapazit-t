@@ -11482,13 +11482,14 @@ Keine Erklärungen, kein Markdown.`;
             const p = dashboardState._angeboteSelectedKunde;
             const matches = dashboardState._angeboteCurrentMatches || [];
             const rabattInit = dashboardState._angeboteCurrentRabatt || 0;
+            const eff = dashboardState._angeboteEffRabatt || (() => rabattInit);
             if (!p || !matches.length) { showToast('warning', 'Nichts zu exportieren', 'Kein Kunde / keine Matches.'); return; }
             const headers = ['Rang','Bezeichnung','Marke','Warengruppe','Grade','SSCC','Match-Hits',
                              'Listen-VK','EK','Rabatt %','Kunden-Preis','Marge €','Marge %'];
             const rows = matches.map((m, i) => [
                 i + 1, String(m.bez || ''), String(m.brand || ''), String(m.wg || ''),
                 String(m.grade || ''), String(m.sscc || ''), parseInt(m.hits) || 0,
-                Number(m.vk) || 0, Number(m.ek) || 0, Number(rabattInit) || 0,
+                Number(m.vk) || 0, Number(m.ek) || 0, Number(eff(m)) || 0,
                 null, null, null,
             ]);
             const ok = _writeLiveExcel({
@@ -11638,10 +11639,12 @@ Keine Erklärungen, kein Markdown.`;
                 [],
                 ['Pos.', 'Bezeichnung', 'Marke', 'Warengruppe', 'Zustand', 'Listen-VK', 'Rabatt', 'Ihr Preis', 'Ersparnis'],
             ];
+            const eff = dashboardState._angeboteEffRabatt || (() => rabattInit);
             let sumListen = 0, sumPreis = 0, sumErsparnis = 0;
             matches.forEach((m, i) => {
                 const vk = Number(m.vk) || 0;
-                const preis = vk * (1 - rabattInit / 100);
+                const rab = eff(m);
+                const preis = vk * (1 - rab / 100);
                 const ersparnis = vk - preis;
                 sumListen += vk; sumPreis += preis; sumErsparnis += ersparnis;
                 aoa.push([
@@ -11651,7 +11654,7 @@ Keine Erklärungen, kein Markdown.`;
                     String(m.wg || ''),
                     String(m.grade || ''),
                     { v: vk, t: 'n', z: '#,##0.00 "€"' },
-                    { v: rabattInit / 100, t: 'n', z: '0.0%' },
+                    { v: rab / 100, t: 'n', z: '0.0%' },
                     { v: preis, t: 'n', z: '#,##0.00 "€"' },
                     { v: ersparnis, t: 'n', z: '#,##0.00 "€"' },
                 ]);
@@ -11778,9 +11781,11 @@ Keine Erklärungen, kein Markdown.`;
             if (!match) match = arr.find(p => (p.firma || '').toLowerCase().startsWith(q));
             if (!match) match = arr.find(p => (p.firma || '').toLowerCase().includes(q));
             if (!match) { _angeboteHideCustomer(); return; }
-            // Filter reset bei Kundenwechsel — sonst trägt alter Filter rüber
+            // Filter + Overrides reset bei Kundenwechsel — sonst tragen alte Anpassungen rüber
             if (dashboardState._angeboteSelectedKunde?.kundenNr !== match.kundenNr) {
                 dashboardState._angeboteFilters = null;
+                dashboardState._angeboteOverrides = {};
+                dashboardState._angeboteGlobalRabatt = null;
             }
             dashboardState._angeboteSelectedKunde = match;
             _angeboteRenderSteckbrief(match);
@@ -11792,6 +11797,8 @@ Keine Erklärungen, kein Markdown.`;
             if (input) input.value = '';
             dashboardState._angeboteSelectedKunde = null;
             dashboardState._angeboteFilters = null;
+            dashboardState._angeboteOverrides = {};
+            dashboardState._angeboteGlobalRabatt = null;
             _angeboteHideCustomer();
         }
 
@@ -11915,6 +11922,39 @@ Keine Erklärungen, kein Markdown.`;
             _angeboteFilters().matchTopN = parseInt(val) || 5;
             _angeboteRenderMatch(dashboardState._angeboteSelectedKunde);
         }
+        // Per-Position-Overrides (Rabatt, Exclude) — pro Lager-Nr/SSCC
+        function _angeboteOverrides() {
+            if (!dashboardState._angeboteOverrides) dashboardState._angeboteOverrides = {};
+            return dashboardState._angeboteOverrides;
+        }
+        function angeboteSetGlobalRabatt(val) {
+            const v = parseFloat(val);
+            dashboardState._angeboteGlobalRabatt = (isNaN(v) || v < 0) ? null : Math.min(100, v);
+            _angeboteRenderMatch(dashboardState._angeboteSelectedKunde);
+        }
+        function angeboteSetRowRabatt(sscc, val) {
+            const ov = _angeboteOverrides();
+            const v = parseFloat(val);
+            if (val === '' || isNaN(v)) {
+                if (ov[sscc]) { delete ov[sscc].rabatt; if (Object.keys(ov[sscc]).length === 0) delete ov[sscc]; }
+            } else {
+                ov[sscc] = ov[sscc] || {};
+                ov[sscc].rabatt = Math.max(0, Math.min(100, v));
+            }
+            _angeboteRenderMatch(dashboardState._angeboteSelectedKunde);
+        }
+        function angeboteToggleExclude(sscc) {
+            const ov = _angeboteOverrides();
+            ov[sscc] = ov[sscc] || {};
+            ov[sscc].excluded = !ov[sscc].excluded;
+            if (!ov[sscc].excluded && !('rabatt' in ov[sscc])) delete ov[sscc];
+            _angeboteRenderMatch(dashboardState._angeboteSelectedKunde);
+        }
+        function angeboteResetOverrides() {
+            dashboardState._angeboteOverrides = {};
+            dashboardState._angeboteGlobalRabatt = null;
+            _angeboteRenderMatch(dashboardState._angeboteSelectedKunde);
+        }
 
         function _angeboteRenderMatch(p) {
             const matchC = document.getElementById('angebote-customer-match-container');
@@ -11993,10 +12033,20 @@ Keine Erklärungen, kein Markdown.`;
             const σVk = filtered.reduce((s, m) => s + m.vk, 0);
             const σMarge = filtered.reduce((s, m) => s + (m.vk - m.ek), 0);
             // Personalisierte Preisanpassung: bei Premium-Kunde (LTV ≥ 50k) -3% Rabatt-Empfehlung, bei Churned +0%
-            const rabattPct = p.segment === 'aktiv' && p.ltv >= 50000 ? 3
-                            : p.segment === 'high-value-churn' ? 5  // Reaktivierungs-Hebel
-                            : p.segment === 'pre-churn' ? 4
-                            : 0;
+            const rabattDefault = p.segment === 'aktiv' && p.ltv >= 50000 ? 3
+                                : p.segment === 'high-value-churn' ? 5  // Reaktivierungs-Hebel
+                                : p.segment === 'pre-churn' ? 4
+                                : 0;
+            // Globaler Override (vom User gesetzt) → sonst Default
+            const rabattPct = dashboardState._angeboteGlobalRabatt != null
+                ? dashboardState._angeboteGlobalRabatt : rabattDefault;
+            const overrides = _angeboteOverrides();
+            // Effektiver Rabatt pro Zeile + Exclude-Flag
+            const effRabatt = m => {
+                const ov = overrides[m.sscc];
+                return (ov && typeof ov.rabatt === 'number') ? ov.rabatt : rabattPct;
+            };
+            const isExcluded = m => !!(overrides[m.sscc] && overrides[m.sscc].excluded);
             // Sort-Dropdown
             const sortKey = dashboardState._angeboteMatchSort || 'matchScore';
             const sortedTop = [...top].sort((a, b) => {
@@ -12066,27 +12116,53 @@ Keine Erklärungen, kein Markdown.`;
                     </div>
                 </div>`;
             const rows = sortedTop.map((m, i) => {
-                const preis = m.vk * (1 - rabattPct / 100);
-                return `<tr style="border-bottom:1px solid var(--border);">
+                const sscc = String(m.sscc || '');
+                const excluded = isExcluded(m);
+                const rab = effRabatt(m);
+                const ov = overrides[sscc];
+                const hasRabattOverride = ov && typeof ov.rabatt === 'number';
+                const preis = m.vk * (1 - rab / 100);
+                const margeReal = m.vk > 0 ? ((preis - m.ek) / preis * 100) : 0;
+                const rowStyle = excluded
+                    ? 'opacity:0.35; text-decoration:line-through;'
+                    : '';
+                const rabBg = hasRabattOverride ? 'background:rgba(168,85,247,0.15);' : '';
+                return `<tr style="border-bottom:1px solid var(--border); ${rowStyle}">
+                    <td style="padding:0.4rem; font-size:0.7rem; color:var(--text-muted); text-align:center;">
+                        <input type="checkbox" ${excluded ? '' : 'checked'} onchange="angeboteToggleExclude('${_h(sscc)}')" title="${excluded ? 'Wieder aufnehmen' : 'Aus Angebot ausschließen'}" style="cursor:pointer; accent-color:var(--accent-green);">
+                    </td>
                     <td style="padding:0.4rem; font-size:0.7rem; color:var(--text-muted);">${i+1}</td>
                     <td style="padding:0.4rem; font-size:0.72rem;"><b>${m.bez || '—'}</b><div style="font-size:0.62rem; color:var(--text-muted);">${m.brand} · ${m.wg}</div></td>
                     <td style="padding:0.4rem; font-size:0.72rem; text-align:center;">${_gradeBadge(m.grade)}</td>
                     <td style="padding:0.4rem; font-size:0.72rem; text-align:center;"><span style="padding:0.1rem 0.4rem; background:var(--accent-cyan); color:white; border-radius:4px; font-weight:700;">${m.hits}</span></td>
                     <td style="padding:0.4rem; font-size:0.72rem; text-align:right;">${m.vk.toFixed(2).replace('.', ',')} €</td>
+                    <td style="padding:0.4rem; text-align:center; ${rabBg}">
+                        <input type="number" min="0" max="100" step="0.5" value="${rab}" onchange="angeboteSetRowRabatt('${_h(sscc)}', this.value)" title="Rabatt für diese Position überschreiben (leer = globaler Wert)" style="width:55px; padding:0.15rem 0.3rem; font-size:0.7rem; border-radius:4px; background:var(--bg-secondary); border:1px solid ${hasRabattOverride ? '#a855f7' : 'var(--border)'}; color:${hasRabattOverride ? '#a855f7' : 'var(--text-primary)'}; font-weight:${hasRabattOverride ? '700' : '400'}; text-align:right;">
+                    </td>
                     <td style="padding:0.4rem; font-size:0.72rem; text-align:right; color:var(--accent-green); font-weight:700;">${preis.toFixed(2).replace('.', ',')} €</td>
-                    <td style="padding:0.4rem; font-size:0.7rem; text-align:right; color:${m.marge >= 30 ? 'var(--accent-green)' : 'var(--text-muted)'};">${m.marge.toFixed(1)}%</td>
+                    <td style="padding:0.4rem; font-size:0.7rem; text-align:right; color:${margeReal >= 30 ? 'var(--accent-green)' : margeReal >= 10 ? 'inherit' : 'var(--accent-orange)'};">${margeReal.toFixed(1)}%</td>
                 </tr>`;
             }).join('');
+            // Aktive Match-Liste (ohne excluded) — fuer Summen + Exports
+            const activeMatches = filtered.filter(m => !isExcluded(m));
+            const σVkRabattiert = activeMatches.reduce((s, m) => s + m.vk * (1 - effRabatt(m) / 100), 0);
+            const σMargeReal = activeMatches.reduce((s, m) => s + (m.vk * (1 - effRabatt(m) / 100) - m.ek), 0);
+            const nExcluded = filtered.length - activeMatches.length;
+            const nOverrides = Object.keys(overrides).filter(k => overrides[k].rabatt != null).length;
             const filterActive = (f.wgs.size + f.brands.size + f.grades.size) > 0 ||
                                  f.minHits > 0 || f.minVk > 0 || f.maxVk > 0 || f.minMarge > 0;
+            const anpassungenLabel = (nExcluded > 0 || nOverrides > 0)
+                ? ` · <span style="color:#a855f7; font-weight:700;">${nExcluded > 0 ? nExcluded + ' ausgeschlossen' : ''}${(nExcluded > 0 && nOverrides > 0) ? ' · ' : ''}${nOverrides > 0 ? nOverrides + ' Rabatt überschrieben' : ''}</span>`
+                : '';
             const summaryLabel = filterActive
-                ? `🎯 ${filtered.length} von ${matches.length} Items · Σ VK ${Math.round(σVk).toLocaleString('de-DE')} € · Σ Marge ${Math.round(σMarge).toLocaleString('de-DE')} €`
-                : `🎯 ${matches.length} passende Stock-Items · Σ VK ${Math.round(σVk).toLocaleString('de-DE')} € · Σ Marge ${Math.round(σMarge).toLocaleString('de-DE')} €`;
+                ? `🎯 ${activeMatches.length} aktiv (von ${matches.length}) · Σ Kunden-Preis ${Math.round(σVkRabattiert).toLocaleString('de-DE')} € · Σ Marge ${Math.round(σMargeReal).toLocaleString('de-DE')} €${anpassungenLabel}`
+                : `🎯 ${activeMatches.length} aktive Items · Σ Kunden-Preis ${Math.round(σVkRabattiert).toLocaleString('de-DE')} € · Σ Marge ${Math.round(σMargeReal).toLocaleString('de-DE')} €${anpassungenLabel}`;
+            const globalRabattOverridden = dashboardState._angeboteGlobalRabatt != null;
             matchC.innerHTML = filterUI + `
                 <div style="padding:0.85rem 1rem; background:linear-gradient(135deg, rgba(16,185,129,0.06), rgba(0,113,227,0.04)); border:1px solid rgba(16,185,129,0.3); border-radius:10px; margin-bottom:0.75rem;">
                     <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem; margin-bottom:0.5rem;">
                         <div style="font-size:0.9rem; font-weight:700; color:var(--text-primary);">${summaryLabel}</div>
-                        <div style="display:flex; gap:0.5rem; align-items:center;">
+                        <div style="display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
                             <label style="font-size:0.65rem; color:var(--text-muted); text-transform:uppercase;">Sort:</label>
                             <select onchange="dashboardState._angeboteMatchSort=this.value; _angeboteRenderMatch(dashboardState._angeboteSelectedKunde);" style="padding:0.3rem 0.5rem; font-size:0.7rem; border-radius:4px; background:var(--bg-secondary); border:1px solid var(--border); color:var(--text-primary);">
                                 <option value="matchScore"${sortKey==='matchScore'?' selected':''}>Match-Score ↓</option>
@@ -12098,50 +12174,63 @@ Keine Erklärungen, kein Markdown.`;
                             <button onclick="exportAngebotsKundenversion()" style="padding:0.35rem 0.7rem; background:linear-gradient(135deg,#a855f7,#0071e3); color:white; border:none; border-radius:5px; font-size:0.7rem; font-weight:700; cursor:pointer;" title="Sichere Kunden-Version — eigenes Excel ohne EK, Marge oder LTV. Sofort an den Kunden weiterleitbar.">📨 Kunden-Version</button>
                         </div>
                     </div>
-                    <div style="font-size:0.7rem; color:var(--text-secondary);">
-                        💡 Personalisierte Preis-Empfehlung mit <b>${rabattPct}% Rabatt</b> auf Listen-VK (Segment-Logik: aktiv ≥50k LTV = 3% · pre-churn = 4% · high-value-churn = 5%).
+                    <div style="display:flex; justify-content:space-between; gap:0.6rem; flex-wrap:wrap; align-items:center; padding-top:0.4rem; border-top:1px dashed rgba(255,255,255,0.08);">
+                        <div style="font-size:0.7rem; color:var(--text-secondary);">
+                            💡 Empfehlung Segment <b>${p.segment}</b>: <b>${rabattDefault}% Rabatt</b> · aktiv: <b style="color:${globalRabattOverridden ? '#a855f7' : 'inherit'};">${rabattPct}%</b>
+                        </div>
+                        <div style="display:flex; gap:0.4rem; align-items:center; flex-wrap:wrap;">
+                            <label style="font-size:0.65rem; color:var(--text-muted); text-transform:uppercase;" title="Setzt den Rabatt für ALLE Zeilen, die nicht manuell überschrieben sind">🎯 Globaler Rabatt %:</label>
+                            <input type="number" min="0" max="100" step="0.5" value="${rabattPct}" onchange="angeboteSetGlobalRabatt(this.value)" style="width:65px; padding:0.25rem 0.4rem; font-size:0.75rem; border-radius:4px; background:var(--bg-secondary); border:1px solid ${globalRabattOverridden ? '#a855f7' : 'var(--border)'}; color:${globalRabattOverridden ? '#a855f7' : 'var(--text-primary)'}; font-weight:${globalRabattOverridden ? '700' : '400'}; text-align:right;">
+                            <button onclick="angeboteResetOverrides()" style="padding:0.25rem 0.55rem; background:var(--bg-elevated); color:var(--text-muted); border:1px solid var(--border); border-radius:4px; font-size:0.65rem; cursor:pointer;" title="Globalen Rabatt + alle Zeilen-Anpassungen zurücksetzen">↺ Anpassungen reset</button>
+                        </div>
                     </div>
                 </div>
                 <div style="max-height:560px; overflow-y:auto; background:var(--bg-card); border-radius:8px;">
                     <table style="width:100%; border-collapse:collapse;">
                         <thead style="position:sticky; top:0; background:var(--bg-elevated); z-index:1;">
                             <tr style="font-size:0.62rem; color:var(--text-muted); text-transform:uppercase;">
+                                <th style="padding:0.5rem; text-align:center;" title="Ausgeschlossene Positionen erscheinen nicht in der Kunden-Version">Im Angebot</th>
                                 <th style="padding:0.5rem; text-align:left;">#</th>
                                 <th style="padding:0.5rem; text-align:left;">Artikel</th>
                                 <th style="padding:0.5rem; text-align:center;">Grade</th>
                                 <th style="padding:0.5rem; text-align:center;">Match</th>
                                 <th style="padding:0.5rem; text-align:right;">Listen-VK</th>
+                                <th style="padding:0.5rem; text-align:center;" title="Pro Zeile editierbar — überschreibt globalen Rabatt">Rabatt %</th>
                                 <th style="padding:0.5rem; text-align:right;">Kunden-Preis</th>
                                 <th style="padding:0.5rem; text-align:right;">Marge %</th>
                             </tr>
                         </thead>
-                        <tbody>${rows || '<tr><td colspan="7" style="padding:1rem; text-align:center; color:var(--text-muted);">Keine Matches</td></tr>'}</tbody>
+                        <tbody>${rows || '<tr><td colspan="9" style="padding:1rem; text-align:center; color:var(--text-muted);">Keine Matches</td></tr>'}</tbody>
                     </table>
                 </div>
-                ${filtered.length > limit ? `<div style="margin-top:0.5rem; font-size:0.65rem; color:var(--text-muted); text-align:right;">Top ${limit} von ${filtered.length} angezeigt — Export enthält alle ${filtered.length}</div>` : ''}
+                ${filtered.length > limit ? `<div style="margin-top:0.5rem; font-size:0.65rem; color:var(--text-muted); text-align:right;">Top ${limit} von ${filtered.length} angezeigt — Export enthält alle ${activeMatches.length} aktiven Positionen</div>` : ''}
             `;
-            // Stash für CSV/Excel-Export — FILTERED matches (nicht alle), damit Filter mit-exportiert wird
-            dashboardState._angeboteCurrentMatches = filtered;
+            // Stash für CSV/Excel-Export — AKTIVE matches (ohne excluded), damit Anpassungen mit-exportiert werden
+            dashboardState._angeboteCurrentMatches = activeMatches;
             dashboardState._angeboteCurrentRabatt = rabattPct;
+            dashboardState._angeboteEffRabatt = effRabatt;  // fuer Exports
         }
 
         function exportAngebotsCsv() {
             const p = dashboardState._angeboteSelectedKunde;
             const matches = dashboardState._angeboteCurrentMatches || [];
             const rabatt = dashboardState._angeboteCurrentRabatt || 0;
+            const eff = dashboardState._angeboteEffRabatt || (() => rabatt);
             if (!p || !matches.length) { showToast('warning', 'Nichts zu exportieren', 'Kein Kunde / keine Matches.'); return; }
             const headers = ['Rang','Bezeichnung','Marke','Warengruppe','Grade','SSCC','Match-Hits','Listen-VK','Rabatt %','Kunden-Preis','EK','Marge %'];
             const rows = matches.map((m, i) => {
-                const preis = m.vk * (1 - rabatt / 100);
+                const rab = eff(m);
+                const preis = m.vk * (1 - rab / 100);
+                const margeReal = preis > 0 ? ((preis - m.ek) / preis * 100) : 0;
                 return [
                     i+1, (m.bez||'').replace(/;/g,','), (m.brand||'').replace(/;/g,','), (m.wg||'').replace(/;/g,','),
                     (m.grade||'').toString().replace(/;/g,','),
                     m.sscc, m.hits,
                     m.vk.toFixed(2).replace('.', ','),
-                    rabatt,
+                    rab.toFixed(1).replace('.', ','),
                     preis.toFixed(2).replace('.', ','),
                     m.ek.toFixed(2).replace('.', ','),
-                    m.marge.toFixed(1).replace('.', ','),
+                    margeReal.toFixed(1).replace('.', ','),
                 ].join(';');
             });
             const meta = `Kunde;${(p.firma||p.kundenNr).replace(/;/g,',')};Kunden-Nr;${p.kundenNr};Segment;${p.segment};LTV;${Math.round(p.ltv)};Rabatt-Empfehlung %;${rabatt}\n`;
