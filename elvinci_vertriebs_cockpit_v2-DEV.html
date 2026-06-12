@@ -4244,11 +4244,14 @@
                             </div>
 
                             <div style="margin-top: 1rem; display: flex; gap: 0.5rem;">
-                                <button onclick="exportPotenzialList()" style="padding: 0.5rem 1rem; background: var(--accent-cyan); color: white; border: none; border-radius: 6px; font-size: 0.75rem; cursor: pointer;">
-                                    📥 Gefilterte Liste als CSV
+                                <button onclick="exportPotenzialList()" style="padding: 0.5rem 1rem; background: var(--accent-cyan); color: white; border: none; border-radius: 6px; font-size: 0.75rem; cursor: pointer;" title="Statische CSV ohne Formeln">
+                                    📥 CSV
+                                </button>
+                                <button onclick="exportPotenzialXLSX()" style="padding: 0.5rem 1rem; background: var(--accent-green); color: white; border: none; border-radius: 6px; font-size: 0.75rem; cursor: pointer;" title="Excel mit Live-Formeln — VK ändern, Marge rechnet auto">
+                                    📊 Excel (live)
                                 </button>
                                 <button onclick="exportPotenzialPDF()" style="padding: 0.5rem 1rem; background: var(--accent-orange); color: white; border: none; border-radius: 6px; font-size: 0.75rem; cursor: pointer;">
-                                    📄 Export als PDF
+                                    📄 PDF
                                 </button>
                             </div>
                         </div>
@@ -4391,7 +4394,8 @@
                                         <option value="90">Ab 90 Tagen</option>
                                         <option value="120">Ab 120 Tagen</option>
                                     </select>
-                                    <button onclick="exportSlowMovers()" style="padding: 0.25rem 0.5rem; font-size: 0.65rem; background: var(--accent-orange); color: white; border: none; border-radius: 4px; cursor: pointer;">📥 Export</button>
+                                    <button onclick="exportSlowMovers()" style="padding: 0.25rem 0.5rem; font-size: 0.65rem; background: var(--accent-orange); color: white; border: none; border-radius: 4px; cursor: pointer;" title="Statische CSV">📥 CSV</button>
+                                    <button onclick="exportSlowMoversXLSX()" style="padding: 0.25rem 0.5rem; font-size: 0.65rem; background: var(--accent-green); color: white; border: none; border-radius: 4px; cursor: pointer;" title="Excel mit Live-Formeln">📊 Excel (live)</button>
                                 </div>
                             </div>
                             <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.5rem; margin-bottom: 0.75rem;">
@@ -4786,8 +4790,9 @@
                             <div id="konvolut-summary" style="margin-top: 0.9rem; font-size:0.75rem; color: var(--text-secondary);"></div>
                             <div id="konvolut-container" style="margin-top: 0.75rem; display:flex; flex-direction:column; gap:0.6rem;"></div>
                             <div id="konvolut-export-bar" style="margin-top:0.75rem; display:none; gap:0.5rem;">
-                                <button onclick="exportAlleKonvolute()" style="padding:0.45rem 0.9rem; background: var(--accent-cyan); color:white; border:none; border-radius:6px; font-size:0.72rem; cursor:pointer;">📥 Alle als CSV</button>
-                                <button onclick="exportKonvolutePDF()" style="padding:0.45rem 0.9rem; background: var(--accent-orange); color:white; border:none; border-radius:6px; font-size:0.72rem; cursor:pointer;">📄 Alle als PDF</button>
+                                <button onclick="exportAlleKonvolute()" style="padding:0.45rem 0.9rem; background: var(--accent-cyan); color:white; border:none; border-radius:6px; font-size:0.72rem; cursor:pointer;" title="Statische CSV">📥 CSV</button>
+                                <button onclick="exportAlleKonvoluteXLSX()" style="padding:0.45rem 0.9rem; background: var(--accent-green); color:white; border:none; border-radius:6px; font-size:0.72rem; cursor:pointer;" title="Excel mit Live-Formeln">📊 Excel (live)</button>
+                                <button onclick="exportKonvolutePDF()" style="padding:0.45rem 0.9rem; background: var(--accent-orange); color:white; border:none; border-radius:6px; font-size:0.72rem; cursor:pointer;">📄 PDF</button>
                             </div>
                         </div>
 
@@ -4857,7 +4862,8 @@
                                             </select>
                                             <button onclick="lvSelectAll()" style="padding:0.3rem 0.55rem; background:var(--bg-elevated); border:1px solid var(--border); border-radius:4px; font-size:0.65rem; cursor:pointer;" title="Alle aktuell sichtbaren Geräte markieren">☑ Alle</button>
                                             <button onclick="lvClearSelection()" style="padding:0.3rem 0.55rem; background:var(--bg-elevated); border:1px solid var(--border); border-radius:4px; font-size:0.65rem; cursor:pointer;" title="Auswahl zurücksetzen">☐ Reset</button>
-                                            <button onclick="lvExportCSV()" style="padding:0.3rem 0.65rem; background:var(--accent-cyan); color:white; border:none; border-radius:4px; font-size:0.7rem; font-weight:700; cursor:pointer;" title="Markierte Geräte als CSV — wenn keine markiert: alle gefilterten">📥 CSV</button>
+                                            <button onclick="lvExportCSV()" style="padding:0.3rem 0.65rem; background:var(--accent-cyan); color:white; border:none; border-radius:4px; font-size:0.7rem; font-weight:700; cursor:pointer;" title="Markierte Geräte als CSV — statisch, ohne Formeln">📥 CSV</button>
+                                            <button onclick="lvExportXLSX()" style="padding:0.3rem 0.65rem; background:var(--accent-green); color:white; border:none; border-radius:4px; font-size:0.7rem; font-weight:700; cursor:pointer;" title="Markierte Geräte als Excel mit Live-Formeln — VK ändern, Marge rechnet automatisch nach">📊 Excel (live)</button>
                                             <span id="lv-selection-count" style="font-size:0.65rem; color:var(--accent-cyan); font-weight:700;"></span>
                                         </div>
                                     </div>
@@ -9652,11 +9658,14 @@ Keine Erklärungen, kein Markdown.`;
                 p.øJahresumsatz   = p.ltv / p.jahreAktiv;
                 p.erstesKaufDt    = new Date(p.erstTs);
                 p.letztesKaufDt   = new Date(p.letztTs);
-                // Top-3 Artikel
-                p.top3Artikel = Object.entries(p.bezCount)
+                // Top-N Artikel (bis zu 10 vorhalten — Match-Engine nutzt Top-5 default,
+                // UI-Steckbrief zeigt Top-5, Tooltip/Detail kann auf 10 erweitern)
+                p.topNArtikel = Object.entries(p.bezCount)
                     .sort((a, b) => b[1] - a[1])
-                    .slice(0, 3)
+                    .slice(0, 10)
                     .map(([bez, n]) => ({ bez, n }));
+                p.top3Artikel = p.topNArtikel.slice(0, 3);   // Backward-Compat
+                p.top5Artikel = p.topNArtikel.slice(0, 5);   // bevorzugt fuer Match + Steckbrief
                 // Stammdaten-Join
                 const sd = stamm[p.kundenNr] || {};
                 p.firma   = sd.firma   || '';
@@ -10026,11 +10035,12 @@ Keine Erklärungen, kein Markdown.`;
                             const allTop = (p.top3Artikel || []).map(t => `${t.n}× ${_h(t.bez)}`).join('  ·  ');
                             const kontakt = p.email ? `<span title="${_h(p.email)}">📧</span>` : '';
                             const tel = p.telefon || p.mobil ? `<span title="${_h(p.telefon || p.mobil)}">📞</span>` : '';
+                            const hasAny = p.email || p.telefon || p.mobil;
                             const firmaDisplay = p.firma || `<span style="color:var(--text-muted); font-style:italic;">Kunde ${p.kundenNr}</span>`;
                             const tageColor = p.tageInaktiv > 365 ? 'var(--accent-red)' : p.tageInaktiv > 180 ? 'var(--accent-orange)' : p.tageInaktiv > 90 ? '#d97706' : 'var(--accent-green)';
-                            return `<tr>
+                            return `<tr class="cc-row-clickable" onclick="showCustomerCard('${_h(p.kundenNr)}')" title="Klick → Kontakt-Karte öffnen">
                                 <td style="font-size:0.6rem; color:var(--text-muted);">${i+1}</td>
-                                <td style="font-size:0.66rem; max-width:240px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${_h(p.firma)} (${p.kundenNr})${p.ort ? ' · ' + _h(p.ort) : ''}">${firmaDisplay}</td>
+                                <td style="font-size:0.66rem; max-width:240px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${firmaDisplay}</td>
                                 <td>${segBadge(p.segment)}</td>
                                 <td style="font-size:0.65rem; font-weight:600;">${_h(p.land || '?')}</td>
                                 <td class="mono" style="font-size:0.7rem; text-align:right; font-weight:700;">${p.ltv.toLocaleString('de-DE',{style:'currency',currency:'EUR',maximumFractionDigits:0})}</td>
@@ -10039,7 +10049,7 @@ Keine Erklärungen, kein Markdown.`;
                                 <td class="mono" style="font-size:0.6rem; text-align:center;">${p.letztesKaufDt ? p.letztesKaufDt.toLocaleDateString('de-DE') : '—'}</td>
                                 <td class="mono" style="font-size:0.65rem; text-align:right; font-weight:700; color:${tageColor};">${p.tageInaktiv}</td>
                                 <td style="font-size:0.58rem; max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--text-secondary);" title="${_h(allTop)}">${top1}</td>
-                                <td style="text-align:center; font-size:0.8rem;">${kontakt}${tel}</td>
+                                <td style="text-align:center; font-size:0.8rem; cursor:pointer;" onclick="event.stopPropagation(); showCustomerCard('${_h(p.kundenNr)}')" title="Kontakt-Karte öffnen">${hasAny ? kontakt + tel + ' <span style=\"color:var(--accent-cyan);font-weight:700;font-size:0.65rem;\">▸</span>' : '<span style=\"color:var(--text-muted);font-size:0.7rem;\">—</span>'}</td>
                             </tr>`;
                         }).join('')}</tbody>
                     </table>`;
@@ -10175,14 +10185,15 @@ Keine Erklärungen, kein Markdown.`;
                 const firma = (p.firma || `Kunde ${p.kundenNr}`);
                 const status = dashboardState._churnStatus[p.kundenNr] || 'OFFEN';
                 const tageColor = p.tageInaktiv > 730 ? '#7f1d1d' : p.tageInaktiv > 365 ? 'var(--accent-red)' : p.tageInaktiv > 200 ? '#d97706' : 'var(--accent-orange)';
-                const kontakt = (p.email ? `<a href="mailto:${_h(p.email)}" title="${_h(p.email)}" style="text-decoration:none;">📧</a>` : '') + (p.telefon || p.mobil ? `<span title="${_h(p.telefon || p.mobil)}">📞</span>` : '');
+                const kontakt = (p.email ? `📧` : '') + (p.telefon || p.mobil ? `📞` : '');
+                const hasAny = p.email || p.telefon || p.mobil;
                 const statusColor = status === 'ERLEDIGT' ? 'var(--accent-green)' : status === 'KONTAKTIERT' ? 'var(--accent-cyan)' : status === 'KEIN_INTERESSE' ? 'var(--text-muted)' : 'var(--accent-orange)';
-                return `<tr>
-                    <td style="font-size:0.65rem; max-width:170px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${_h(firma)} (${p.kundenNr})${p.ort ? ' · ' + _h(p.ort) : ''}"><b>${_h(firma)}</b></td>
+                return `<tr class="cc-row-clickable" onclick="if(event.target.tagName!=='SELECT' && event.target.tagName!=='OPTION') showCustomerCard('${_h(p.kundenNr)}')" title="Klick → Kontakt-Karte">
+                    <td style="font-size:0.65rem; max-width:170px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"><b>${_h(firma)}</b></td>
                     <td style="font-size:0.6rem;">${_h(p.land || '?')}</td>
                     <td class="mono" style="font-size:0.7rem; text-align:right; font-weight:700;">${(p.ltv/1000).toFixed(0)} k €</td>
                     ${showDays ? `<td class="mono" style="font-size:0.65rem; text-align:right; font-weight:700; color:${tageColor};">${p.tageInaktiv}T</td>` : ''}
-                    <td style="font-size:0.6rem; text-align:center;">${kontakt}</td>
+                    <td style="font-size:0.7rem; text-align:center;">${hasAny ? kontakt + ' <span style=\"color:var(--accent-cyan);font-weight:700;font-size:0.6rem;\">▸</span>' : '<span style=\"color:var(--text-muted);font-size:0.65rem;\">—</span>'}</td>
                     <td>
                         <select data-kn="${_h(p.kundenNr)}" onchange="churnSetStatus(this)" style="padding:0.15rem 0.3rem; font-size:0.6rem; border-radius:3px; background:var(--bg-secondary); border:1px solid var(--border); color:${statusColor}; font-weight:700;">
                             <option value="OFFEN" ${status==='OFFEN'?'selected':''}>OFFEN</option>
@@ -10461,25 +10472,27 @@ Keine Erklärungen, kein Markdown.`;
                         </tr></thead>
                         <tbody>${shown.map((p, i) => {
                             const firma = p.firma || `Kunde ${p.kundenNr}`;
-                            const allTop = (p.top3Artikel || []).map(t => `${t.n}× ${_h(t.bez)}`).join(' · ');
-                            const top3html = (p.top3Artikel || []).slice(0,3).map(t => `<div style="font-size:0.6rem; color:var(--text-secondary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:280px;">${t.n}× ${_h(t.bez.substring(0,38))}</div>`).join('');
+                            const _topListReakt = p.top5Artikel || (p.top3Artikel || []).slice(0, 5);
+                            const allTop = _topListReakt.map(t => `${t.n}× ${_h(t.bez)}`).join(' · ');
+                            const top3html = _topListReakt.slice(0,5).map(t => `<div style="font-size:0.6rem; color:var(--text-secondary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:280px;">${t.n}× ${_h(t.bez.substring(0,38))}</div>`).join('');
                             const matchCount = p._matchCache.matches;
                             const matchBg = matchCount >= 50 ? 'rgba(16,185,129,0.25)' : matchCount >= 20 ? 'rgba(6,182,212,0.2)' : matchCount > 0 ? 'rgba(255,255,255,0.05)' : 'rgba(239,68,68,0.1)';
                             const matchColor = matchCount >= 50 ? 'var(--accent-green)' : matchCount >= 20 ? 'var(--accent-cyan)' : matchCount > 0 ? 'inherit' : 'var(--text-muted)';
                             const matchBadge = `<span style="background:${matchBg}; color:${matchColor}; font-size:0.7rem; font-weight:700; padding:3px 8px; border-radius:6px;">${matchCount}</span>`;
-                            const kontakt = (p.email ? `<a href="mailto:${_h(p.email)}" title="${_h(p.email)}" style="text-decoration:none;">📧</a>` : '') + (p.telefon || p.mobil ? `<span title="${_h(p.telefon || p.mobil)}">📞</span>` : '');
+                            const kontakt = (p.email ? `📧` : '') + (p.telefon || p.mobil ? `📞` : '');
+                            const hasAny = p.email || p.telefon || p.mobil;
                             const tageColor = p.tageInaktiv > 365 ? 'var(--accent-red)' : p.tageInaktiv > 270 ? 'var(--accent-orange)' : '#d97706';
-                            return `<tr>
+                            return `<tr class="cc-row-clickable" onclick="if(event.target.tagName!=='BUTTON') showCustomerCard('${_h(p.kundenNr)}')" title="Klick → Kontakt-Karte">
                                 <td style="font-size:0.6rem; color:var(--text-muted);">${i+1}</td>
-                                <td style="font-size:0.66rem; max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${_h(firma)} (${p.kundenNr})${p.ort ? ' · ' + _h(p.ort) : ''}"><b>${_h(firma)}</b></td>
+                                <td style="font-size:0.66rem; max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"><b>${_h(firma)}</b></td>
                                 <td style="font-size:0.6rem;">${_h(p.land || '?')}</td>
                                 <td class="mono" style="font-size:0.7rem; text-align:right; font-weight:700;">${(p.ltv/1000).toFixed(0)} k €</td>
                                 <td class="mono" style="font-size:0.65rem; text-align:right; color:var(--text-secondary);">${(p.øJahresumsatz/1000).toFixed(0)} k €</td>
                                 <td class="mono" style="font-size:0.65rem; text-align:right; font-weight:700; color:${tageColor};">${p.tageInaktiv}T</td>
                                 <td title="${_h(allTop)}">${top3html}</td>
-                                <td style="text-align:center;" title="${matchCount} Stock-Geräte matchen die Top-Kauf-Tokens dieses Kunden">${matchBadge}</td>
-                                <td style="text-align:center; font-size:0.8rem;">${kontakt}</td>
-                                <td><button data-kn="${_h(p.kundenNr)}" data-firma="${_h(firma)}" onclick="reaktBuildKonvolut(this.dataset.kn, this.dataset.firma)" style="padding:0.25rem 0.5rem; background:var(--gradient-green); color:white; border:none; border-radius:4px; font-size:0.62rem; font-weight:700; cursor:pointer; white-space:nowrap;">🎯 Konvolut</button></td>
+                                <td style="text-align:center;" title="${matchCount} Stock-Geräte matchen die Top-Kauf-Tokens">${matchBadge}</td>
+                                <td style="text-align:center; font-size:0.8rem;">${hasAny ? kontakt + ' <span style=\"color:var(--accent-cyan);font-weight:700;font-size:0.65rem;\">▸</span>' : '<span style=\"color:var(--text-muted);font-size:0.65rem;\">—</span>'}</td>
+                                <td><button data-kn="${_h(p.kundenNr)}" data-firma="${_h(firma)}" onclick="event.stopPropagation(); reaktBuildKonvolut(this.dataset.kn, this.dataset.firma)" style="padding:0.25rem 0.5rem; background:var(--gradient-green); color:white; border:none; border-radius:4px; font-size:0.62rem; font-weight:700; cursor:pointer; white-space:nowrap;">🎯 Konvolut</button></td>
                             </tr>`;
                         }).join('')}</tbody>
                     </table>`;
@@ -11147,6 +11160,534 @@ Keine Erklärungen, kein Markdown.`;
             showToast('success', '📥 CSV exportiert', `${items.length} Geräte${sel.size > 0 ? ' (aus Auswahl)' : ' (aktuelle Filter)'}`);
         }
 
+        // Excel-Export mit LIVE-FORMELN: VK aendern => Marge rechnet automatisch nach,
+        // umgekehrt geht ueber zweite Eingabespalte "Marge%-Ziel" -> errechnet Soll-VK
+        function lvExportXLSX() {
+            if (typeof XLSX === 'undefined') {
+                showToast('error', 'XLSX-Library nicht geladen', 'Bitte Seite neu laden (Strg+F5)');
+                return;
+            }
+            const sel = dashboardState._lvSelection || new Set();
+            const filtered = dashboardState._lvFiltered || [];
+            const items = sel.size > 0
+                ? filtered.filter(it => sel.has(String(it.lager_number || '').trim()))
+                : filtered;
+            if (!items.length) { showToast('warning', 'Nichts zum Export', 'Keine Geräte in Auswahl oder Filter.'); return; }
+
+            const f = _liveFilters();
+            const _join = set => Array.from(set).join('+');
+            const filterNote = [_join(f.suppliers), _join(f.wgs), _join(f.brands), f.model].filter(Boolean).join('_') || 'alle';
+
+            // Header-Reihe (Zeile 1)
+            // Spalten:  A Lager-Nr · B Marke · C Modell · D Artikel-Nr · E Warengruppe · F Lieferant
+            //           G Status · H Grade · I Lagertage
+            //           J EK · K VK · L Online · M Marge €  · N Marge %
+            //           O Ziel-Marge % (Eingabe) · P Soll-VK (= EK / (1 - O%))
+            //           Q Upload-Datum
+            const headers = ['Lager-Nr','Marke','Modell','Artikel-Nr','Warengruppe','Lieferant',
+                             'Status','Grade','Lagertage',
+                             'EK','VK','Online','Marge €','Marge %',
+                             'Ziel-Marge %','Soll-VK',
+                             'Upload-Datum'];
+
+            // Daten-Zeilen vorbauen als Array-of-Objects mit Cells
+            // Wir verwenden aoa_to_sheet + nachträgliches Formel-Setzen
+            const aoa = [headers];
+            items.forEach(it => {
+                const ek = parseFloat(it.Buying_Price) || 0;
+                const vk = parseFloat(it.Selling_Price) || 0;
+                const online = parseFloat(it.Online_Price) || 0;
+                const margePctInit = vk > 0 ? ((vk - ek) / vk * 100) : 0;
+                aoa.push([
+                    it.lager_number || '',
+                    it.brand || '',
+                    String(it.model || ''),
+                    it.article_number || '',
+                    String(it.product_group || ''),
+                    it.supply_type || '',
+                    it.status || '',
+                    it.final_grade || '',
+                    parseInt(it.product_life_days) || 0,
+                    ek, vk, online,
+                    null,                    // Marge € — Formel weiter unten
+                    null,                    // Marge % — Formel weiter unten
+                    Number(margePctInit.toFixed(1)),  // Ziel-Marge % — Default = aktuelle Marge
+                    null,                    // Soll-VK — Formel weiter unten
+                    it.datetime_upload ? String(it.datetime_upload).substring(0, 10) : '',
+                ]);
+            });
+
+            const ws = XLSX.utils.aoa_to_sheet(aoa);
+
+            // Formeln einbauen — Zeile 2 bis len+1
+            // Marge €  (M): =K2-J2
+            // Marge %  (N): =IF(K2>0,(K2-J2)/K2*100,0)
+            // Soll-VK  (P): =IF(O2<100,J2/(1-O2/100),0)   [aus EK + Ziel-Marge%]
+            for (let i = 0; i < items.length; i++) {
+                const r = i + 2; // Excel 1-indexed + Header
+                ws[`M${r}`] = { t: 'n', f: `K${r}-J${r}`, z: '#,##0.00 "€"' };
+                ws[`N${r}`] = { t: 'n', f: `IF(K${r}>0,(K${r}-J${r})/K${r}*100,0)`, z: '0.0"%"' };
+                ws[`P${r}`] = { t: 'n', f: `IF(O${r}<100,J${r}/(1-O${r}/100),0)`, z: '#,##0.00 "€"' };
+                // EK / VK / Online als Euro-Format setzen
+                if (ws[`J${r}`]) ws[`J${r}`].z = '#,##0.00 "€"';
+                if (ws[`K${r}`]) ws[`K${r}`].z = '#,##0.00 "€"';
+                if (ws[`L${r}`]) ws[`L${r}`].z = '#,##0.00 "€"';
+                if (ws[`O${r}`]) ws[`O${r}`].z = '0.0"%"';
+            }
+
+            // Spaltenbreiten (cosmetisch)
+            ws['!cols'] = [
+                { wch: 12 }, { wch: 10 }, { wch: 18 }, { wch: 12 }, { wch: 20 }, { wch: 14 },
+                { wch: 8 },  { wch: 7 },  { wch: 10 },
+                { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 11 }, { wch: 9 },
+                { wch: 13 }, { wch: 11 },
+                { wch: 12 },
+            ];
+
+            // Auto-Filter auf Header-Zeile
+            const lastCol = XLSX.utils.encode_col(headers.length - 1);
+            ws['!autofilter'] = { ref: `A1:${lastCol}${items.length + 1}` };
+
+            // Freeze-Panes: Header bleibt sichtbar
+            ws['!freeze'] = { xSplit: 0, ySplit: 1 };
+
+            // Workbook bauen
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'Live View');
+
+            // Hinweis-Sheet als 2. Tab — erklaert die Formel-Logik
+            const note = [
+                ['Live View — Excel mit Formeln'],
+                [''],
+                ['So funktioniert es:'],
+                ['Spalte K (VK) ändern → Spalte M (Marge €) und N (Marge %) rechnen automatisch nach.'],
+                ['Spalte O (Ziel-Marge %) ändern → Spalte P (Soll-VK) zeigt den nötigen Verkaufspreis aus EK + Ziel.'],
+                [''],
+                ['Achtung:'],
+                ['EK (Spalte J) ist ein fester Wert — wenn du den EK änderst, rechnen die Margen ebenfalls neu.'],
+                ['Marge % (Spalte N) ist eine FORMEL — diese Zelle nicht direkt überschreiben.'],
+                ['Um Marge umzukehren: trage in Spalte O dein Ziel ein, lies Soll-VK in P, übernimm nach K.'],
+                [''],
+                ['Stand: ' + new Date().toLocaleDateString('de-DE')],
+                ['Geräte: ' + items.length],
+                ['Filter: ' + filterNote],
+            ];
+            const wsNote = XLSX.utils.aoa_to_sheet(note);
+            wsNote['!cols'] = [{ wch: 100 }];
+            XLSX.utils.book_append_sheet(wb, wsNote, 'Hinweis');
+
+            // Download
+            const dateStr = new Date().toISOString().split('T')[0];
+            const fname = `LiveView_${filterNote.replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 40)}_${dateStr}.xlsx`;
+            XLSX.writeFile(wb, fname);
+            showToast('success', '📊 Excel mit Formeln exportiert',
+                `${items.length} Geräte · VK ändern = Marge rechnet automatisch nach`);
+        }
+
+        // ============================================================
+        // GENERISCHER LIVE-EXCEL-HELPER fuer alle EK/VK/Marge-Listen
+        // ============================================================
+        function _writeLiveExcel(opts) {
+            if (typeof XLSX === 'undefined') {
+                showToast('error', 'XLSX-Library nicht geladen', 'Bitte Seite neu laden (Strg+F5)');
+                return false;
+            }
+            const ws = XLSX.utils.aoa_to_sheet([opts.headers, ...opts.rows]);
+            (opts.formulas || []).forEach(spec => {
+                for (let i = 0; i < opts.rows.length; i++) {
+                    const r = i + 2;
+                    ws[`${spec.col}${r}`] = { t: 'n', f: spec.formula.replace(/\{r\}/g, r), z: spec.format || undefined };
+                }
+            });
+            (opts.numberFormats || []).forEach(spec => {
+                for (let i = 0; i < opts.rows.length; i++) {
+                    const r = i + 2;
+                    const cell = ws[`${spec.col}${r}`];
+                    if (cell) cell.z = spec.format;
+                }
+            });
+            if (opts.colWidths) ws['!cols'] = opts.colWidths;
+            const lastCol = XLSX.utils.encode_col(opts.headers.length - 1);
+            ws['!autofilter'] = { ref: `A1:${lastCol}${opts.rows.length + 1}` };
+            ws['!freeze'] = { xSplit: 0, ySplit: 1 };
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, opts.sheetName || 'Daten');
+            if (opts.metaSheet) {
+                const wsMeta = XLSX.utils.aoa_to_sheet(opts.metaSheet);
+                wsMeta['!cols'] = [{ wch: 24 }, { wch: 40 }];
+                XLSX.utils.book_append_sheet(wb, wsMeta, 'Info');
+            }
+            // Optionale zusaetzliche Sheets (z.B. "Angebot" fuer Kunden)
+            (opts.extraSheets || []).forEach(es => {
+                const wsX = XLSX.utils.aoa_to_sheet(es.aoa);
+                if (es.colWidths) wsX['!cols'] = es.colWidths;
+                if (es.merges)    wsX['!merges'] = es.merges;
+                if (es.freeze)    wsX['!freeze'] = es.freeze;
+                if (es.autofilter) wsX['!autofilter'] = es.autofilter;
+                XLSX.utils.book_append_sheet(wb, wsX, es.name || 'Extra');
+            });
+            if (opts.hint && opts.hint.length) {
+                const wsHint = XLSX.utils.aoa_to_sheet(opts.hint.map(l => [l]));
+                wsHint['!cols'] = [{ wch: 100 }];
+                XLSX.utils.book_append_sheet(wb, wsHint, 'Hinweis');
+            }
+            XLSX.writeFile(wb, opts.filename);
+            return true;
+        }
+
+        // ===== Verkaufsscore-Liste als Live-Excel =====
+        function exportPotenzialXLSX() {
+            const items = dashboardState.potenzialTop50 || [];
+            if (!items.length) { showToast('warning', 'Keine Daten', 'Erst Stock laden'); return; }
+            const headers = ['Score','Lager-Nr','Modell','Marke','Warengruppe','Tage',
+                             'EK','VK','Marge €','Marge %','Ziel-Marge %','Soll-VK'];
+            const rows = items.map(it => {
+                const ek = parseFloat(it.Buying_Price) || 0;
+                const vk = parseFloat(it.Selling_Price) || 0;
+                const marge = vk > 0 ? ((vk - ek) / vk * 100) : 0;
+                return [
+                    parseInt(it.score) || 0, it.lager_number || '', String(it.model || ''),
+                    it.brand || '', String(it.product_group || ''), parseInt(it.product_life_days) || 0,
+                    ek, vk, null, null, Number(marge.toFixed(1)), null,
+                ];
+            });
+            const ok = _writeLiveExcel({
+                sheetName: 'Verkaufsscore', headers, rows,
+                formulas: [
+                    { col: 'I', formula: 'H{r}-G{r}', format: '#,##0.00 "€"' },
+                    { col: 'J', formula: 'IF(H{r}>0,(H{r}-G{r})/H{r}*100,0)', format: '0.0"%"' },
+                    { col: 'L', formula: 'IF(K{r}<100,G{r}/(1-K{r}/100),0)', format: '#,##0.00 "€"' },
+                ],
+                numberFormats: [
+                    { col: 'G', format: '#,##0.00 "€"' }, { col: 'H', format: '#,##0.00 "€"' },
+                    { col: 'K', format: '0.0"%"' },
+                ],
+                colWidths: [{wch:7},{wch:12},{wch:20},{wch:12},{wch:22},{wch:8},
+                            {wch:10},{wch:10},{wch:11},{wch:9},{wch:13},{wch:11}],
+                hint: [
+                    'Verkaufsscore-Liste — Excel mit Formeln', '',
+                    'Spalte H (VK) ändern → I (Marge €) und J (Marge %) rechnen automatisch nach.',
+                    'Spalte K (Ziel-Marge %) ändern → L (Soll-VK) zeigt nötigen VK aus EK + Ziel.',
+                    '', 'Spalten I, J, L sind FORMELN — nicht überschreiben.',
+                    '', 'Stand: ' + new Date().toLocaleDateString('de-DE'), 'Geräte: ' + items.length,
+                ],
+                filename: `Verkaufsscore_${new Date().toISOString().split('T')[0]}.xlsx`,
+            });
+            if (ok) showToast('success', '📊 Excel mit Formeln exportiert', `${items.length} Geräte`);
+        }
+
+        // ===== Dead Stock / Slow-Mover als Live-Excel =====
+        function exportSlowMoversXLSX() {
+            const threshold = parseInt(document.getElementById('slowmover-threshold')?.value) || 60;
+            const stockData = dashboardState.stockAnalysisData || {};
+            const items = Object.entries(stockData)
+                .filter(([_, it]) => it.lifeDays >= threshold)
+                .map(([lagerNr, it]) => ({ lagerNr, ...it }))
+                .sort((a, b) => b.lifeDays - a.lifeDays);
+            if (!items.length) { showToast('warning', 'Keine Slow-Mover', `Keine Geräte ab ${threshold} Tagen`); return; }
+            const headers = ['Lager-Nr','Artikel','Marke','Warengruppe','Lagertage',
+                             'EK','VK','Marge €','Marge %','Ziel-Marge %','Soll-VK','Grade','Einlagerung'];
+            const rows = items.map(it => {
+                const ek = parseFloat(it.ek) || 0; const vk = parseFloat(it.vk) || 0;
+                const marge = vk > 0 ? ((vk - ek) / vk * 100) : 0;
+                return [
+                    it.lagerNr, it.articleNumber || it.model || '', it.brand || '', it.pg || '',
+                    parseInt(it.lifeDays) || 0, ek, vk, null, null,
+                    Number(marge.toFixed(1)), null, it.grade || '', it.dateUpload || '',
+                ];
+            });
+            const ok = _writeLiveExcel({
+                sheetName: 'Slow-Mover', headers, rows,
+                formulas: [
+                    { col: 'H', formula: 'G{r}-F{r}', format: '#,##0.00 "€"' },
+                    { col: 'I', formula: 'IF(G{r}>0,(G{r}-F{r})/G{r}*100,0)', format: '0.0"%"' },
+                    { col: 'K', formula: 'IF(J{r}<100,F{r}/(1-J{r}/100),0)', format: '#,##0.00 "€"' },
+                ],
+                numberFormats: [
+                    { col: 'F', format: '#,##0.00 "€"' }, { col: 'G', format: '#,##0.00 "€"' },
+                    { col: 'J', format: '0.0"%"' },
+                ],
+                colWidths: [{wch:12},{wch:14},{wch:12},{wch:22},{wch:10},
+                            {wch:10},{wch:10},{wch:11},{wch:9},{wch:13},{wch:11},{wch:7},{wch:12}],
+                hint: [
+                    `Slow-Mover ab ${threshold} Tagen — Excel mit Formeln`, '',
+                    'Spalte G (VK) ändern → H (Marge €) und I (Marge %) rechnen automatisch nach.',
+                    'Spalte J (Ziel-Marge %) ändern → K (Soll-VK) zeigt nötigen VK.',
+                    '', 'Spalten H, I, K sind FORMELN.',
+                    '', 'Stand: ' + new Date().toLocaleDateString('de-DE'), 'Geräte: ' + items.length,
+                ],
+                filename: `Slow-Mover_ab${threshold}d_${new Date().toISOString().split('T')[0]}.xlsx`,
+            });
+            if (ok) showToast('success', '📊 Slow-Mover-Excel exportiert', `${items.length} Geräte`);
+        }
+
+        // ===== Konvolut als Live-Excel =====
+        function _konvolutToExcelRows(k) {
+            return k.items.map(it => {
+                const ek = parseFloat(it.Buying_Price) || 0; const vk = parseFloat(it.Selling_Price) || 0;
+                const marge = vk > 0 ? ((vk - ek) / vk * 100) : 0;
+                const konvLabel = k.teileGesamt > 1 ? `${k.gruppe} (Teil ${k.teilNr}/${k.teileGesamt})` : k.gruppe;
+                return [konvLabel, parseInt(it.score) || 0, it.lager_number || '',
+                        String(it.model || ''), it.brand || '', String(it.product_group || ''),
+                        it.final_grade || '', parseInt(it.product_life_days) || 0,
+                        ek, vk, null, null, Number(marge.toFixed(1)), null];
+            });
+        }
+        function _konvolutXLSXConfig(rows, filename, sheetName, hintExtra) {
+            return {
+                sheetName,
+                headers: ['Konvolut','Score','Lager-Nr','Modell','Marke','Warengruppe',
+                          'Grade','Lagertage','EK','VK','Marge €','Marge %','Ziel-Marge %','Soll-VK'],
+                rows,
+                formulas: [
+                    { col: 'K', formula: 'J{r}-I{r}', format: '#,##0.00 "€"' },
+                    { col: 'L', formula: 'IF(J{r}>0,(J{r}-I{r})/J{r}*100,0)', format: '0.0"%"' },
+                    { col: 'N', formula: 'IF(M{r}<100,I{r}/(1-M{r}/100),0)', format: '#,##0.00 "€"' },
+                ],
+                numberFormats: [
+                    { col: 'I', format: '#,##0.00 "€"' }, { col: 'J', format: '#,##0.00 "€"' },
+                    { col: 'M', format: '0.0"%"' },
+                ],
+                colWidths: [{wch:28},{wch:6},{wch:12},{wch:18},{wch:10},{wch:20},
+                            {wch:7},{wch:10},{wch:10},{wch:10},{wch:11},{wch:9},{wch:13},{wch:11}],
+                hint: ['Konvolut — Excel mit Formeln', '',
+                       'Spalte J (VK) ändern → K (Marge €) und L (Marge %) rechnen automatisch nach.',
+                       'Spalte M (Ziel-Marge %) ändern → N (Soll-VK) zeigt nötigen VK.',
+                       '', 'Spalten K, L, N sind FORMELN.']
+                    .concat(hintExtra || [])
+                    .concat(['', 'Stand: ' + new Date().toLocaleDateString('de-DE'), 'Geräte: ' + rows.length]),
+                filename,
+            };
+        }
+        function exportKonvolutXLSX(idx) {
+            const k = (dashboardState.konvolute || [])[idx];
+            if (!k) return;
+            const rows = _konvolutToExcelRows(k);
+            const fname = `Konvolut_${(k.gruppe || '').replace(/[^a-zA-Z0-9]/g, '_')}${k.teilNr ? '_T' + k.teilNr : ''}_${new Date().toISOString().split('T')[0]}.xlsx`;
+            const ok = _writeLiveExcel(_konvolutXLSXConfig(rows, fname, 'Konvolut', [`Konvolut-Gruppe: ${k.gruppe}`]));
+            if (ok) showToast('success', '📊 Konvolut-Excel exportiert', `${k.anzahl} Geräte`);
+        }
+        function exportAlleKonvoluteXLSX() {
+            const konvolute = dashboardState.konvolute || [];
+            if (!konvolute.length) return;
+            const allRows = konvolute.flatMap(_konvolutToExcelRows);
+            const fname = `Alle_Konvolute_${new Date().toISOString().split('T')[0]}.xlsx`;
+            const ok = _writeLiveExcel(_konvolutXLSXConfig(allRows, fname, 'Alle Konvolute',
+                [`${konvolute.length} Konvolute zusammengefasst`]));
+            if (ok) showToast('success', '📊 Alle Konvolute', `${konvolute.length} Konvolute · ${allRows.length} Geräte`);
+        }
+
+        // ===== Kunden-Angebot mit Rabatt-Steuerung als Live-Excel =====
+        function exportAngebotsXLSX() {
+            const p = dashboardState._angeboteSelectedKunde;
+            const matches = dashboardState._angeboteCurrentMatches || [];
+            const rabattInit = dashboardState._angeboteCurrentRabatt || 0;
+            if (!p || !matches.length) { showToast('warning', 'Nichts zu exportieren', 'Kein Kunde / keine Matches.'); return; }
+            const headers = ['Rang','Bezeichnung','Marke','Warengruppe','Grade','SSCC','Match-Hits',
+                             'Listen-VK','EK','Rabatt %','Kunden-Preis','Marge €','Marge %'];
+            const rows = matches.map((m, i) => [
+                i + 1, String(m.bez || ''), String(m.brand || ''), String(m.wg || ''),
+                String(m.grade || ''), String(m.sscc || ''), parseInt(m.hits) || 0,
+                Number(m.vk) || 0, Number(m.ek) || 0, Number(rabattInit) || 0,
+                null, null, null,
+            ]);
+            const ok = _writeLiveExcel({
+                sheetName: 'Kunden-Angebot', headers, rows,
+                formulas: [
+                    { col: 'K', formula: 'H{r}*(1-J{r}/100)', format: '#,##0.00 "€"' },
+                    { col: 'L', formula: 'K{r}-I{r}', format: '#,##0.00 "€"' },
+                    { col: 'M', formula: 'IF(K{r}>0,(K{r}-I{r})/K{r}*100,0)', format: '0.0"%"' },
+                ],
+                numberFormats: [
+                    { col: 'H', format: '#,##0.00 "€"' }, { col: 'I', format: '#,##0.00 "€"' },
+                    { col: 'J', format: '0.0"%"' },
+                ],
+                colWidths: [{wch:6},{wch:30},{wch:10},{wch:18},{wch:7},{wch:14},{wch:10},
+                            {wch:11},{wch:10},{wch:10},{wch:13},{wch:11},{wch:9}],
+                metaSheet: (function() {
+                    // Letzte Datenzeile im Haupt-Sheet — H/I/J/K/L sind Listen-VK / EK / Rabatt / Kunden-Preis / Marge €
+                    const lastRow = matches.length + 1;
+                    const SHEET = "'Kunden-Angebot'";
+                    const fEur = '#,##0.00 "€"';
+                    const fPct = '0.0"%"';
+                    // SheetJS aoa_to_sheet akzeptiert Cell-Objekte direkt: {v: value, t: type, f: formula, z: format}
+                    return [
+                        ['═══ KUNDEN-DATEN ═══', ''],
+                        ['Kunde',                 String(p.firma || ('Kunde ' + p.kundenNr))],
+                        ['Kunden-Nr',             String(p.kundenNr || '')],
+                        ['Segment',               String(p.segment || '')],
+                        ['LTV (Brutto, 4-Jahre)', { v: Number(p.ltv) || 0, t: 'n', z: fEur }],
+                        ['Empfohlener Rabatt',    { v: Number(rabattInit) || 0, t: 'n', z: fPct }],
+                        ['', ''],
+                        ['═══ ANGEBOT — LIVE-KPIs ═══', '(updaten automatisch bei Änderungen im Sheet "Kunden-Angebot")'],
+                        ['Anzahl Positionen',    { f: `COUNTA(${SHEET}!A2:A${lastRow})`, t: 'n' }],
+                        ['Σ Listen-VK (original)', { f: `SUM(${SHEET}!H2:H${lastRow})`, t: 'n', z: fEur }],
+                        ['Σ EK',                 { f: `SUM(${SHEET}!I2:I${lastRow})`, t: 'n', z: fEur }],
+                        ['Ø Rabatt %',           { f: `IFERROR(AVERAGE(${SHEET}!J2:J${lastRow}),0)`, t: 'n', z: fPct }],
+                        ['Σ Kunden-Preis (nach Rabatt)', { f: `SUM(${SHEET}!K2:K${lastRow})`, t: 'n', z: fEur }],
+                        ['Σ Rabatt-Wert (Verlust ggü. Listen)', { f: `SUM(${SHEET}!H2:H${lastRow})-SUM(${SHEET}!K2:K${lastRow})`, t: 'n', z: fEur }],
+                        ['', ''],
+                        ['═══ PROFIT-CHECK ═══', ''],
+                        ['Σ Marge €',            { f: `SUM(${SHEET}!L2:L${lastRow})`, t: 'n', z: fEur }],
+                        ['Ø Marge % (gewichtet)',{ f: `IF(SUM(${SHEET}!K2:K${lastRow})>0,(SUM(${SHEET}!K2:K${lastRow})-SUM(${SHEET}!I2:I${lastRow}))/SUM(${SHEET}!K2:K${lastRow})*100,0)`, t: 'n', z: '0.00"%"' }],
+                        ['Σ Marge € bei 0% Rabatt', { f: `SUM(${SHEET}!H2:H${lastRow})-SUM(${SHEET}!I2:I${lastRow})`, t: 'n', z: fEur }],
+                        ['Marge-Verlust durch Rabatt', { f: `(SUM(${SHEET}!H2:H${lastRow})-SUM(${SHEET}!I2:I${lastRow}))-SUM(${SHEET}!L2:L${lastRow})`, t: 'n', z: fEur }],
+                        ['', ''],
+                        ['═══ META ═══', ''],
+                        ['Erstellt',             new Date().toLocaleDateString('de-DE')],
+                        ['Datensatzbereich',     `Zeile 2 bis ${lastRow} im Sheet „Kunden-Angebot"`],
+                    ];
+                })(),
+                extraSheets: (function() {
+                    // ==================== ANGEBOT-Reiter (für Kunden-Vorschau) ====================
+                    // ACHTUNG: dieser Reiter ist nur eine VORSCHAU im internen Excel.
+                    // Für den Versand an den Kunden bitte den Button „📨 Kunden-Version"
+                    // im Dashboard nutzen — der erzeugt ein eigenes Excel ohne EK/Marge/LTV-Sheets.
+                    const lastRow = matches.length + 1;
+                    const SHEET = "'Kunden-Angebot'";
+                    const fEur = '#,##0.00 "€"';
+                    const fPct = '0.0"%"';
+                    const aoa = [
+                        ['Angebot für ' + String(p.firma || ('Kunde ' + p.kundenNr)), '', '', '', '', '', ''],
+                        ['Datum: ' + new Date().toLocaleDateString('de-DE') + ' · Kunden-Nr: ' + p.kundenNr, '', '', '', '', '', ''],
+                        ['', '', '', '', '', '', ''],
+                        ['Pos.', 'Bezeichnung', 'Marke', 'Warengruppe', 'Zustand', 'Listen-VK', 'Rabatt', 'Ihr Preis', 'Ersparnis'],
+                    ];
+                    // Daten-Zeilen — alle Werte LIVE referenziert (außer Pos.)
+                    for (let i = 0; i < matches.length; i++) {
+                        const r = i + 2;  // Zeile im Haupt-Sheet
+                        aoa.push([
+                            i + 1,
+                            { f: `${SHEET}!B${r}`, t: 's' },                          // Bezeichnung
+                            { f: `${SHEET}!C${r}`, t: 's' },                          // Marke
+                            { f: `${SHEET}!D${r}`, t: 's' },                          // Warengruppe
+                            { f: `${SHEET}!E${r}`, t: 's' },                          // Grade
+                            { f: `${SHEET}!H${r}`, t: 'n', z: fEur },                 // Listen-VK
+                            { f: `${SHEET}!J${r}/100`, t: 'n', z: fPct },             // Rabatt %
+                            { f: `${SHEET}!K${r}`, t: 'n', z: fEur },                 // Ihr Preis
+                            { f: `${SHEET}!H${r}-${SHEET}!K${r}`, t: 'n', z: fEur },  // Ersparnis
+                        ]);
+                    }
+                    // Summen-Zeile
+                    const sumRow = aoa.length + 1;
+                    aoa.push([
+                        '', 'Σ GESAMT', '', '', '',
+                        { f: `SUM(F5:F${sumRow - 1})`, t: 'n', z: fEur },
+                        '',
+                        { f: `SUM(H5:H${sumRow - 1})`, t: 'n', z: fEur },
+                        { f: `SUM(I5:I${sumRow - 1})`, t: 'n', z: fEur },
+                    ]);
+                    return [{
+                        name: 'Angebot',
+                        aoa,
+                        colWidths: [
+                            { wch: 6 }, { wch: 36 }, { wch: 12 }, { wch: 22 }, { wch: 9 },
+                            { wch: 12 }, { wch: 8 }, { wch: 13 }, { wch: 13 },
+                        ],
+                        merges: [
+                            { s: { r: 0, c: 0 }, e: { r: 0, c: 8 } },   // Header über alle Spalten
+                            { s: { r: 1, c: 0 }, e: { r: 1, c: 8 } },   // Subtitel über alle Spalten
+                        ],
+                        freeze: { xSplit: 0, ySplit: 4 },
+                        autofilter: { ref: `A4:I${matches.length + 4}` },
+                    }];
+                })(),
+                hint: [
+                    'Kunden-Angebot — Excel mit LIVE-Formeln', '',
+                    `Empfohlener Default-Rabatt: ${rabattInit}%`, '',
+                    '═══ SHEETS in dieser Datei ═══',
+                    ' · "Kunden-Angebot" — INTERN, enthält EK, Marge €, Marge %. NICHT an Kunden geben!',
+                    ' · "Info" — INTERN, enthält LTV des Kunden + Profit-KPIs. NICHT an Kunden geben!',
+                    ' · "Angebot" — Kunden-Vorschau (nur Listen-VK / Rabatt / Ihr Preis / Ersparnis)',
+                    ' · "Hinweis" — diese Erklärung',
+                    '',
+                    '⚠ Diese komplette Datei NIE an Kunden weiterleiten!',
+                    '→ Dafür im Dashboard den Button „📨 Kunden-Version" nutzen — exportiert nur das Angebot-Sheet als eigene Datei.',
+                    '',
+                    'Spalte J (Rabatt %) ändern → K (Kunden-Preis), L (Marge €), M (Marge %) rechnen automatisch nach.',
+                    'Spalten H (Listen-VK) und I (EK) sind die Eingangsgrößen.',
+                    '',
+                    'Tipp: Globalen Rabatt ändern → Spalte J markieren (J2:J' + (matches.length + 1) + '), Wert eingeben, Strg+Enter.',
+                    '', 'Spalten K, L, M sind FORMELN — nicht überschreiben.',
+                ],
+                filename: `Angebot_${(p.firma || p.kundenNr).replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 40)}_${new Date().toISOString().split('T')[0]}.xlsx`,
+            });
+            if (ok) showToast('success', '📊 Kunden-Angebot als Excel', `${matches.length} Positionen`);
+        }
+
+        // ===== KUNDEN-VERSION (sichere Datei zum Weiterleiten an den Kunden) =====
+        // Enthaelt NUR das Angebots-Sheet — keine EK, keine Marge, kein LTV, kein Hinweis-Sheet
+        function exportAngebotsKundenversion() {
+            if (typeof XLSX === 'undefined') {
+                showToast('error', 'XLSX-Library nicht geladen', 'Bitte Seite neu laden (Strg+F5)');
+                return;
+            }
+            const p = dashboardState._angeboteSelectedKunde;
+            const matches = dashboardState._angeboteCurrentMatches || [];
+            const rabattInit = dashboardState._angeboteCurrentRabatt || 0;
+            if (!p || !matches.length) {
+                showToast('warning', 'Nichts zu exportieren', 'Kein Kunde / keine Matches.');
+                return;
+            }
+
+            // STATISCHE Werte (keine Cross-Sheet-Formeln — Datei muss eigenstaendig funktionieren)
+            const aoa = [
+                ['Angebot für ' + String(p.firma || ('Kunde ' + p.kundenNr))],
+                ['Datum: ' + new Date().toLocaleDateString('de-DE') + ' · Kunden-Nr: ' + p.kundenNr],
+                ['elvinci.de GmbH'],
+                [],
+                ['Pos.', 'Bezeichnung', 'Marke', 'Warengruppe', 'Zustand', 'Listen-VK', 'Rabatt', 'Ihr Preis', 'Ersparnis'],
+            ];
+            let sumListen = 0, sumPreis = 0, sumErsparnis = 0;
+            matches.forEach((m, i) => {
+                const vk = Number(m.vk) || 0;
+                const preis = vk * (1 - rabattInit / 100);
+                const ersparnis = vk - preis;
+                sumListen += vk; sumPreis += preis; sumErsparnis += ersparnis;
+                aoa.push([
+                    i + 1,
+                    String(m.bez || ''),
+                    String(m.brand || ''),
+                    String(m.wg || ''),
+                    String(m.grade || ''),
+                    { v: vk, t: 'n', z: '#,##0.00 "€"' },
+                    { v: rabattInit / 100, t: 'n', z: '0.0%' },
+                    { v: preis, t: 'n', z: '#,##0.00 "€"' },
+                    { v: ersparnis, t: 'n', z: '#,##0.00 "€"' },
+                ]);
+            });
+            // Summenzeile
+            aoa.push([]);
+            aoa.push([
+                '', 'Σ GESAMT', '', '', '',
+                { v: sumListen,    t: 'n', z: '#,##0.00 "€"' },
+                '',
+                { v: sumPreis,     t: 'n', z: '#,##0.00 "€"' },
+                { v: sumErsparnis, t: 'n', z: '#,##0.00 "€"' },
+            ]);
+
+            const ws = XLSX.utils.aoa_to_sheet(aoa);
+            ws['!cols'] = [
+                { wch: 6 }, { wch: 36 }, { wch: 12 }, { wch: 22 }, { wch: 9 },
+                { wch: 12 }, { wch: 8 }, { wch: 13 }, { wch: 13 },
+            ];
+            ws['!merges'] = [
+                { s: { r: 0, c: 0 }, e: { r: 0, c: 8 } },
+                { s: { r: 1, c: 0 }, e: { r: 1, c: 8 } },
+                { s: { r: 2, c: 0 }, e: { r: 2, c: 8 } },
+            ];
+            ws['!freeze'] = { xSplit: 0, ySplit: 5 };
+            ws['!autofilter'] = { ref: `A5:I${matches.length + 5}` };
+
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'Angebot');
+
+            const fname = `Angebot_${(p.firma || p.kundenNr).replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 40)}_Kundenversion_${new Date().toISOString().split('T')[0]}.xlsx`;
+            XLSX.writeFile(wb, fname);
+            showToast('success', '📨 Kunden-Version exportiert',
+                `${matches.length} Positionen · Σ ${Math.round(sumPreis).toLocaleString('de-DE')} € · sicher zum Versenden (kein EK / Marge / LTV)`);
+        }
+
         function liveViewToKonvolut() {
             const f = _liveFilters();
             switchAnalyseTab('angebote');
@@ -11237,6 +11778,10 @@ Keine Erklärungen, kein Markdown.`;
             if (!match) match = arr.find(p => (p.firma || '').toLowerCase().startsWith(q));
             if (!match) match = arr.find(p => (p.firma || '').toLowerCase().includes(q));
             if (!match) { _angeboteHideCustomer(); return; }
+            // Filter reset bei Kundenwechsel — sonst trägt alter Filter rüber
+            if (dashboardState._angeboteSelectedKunde?.kundenNr !== match.kundenNr) {
+                dashboardState._angeboteFilters = null;
+            }
             dashboardState._angeboteSelectedKunde = match;
             _angeboteRenderSteckbrief(match);
             _angeboteRenderMatch(match);
@@ -11246,6 +11791,7 @@ Keine Erklärungen, kein Markdown.`;
             const input = document.getElementById('angebote-customer-search');
             if (input) input.value = '';
             dashboardState._angeboteSelectedKunde = null;
+            dashboardState._angeboteFilters = null;
             _angeboteHideCustomer();
         }
 
@@ -11272,7 +11818,9 @@ Keine Erklärungen, kein Markdown.`;
         function _angeboteRenderSteckbrief(p) {
             const card = document.getElementById('angebote-customer-card');
             if (!card) return;
-            const top3 = (p.top3Artikel || []).map(t => `<li style="margin:0.15rem 0;">${t.n}× <span style="color:var(--text-secondary);">${t.bez}</span></li>`).join('');
+            // Top-5 im Steckbrief (vorher Top-3) — fängt mehr Sortiments-Breite bei Großkunden
+            const topListe = p.top5Artikel || (p.top3Artikel || []).slice(0, 5);
+            const top3 = topListe.map(t => `<li style="margin:0.15rem 0;">${t.n}× <span style="color:var(--text-secondary);">${t.bez}</span></li>`).join('');
             const kontakt = [p.email, p.telefon, p.mobil].filter(Boolean).join(' · ') || '<i style="color:var(--text-muted);">keine Kontaktdaten</i>';
             const ort = [p.ort, p.land].filter(Boolean).join(', ');
             card.style.display = '';
@@ -11312,7 +11860,7 @@ Keine Erklärungen, kein Markdown.`;
                         </div>
                     </div>
                     <div style="font-size:0.75rem; color:var(--text-secondary);">
-                        <b>🏆 Top-3 Artikel (Kaufhistorie):</b>
+                        <b>🏆 Top-5 Artikel (Kaufhistorie):</b>
                         <ul style="margin:0.3rem 0 0 1.2rem; padding:0; font-size:0.72rem;">${top3 || '<li><i style="color:var(--text-muted);">keine Daten</i></li>'}</ul>
                     </div>
                 </div>`;
@@ -11326,15 +11874,59 @@ Keine Erklärungen, kein Markdown.`;
             return t;
         }
 
+        // Filter-State (persistent ueber Re-Renders, reset bei Kundenwechsel)
+        function _angeboteFilters() {
+            if (!dashboardState._angeboteFilters) {
+                dashboardState._angeboteFilters = {
+                    wgs: new Set(),
+                    brands: new Set(),
+                    grades: new Set(),
+                    minVk: 0, maxVk: 0,
+                    minMarge: 0, minHits: 0,
+                    limit: 100,
+                };
+            }
+            return dashboardState._angeboteFilters;
+        }
+        function angeboteResetFilters() {
+            dashboardState._angeboteFilters = null;
+            _angeboteRenderMatch(dashboardState._angeboteSelectedKunde);
+        }
+        function angeboteToggleSetFilter(field, val) {
+            const f = _angeboteFilters();
+            const s = f[field];
+            if (s.has(val)) s.delete(val); else s.add(val);
+            _angeboteRenderMatch(dashboardState._angeboteSelectedKunde);
+        }
+        function angeboteClearSetFilter(field) {
+            _angeboteFilters()[field].clear();
+            _angeboteRenderMatch(dashboardState._angeboteSelectedKunde);
+        }
+        function angeboteSetNumFilter(field, val) {
+            const v = parseFloat(val);
+            _angeboteFilters()[field] = isNaN(v) ? 0 : v;
+            _angeboteRenderMatch(dashboardState._angeboteSelectedKunde);
+        }
+        function angeboteSetLimit(val) {
+            _angeboteFilters().limit = parseInt(val) || 100;
+            _angeboteRenderMatch(dashboardState._angeboteSelectedKunde);
+        }
+        function angeboteSetMatchTopN(val) {
+            _angeboteFilters().matchTopN = parseInt(val) || 5;
+            _angeboteRenderMatch(dashboardState._angeboteSelectedKunde);
+        }
+
         function _angeboteRenderMatch(p) {
             const matchC = document.getElementById('angebote-customer-match-container');
             const empty = document.getElementById('angebote-customer-empty');
             if (!matchC) return;
             if (empty) empty.style.display = 'none';
             matchC.style.display = '';
-            // Token-Set aus Top-3-Artikeln
+            // Token-Set aus Top-N Artikeln (default 5, konfigurierbar via Filter)
+            const matchTopN = (dashboardState._angeboteFilters && dashboardState._angeboteFilters.matchTopN) || 5;
+            const topForMatch = (p.topNArtikel || p.top5Artikel || p.top3Artikel || []).slice(0, matchTopN);
             const customerTokens = new Set();
-            (p.top3Artikel || []).forEach(t => _angeboteTokens(t.bez).forEach(tok => customerTokens.add(tok)));
+            topForMatch.forEach(t => _angeboteTokens(t.bez).forEach(tok => customerTokens.add(tok)));
             // Stock-Items
             const stock = dashboardState.stockAnalysisRaw || [];
             if (!stock.length) {
@@ -11372,9 +11964,34 @@ Keine Erklärungen, kein Markdown.`;
                 });
             });
             matches.sort((a, b) => b.matchScore - a.matchScore);
-            const top = matches.slice(0, 100);
-            const σVk = matches.reduce((s, m) => s + m.vk, 0);
-            const σMarge = matches.reduce((s, m) => s + (m.vk - m.ek), 0);
+
+            // ============== FILTER ANWENDEN ==============
+            const f = _angeboteFilters();
+            // Counts vor dem Filter (fuer UI)
+            const allWgs = {};   const allBrands = {};   const allGrades = {};
+            matches.forEach(m => {
+                if (m.wg)    allWgs[m.wg]       = (allWgs[m.wg] || 0) + 1;
+                if (m.brand) allBrands[m.brand] = (allBrands[m.brand] || 0) + 1;
+                const g = m.grade || '—';
+                allGrades[g] = (allGrades[g] || 0) + 1;
+            });
+            const filtered = matches.filter(m => {
+                if (f.wgs.size > 0    && !f.wgs.has(m.wg))    return false;
+                if (f.brands.size > 0 && !f.brands.has(m.brand)) return false;
+                if (f.grades.size > 0) {
+                    const g = m.grade || '—';
+                    if (!f.grades.has(g)) return false;
+                }
+                if (f.minHits > 0 && m.hits < f.minHits)  return false;
+                if (f.minVk   > 0 && m.vk   < f.minVk)    return false;
+                if (f.maxVk   > 0 && m.vk   > f.maxVk)    return false;
+                if (f.minMarge> 0 && m.marge< f.minMarge) return false;
+                return true;
+            });
+            const limit = f.limit || 100;
+            const top = filtered.slice(0, limit);
+            const σVk = filtered.reduce((s, m) => s + m.vk, 0);
+            const σMarge = filtered.reduce((s, m) => s + (m.vk - m.ek), 0);
             // Personalisierte Preisanpassung: bei Premium-Kunde (LTV ≥ 50k) -3% Rabatt-Empfehlung, bei Churned +0%
             const rabattPct = p.segment === 'aktiv' && p.ltv >= 50000 ? 3
                             : p.segment === 'high-value-churn' ? 5  // Reaktivierungs-Hebel
@@ -11387,6 +12004,67 @@ Keine Erklärungen, kein Markdown.`;
                 if (sortKey === 'vk')    return b.vk - a.vk;
                 return b.matchScore - a.matchScore;
             });
+            // ============ FILTER-UI bauen ============
+            const _h = s => String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+            const wgEntries    = Object.entries(allWgs).sort((a,b) => b[1]-a[1]);
+            const brandEntries = Object.entries(allBrands).sort((a,b) => b[1]-a[1]);
+            const gradeEntries = Object.entries(allGrades).sort();
+            const wgChips = wgEntries.slice(0, 30).map(([k, n]) => {
+                const on = f.wgs.has(k);
+                return `<label style="display:inline-flex; align-items:center; gap:0.25rem; font-size:0.65rem; padding:0.25rem 0.5rem; background:${on ? 'var(--accent-cyan)' : 'var(--bg-elevated)'}; color:${on ? 'white' : 'var(--text-primary)'}; border-radius:5px; cursor:pointer; white-space:nowrap;"><input type="checkbox" ${on?'checked':''} onchange="angeboteToggleSetFilter('wgs', this.dataset.val)" data-val="${_h(k)}" style="display:none;">${_h(k)} <span style="opacity:0.7;">(${n})</span></label>`;
+            }).join('');
+            const brandChips = brandEntries.slice(0, 30).map(([k, n]) => {
+                const on = f.brands.has(k);
+                return `<label style="display:inline-flex; align-items:center; gap:0.25rem; font-size:0.65rem; padding:0.25rem 0.5rem; background:${on ? 'var(--accent-cyan)' : 'var(--bg-elevated)'}; color:${on ? 'white' : 'var(--text-primary)'}; border-radius:5px; cursor:pointer; white-space:nowrap;"><input type="checkbox" ${on?'checked':''} onchange="angeboteToggleSetFilter('brands', this.dataset.val)" data-val="${_h(k)}" style="display:none;">${_h(k)} <span style="opacity:0.7;">(${n})</span></label>`;
+            }).join('');
+            const gradeBtns = gradeEntries.map(([g, n]) => {
+                const on = f.grades.has(g);
+                const color = g === 'A' ? '#10b981' : g === 'B' ? '#06b6d4' : g === 'C' ? '#f97316' : g === 'D' ? '#ef4444' : '#94a3b8';
+                return `<button onclick="angeboteToggleSetFilter('grades', '${_h(g)}')" style="padding:0.25rem 0.55rem; background:${on?color:'var(--bg-elevated)'}; color:${on?'white':color}; border:1px solid ${color}; border-radius:5px; font-size:0.7rem; font-weight:700; cursor:pointer;">${_h(g)} <span style="opacity:0.7; font-weight:400;">(${n})</span></button>`;
+            }).join('');
+            const filterUI = `
+                <div style="background:var(--bg-card); border:1px solid var(--border); border-radius:10px; padding:0.7rem 0.85rem; margin-bottom:0.6rem;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem; margin-bottom:0.5rem;">
+                        <div style="font-size:0.7rem; font-weight:700; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.04em;">🔍 Filter</div>
+                        <button onclick="angeboteResetFilters()" style="padding:0.25rem 0.6rem; background:var(--bg-elevated); color:var(--text-muted); border:1px solid var(--border); border-radius:4px; font-size:0.65rem; cursor:pointer;">↺ Alle zurücksetzen</button>
+                    </div>
+                    <details style="margin-bottom:0.4rem;"${f.wgs.size > 0 ? ' open' : ''}>
+                        <summary style="cursor:pointer; font-size:0.7rem; color:var(--text-primary); padding:0.2rem 0;">📦 Warengruppe ${f.wgs.size > 0 ? `<span style="color:var(--accent-cyan); font-weight:700;">(${f.wgs.size} aktiv)</span>` : `<span style="color:var(--text-muted);">(${wgEntries.length} verfügbar)</span>`} ${f.wgs.size > 0 ? `<button onclick="event.preventDefault(); event.stopPropagation(); angeboteClearSetFilter('wgs')" style="margin-left:0.5rem; padding:0 0.4rem; font-size:0.6rem; background:transparent; border:1px solid var(--border); border-radius:3px; color:var(--text-muted); cursor:pointer;">×</button>` : ''}</summary>
+                        <div style="display:flex; flex-wrap:wrap; gap:0.3rem; margin-top:0.4rem;">${wgChips || '<span style="color:var(--text-muted); font-size:0.7rem;">keine Warengruppen</span>'}</div>
+                    </details>
+                    <details style="margin-bottom:0.4rem;"${f.brands.size > 0 ? ' open' : ''}>
+                        <summary style="cursor:pointer; font-size:0.7rem; color:var(--text-primary); padding:0.2rem 0;">🏭 Marke ${f.brands.size > 0 ? `<span style="color:var(--accent-cyan); font-weight:700;">(${f.brands.size} aktiv)</span>` : `<span style="color:var(--text-muted);">(${brandEntries.length} verfügbar)</span>`} ${f.brands.size > 0 ? `<button onclick="event.preventDefault(); event.stopPropagation(); angeboteClearSetFilter('brands')" style="margin-left:0.5rem; padding:0 0.4rem; font-size:0.6rem; background:transparent; border:1px solid var(--border); border-radius:3px; color:var(--text-muted); cursor:pointer;">×</button>` : ''}</summary>
+                        <div style="display:flex; flex-wrap:wrap; gap:0.3rem; margin-top:0.4rem;">${brandChips || '<span style="color:var(--text-muted); font-size:0.7rem;">keine Marken</span>'}</div>
+                    </details>
+                    <div style="display:flex; flex-wrap:wrap; gap:0.55rem; align-items:center; padding:0.2rem 0;">
+                        <span style="font-size:0.65rem; color:var(--text-muted); text-transform:uppercase;">Grade:</span>
+                        ${gradeBtns}
+                        <span style="width:1px; background:var(--border); align-self:stretch; margin:0 0.3rem;"></span>
+                        <label style="font-size:0.65rem; color:var(--text-muted);">Min-Hits:</label>
+                        <input type="number" min="0" value="${f.minHits}" onchange="angeboteSetNumFilter('minHits', this.value)" style="width:50px; padding:0.2rem 0.3rem; font-size:0.7rem; border-radius:4px; background:var(--bg-secondary); border:1px solid var(--border); color:var(--text-primary);">
+                        <label style="font-size:0.65rem; color:var(--text-muted);">VK €:</label>
+                        <input type="number" min="0" value="${f.minVk || ''}" placeholder="min" onchange="angeboteSetNumFilter('minVk', this.value)" style="width:60px; padding:0.2rem 0.3rem; font-size:0.7rem; border-radius:4px; background:var(--bg-secondary); border:1px solid var(--border); color:var(--text-primary);">
+                        <input type="number" min="0" value="${f.maxVk || ''}" placeholder="max" onchange="angeboteSetNumFilter('maxVk', this.value)" style="width:60px; padding:0.2rem 0.3rem; font-size:0.7rem; border-radius:4px; background:var(--bg-secondary); border:1px solid var(--border); color:var(--text-primary);">
+                        <label style="font-size:0.65rem; color:var(--text-muted);">Min-Marge %:</label>
+                        <input type="number" min="0" max="100" value="${f.minMarge || ''}" placeholder="0" onchange="angeboteSetNumFilter('minMarge', this.value)" style="width:50px; padding:0.2rem 0.3rem; font-size:0.7rem; border-radius:4px; background:var(--bg-secondary); border:1px solid var(--border); color:var(--text-primary);">
+                        <span style="width:1px; background:var(--border); align-self:stretch; margin:0 0.3rem;"></span>
+                        <label style="font-size:0.65rem; color:var(--text-muted);">Anzeigen:</label>
+                        <select onchange="angeboteSetLimit(this.value)" style="padding:0.2rem 0.4rem; font-size:0.7rem; border-radius:4px; background:var(--bg-secondary); border:1px solid var(--border); color:var(--text-primary);">
+                            <option value="50"${f.limit===50?' selected':''}>Top 50</option>
+                            <option value="100"${f.limit===100?' selected':''}>Top 100</option>
+                            <option value="250"${f.limit===250?' selected':''}>Top 250</option>
+                            <option value="500"${f.limit===500?' selected':''}>Top 500</option>
+                            <option value="99999"${f.limit===99999?' selected':''}>Alle</option>
+                        </select>
+                        <span style="width:1px; background:var(--border); align-self:stretch; margin:0 0.3rem;"></span>
+                        <label style="font-size:0.65rem; color:var(--text-muted);" title="Wieviele Top-Artikel des Kunden werden für das Token-Matching genutzt? Mehr = breiter, evtl. mehr Rauschen.">Match-Basis:</label>
+                        <select onchange="angeboteSetMatchTopN(this.value)" style="padding:0.2rem 0.4rem; font-size:0.7rem; border-radius:4px; background:var(--bg-secondary); border:1px solid var(--border); color:var(--text-primary);">
+                            <option value="3"${matchTopN===3?' selected':''}>Top 3 Artikel</option>
+                            <option value="5"${matchTopN===5?' selected':''}>Top 5 Artikel</option>
+                            <option value="10"${matchTopN===10?' selected':''}>Top 10 Artikel</option>
+                        </select>
+                    </div>
+                </div>`;
             const rows = sortedTop.map((m, i) => {
                 const preis = m.vk * (1 - rabattPct / 100);
                 return `<tr style="border-bottom:1px solid var(--border);">
@@ -11399,10 +12077,15 @@ Keine Erklärungen, kein Markdown.`;
                     <td style="padding:0.4rem; font-size:0.7rem; text-align:right; color:${m.marge >= 30 ? 'var(--accent-green)' : 'var(--text-muted)'};">${m.marge.toFixed(1)}%</td>
                 </tr>`;
             }).join('');
-            matchC.innerHTML = `
+            const filterActive = (f.wgs.size + f.brands.size + f.grades.size) > 0 ||
+                                 f.minHits > 0 || f.minVk > 0 || f.maxVk > 0 || f.minMarge > 0;
+            const summaryLabel = filterActive
+                ? `🎯 ${filtered.length} von ${matches.length} Items · Σ VK ${Math.round(σVk).toLocaleString('de-DE')} € · Σ Marge ${Math.round(σMarge).toLocaleString('de-DE')} €`
+                : `🎯 ${matches.length} passende Stock-Items · Σ VK ${Math.round(σVk).toLocaleString('de-DE')} € · Σ Marge ${Math.round(σMarge).toLocaleString('de-DE')} €`;
+            matchC.innerHTML = filterUI + `
                 <div style="padding:0.85rem 1rem; background:linear-gradient(135deg, rgba(16,185,129,0.06), rgba(0,113,227,0.04)); border:1px solid rgba(16,185,129,0.3); border-radius:10px; margin-bottom:0.75rem;">
                     <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem; margin-bottom:0.5rem;">
-                        <div style="font-size:0.9rem; font-weight:700; color:var(--text-primary);">🎯 ${matches.length} passende Stock-Items · Σ VK ${Math.round(σVk).toLocaleString('de-DE')} € · Σ Marge ${Math.round(σMarge).toLocaleString('de-DE')} €</div>
+                        <div style="font-size:0.9rem; font-weight:700; color:var(--text-primary);">${summaryLabel}</div>
                         <div style="display:flex; gap:0.5rem; align-items:center;">
                             <label style="font-size:0.65rem; color:var(--text-muted); text-transform:uppercase;">Sort:</label>
                             <select onchange="dashboardState._angeboteMatchSort=this.value; _angeboteRenderMatch(dashboardState._angeboteSelectedKunde);" style="padding:0.3rem 0.5rem; font-size:0.7rem; border-radius:4px; background:var(--bg-secondary); border:1px solid var(--border); color:var(--text-primary);">
@@ -11410,7 +12093,9 @@ Keine Erklärungen, kein Markdown.`;
                                 <option value="marge"${sortKey==='marge'?' selected':''}>Marge % ↓</option>
                                 <option value="vk"${sortKey==='vk'?' selected':''}>VK € ↓</option>
                             </select>
-                            <button onclick="exportAngebotsCsv()" style="padding:0.35rem 0.7rem; background:var(--accent-cyan); color:white; border:none; border-radius:5px; font-size:0.7rem; cursor:pointer;">📥 CSV Angebot</button>
+                            <button onclick="exportAngebotsCsv()" style="padding:0.35rem 0.7rem; background:var(--accent-cyan); color:white; border:none; border-radius:5px; font-size:0.7rem; cursor:pointer;" title="Statische CSV (intern, mit EK / Marge)">📥 CSV</button>
+                            <button onclick="exportAngebotsXLSX()" style="padding:0.35rem 0.7rem; background:var(--accent-green); color:white; border:none; border-radius:5px; font-size:0.7rem; cursor:pointer;" title="Excel mit Live-Formeln (intern, mit EK/Marge/LTV) — NICHT an Kunden weiterleiten">📊 Excel (intern)</button>
+                            <button onclick="exportAngebotsKundenversion()" style="padding:0.35rem 0.7rem; background:linear-gradient(135deg,#a855f7,#0071e3); color:white; border:none; border-radius:5px; font-size:0.7rem; font-weight:700; cursor:pointer;" title="Sichere Kunden-Version — eigenes Excel ohne EK, Marge oder LTV. Sofort an den Kunden weiterleitbar.">📨 Kunden-Version</button>
                         </div>
                     </div>
                     <div style="font-size:0.7rem; color:var(--text-secondary);">
@@ -11433,10 +12118,10 @@ Keine Erklärungen, kein Markdown.`;
                         <tbody>${rows || '<tr><td colspan="7" style="padding:1rem; text-align:center; color:var(--text-muted);">Keine Matches</td></tr>'}</tbody>
                     </table>
                 </div>
-                ${matches.length > 100 ? `<div style="margin-top:0.5rem; font-size:0.65rem; color:var(--text-muted); text-align:right;">Top 100 von ${matches.length} angezeigt</div>` : ''}
+                ${filtered.length > limit ? `<div style="margin-top:0.5rem; font-size:0.65rem; color:var(--text-muted); text-align:right;">Top ${limit} von ${filtered.length} angezeigt — Export enthält alle ${filtered.length}</div>` : ''}
             `;
-            // Stash für CSV
-            dashboardState._angeboteCurrentMatches = matches;
+            // Stash für CSV/Excel-Export — FILTERED matches (nicht alle), damit Filter mit-exportiert wird
+            dashboardState._angeboteCurrentMatches = filtered;
             dashboardState._angeboteCurrentRabatt = rabattPct;
         }
 
@@ -11677,7 +12362,8 @@ Keine Erklärungen, kein Markdown.`;
                             <div style="text-align:right;"><div style="font-size:0.6rem; color:var(--text-muted);">EK</div><div class="mono" style="font-weight:600; font-size:0.8rem;">${k.sumEK.toLocaleString('de-DE',{style:'currency',currency:'EUR',maximumFractionDigits:0})}</div></div>
                             <div style="text-align:right;"><div style="font-size:0.6rem; color:var(--text-muted);">VK</div><div class="mono" style="font-weight:600; font-size:0.8rem; color:var(--accent-green);">${k.sumVK.toLocaleString('de-DE',{style:'currency',currency:'EUR',maximumFractionDigits:0})}</div></div>
                             <div style="text-align:right;"><div style="font-size:0.6rem; color:var(--text-muted);">Marge</div><div class="mono" style="font-weight:600; font-size:0.8rem;">${k.marge.toFixed(0)}%</div></div>
-                            <button onclick="event.stopPropagation(); exportKonvolut(${idx})" style="padding:0.35rem 0.7rem; background:var(--accent-cyan); color:white; border:none; border-radius:5px; font-size:0.68rem; cursor:pointer;">📥 CSV</button>
+                            <button onclick="event.stopPropagation(); exportKonvolut(${idx})" style="padding:0.35rem 0.7rem; background:var(--accent-cyan); color:white; border:none; border-radius:5px; font-size:0.68rem; cursor:pointer;" title="CSV">📥 CSV</button>
+                            <button onclick="event.stopPropagation(); exportKonvolutXLSX(${idx})" style="padding:0.35rem 0.7rem; background:var(--accent-green); color:white; border:none; border-radius:5px; font-size:0.68rem; cursor:pointer;" title="Excel mit Live-Formeln">📊 Excel</button>
                             <span id="konvolut-arrow-${idx}" style="font-size:0.9rem; color:var(--text-muted);">▸</span>
                         </div>
                     </div>
@@ -23022,6 +23708,192 @@ location.reload();</pre>
 
         console.log('[Vertriebs-Cockpit] Enforcer aktiv — nur Sales-Bereich sichtbar.');
     })();
+    </script>
+
+    <!-- ============================================================
+         KUNDEN-KONTAKT-MODAL (CLV / Churn / Reaktivierung — wiederverwendbar)
+         Öffnen: showCustomerCard(kundenNr) · Schließen: closeCustomerCard()
+         ============================================================ -->
+    <style>
+        .cc-backdrop { position:fixed; inset:0; background:rgba(0,0,0,0.55); backdrop-filter:blur(4px); -webkit-backdrop-filter:blur(4px); display:none; align-items:flex-start; justify-content:center; z-index:9999; padding:5vh 1rem 1rem; overflow-y:auto; }
+        .cc-backdrop.open { display:flex; }
+        .cc-card { background:var(--bg-card, #fff); border-radius:16px; box-shadow:0 30px 80px rgba(0,0,0,0.4); width:min(640px,100%); border:1px solid var(--border, #e5e5ea); overflow:hidden; animation:cc-pop .18s ease-out; }
+        @keyframes cc-pop { from { transform:translateY(12px); opacity:0;} to { transform:translateY(0); opacity:1;} }
+        .cc-head { padding:1.2rem 1.4rem 1rem; background:linear-gradient(135deg, rgba(0,113,227,0.10), rgba(99,102,241,0.06)); border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:flex-start; gap:0.5rem; }
+        .cc-firma { font-size:1.1rem; font-weight:700; color:var(--text-primary); line-height:1.25; }
+        .cc-kn { font-size:0.7rem; color:var(--text-muted); margin-top:0.1rem; }
+        .cc-close { background:transparent; border:none; color:var(--text-muted); font-size:1.4rem; cursor:pointer; padding:0 0.3rem; line-height:1; }
+        .cc-close:hover { color:var(--accent-red, #ef4444); }
+        .cc-body { padding:1rem 1.4rem; }
+        .cc-kpi-row { display:grid; grid-template-columns:repeat(4,1fr); gap:0.5rem; margin-bottom:1rem; }
+        .cc-kpi { background:var(--bg-elevated, #f5f5f7); padding:0.55rem 0.7rem; border-radius:8px; text-align:center; }
+        .cc-kpi .v { font-size:1rem; font-weight:700; color:var(--text-primary); }
+        .cc-kpi .l { font-size:0.55rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em; margin-top:0.1rem; }
+        .cc-section { margin-bottom:0.9rem; }
+        .cc-section-h { font-size:0.65rem; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.06em; margin-bottom:0.35rem; }
+        .cc-contact-row { display:flex; align-items:center; gap:0.5rem; padding:0.55rem 0.75rem; background:var(--bg-elevated); border-radius:8px; margin-bottom:0.3rem; font-size:0.8rem; }
+        .cc-contact-icon { width:24px; flex-shrink:0; text-align:center; font-size:0.95rem; }
+        .cc-contact-value { flex:1; color:var(--text-primary); font-family:'SF Mono',Menlo,Consolas,monospace; font-size:0.78rem; word-break:break-all; }
+        .cc-contact-actions { display:flex; gap:0.3rem; }
+        .cc-action { padding:0.3rem 0.55rem; font-size:0.65rem; background:var(--accent-cyan, #06b6d4); color:#fff; border:none; border-radius:5px; cursor:pointer; font-weight:600; text-decoration:none; display:inline-flex; align-items:center; gap:0.2rem; }
+        .cc-action.copy { background:var(--bg-card); color:var(--text-muted); border:1px solid var(--border); }
+        .cc-action:hover { filter:brightness(1.1); }
+        .cc-empty { color:var(--text-muted); font-style:italic; font-size:0.75rem; }
+        .cc-top3 { background:var(--bg-elevated); padding:0.5rem 0.75rem; border-radius:8px; font-size:0.75rem; color:var(--text-secondary); line-height:1.5; }
+        .cc-foot { padding:0.85rem 1.4rem; border-top:1px solid var(--border); background:var(--bg-elevated); display:flex; gap:0.5rem; flex-wrap:wrap; }
+        .cc-foot button, .cc-foot a { padding:0.55rem 0.9rem; font-size:0.78rem; font-weight:700; border:none; border-radius:6px; cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; gap:0.3rem; }
+        .cc-foot .primary { background:linear-gradient(135deg,#10b981,#06b6d4); color:#fff; }
+        .cc-foot .secondary { background:var(--bg-card); color:var(--text-primary); border:1px solid var(--border); }
+        .cc-row-clickable { cursor:pointer; transition:background 0.12s; }
+        .cc-row-clickable:hover { background:rgba(0,113,227,0.06) !important; }
+    </style>
+    <div id="cc-modal" class="cc-backdrop" onclick="if(event.target===this) closeCustomerCard()">
+        <div class="cc-card" id="cc-card-content"></div>
+    </div>
+    <script>
+        document.addEventListener('keydown', e => { if (e.key === 'Escape') closeCustomerCard(); });
+
+        function showCustomerCard(kundenNr) {
+            const profiles = dashboardState.customerProfiles || {};
+            const p = profiles[String(kundenNr).trim()] || profiles[kundenNr];
+            if (!p) {
+                if (typeof showToast === 'function') showToast('warning', 'Kundenprofil nicht gefunden', 'Stammdaten + JTL 4-Jahre laden');
+                return;
+            }
+            const card = document.getElementById('cc-card-content');
+            const modal = document.getElementById('cc-modal');
+            if (!card || !modal) return;
+
+            const _h = s => String(s == null ? '' : s)
+                .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+
+            const seg = p.segment || 'unbekannt';
+            const segMap = {
+                'aktiv':            ['🟢 Aktiv', '#10b981'],
+                'pre-churn':        ['🟠 Pre-Churn', '#f97316'],
+                'high-value-churn': ['🔴 High-Value Churn', '#ef4444'],
+                'churned':          ['⚪ Churned', '#6b7280'],
+            };
+            const [segLabel, segColor] = segMap[seg] || ['—', '#6b7280'];
+
+            const erst = p.erstesKaufDt ? p.erstesKaufDt.toLocaleDateString('de-DE') : '—';
+            const letzt = p.letztesKaufDt ? p.letztesKaufDt.toLocaleDateString('de-DE') : '—';
+            const adresse = [p.plz, p.ort, p.land].filter(Boolean).join(' · ');
+            const anrede = [p.vorname, p.nachname].filter(Boolean).join(' ').trim();
+
+            const ltvEur = (p.ltv || 0).toLocaleString('de-DE', {style:'currency', currency:'EUR', maximumFractionDigits:0});
+            const jahrEur = (p.øJahresumsatz || 0).toLocaleString('de-DE', {style:'currency', currency:'EUR', maximumFractionDigits:0});
+
+            const topList = p.top5Artikel || (p.top3Artikel || []).slice(0, 5);
+            const top3html = (topList && topList.length)
+                ? topList.map(t => `<div>${t.n}× ${_h(t.bez)}</div>`).join('')
+                : '<div class="cc-empty">keine Top-Artikel</div>';
+
+            const mailto = p.email
+                ? `mailto:${encodeURIComponent(p.email)}?subject=${encodeURIComponent('elvinci.de · Angebot für ' + (p.firma || 'Kunde ' + p.kundenNr))}&body=${encodeURIComponent('Hallo' + (anrede ? ' ' + anrede : '') + ',\n\n')}`
+                : null;
+
+            const contactRow = (icon, label, value, telPrefix) => {
+                if (!value) {
+                    return `<div class="cc-contact-row"><div class="cc-contact-icon">${icon}</div><div class="cc-contact-value cc-empty">— ${_h(label)} fehlt —</div></div>`;
+                }
+                const v = String(value).trim();
+                const linkHref = telPrefix === 'mail' ? mailto : (telPrefix === 'tel' ? `tel:${v.replace(/[^+\d]/g,'')}` : null);
+                const linkBtn = linkHref ? `<a class="cc-action" href="${linkHref}" title="Öffnen">${telPrefix==='mail'?'📧 öffnen':'📞 anrufen'}</a>` : '';
+                return `<div class="cc-contact-row">
+                    <div class="cc-contact-icon">${icon}</div>
+                    <div class="cc-contact-value">${_h(v)}</div>
+                    <div class="cc-contact-actions">
+                        ${linkBtn}
+                        <button class="cc-action copy" onclick="_ccCopy('${_h(v).replace(/'/g,'&#39;')}', this)" title="In Zwischenablage">📋</button>
+                    </div>
+                </div>`;
+            };
+
+            card.innerHTML = `
+                <div class="cc-head">
+                    <div>
+                        <div class="cc-firma">${_h(p.firma || 'Kunde ' + p.kundenNr)}</div>
+                        <div class="cc-kn">Kunden-Nr ${_h(p.kundenNr)}${anrede ? ' · ' + _h(anrede) : ''}${adresse ? ' · ' + _h(adresse) : ''}</div>
+                        <div style="margin-top:0.3rem;"><span style="padding:0.15rem 0.55rem; background:${segColor}22; color:${segColor}; border-radius:6px; font-size:0.65rem; font-weight:700;">${_h(segLabel)}</span></div>
+                    </div>
+                    <button class="cc-close" onclick="closeCustomerCard()" title="Schließen (ESC)">×</button>
+                </div>
+                <div class="cc-body">
+                    <div class="cc-kpi-row">
+                        <div class="cc-kpi"><div class="v">${ltvEur}</div><div class="l">LTV (Brutto)</div></div>
+                        <div class="cc-kpi"><div class="v">${jahrEur}</div><div class="l">Ø Jahresumsatz</div></div>
+                        <div class="cc-kpi"><div class="v">${p.nAufträge || 0}</div><div class="l">Aufträge</div></div>
+                        <div class="cc-kpi"><div class="v" style="color:${p.tageInaktiv > 180 ? 'var(--accent-red)' : p.tageInaktiv > 90 ? 'var(--accent-orange)' : 'var(--accent-green)'};">${p.tageInaktiv || 0} T</div><div class="l">Inaktiv</div></div>
+                    </div>
+                    <div class="cc-section">
+                        <div class="cc-section-h">Kontakt</div>
+                        ${contactRow('📧', 'E-Mail', p.email, 'mail')}
+                        ${contactRow('📞', 'Telefon', p.telefon, 'tel')}
+                        ${contactRow('📱', 'Mobil', p.mobil, 'tel')}
+                    </div>
+                    <div class="cc-section">
+                        <div class="cc-section-h">Verlauf</div>
+                        <div style="font-size:0.78rem; color:var(--text-secondary);">Erstkauf: <b style="color:var(--text-primary);">${erst}</b> · Letzter Kauf: <b style="color:var(--text-primary);">${letzt}</b></div>
+                    </div>
+                    <div class="cc-section">
+                        <div class="cc-section-h">Top-5 Artikel (4-Jahres-Historie)</div>
+                        <div class="cc-top3">${top3html}</div>
+                    </div>
+                </div>
+                <div class="cc-foot">
+                    <button class="primary" onclick="_ccBuildKonvolut('${_h(p.kundenNr)}','${_h(p.firma||'')}')">🎯 Angebot für diesen Kunden</button>
+                    ${mailto ? `<a class="secondary" href="${mailto}">📧 E-Mail-Vorlage</a>` : ''}
+                    <button class="secondary" onclick="_ccCopyAll('${_h(p.kundenNr)}')">📋 Komplettkontakt kopieren</button>
+                </div>
+            `;
+            modal.classList.add('open');
+        }
+
+        function closeCustomerCard() {
+            const m = document.getElementById('cc-modal');
+            if (m) m.classList.remove('open');
+        }
+
+        function _ccCopy(text, btn) {
+            navigator.clipboard.writeText(String(text).replace(/&#39;/g,"'").replace(/&quot;/g,'"').replace(/&amp;/g,'&'))
+                .then(() => {
+                    if (btn) {
+                        const orig = btn.textContent;
+                        btn.textContent = '✓ kopiert';
+                        setTimeout(() => { btn.textContent = orig; }, 1500);
+                    }
+                })
+                .catch(e => { if (typeof showToast === 'function') showToast('error', 'Copy fehlgeschlagen', String(e.message||e)); });
+        }
+
+        function _ccCopyAll(kundenNr) {
+            const p = (dashboardState.customerProfiles || {})[kundenNr];
+            if (!p) return;
+            const lines = [];
+            if (p.firma) lines.push(p.firma);
+            const anrede = [p.vorname, p.nachname].filter(Boolean).join(' ').trim();
+            if (anrede) lines.push(anrede);
+            const adr = [p.plz, p.ort, p.land].filter(Boolean).join(' · ');
+            if (adr) lines.push(adr);
+            if (p.email)   lines.push('E-Mail: ' + p.email);
+            if (p.telefon) lines.push('Tel:    ' + p.telefon);
+            if (p.mobil)   lines.push('Mobil:  ' + p.mobil);
+            lines.push('Kunden-Nr: ' + p.kundenNr);
+            navigator.clipboard.writeText(lines.join('\n'))
+                .then(() => { if (typeof showToast === 'function') showToast('success', 'Kontakt kopiert', `${lines.length} Zeilen in Zwischenablage`); })
+                .catch(e => { if (typeof showToast === 'function') showToast('error', 'Copy fehlgeschlagen', String(e.message||e)); });
+        }
+
+        function _ccBuildKonvolut(kundenNr, firma) {
+            closeCustomerCard();
+            try { reaktBuildKonvolut(kundenNr, firma); }
+            catch(e) {
+                try { switchAnalyseTab('angebote'); angeboteSetMode('customer');
+                      const cs = document.getElementById('angebote-customer-search');
+                      if (cs) { cs.value = firma; angeboteOnCustomerInput(); } } catch(_) {}
+            }
+        }
     </script>
 </body>
 </html>
