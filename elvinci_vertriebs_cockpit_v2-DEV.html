@@ -5,7 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>elvinci.de | Vertriebs-Cockpit</title>
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- KILLCRITIC-Fix K5 (2026-06-12): Version gepinnt (war ungepinnt = "latest").
+         4.5.1 = die zum Fix-Zeitpunkt aufgelöste Version, identischer Code wie zuvor geladen.
+         Ein Chart.js-Major-Release hätte das Dashboard sonst ohne Vorwarnung brechen können. -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -9625,6 +9628,9 @@ Keine Erklärungen, kein Markdown.`;
                 p.telefon = sd.telefon || '';
                 p.mobil   = sd.mobil   || '';
                 // Segment (Schwellen wie in Reaktivierungs-Excel)
+                // Hinweis Konsistenz: Der Churn-Alert-Reiter nutzt ENGERE Filter als diese
+                // Segmente — Pre-Churn-Forecast = 150–180T (statt 90–180T) + LTV-Minimum,
+                // HVC-Liste = LTV-Schwelle UI-anpassbar (default 50k). Siehe renderChurnTab.
                 if (p.tageInaktiv < 90)         p.segment = 'aktiv';
                 else if (p.tageInaktiv < 180)   p.segment = 'pre-churn';
                 else if (p.ltv >= 50000)        p.segment = 'high-value-churn';
@@ -10090,13 +10096,18 @@ Keine Erklärungen, kein Markdown.`;
 
             // Already Churned: >180T + LTV>=minLtvHvc
             const hvc = all.filter(p => p.tageInaktiv > 180 && p.ltv >= minLtvHvc).sort((a,b) => b.ltv - a.ltv);
-            // Pre-Churn: 150-180T + LTV>=minLtvPre
+            // Pre-Churn-FORECAST: bewusst 150–180T (NICHT 90–180T wie das CLV-Segment 'pre-churn'!).
+            // Semantik: "Wer reißt in den nächsten 30 Tagen die 180-T-Churn-Schwelle?" (150+30=180).
+            // Kunden mit 90–150T Inaktivität sind absichtlich nur im CLV-Reiter als 'pre-churn'
+            // sichtbar — dieser Reiter ist die Eskalationsstufe, kein Duplikat des Segments.
+            // Zusätzlich greift hier ein LTV-Mindestfilter (default 30k), den das Segment nicht hat.
             const pre = all.filter(p => p.tageInaktiv >= 150 && p.tageInaktiv <= 180 && p.ltv >= minLtvPre).sort((a,b) => b.tageInaktiv - a.tageInaktiv);
 
             // Speichern für Export
             dashboardState._churnHvc = hvc;
             dashboardState._churnPre = pre;
-            if (!dashboardState._churnStatus) dashboardState._churnStatus = {};
+            // KILLCRITIC-Fix K4 (2026-06-12): Status aus localStorage laden statt leer starten
+            if (!dashboardState._churnStatus) dashboardState._churnStatus = _loadChurnStatus();
 
             // Stand-Badge
             const standEl = document.getElementById('churn-stand-badge');
@@ -10135,7 +10146,7 @@ Keine Erklärungen, kein Markdown.`;
                     ${showDays ? `<td class="mono" style="font-size:0.65rem; text-align:right; font-weight:700; color:${tageColor};">${p.tageInaktiv}T</td>` : ''}
                     <td style="font-size:0.6rem; text-align:center;">${kontakt}</td>
                     <td>
-                        <select data-kn="${p.kundenNr}" onchange="churnSetStatus(this)" style="padding:0.15rem 0.3rem; font-size:0.6rem; border-radius:3px; background:var(--bg-secondary); border:1px solid var(--border); color:${statusColor}; font-weight:700;">
+                        <select data-kn="${_h(p.kundenNr)}" onchange="churnSetStatus(this)" style="padding:0.15rem 0.3rem; font-size:0.6rem; border-radius:3px; background:var(--bg-secondary); border:1px solid var(--border); color:${statusColor}; font-weight:700;">
                             <option value="OFFEN" ${status==='OFFEN'?'selected':''}>OFFEN</option>
                             <option value="KONTAKTIERT" ${status==='KONTAKTIERT'?'selected':''}>KONTAKTIERT</option>
                             <option value="INTERESSE" ${status==='INTERESSE'?'selected':''}>INTERESSE</option>
@@ -10208,10 +10219,28 @@ Keine Erklärungen, kein Markdown.`;
                 </table>`;
             }
         }
+        // KILLCRITIC-Fix K4 (2026-06-12): Churn-Status lag nur im Session-RAM —
+        // jeder F5 hat den kompletten Abarbeitungs-Stand des Win-Back-Workflows gelöscht.
+        // Jetzt: localStorage-Persistenz. Bewusst NICHT in resetAllSessionState geleert
+        // (User-Arbeitsstand, keine Upload-Daten).
+        const CHURN_STATUS_KEY = 'elvinci_churn_status_v1';
+        function _loadChurnStatus() {
+            try {
+                const raw = localStorage.getItem(CHURN_STATUS_KEY);
+                const parsed = raw ? JSON.parse(raw) : {};
+                return (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) ? parsed : {};
+            } catch (e) { return {}; }
+        }
+        function _saveChurnStatus() {
+            try {
+                localStorage.setItem(CHURN_STATUS_KEY, JSON.stringify(dashboardState._churnStatus || {}));
+            } catch (e) { /* Quota/Privacy-Mode: Status bleibt wenigstens im RAM */ }
+        }
         function churnSetStatus(sel) {
             const kn = sel.getAttribute('data-kn');
-            if (!dashboardState._churnStatus) dashboardState._churnStatus = {};
+            if (!dashboardState._churnStatus) dashboardState._churnStatus = _loadChurnStatus();
             dashboardState._churnStatus[kn] = sel.value;
+            _saveChurnStatus();
             // Farbe aktualisieren
             const map = { 'ERLEDIGT':'var(--accent-green)', 'KONTAKTIERT':'var(--accent-cyan)', 'INTERESSE':'#06b6d4', 'KEIN_INTERESSE':'var(--text-muted)', 'OFFEN':'var(--accent-orange)' };
             sel.style.color = map[sel.value] || 'var(--text-primary)';
@@ -10412,7 +10441,7 @@ Keine Erklärungen, kein Markdown.`;
                                 <td title="${_h(allTop)}">${top3html}</td>
                                 <td style="text-align:center;" title="${matchCount} Stock-Geräte matchen die Top-Kauf-Tokens dieses Kunden">${matchBadge}</td>
                                 <td style="text-align:center; font-size:0.8rem;">${kontakt}</td>
-                                <td><button onclick="reaktBuildKonvolut('${p.kundenNr}','${_h(firma).replace(/'/g, "\\'")}')" style="padding:0.25rem 0.5rem; background:var(--gradient-green); color:white; border:none; border-radius:4px; font-size:0.62rem; font-weight:700; cursor:pointer; white-space:nowrap;">🎯 Konvolut</button></td>
+                                <td><button data-kn="${_h(p.kundenNr)}" data-firma="${_h(firma)}" onclick="reaktBuildKonvolut(this.dataset.kn, this.dataset.firma)" style="padding:0.25rem 0.5rem; background:var(--gradient-green); color:white; border:none; border-radius:4px; font-size:0.62rem; font-weight:700; cursor:pointer; white-space:nowrap;">🎯 Konvolut</button></td>
                             </tr>`;
                         }).join('')}</tbody>
                     </table>`;
@@ -12047,6 +12076,11 @@ Keine Erklärungen, kein Markdown.`;
             // Speichern für Export
             dashboardState.kundenStats = kundenStats;
             dashboardState.kundenWG = kundenWG;
+            // KILLCRITIC-Fix K1 (2026-06-12): kundenWgStats wurde nie geschrieben — nur
+            // gelesen (analyzeAngebot Top-Kunden-Match, computeCustomerMatches) und im Reset
+            // geleert. Die Konsumenten liefen dadurch immer auf einem leeren Objekt.
+            // Struktur ist identisch zu kundenWG: { [kunde]: { [wg]: {count, umsatz} } }.
+            dashboardState.kundenWgStats = kundenWG;
             dashboardState.kundenBrand = kundenBrand;
             dashboardState.kundenList = kunden;
             
@@ -14648,6 +14682,23 @@ Keine Erklärungen, kein Markdown.`;
             dashboardState.zonenStueck = {};
             dashboardState.diskrepanzen = [];
             dashboardState.angebotAnalyseResults = [];
+            // KILLCRITIC-Fix K7 (2026-06-12): Zeitfilter-Original + v2-CRM-Felder fehlten
+            // im Reset. Ohne _origStats-Reset konnte ein Wechsel auf Preset 'all' nach
+            // Reset+Neuupload veraltete Aggregate zurückschreiben.
+            dashboardState._origStats = null;
+            dashboardState.jtl4yData = [];
+            dashboardState.jtl4yLoaded = false;
+            dashboardState.stammdaten = {};
+            dashboardState.stammLoaded = false;
+            dashboardState.customerProfiles = null;
+            dashboardState.customerAffinity = null;
+            dashboardState._churnHvc = [];
+            dashboardState._churnPre = [];
+            dashboardState.potenzialScoredItems = [];
+            dashboardState.kundenWG = {};
+            dashboardState.kundenBrand = {};
+            dashboardState.kundenList = [];
+            // Bewusst NICHT geleert: _churnStatus (User-Arbeitsstand, localStorage-persistiert)
             // 10X-2: Emit data:reset damit registrierte Consumer UI-State abbauen
             if (typeof bus !== 'undefined') {
                 bus.emit('data:reset', { source: 'resetAllSessionState' });
@@ -21544,8 +21595,65 @@ Keine Erklärungen, kein Markdown.`;
         // ADMIN SETTINGS PANEL
         // ============================================
         
-        const ADMIN_PASSWORD = 'elvinci2026';  // Passwort hier ändern
+        // KILLCRITIC-Fix K2 (2026-06-12): Passwort stand im Klartext in der Datei
+        // (per Strg+F auffindbar — Datei liegt für alle lesbar auf SharePoint).
+        // Jetzt: nur noch der SHA-256-Hash. Passwort ändern: in der Browser-Konsole
+        //   _sha256Hex('neuesPasswort')
+        // ausführen und den Hash hier eintragen.
+        // EHRLICHER HINWEIS: Client-seitig ist das eine Lesebarriere, kein echtes Secret —
+        // es verhindert das zufällige Auffinden, nicht einen gezielten Offline-Angriff.
+        const ADMIN_PASSWORD_SHA256 = 'e0049d178b5a766641a0cd4c5fb005e02418e42e2dbba271bfba8ccb84724c63';
         let isAdminAuthenticated = false;
+
+        // Synchrone SHA-256-Implementierung (pure JS). Bewusst NICHT crypto.subtle:
+        // das wäre async (checkPassword ist sync verdrahtet) und fehlt in unsicheren
+        // Kontexten (http://) — pure JS läuft überall identisch. Verifiziert gegen
+        // NIST-Testvektoren ('' und 'abc') via Node beim Einbau.
+        function _sha256Hex(str) {
+            const K = [
+                0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,
+                0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,
+                0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,
+                0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,
+                0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,
+                0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,
+                0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,
+                0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2
+            ];
+            let H = [0x6a09e667,0xbb67ae85,0x3c6ef372,0xa54ff53a,0x510e527f,0x9b05688c,0x1f83d9ab,0x5be0cd19];
+            const data = new TextEncoder().encode(String(str));
+            const bitLen = data.length * 8;
+            const totalLen = Math.ceil((data.length + 9) / 64) * 64;
+            const bytes = new Uint8Array(totalLen);
+            bytes.set(data);
+            bytes[data.length] = 0x80;
+            const dv = new DataView(bytes.buffer);
+            dv.setUint32(totalLen - 8, Math.floor(bitLen / 0x100000000), false);
+            dv.setUint32(totalLen - 4, bitLen >>> 0, false);
+            const w = new Array(64);
+            const rotr = (x, n) => ((x >>> n) | (x << (32 - n))) >>> 0;
+            for (let off = 0; off < totalLen; off += 64) {
+                for (let t = 0; t < 16; t++) w[t] = dv.getUint32(off + t * 4, false);
+                for (let t = 16; t < 64; t++) {
+                    const s0 = rotr(w[t-15], 7) ^ rotr(w[t-15], 18) ^ (w[t-15] >>> 3);
+                    const s1 = rotr(w[t-2], 17) ^ rotr(w[t-2], 19) ^ (w[t-2] >>> 10);
+                    w[t] = (w[t-16] + s0 + w[t-7] + s1) >>> 0;
+                }
+                let a = H[0], b = H[1], c = H[2], d = H[3], e = H[4], f = H[5], g = H[6], h = H[7];
+                for (let t = 0; t < 64; t++) {
+                    const S1 = rotr(e, 6) ^ rotr(e, 11) ^ rotr(e, 25);
+                    const ch = (e & f) ^ (~e & g);
+                    const t1 = (h + S1 + ch + K[t] + w[t]) >>> 0;
+                    const S0 = rotr(a, 2) ^ rotr(a, 13) ^ rotr(a, 22);
+                    const maj = (a & b) ^ (a & c) ^ (b & c);
+                    const t2 = (S0 + maj) >>> 0;
+                    h = g; g = f; f = e; e = (d + t1) >>> 0;
+                    d = c; c = b; b = a; a = (t1 + t2) >>> 0;
+                }
+                H = [(H[0]+a)>>>0,(H[1]+b)>>>0,(H[2]+c)>>>0,(H[3]+d)>>>0,(H[4]+e)>>>0,(H[5]+f)>>>0,(H[6]+g)>>>0,(H[7]+h)>>>0];
+            }
+            return H.map(x => x.toString(16).padStart(8, '0')).join('');
+        }
         
         // Speicher-Status
         let storageAvailable = false;
@@ -21717,7 +21825,7 @@ Keine Erklärungen, kein Markdown.`;
                 }
                 return;
             }
-            if (input === ADMIN_PASSWORD) {
+            if (_sha256Hex(input) === ADMIN_PASSWORD_SHA256) {
                 isAdminAuthenticated = true;
                 // 10X-10: Auth-State aktualisieren (Mode bleibt 'password')
                 if (typeof authState !== 'undefined') {
