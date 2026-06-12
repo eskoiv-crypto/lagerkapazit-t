@@ -3521,7 +3521,8 @@
                             <button class="analyse-tab" data-tab="brands" onclick="switchAnalyseTab('brands')" title="Auswertung nach Hersteller-Marken (Bosch, Samsung, AEG, …): welche Marken verkaufen sich am besten und mit welcher Marge?">🏭 Marken</button>
                             <button class="analyse-tab" data-tab="lieferanten" onclick="switchAnalyseTab('lieferanten')" title="Auswertung nach Lieferquelle (OTTO_MIX, AEG_Schrott, …): Absatz und Marge je Bezugsquelle. Zeigt, welche Lieferanten sich lohnen.">📦 Lieferanten</button>
                             <button class="analyse-tab" data-tab="deadstock" onclick="switchAnalyseTab('deadstock')" title="Ladenhüter: Geräte, die ungewöhnlich lange im Lager liegen, ohne verkauft zu werden. Kandidaten für Abverkauf/Rabatt.">💀 Dead Stock</button>
-                            <button class="analyse-tab" data-tab="potenzial" onclick="switchAnalyseTab('potenzial')" title="Verkaufspriorität: Geräte nach Dringlichkeit sortiert — alte Lagerware mit guter Marge zuerst verkaufen.">🎯 Verkaufspriorität</button>
+                            <button class="analyse-tab" data-tab="potenzial" onclick="switchAnalyseTab('potenzial')" title="Verkaufsscore: HOT/WARM/NEUTRAL/COLD-Verteilung + volle priorisierte Geräteliste. Konvolut-Bildung erfolgt im Reiter '🎯 Angebote'.">🎯 Verkaufsscore</button>
+                            <button class="analyse-tab" data-tab="angebote" onclick="switchAnalyseTab('angebote')" id="tab-btn-angebote" style="background: linear-gradient(135deg, #10b981, #0071e3); color: white;" title="Angebots-Generator: 2 Modi — (1) Für Kunde X → maßgeschneidertes Angebot aus seiner 4-Jahres-Kaufhistorie + aktueller Stock. (2) Lager-Räumung → klassische Konvolute mit Top-Kunden-Vorschlag. Beide Modi → gemeinsamer Konvolut-Output mit CSV/PDF-Export.">🎯 Angebote</button>
                             <button class="analyse-tab" data-tab="topseller" onclick="switchAnalyseTab('topseller')" title="Bestseller: die am häufigsten und schnellsten verkauften Artikel/Warengruppen — ideal für Nachbestellung.">🏆 Top-Seller</button>
                             <button class="analyse-tab" data-tab="clv" onclick="switchAnalyseTab('clv')" id="tab-btn-clv" style="background: linear-gradient(135deg, #a855f7, #ec4899); color: white;" title="Customer Lifetime Value: Kundenrangliste nach historischem Brutto-Umsatz über 4 Jahre. Segmentiert in aktiv / pre-churn / high-value-churn / churned. Benötigt JTL-4-Jahre + Stammdaten.">💎 CLV</button>
                             <button class="analyse-tab" data-tab="churn" onclick="switchAnalyseTab('churn')" id="tab-btn-churn" style="background: linear-gradient(135deg, #ef4444, #f97316); color: white;" title="Churn-Alert: Already-Churned-Liste + Pre-Churn-Forecast (welche Kunden reißen in den nächsten 30 Tagen die 180-T-Schwelle?). Status-Spalte zum Abhaken pro Kunde. Benötigt JTL-4-Jahre + Stammdaten.">🚨 Churn-Alert</button>
@@ -4185,95 +4186,8 @@
                                 </div>
                             </div>
                             
-                            <!-- ========== KONVOLUT-GENERATOR ========== -->
-                            <div style="background: linear-gradient(135deg, rgba(16,185,129,0.08), rgba(6,182,212,0.08)); border: 1px solid var(--accent-green); border-radius: 12px; padding: 1rem 1.25rem; margin-bottom: 1.25rem;">
-                                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem; margin-bottom: 0.75rem;">
-                                    <div class="analytics-section-title" style="margin:0;">📦 Konvolut-Generator <span class="vc-info" data-tip="Bündelt verkaufspriorisierte Geräte automatisch zu verkaufsfertigen Konvoluten (Paketen). Quick-Start für 4 typische Workflows oder fein justieren mit den Detail-Einstellungen. Mit „Für Kunde" werden Konvolute auf historische Kaufmuster eines konkreten Kunden zugeschnitten — maximaler Profit, gezielte Ansprache.">ⓘ</span></div>
-                                    <span style="font-size:0.7rem; color: var(--text-muted);">Quick-Start oder fein justieren · optional auf einen Kunden zuschneiden</span>
-                                </div>
-                                <!-- QUICK-PROFILE (4 Buttons für die häufigsten Workflows) -->
-                                <div style="display:flex; gap:0.5rem; flex-wrap:wrap; margin-bottom:0.85rem; padding:0.55rem; background:rgba(255,255,255,0.04); border-radius:8px; border:1px dashed var(--border);">
-                                    <span style="font-size:0.6rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em; align-self:center; padding:0 0.3rem;">⚡ Quick-Start:</span>
-                                    <button onclick="applyKonvolutProfile('marge')" style="flex:1; min-width:140px; padding:0.55rem 0.8rem; background:linear-gradient(135deg,#10b981,#06b6d4); color:white; border:none; border-radius:6px; font-size:0.75rem; font-weight:600; cursor:pointer;" title="Top-Marge-Pakete: höchste % Marge zuerst. Ideal für Profit-Maximierung.">💎 Beste Marge</button>
-                                    <button onclick="applyKonvolutProfile('hot')" style="flex:1; min-width:140px; padding:0.55rem 0.8rem; background:linear-gradient(135deg,#ef4444,#f97316); color:white; border:none; border-radius:6px; font-size:0.75rem; font-weight:600; cursor:pointer;" title="Was MUSS jetzt raus: nur HOT (Score ≥80) — alte/dringende Geräte.">🔥 Was muss raus</button>
-                                    <button onclick="applyKonvolutProfile('old')" style="flex:1; min-width:140px; padding:0.55rem 0.8rem; background:linear-gradient(135deg,#a855f7,#ec4899); color:white; border:none; border-radius:6px; font-size:0.75rem; font-weight:600; cursor:pointer;" title="Alt-Bestand-Pakete: längste Lagertage zuerst, gemischt — Lagerdrehung.">🐢 Alt-Bestand</button>
-                                    <button onclick="applyKonvolutProfile('kunde')" style="flex:1; min-width:140px; padding:0.55rem 0.8rem; background:linear-gradient(135deg,#0071e3,#6366f1); color:white; border:none; border-radius:6px; font-size:0.75rem; font-weight:600; cursor:pointer;" title="Für Top-Kunden bauen: System filtert auf passende WG/Marke für ausgewählten Kunden.">👤 Für Kunde</button>
-                                </div>
-
-                                <!-- DETAIL-EINSTELLUNGEN (6 Dropdowns + Button) -->
-                                <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0.6rem; align-items:end;">
-                                    <div>
-                                        <label style="display:block; font-size:0.6rem; color: var(--text-muted); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:0.2rem;">🎯 Sortieren nach <span class="vc-info" data-tip="Wie werden Geräte innerhalb der Konvolute priorisiert? Marge % = beste Profitabilität zuerst. Profit € = höchster absoluter Profit. Lagertage = Drehung (alt zuerst). Marge × Tage = Premium-Alt-Ware zuerst.">ⓘ</span></label>
-                                        <select id="konvolut-sortby" style="width:100%; padding:0.4rem; font-size:0.72rem; border-radius:6px; background: var(--bg-secondary); border:1px solid var(--border); color: var(--text-primary);">
-                                            <option value="score" selected>Score (Standard)</option>
-                                            <option value="marge_pct">Marge % ↓</option>
-                                            <option value="profit_eur">Profit € ↓</option>
-                                            <option value="lagertage">Lagertage ↓</option>
-                                            <option value="marge_x_tage">Marge × Lagertage ↓</option>
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label style="display:block; font-size:0.6rem; color: var(--text-muted); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:0.2rem;">📦 Gruppieren <span class="vc-info" data-tip="Warengruppe = thematische Pakete (Waschmaschinen, Kühlgeräte). Marke = nach Hersteller. Lieferant = nach Bezugsquelle. Gemischt = bunt durchmischt.">ⓘ</span></label>
-                                        <select id="konvolut-groupby" style="width:100%; padding:0.4rem; font-size:0.72rem; border-radius:6px; background: var(--bg-secondary); border:1px solid var(--border); color: var(--text-primary);">
-                                            <option value="product_group" selected>Warengruppe</option>
-                                            <option value="brand">Marke</option>
-                                            <option value="supply_type">Lieferant</option>
-                                            <option value="__mixed__">Gemischt</option>
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label style="display:block; font-size:0.6rem; color: var(--text-muted); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:0.2rem;">🌡 Mindest-Score <span class="vc-info" data-tip="Score = Verkaufspriorität (Alter × Marge × Verfügbarkeit). 80 = nur HOT (dringend). 60 = HOT+WARM. 40 = inkl. Neutral. 0 = alle Geräte.">ⓘ</span></label>
-                                        <select id="konvolut-minscore" style="width:100%; padding:0.4rem; font-size:0.72rem; border-radius:6px; background: var(--bg-secondary); border:1px solid var(--border); color: var(--text-primary);">
-                                            <option value="80">HOT (≥ 80)</option>
-                                            <option value="60" selected>HOT+WARM (≥ 60)</option>
-                                            <option value="40">+ Neutral (≥ 40)</option>
-                                            <option value="0">Alle Geräte</option>
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label style="display:block; font-size:0.6rem; color: var(--text-muted); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:0.2rem;">💰 Mindest-Marge <span class="vc-info" data-tip="Nur Geräte mit dieser Marge-Schwelle aufnehmen. Schützt vor Verlust-Konvoluten. 0% = alle, 30% = solide, 50% = nur Premium.">ⓘ</span></label>
-                                        <select id="konvolut-minmarge" style="width:100%; padding:0.4rem; font-size:0.72rem; border-radius:6px; background: var(--bg-secondary); border:1px solid var(--border); color: var(--text-primary);">
-                                            <option value="0" selected>≥ 0% (alle)</option>
-                                            <option value="20">≥ 20%</option>
-                                            <option value="30">≥ 30%</option>
-                                            <option value="50">≥ 50% (Premium)</option>
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label style="display:block; font-size:0.6rem; color: var(--text-muted); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:0.2rem;">📏 Max. pro Konvolut <span class="vc-info" data-tip="Maximal-Größe je Konvolut. Große Gruppen werden in mehrere Pakete aufgeteilt. 30 = typische Großkunden-Bestellung. >100 = wird zum Mega-Bündel, Kundenmatch wird ungenau.">ⓘ</span></label>
-                                        <select id="konvolut-maxsize" style="width:100%; padding:0.4rem; font-size:0.72rem; border-radius:6px; background: var(--bg-secondary); border:1px solid var(--border); color: var(--text-primary);">
-                                            <option value="15">15 Geräte</option>
-                                            <option value="30" selected>30 Geräte</option>
-                                            <option value="50">50 Geräte</option>
-                                            <option value="100">100 Geräte</option>
-                                            <option value="9999">Unbegrenzt</option>
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label style="display:block; font-size:0.6rem; color: var(--text-muted); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:0.2rem;">👤 Für Kunde <span class="vc-info tip-left" data-tip="Optional: wähle einen Top-Kunden — System baut Konvolute nur aus WG+Marke-Kombis, die der Kunde historisch kauft. Empfehlung wird auf diesen Kunden zugeschnitten.">ⓘ</span></label>
-                                        <select id="konvolut-customer" style="width:100%; padding:0.4rem; font-size:0.72rem; border-radius:6px; background: var(--bg-secondary); border:1px solid var(--border); color: var(--text-primary);">
-                                            <option value="">— kein Kunde (allgemein) —</option>
-                                        </select>
-                                    </div>
-                                    <div style="grid-column: 1 / -1; display:flex; justify-content:flex-end;">
-                                        <button onclick="generateKonvolute()" style="min-width:200px; padding:0.6rem 1.2rem; background: var(--gradient-green); color:white; border:none; border-radius:6px; font-size:0.85rem; font-weight:700; cursor:pointer;">
-                                            ⚙️ Konvolute erzeugen
-                                        </button>
-                                    </div>
-                                </div>
-                                <!-- DSGVO-Hinweis Kunden-Match -->
-                                <div id="konvolut-dsgvo-hint" style="margin-top:0.9rem; padding:0.45rem 0.7rem; background:rgba(239,68,68,0.06); border-left:3px solid var(--accent-red); border-radius:6px; font-size:0.62rem; color:var(--text-secondary);">
-                                    🔴 <b>DSGVO-Hinweis:</b> Sobald All-Sold geladen ist, schlägt jedes Konvolut <b>Top-5 historische Käufer</b> vor (Kundenname + Kaufverhalten = vertraulich). Vorschläge bleiben lokal im Browser. Nutzung nur im berechtigten Kreis (Verkauf, Backoffice).
-                                </div>
-                                <!-- Konvolut-Übersicht -->
-                                <div id="konvolut-summary" style="margin-top: 0.9rem; font-size:0.75rem; color: var(--text-secondary);"></div>
-                                <!-- Konvolut-Karten -->
-                                <div id="konvolut-container" style="margin-top: 0.75rem; display:flex; flex-direction:column; gap:0.6rem;"></div>
-                                <!-- Gesamt-Export -->
-                                <div id="konvolut-export-bar" style="margin-top:0.75rem; display:none; gap:0.5rem;">
-                                    <button onclick="exportAlleKonvolute()" style="padding:0.45rem 0.9rem; background: var(--accent-cyan); color:white; border:none; border-radius:6px; font-size:0.72rem; cursor:pointer;">📥 Alle Konvolute als CSV</button>
-                                    <button onclick="exportKonvolutePDF()" style="padding:0.45rem 0.9rem; background: var(--accent-orange); color:white; border:none; border-radius:6px; font-size:0.72rem; cursor:pointer;">📄 Alle Konvolute als PDF</button>
-                                </div>
+                            <div style="padding:1rem; background:var(--bg-card); border:1px dashed var(--border); border-radius:8px; text-align:center; font-size:0.8rem; color:var(--text-muted); margin-bottom:1rem;">
+                                💡 Konvolute werden im Reiter <b><a href="#" onclick="switchAnalyseTab('angebote');return false;" style="color:var(--accent-cyan); font-weight:700;">🎯 Angebote</a></b> erzeugt (Konvolut-Generator + Kunden-Angebote vereint).
                             </div>
 
                             <!-- Volle Verkaufsprioritäts-Liste (filterbar) -->
@@ -4724,6 +4638,150 @@
                                     </div>
                                     <div id="reakt-table-container" style="max-height:560px; overflow-y:auto;"></div>
                                 </div>
+                            </div>
+                        </div>
+
+                        <!-- ========== TAB: 🎯 ANGEBOTE (Konvolut + Kunden-Angebot vereint) ========== -->
+                        <div id="tab-angebote" class="analyse-tab-content" style="display: none; padding: 1rem;">
+                            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem; margin-bottom:0.75rem;">
+                                <div>
+                                    <div class="analytics-section-title" style="margin:0;">🎯 Angebots-Generator <span class="vc-info" data-tip="2 Modi: (1) Für Kunde — Suchfeld → System zeigt Kunden-Steckbrief + matched Stock-Items nach Kaufhistorie + personalisierte Preis-Empfehlung. (2) Lager-Räumung — klassische Quick-Profile (Beste Marge / Was muss raus / Alt-Bestand) generieren Konvolute mit Top-5-Käufer-Vorschlag. Beide Modi münden in den gleichen Konvolut-Output mit CSV-Export.">ⓘ</span></div>
+                                    <span style="font-size:0.7rem; color:var(--text-muted);">Customer-First oder Stock-First · ein Ausgang: Konvolut-Karten + Kunden-Empfehlung</span>
+                                </div>
+                            </div>
+
+                            <!-- MODE-TOGGLE -->
+                            <div style="display:flex; gap:0.5rem; padding:0.4rem; background:var(--bg-elevated); border-radius:10px; margin-bottom:1rem;">
+                                <button id="angebote-mode-customer" onclick="angeboteSetMode('customer')" style="flex:1; padding:0.7rem 1rem; background:linear-gradient(135deg,#0071e3,#6366f1); color:white; border:none; border-radius:6px; font-size:0.85rem; font-weight:700; cursor:pointer;">👤 Für Kunde</button>
+                                <button id="angebote-mode-stock" onclick="angeboteSetMode('stock')" style="flex:1; padding:0.7rem 1rem; background:var(--bg-card); color:var(--text-muted); border:1px solid var(--border); border-radius:6px; font-size:0.85rem; font-weight:600; cursor:pointer;">📦 Lager-Räumung</button>
+                            </div>
+
+                            <!-- ===== MODE: FÜR KUNDE ===== -->
+                            <div id="angebote-customer-block">
+                                <div id="angebote-no-customer-data" style="padding:1.5rem; text-align:center; color:var(--text-muted); font-size:0.85rem; display:none;">
+                                    💡 Bitte zuerst <b>JTL 4-Jahre</b> + <b>Kunden-Stammdaten</b> im Datenimport-Block <b>2b</b> hochladen, dann kannst du jeden Kunden auswählen.
+                                </div>
+
+                                <div id="angebote-customer-content">
+                                    <!-- Kunden-Suche -->
+                                    <div style="display:flex; gap:0.6rem; padding:0.85rem; background:linear-gradient(135deg, rgba(0,113,227,0.06), rgba(99,102,241,0.06)); border:1px solid rgba(0,113,227,0.25); border-radius:10px; margin-bottom:1rem; flex-wrap:wrap; align-items:end;">
+                                        <div style="flex:2;">
+                                            <label style="display:block; font-size:0.65rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:0.2rem;">🔎 Kunde suchen <span class="vc-info" data-tip="Suche in allen 1.462 Kunden (4-Jahres-Historie). Tippen, Vorschlag wählen.">ⓘ</span></label>
+                                            <input type="text" id="angebote-customer-search" list="angebote-customer-list" placeholder="Firma oder Kunden-Nr eingeben..." oninput="angeboteOnCustomerInput()" style="width:100%; padding:0.55rem 0.7rem; font-size:0.85rem; border-radius:6px; background:var(--bg-secondary); border:1px solid var(--border); color:var(--text-primary);">
+                                            <datalist id="angebote-customer-list"></datalist>
+                                        </div>
+                                        <div style="flex:1;">
+                                            <label style="display:block; font-size:0.65rem; color:var(--text-muted); text-transform:uppercase; margin-bottom:0.2rem;">Segment-Filter (für Liste)</label>
+                                            <select id="angebote-segment-filter" onchange="angeboteRefreshCustomerList()" style="width:100%; padding:0.55rem; font-size:0.78rem; border-radius:6px; background:var(--bg-secondary); border:1px solid var(--border); color:var(--text-primary);">
+                                                <option value="">Alle Segmente</option>
+                                                <option value="aktiv">🟢 Aktiv</option>
+                                                <option value="pre-churn">🟠 Pre-Churn</option>
+                                                <option value="high-value-churn">🔴 High-Value Churn</option>
+                                                <option value="churned">⚪ Churned</option>
+                                            </select>
+                                        </div>
+                                        <button onclick="angeboteClearCustomer()" style="padding:0.55rem 0.8rem; background:var(--bg-elevated); color:var(--text-primary); border:1px solid var(--border); border-radius:6px; font-size:0.75rem; cursor:pointer;">↺ Reset</button>
+                                    </div>
+
+                                    <!-- Kunden-Steckbrief (wird gezeigt sobald Kunde ausgewählt) -->
+                                    <div id="angebote-customer-card" style="display:none; margin-bottom:1rem;"></div>
+
+                                    <!-- Match-Liste -->
+                                    <div id="angebote-customer-empty" style="padding:2rem; text-align:center; color:var(--text-muted); font-size:0.85rem;">
+                                        💡 Wähle einen Kunden aus der Suche — System zeigt Steckbrief, passende Stock-Items und Preis-Empfehlungen basierend auf seiner 4-Jahres-Kaufhistorie.
+                                    </div>
+                                    <div id="angebote-customer-match-container" style="display:none;"></div>
+                                </div>
+                            </div>
+
+                            <!-- ===== MODE: LAGER-RÄUMUNG ===== -->
+                            <div id="angebote-stock-block" style="display:none;">
+                                <!-- Quick-Profile -->
+                                <div style="display:flex; gap:0.5rem; flex-wrap:wrap; margin-bottom:0.85rem; padding:0.55rem; background:rgba(255,255,255,0.04); border-radius:8px; border:1px dashed var(--border);">
+                                    <span style="font-size:0.6rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em; align-self:center; padding:0 0.3rem;">⚡ Quick-Start:</span>
+                                    <button onclick="applyKonvolutProfile('marge')" style="flex:1; min-width:140px; padding:0.55rem 0.8rem; background:linear-gradient(135deg,#10b981,#06b6d4); color:white; border:none; border-radius:6px; font-size:0.75rem; font-weight:600; cursor:pointer;" title="Top-Marge-Pakete: höchste % Marge zuerst.">💎 Beste Marge</button>
+                                    <button onclick="applyKonvolutProfile('hot')" style="flex:1; min-width:140px; padding:0.55rem 0.8rem; background:linear-gradient(135deg,#ef4444,#f97316); color:white; border:none; border-radius:6px; font-size:0.75rem; font-weight:600; cursor:pointer;" title="Was MUSS jetzt raus: nur HOT (Score ≥80).">🔥 Was muss raus</button>
+                                    <button onclick="applyKonvolutProfile('old')" style="flex:1; min-width:140px; padding:0.55rem 0.8rem; background:linear-gradient(135deg,#a855f7,#ec4899); color:white; border:none; border-radius:6px; font-size:0.75rem; font-weight:600; cursor:pointer;" title="Alt-Bestand-Pakete: längste Lagertage zuerst.">🐢 Alt-Bestand</button>
+                                </div>
+                                <!-- Detail-Einstellungen (volle Kontrolle) -->
+                                <div style="background: linear-gradient(135deg, rgba(16,185,129,0.06), rgba(6,182,212,0.06)); border: 1px solid var(--accent-green); border-radius: 12px; padding: 0.9rem 1.1rem; margin-bottom: 1rem;">
+                                    <div style="font-size:0.7rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:0.6rem;">⚙️ Detail-Einstellungen <span style="text-transform:none; font-size:0.65rem; color:var(--text-muted);">(Quick-Profile setzen diese automatisch, du kannst sie aber überschreiben)</span></div>
+                                    <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0.6rem; align-items:end;">
+                                        <div>
+                                            <label style="display:block; font-size:0.6rem; color: var(--text-muted); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:0.2rem;">🎯 Sortieren nach</label>
+                                            <select id="konvolut-sortby" style="width:100%; padding:0.4rem; font-size:0.72rem; border-radius:6px; background: var(--bg-secondary); border:1px solid var(--border); color: var(--text-primary);">
+                                                <option value="score" selected>Score (Standard)</option>
+                                                <option value="marge_pct">Marge % ↓</option>
+                                                <option value="profit_eur">Profit € ↓</option>
+                                                <option value="lagertage">Lagertage ↓</option>
+                                                <option value="marge_x_tage">Marge × Lagertage ↓</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label style="display:block; font-size:0.6rem; color: var(--text-muted); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:0.2rem;">📦 Gruppieren</label>
+                                            <select id="konvolut-groupby" style="width:100%; padding:0.4rem; font-size:0.72rem; border-radius:6px; background: var(--bg-secondary); border:1px solid var(--border); color: var(--text-primary);">
+                                                <option value="product_group" selected>Warengruppe</option>
+                                                <option value="brand">Marke</option>
+                                                <option value="supply_type">Lieferant</option>
+                                                <option value="__mixed__">Gemischt</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label style="display:block; font-size:0.6rem; color: var(--text-muted); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:0.2rem;">🌡 Mindest-Score</label>
+                                            <select id="konvolut-minscore" style="width:100%; padding:0.4rem; font-size:0.72rem; border-radius:6px; background: var(--bg-secondary); border:1px solid var(--border); color: var(--text-primary);">
+                                                <option value="80">HOT (≥ 80)</option>
+                                                <option value="60" selected>HOT+WARM (≥ 60)</option>
+                                                <option value="40">+ Neutral (≥ 40)</option>
+                                                <option value="0">Alle Geräte</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label style="display:block; font-size:0.6rem; color: var(--text-muted); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:0.2rem;">💰 Mindest-Marge</label>
+                                            <select id="konvolut-minmarge" style="width:100%; padding:0.4rem; font-size:0.72rem; border-radius:6px; background: var(--bg-secondary); border:1px solid var(--border); color: var(--text-primary);">
+                                                <option value="0" selected>≥ 0% (alle)</option>
+                                                <option value="20">≥ 20%</option>
+                                                <option value="30">≥ 30%</option>
+                                                <option value="50">≥ 50% (Premium)</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label style="display:block; font-size:0.6rem; color: var(--text-muted); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:0.2rem;">📏 Max. pro Konvolut <span class="vc-info" data-tip="Frei wählbar: tippe z.B. 30, 134 oder 9999 (unbegrenzt). Große Gruppen werden auf diese Größe aufgeteilt.">ⓘ</span></label>
+                                            <div style="display:flex; gap:0.3rem; align-items:center;">
+                                                <input type="number" id="konvolut-maxsize" value="30" min="1" max="99999" step="1" style="flex:1; padding:0.4rem; font-size:0.72rem; border-radius:6px; background: var(--bg-secondary); border:1px solid var(--border); color: var(--text-primary);">
+                                                <span style="font-size:0.65rem; color:var(--text-muted); white-space:nowrap;">Geräte</span>
+                                            </div>
+                                            <div style="display:flex; gap:0.2rem; margin-top:0.2rem; flex-wrap:wrap;">
+                                                <button type="button" onclick="document.getElementById('konvolut-maxsize').value=15" style="padding:0.15rem 0.4rem; background:var(--bg-elevated); color:var(--text-muted); border:1px solid var(--border); border-radius:4px; font-size:0.6rem; cursor:pointer;">15</button>
+                                                <button type="button" onclick="document.getElementById('konvolut-maxsize').value=30" style="padding:0.15rem 0.4rem; background:var(--bg-elevated); color:var(--text-muted); border:1px solid var(--border); border-radius:4px; font-size:0.6rem; cursor:pointer;">30</button>
+                                                <button type="button" onclick="document.getElementById('konvolut-maxsize').value=50" style="padding:0.15rem 0.4rem; background:var(--bg-elevated); color:var(--text-muted); border:1px solid var(--border); border-radius:4px; font-size:0.6rem; cursor:pointer;">50</button>
+                                                <button type="button" onclick="document.getElementById('konvolut-maxsize').value=100" style="padding:0.15rem 0.4rem; background:var(--bg-elevated); color:var(--text-muted); border:1px solid var(--border); border-radius:4px; font-size:0.6rem; cursor:pointer;">100</button>
+                                                <button type="button" onclick="document.getElementById('konvolut-maxsize').value=9999" style="padding:0.15rem 0.4rem; background:var(--bg-elevated); color:var(--text-muted); border:1px solid var(--border); border-radius:4px; font-size:0.6rem; cursor:pointer;">∞</button>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label style="display:block; font-size:0.6rem; color: var(--text-muted); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:0.2rem;">👤 Für Kunde <span class="vc-info tip-left" data-tip="Optional: Top-50-Kunde wählen — Engine schneidet auf historische WG+Marke zu.">ⓘ</span></label>
+                                            <select id="konvolut-customer" style="width:100%; padding:0.4rem; font-size:0.72rem; border-radius:6px; background: var(--bg-secondary); border:1px solid var(--border); color: var(--text-primary);">
+                                                <option value="">— kein Kunde (allgemein) —</option>
+                                            </select>
+                                        </div>
+                                        <div style="grid-column: 1 / -1; display:flex; justify-content:flex-end;">
+                                            <button onclick="generateKonvolute()" style="min-width:200px; padding:0.6rem 1.2rem; background: var(--gradient-green); color:white; border:none; border-radius:6px; font-size:0.85rem; font-weight:700; cursor:pointer;">
+                                                ⚙️ Konvolute erzeugen
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div id="konvolut-dsgvo-hint" style="margin-top:0.8rem; padding:0.45rem 0.7rem; background:rgba(239,68,68,0.06); border-left:3px solid var(--accent-red); border-radius:6px; font-size:0.62rem; color:var(--text-secondary);">
+                                        🔴 <b>DSGVO-Hinweis:</b> Sobald All-Sold geladen ist, schlägt jedes Konvolut <b>Top-5 historische Käufer</b> vor (Kundenname + Kaufverhalten = vertraulich). Vorschläge bleiben lokal im Browser. Nutzung nur im berechtigten Kreis (Verkauf, Backoffice).
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- ===== GEMEINSAMER OUTPUT-BEREICH (Konvolut-Karten) ===== -->
+                            <div id="konvolut-summary" style="margin-top: 0.9rem; font-size:0.75rem; color: var(--text-secondary);"></div>
+                            <div id="konvolut-container" style="margin-top: 0.75rem; display:flex; flex-direction:column; gap:0.6rem;"></div>
+                            <div id="konvolut-export-bar" style="margin-top:0.75rem; display:none; gap:0.5rem;">
+                                <button onclick="exportAlleKonvolute()" style="padding:0.45rem 0.9rem; background: var(--accent-cyan); color:white; border:none; border-radius:6px; font-size:0.72rem; cursor:pointer;">📥 Alle als CSV</button>
+                                <button onclick="exportKonvolutePDF()" style="padding:0.45rem 0.9rem; background: var(--accent-orange); color:white; border:none; border-radius:6px; font-size:0.72rem; cursor:pointer;">📄 Alle als PDF</button>
                             </div>
                         </div>
 
@@ -8936,6 +8994,9 @@ Keine Erklärungen, kein Markdown.`;
             if (tabName === 'reakt') {
                 try { renderReaktTab(); } catch(e) { console.warn('[Reakt] init', e); }
             }
+            if (tabName === 'angebote') {
+                try { renderAngeboteTab(); } catch(e) { console.warn('[Angebote] init', e); }
+            }
             // Zeitraum-Filter tab-bewusst ein-/ausblenden
             // SALES-Tabs nutzen All-Sold → Filter wirksam
             // SNAPSHOT-Tabs (Bestand/Stock/Pipeline) → Filter ausblenden
@@ -9489,7 +9550,9 @@ Keine Erklärungen, kein Markdown.`;
         //  · DSGVO: alle Verkäufer sehen alle Kunden (+ Hinweis in UI)
         //
         // Modell: fit = recency · experience · priceAch · paymentScore
-        //   recency      = exp(-daysSinceLast / 180)
+        //   recency      = exp(-daysSinceLast / 365)  // Phase 5: Halbwertszeit von 180T auf 365T angehoben
+        //                                              //   (B2B-Rhythmus: Großhändler kauft 2-4x/Jahr,
+        //                                              //    180T-Decay drückte zuverlässige Quartalskunden unfair)
         //   experience   = log(1 + count_in_(WG,Brand))
         //   priceAch     = ØVK_Kunde / ØVK_Markt im Tupel (clamped 0.3..1.3)
         //   paymentScore = Anteil bezahlter Käufe (default 1.0 wenn unbekannt)
@@ -9645,7 +9708,7 @@ Keine Erklärungen, kein Markdown.`;
                 const marketAvgVK = market && market.count ? (market.sumVK / market.count) : customerAvgVK;
                 p.priceAchievement = marketAvgVK > 0 ? Math.min(1.3, Math.max(0.3, customerAvgVK / marketAvgVK)) : 1.0;
                 p.daysSinceLast = p.lastSaleTs ? Math.round((NOW - p.lastSaleTs) / 86400000) : 9999;
-                p.recencyFactor = Math.exp(-p.daysSinceLast / 180);
+                p.recencyFactor = Math.exp(-p.daysSinceLast / 365);  // Phase 5: 180T → 365T Halbwertszeit (B2B-Rhythmus)
                 p.experienceFactor = Math.log(1 + p.count);
 
                 const ct = customerTotals.get(p.company) || { paid: 0, total: 0 };
@@ -10389,8 +10452,12 @@ Keine Erklärungen, kein Markdown.`;
             renderReaktTab();
         }
         function reaktBuildKonvolut(kundenNr, firma) {
-            // Wechsel zum Verkaufsprioritäts-Reiter + Voreinstellungen
-            switchAnalyseTab('potenzial');
+            // Wechsel zum neuen Angebote-Reiter (Customer-Modus) + Voreinstellungen
+            switchAnalyseTab('angebote');
+            try { angeboteSetMode('customer'); } catch(e) {}
+            // Customer-Suche direkt mit Firma vorbefüllen
+            const cs = document.getElementById('angebote-customer-search');
+            if (cs) { cs.value = firma; try { angeboteOnCustomerInput(); } catch(e) {} }
             const setIf = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
             // Konvolut-Customer-Dropdown ergänzen (falls Kunde nicht in Top-50)
             const sel = document.getElementById('konvolut-customer');
@@ -11015,7 +11082,8 @@ Keine Erklärungen, kein Markdown.`;
 
         function liveViewToKonvolut() {
             const f = _liveFilters();
-            switchAnalyseTab('potenzial');
+            switchAnalyseTab('angebote');
+            try { angeboteSetMode('stock'); } catch(e) {}
             const setIf = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
             if (f.brands.size > 0)    setIf('konvolut-groupby', 'brand');
             else if (f.wgs.size > 0)  setIf('konvolut-groupby', 'product_group');
@@ -11033,6 +11101,308 @@ Keine Erklärungen, kein Markdown.`;
             }, 250);
         }
 
+        // ============================================================
+        // ====== ANGEBOTE-TAB (Konvolut + Customer-Angebot vereint) ==
+        // ============================================================
+        // State
+        dashboardState._angeboteMode = 'customer';
+        dashboardState._angeboteSelectedKunde = null;
+
+        function angeboteSetMode(mode) {
+            dashboardState._angeboteMode = mode;
+            const btnC = document.getElementById('angebote-mode-customer');
+            const btnS = document.getElementById('angebote-mode-stock');
+            const blkC = document.getElementById('angebote-customer-block');
+            const blkS = document.getElementById('angebote-stock-block');
+            if (mode === 'customer') {
+                if (btnC) { btnC.style.background = 'linear-gradient(135deg,#0071e3,#6366f1)'; btnC.style.color = 'white'; btnC.style.fontWeight = '700'; btnC.style.border = 'none'; }
+                if (btnS) { btnS.style.background = 'var(--bg-card)'; btnS.style.color = 'var(--text-muted)'; btnS.style.fontWeight = '600'; btnS.style.border = '1px solid var(--border)'; }
+                if (blkC) blkC.style.display = '';
+                if (blkS) blkS.style.display = 'none';
+            } else {
+                if (btnS) { btnS.style.background = 'linear-gradient(135deg,#10b981,#06b6d4)'; btnS.style.color = 'white'; btnS.style.fontWeight = '700'; btnS.style.border = 'none'; }
+                if (btnC) { btnC.style.background = 'var(--bg-card)'; btnC.style.color = 'var(--text-muted)'; btnC.style.fontWeight = '600'; btnC.style.border = '1px solid var(--border)'; }
+                if (blkS) blkS.style.display = '';
+                if (blkC) blkC.style.display = 'none';
+            }
+        }
+
+        function renderAngeboteTab() {
+            const profiles = dashboardState.customerProfiles;
+            const noDataDiv = document.getElementById('angebote-no-customer-data');
+            const contentDiv = document.getElementById('angebote-customer-content');
+            if (!profiles || !Object.keys(profiles).length) {
+                if (noDataDiv) noDataDiv.style.display = '';
+                if (contentDiv) contentDiv.style.display = 'none';
+            } else {
+                if (noDataDiv) noDataDiv.style.display = 'none';
+                if (contentDiv) contentDiv.style.display = '';
+                angeboteRefreshCustomerList();
+            }
+            // Mode aktualisieren (initial customer)
+            angeboteSetMode(dashboardState._angeboteMode || 'customer');
+        }
+
+        function angeboteRefreshCustomerList() {
+            const list = document.getElementById('angebote-customer-list');
+            if (!list) return;
+            const profiles = dashboardState.customerProfiles || {};
+            const seg = document.getElementById('angebote-segment-filter')?.value || '';
+            const arr = Object.values(profiles)
+                .filter(p => !seg || p.segment === seg)
+                .sort((a, b) => b.ltv - a.ltv);
+            const html = arr.map(p => {
+                const label = `${p.firma || '(ohne Firma)'} · ${p.kundenNr} · LTV ${Math.round(p.ltv).toLocaleString('de-DE')} €`;
+                return `<option value="${(p.firma || p.kundenNr).replace(/"/g,'&quot;')}">${label}</option>`;
+            }).join('');
+            list.innerHTML = html;
+        }
+
+        function angeboteOnCustomerInput() {
+            const input = document.getElementById('angebote-customer-search');
+            if (!input) return;
+            const q = (input.value || '').trim().toLowerCase();
+            if (q.length < 2) { _angeboteHideCustomer(); return; }
+            const profiles = dashboardState.customerProfiles || {};
+            // Match: firma startsWith q ODER kundenNr exakt
+            const arr = Object.values(profiles);
+            let match = arr.find(p => (p.firma || '').toLowerCase() === q || String(p.kundenNr) === q);
+            if (!match) match = arr.find(p => (p.firma || '').toLowerCase().startsWith(q));
+            if (!match) match = arr.find(p => (p.firma || '').toLowerCase().includes(q));
+            if (!match) { _angeboteHideCustomer(); return; }
+            dashboardState._angeboteSelectedKunde = match;
+            _angeboteRenderSteckbrief(match);
+            _angeboteRenderMatch(match);
+        }
+
+        function angeboteClearCustomer() {
+            const input = document.getElementById('angebote-customer-search');
+            if (input) input.value = '';
+            dashboardState._angeboteSelectedKunde = null;
+            _angeboteHideCustomer();
+        }
+
+        function _angeboteHideCustomer() {
+            const card = document.getElementById('angebote-customer-card');
+            const empty = document.getElementById('angebote-customer-empty');
+            const matchC = document.getElementById('angebote-customer-match-container');
+            if (card) card.style.display = 'none';
+            if (matchC) matchC.style.display = 'none';
+            if (empty) empty.style.display = '';
+        }
+
+        function _segBadge(seg) {
+            const map = {
+                'aktiv': ['🟢 Aktiv', '#10b981'],
+                'pre-churn': ['🟠 Pre-Churn', '#f97316'],
+                'high-value-churn': ['🔴 High-Value Churn', '#ef4444'],
+                'churned': ['⚪ Churned', '#6b7280'],
+            };
+            const [label, color] = map[seg] || ['—', '#6b7280'];
+            return `<span style="padding:0.15rem 0.5rem; background:${color}22; color:${color}; border-radius:6px; font-size:0.7rem; font-weight:700;">${label}</span>`;
+        }
+
+        function _angeboteRenderSteckbrief(p) {
+            const card = document.getElementById('angebote-customer-card');
+            if (!card) return;
+            const top3 = (p.top3Artikel || []).map(t => `<li style="margin:0.15rem 0;">${t.n}× <span style="color:var(--text-secondary);">${t.bez}</span></li>`).join('');
+            const kontakt = [p.email, p.telefon, p.mobil].filter(Boolean).join(' · ') || '<i style="color:var(--text-muted);">keine Kontaktdaten</i>';
+            const ort = [p.ort, p.land].filter(Boolean).join(', ');
+            card.style.display = '';
+            card.innerHTML = `
+                <div style="padding:1rem 1.25rem; background:linear-gradient(135deg, rgba(0,113,227,0.08), rgba(99,102,241,0.05)); border:1px solid rgba(0,113,227,0.3); border-radius:12px;">
+                    <div style="display:flex; justify-content:space-between; align-items:start; flex-wrap:wrap; gap:0.5rem; margin-bottom:0.6rem;">
+                        <div>
+                            <div style="font-size:1.05rem; font-weight:700; color:var(--text-primary);">${p.firma || '(ohne Firma)'} <span style="font-size:0.75rem; color:var(--text-muted); font-weight:400;">· ${p.kundenNr}</span></div>
+                            <div style="font-size:0.72rem; color:var(--text-secondary); margin-top:0.15rem;">${ort} · ${kontakt}</div>
+                        </div>
+                        ${_segBadge(p.segment)}
+                    </div>
+                    <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:0.5rem; margin-bottom:0.7rem;">
+                        <div style="background:var(--bg-elevated); padding:0.5rem; border-radius:6px; text-align:center;">
+                            <div style="font-size:1.1rem; font-weight:700; color:var(--accent-cyan);">${Math.round(p.ltv).toLocaleString('de-DE')} €</div>
+                            <div style="font-size:0.6rem; color:var(--text-muted); text-transform:uppercase;">LTV (Brutto)</div>
+                        </div>
+                        <div style="background:var(--bg-elevated); padding:0.5rem; border-radius:6px; text-align:center;">
+                            <div style="font-size:1.1rem; font-weight:700; color:var(--text-primary);">${Math.round(p.øJahresumsatz).toLocaleString('de-DE')} €</div>
+                            <div style="font-size:0.6rem; color:var(--text-muted); text-transform:uppercase;">Ø/Jahr</div>
+                        </div>
+                        <div style="background:var(--bg-elevated); padding:0.5rem; border-radius:6px; text-align:center;">
+                            <div style="font-size:1.1rem; font-weight:700; color:var(--text-primary);">${p.nAufträge}</div>
+                            <div style="font-size:0.6rem; color:var(--text-muted); text-transform:uppercase;">Aufträge</div>
+                        </div>
+                        <div style="background:var(--bg-elevated); padding:0.5rem; border-radius:6px; text-align:center;">
+                            <div style="font-size:1.1rem; font-weight:700; color:${p.tageInaktiv > 180 ? 'var(--accent-red)' : p.tageInaktiv > 90 ? 'var(--accent-orange)' : 'var(--accent-green)'};">${p.tageInaktiv} T</div>
+                            <div style="font-size:0.6rem; color:var(--text-muted); text-transform:uppercase;">Inaktiv</div>
+                        </div>
+                        <div style="background:var(--bg-elevated); padding:0.5rem; border-radius:6px; text-align:center;">
+                            <div style="font-size:0.85rem; font-weight:700; color:var(--text-primary);">${p.erstesKaufDt.toLocaleDateString('de-DE')}</div>
+                            <div style="font-size:0.6rem; color:var(--text-muted); text-transform:uppercase;">Erstkauf</div>
+                        </div>
+                        <div style="background:var(--bg-elevated); padding:0.5rem; border-radius:6px; text-align:center;">
+                            <div style="font-size:0.85rem; font-weight:700; color:var(--text-primary);">${p.letztesKaufDt.toLocaleDateString('de-DE')}</div>
+                            <div style="font-size:0.6rem; color:var(--text-muted); text-transform:uppercase;">Letzter Kauf</div>
+                        </div>
+                    </div>
+                    <div style="font-size:0.75rem; color:var(--text-secondary);">
+                        <b>🏆 Top-3 Artikel (Kaufhistorie):</b>
+                        <ul style="margin:0.3rem 0 0 1.2rem; padding:0; font-size:0.72rem;">${top3 || '<li><i style="color:var(--text-muted);">keine Daten</i></li>'}</ul>
+                    </div>
+                </div>`;
+        }
+
+        // Token-Extraction für Match (Wörter ≥4 Zeichen, lowercase)
+        function _angeboteTokens(s) {
+            if (!s) return new Set();
+            const t = new Set();
+            String(s).toLowerCase().split(/[^a-zäöüß0-9]+/).forEach(w => { if (w.length >= 4) t.add(w); });
+            return t;
+        }
+
+        function _angeboteRenderMatch(p) {
+            const matchC = document.getElementById('angebote-customer-match-container');
+            const empty = document.getElementById('angebote-customer-empty');
+            if (!matchC) return;
+            if (empty) empty.style.display = 'none';
+            matchC.style.display = '';
+            // Token-Set aus Top-3-Artikeln
+            const customerTokens = new Set();
+            (p.top3Artikel || []).forEach(t => _angeboteTokens(t.bez).forEach(tok => customerTokens.add(tok)));
+            // Stock-Items
+            const stock = dashboardState.stockAnalysisRaw || [];
+            if (!stock.length) {
+                matchC.innerHTML = `<div style="padding:1rem; text-align:center; color:var(--text-muted); font-size:0.85rem; background:var(--bg-card); border-radius:8px;">📦 Bitte zuerst Stock-Analysis hochladen für Match-Vorschläge.</div>`;
+                return;
+            }
+            if (customerTokens.size === 0) {
+                matchC.innerHTML = `<div style="padding:1rem; text-align:center; color:var(--text-muted); font-size:0.85rem;">⚠ Kunde hat keine auswertbare Kaufhistorie (keine Artikel-Bezeichnungen).</div>`;
+                return;
+            }
+            // Cross-Match: für jedes Stock-Item Token-Overlap mit customerTokens
+            const matches = [];
+            stock.forEach(it => {
+                // Reale Felder in stockAnalysisRaw: model, article_number, brand, product_group, lager_number, Selling_Price, Buying_Price
+                const brand = it.brand || it.Brand || it.Marke || '';
+                const wg    = it.product_group || it.Product_Group || it.Warengruppe || '';
+                const model = it.model || '';
+                const artNr = it.article_number || '';
+                // Bezeichnung für Anzeige + Match (Marke + Modell + WG kombiniert)
+                const bezForMatch = [brand, model, wg, artNr].filter(Boolean).join(' ');
+                const bezDisplay  = [brand, model].filter(Boolean).join(' ') || artNr || '(ohne Bezeichnung)';
+                const itTokens = _angeboteTokens(bezForMatch);
+                let hits = 0;
+                itTokens.forEach(t => { if (customerTokens.has(t)) hits++; });
+                if (hits === 0) return;
+                const vk  = Number(it.Selling_Price || it.SellingPrice || it.VK || it.vk || 0) || 0;
+                const ek  = Number(it.Buying_Price || it.Purchase_Price || it.EK || it.ek || 0) || 0;
+                const marge = vk > 0 ? ((vk - ek) / vk) * 100 : 0;
+                matches.push({
+                    bez: bezDisplay, vk, ek, marge, hits,
+                    sscc: it.lager_number || it.SSCC || it.sscc || '',
+                    brand, wg,
+                    grade: it.final_grade || it.grade || '',
+                    matchScore: hits * 10 + Math.max(0, marge),  // primär Hits, sekundär Marge
+                });
+            });
+            matches.sort((a, b) => b.matchScore - a.matchScore);
+            const top = matches.slice(0, 100);
+            const σVk = matches.reduce((s, m) => s + m.vk, 0);
+            const σMarge = matches.reduce((s, m) => s + (m.vk - m.ek), 0);
+            // Personalisierte Preisanpassung: bei Premium-Kunde (LTV ≥ 50k) -3% Rabatt-Empfehlung, bei Churned +0%
+            const rabattPct = p.segment === 'aktiv' && p.ltv >= 50000 ? 3
+                            : p.segment === 'high-value-churn' ? 5  // Reaktivierungs-Hebel
+                            : p.segment === 'pre-churn' ? 4
+                            : 0;
+            // Sort-Dropdown
+            const sortKey = dashboardState._angeboteMatchSort || 'matchScore';
+            const sortedTop = [...top].sort((a, b) => {
+                if (sortKey === 'marge') return b.marge - a.marge;
+                if (sortKey === 'vk')    return b.vk - a.vk;
+                return b.matchScore - a.matchScore;
+            });
+            const rows = sortedTop.map((m, i) => {
+                const preis = m.vk * (1 - rabattPct / 100);
+                return `<tr style="border-bottom:1px solid var(--border);">
+                    <td style="padding:0.4rem; font-size:0.7rem; color:var(--text-muted);">${i+1}</td>
+                    <td style="padding:0.4rem; font-size:0.72rem;"><b>${m.bez || '—'}</b><div style="font-size:0.62rem; color:var(--text-muted);">${m.brand} · ${m.wg}</div></td>
+                    <td style="padding:0.4rem; font-size:0.72rem; text-align:center;">${_gradeBadge(m.grade)}</td>
+                    <td style="padding:0.4rem; font-size:0.72rem; text-align:center;"><span style="padding:0.1rem 0.4rem; background:var(--accent-cyan); color:white; border-radius:4px; font-weight:700;">${m.hits}</span></td>
+                    <td style="padding:0.4rem; font-size:0.72rem; text-align:right;">${m.vk.toFixed(2).replace('.', ',')} €</td>
+                    <td style="padding:0.4rem; font-size:0.72rem; text-align:right; color:var(--accent-green); font-weight:700;">${preis.toFixed(2).replace('.', ',')} €</td>
+                    <td style="padding:0.4rem; font-size:0.7rem; text-align:right; color:${m.marge >= 30 ? 'var(--accent-green)' : 'var(--text-muted)'};">${m.marge.toFixed(1)}%</td>
+                </tr>`;
+            }).join('');
+            matchC.innerHTML = `
+                <div style="padding:0.85rem 1rem; background:linear-gradient(135deg, rgba(16,185,129,0.06), rgba(0,113,227,0.04)); border:1px solid rgba(16,185,129,0.3); border-radius:10px; margin-bottom:0.75rem;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem; margin-bottom:0.5rem;">
+                        <div style="font-size:0.9rem; font-weight:700; color:var(--text-primary);">🎯 ${matches.length} passende Stock-Items · Σ VK ${Math.round(σVk).toLocaleString('de-DE')} € · Σ Marge ${Math.round(σMarge).toLocaleString('de-DE')} €</div>
+                        <div style="display:flex; gap:0.5rem; align-items:center;">
+                            <label style="font-size:0.65rem; color:var(--text-muted); text-transform:uppercase;">Sort:</label>
+                            <select onchange="dashboardState._angeboteMatchSort=this.value; _angeboteRenderMatch(dashboardState._angeboteSelectedKunde);" style="padding:0.3rem 0.5rem; font-size:0.7rem; border-radius:4px; background:var(--bg-secondary); border:1px solid var(--border); color:var(--text-primary);">
+                                <option value="matchScore"${sortKey==='matchScore'?' selected':''}>Match-Score ↓</option>
+                                <option value="marge"${sortKey==='marge'?' selected':''}>Marge % ↓</option>
+                                <option value="vk"${sortKey==='vk'?' selected':''}>VK € ↓</option>
+                            </select>
+                            <button onclick="exportAngebotsCsv()" style="padding:0.35rem 0.7rem; background:var(--accent-cyan); color:white; border:none; border-radius:5px; font-size:0.7rem; cursor:pointer;">📥 CSV Angebot</button>
+                        </div>
+                    </div>
+                    <div style="font-size:0.7rem; color:var(--text-secondary);">
+                        💡 Personalisierte Preis-Empfehlung mit <b>${rabattPct}% Rabatt</b> auf Listen-VK (Segment-Logik: aktiv ≥50k LTV = 3% · pre-churn = 4% · high-value-churn = 5%).
+                    </div>
+                </div>
+                <div style="max-height:560px; overflow-y:auto; background:var(--bg-card); border-radius:8px;">
+                    <table style="width:100%; border-collapse:collapse;">
+                        <thead style="position:sticky; top:0; background:var(--bg-elevated); z-index:1;">
+                            <tr style="font-size:0.62rem; color:var(--text-muted); text-transform:uppercase;">
+                                <th style="padding:0.5rem; text-align:left;">#</th>
+                                <th style="padding:0.5rem; text-align:left;">Artikel</th>
+                                <th style="padding:0.5rem; text-align:center;">Grade</th>
+                                <th style="padding:0.5rem; text-align:center;">Match</th>
+                                <th style="padding:0.5rem; text-align:right;">Listen-VK</th>
+                                <th style="padding:0.5rem; text-align:right;">Kunden-Preis</th>
+                                <th style="padding:0.5rem; text-align:right;">Marge %</th>
+                            </tr>
+                        </thead>
+                        <tbody>${rows || '<tr><td colspan="7" style="padding:1rem; text-align:center; color:var(--text-muted);">Keine Matches</td></tr>'}</tbody>
+                    </table>
+                </div>
+                ${matches.length > 100 ? `<div style="margin-top:0.5rem; font-size:0.65rem; color:var(--text-muted); text-align:right;">Top 100 von ${matches.length} angezeigt</div>` : ''}
+            `;
+            // Stash für CSV
+            dashboardState._angeboteCurrentMatches = matches;
+            dashboardState._angeboteCurrentRabatt = rabattPct;
+        }
+
+        function exportAngebotsCsv() {
+            const p = dashboardState._angeboteSelectedKunde;
+            const matches = dashboardState._angeboteCurrentMatches || [];
+            const rabatt = dashboardState._angeboteCurrentRabatt || 0;
+            if (!p || !matches.length) { showToast('warning', 'Nichts zu exportieren', 'Kein Kunde / keine Matches.'); return; }
+            const headers = ['Rang','Bezeichnung','Marke','Warengruppe','Grade','SSCC','Match-Hits','Listen-VK','Rabatt %','Kunden-Preis','EK','Marge %'];
+            const rows = matches.map((m, i) => {
+                const preis = m.vk * (1 - rabatt / 100);
+                return [
+                    i+1, (m.bez||'').replace(/;/g,','), (m.brand||'').replace(/;/g,','), (m.wg||'').replace(/;/g,','),
+                    (m.grade||'').toString().replace(/;/g,','),
+                    m.sscc, m.hits,
+                    m.vk.toFixed(2).replace('.', ','),
+                    rabatt,
+                    preis.toFixed(2).replace('.', ','),
+                    m.ek.toFixed(2).replace('.', ','),
+                    m.marge.toFixed(1).replace('.', ','),
+                ].join(';');
+            });
+            const meta = `Kunde;${(p.firma||p.kundenNr).replace(/;/g,',')};Kunden-Nr;${p.kundenNr};Segment;${p.segment};LTV;${Math.round(p.ltv)};Rabatt-Empfehlung %;${rabatt}\n`;
+            const csv = '﻿' + meta + '\n' + headers.join(';') + '\n' + rows.join('\n');
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            const dateStr = new Date().toISOString().split('T')[0];
+            a.download = `Angebot_${(p.firma||p.kundenNr).replace(/[^a-zA-Z0-9_-]/g,'_').substring(0,40)}_${dateStr}.csv`;
+            a.click();
+            showToast('success', '📥 Angebot exportiert', `${matches.length} Positionen für ${p.firma||p.kundenNr}`);
+        }
+
         // ====== KONVOLUT-GENERATOR (erweitert mit Sortby/MinMarge/Kunden-Filter) ======
         function generateKonvolute() {
             const items = dashboardState.potenzialScoredItems || [];
@@ -11040,7 +11410,10 @@ Keine Erklärungen, kein Markdown.`;
 
             const groupBy   = document.getElementById('konvolut-groupby').value;
             const minScore  = parseInt(document.getElementById('konvolut-minscore').value);
-            const maxSize   = parseInt(document.getElementById('konvolut-maxsize').value);
+            let maxSize     = parseInt(document.getElementById('konvolut-maxsize').value);
+            // Schutz: leer / NaN / ≤0 → Default 30; >99999 → cap
+            if (!Number.isFinite(maxSize) || maxSize < 1) maxSize = 30;
+            if (maxSize > 99999) maxSize = 99999;
             const sortBy    = document.getElementById('konvolut-sortby')?.value || 'score';
             const minMarge  = parseFloat(document.getElementById('konvolut-minmarge')?.value || '0');
             const customer  = document.getElementById('konvolut-customer')?.value || '';
@@ -11147,6 +11520,40 @@ Keine Erklärungen, kein Markdown.`;
             renderKonvolute();
         }
 
+        // Grade-Badge-Helper (A/B/C/D-Zustand der Ware) — farblich kodiert
+        // Werte können sein: A, A+, A-, B, B+, B-, C, C-, D, NEU, etc.
+        function _gradeBadge(grade) {
+            if (!grade) return '<span style="display:inline-block; padding:1px 5px; background:rgba(107,114,128,0.18); color:var(--text-muted); border-radius:4px; font-size:0.6rem; font-weight:700;" title="kein Grade hinterlegt">—</span>';
+            const g = String(grade).trim().toUpperCase();
+            const first = g.charAt(0);
+            const map = {
+                'A': ['#10b981', 'rgba(16,185,129,0.18)'],   // Neu / Top
+                'B': ['#06b6d4', 'rgba(6,182,212,0.18)'],     // gut
+                'C': ['#f97316', 'rgba(249,115,22,0.18)'],    // mittel
+                'D': ['#ef4444', 'rgba(239,68,68,0.18)'],     // schlecht
+                'N': ['#22c55e', 'rgba(34,197,94,0.18)'],     // NEU
+            };
+            const [color, bg] = map[first] || ['#94a3b8', 'rgba(148,163,184,0.18)'];
+            return `<span style="display:inline-block; padding:1px 6px; background:${bg}; color:${color}; border-radius:4px; font-size:0.62rem; font-weight:700; min-width:24px; text-align:center;" title="Grade ${g}">${_h(g)}</span>`;
+        }
+        // Aggregierte Grade-Verteilung "5×A · 12×B · 8×C"
+        function _gradeMix(items) {
+            const c = {};
+            items.forEach(it => {
+                const g = String(it.final_grade || it.grade || '—').trim().toUpperCase() || '—';
+                c[g] = (c[g] || 0) + 1;
+            });
+            // Sortiert: A,B,C,D,N,…
+            const order = ['A','B','C','D','N','—'];
+            return Object.entries(c)
+                .sort((a, b) => {
+                    const ai = order.indexOf(a[0].charAt(0)); const bi = order.indexOf(b[0].charAt(0));
+                    return (ai < 0 ? 99 : ai) - (bi < 0 ? 99 : bi);
+                })
+                .map(([g, n]) => `${n}×${_gradeBadge(g)}`)
+                .join(' ');
+        }
+
         function renderKonvolute() {
             const konvolute = dashboardState.konvolute || [];
             const container = document.getElementById('konvolut-container');
@@ -11178,12 +11585,14 @@ Keine Erklärungen, kein Markdown.`;
                         <td class="mono" style="font-size:0.62rem;">${_h(it.lager_number||'—')}</td>
                         <td style="font-size:0.62rem;">${_h((it.model||'—').substring(0,24))}</td>
                         <td style="font-size:0.62rem;">${_h(it.brand||'—')}</td>
+                        <td style="font-size:0.62rem; text-align:center;">${_gradeBadge(it.final_grade)}</td>
                         <td class="mono" style="font-size:0.62rem;">${it.product_life_days||0}T</td>
                         <td class="mono" style="font-size:0.62rem;">${ek.toLocaleString('de-DE',{style:'currency',currency:'EUR'})}</td>
                         <td class="mono" style="font-size:0.62rem;">${vk.toLocaleString('de-DE',{style:'currency',currency:'EUR'})}</td>
                         <td class="mono" style="font-size:0.62rem; color:${it.marge>=50?'var(--accent-green)':it.marge>=20?'inherit':'var(--accent-orange)'}">${it.marge.toFixed(0)}%</td>
                     </tr>`;
                 }).join('');
+                const gradeMixHeader = _gradeMix(k.items);
                 return `
                 <div style="border:1px solid var(--border); border-radius:10px; overflow:hidden; background: var(--bg-card);">
                     <div onclick="toggleKonvolut(${idx})" style="cursor:pointer; padding:0.7rem 1rem; display:flex; justify-content:space-between; align-items:center; gap:0.5rem; flex-wrap:wrap; background: var(--bg-elevated);">
@@ -11191,7 +11600,10 @@ Keine Erklärungen, kein Markdown.`;
                             <span style="display:inline-flex; align-items:center; justify-content:center; min-width:34px; height:34px; border-radius:8px; background:${scoreColor}; color:white; font-weight:700; font-size:0.8rem;">${k.avgScore}</span>
                             <div>
                                 <div style="font-weight:700; font-size:0.85rem;">📦 ${_h(titel)}</div>
-                                <div style="font-size:0.65rem; color:var(--text-muted);">${k.anzahl} Geräte · Ø ${k.avgDays} Lagertage</div>
+                                <div style="font-size:0.65rem; color:var(--text-muted); display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
+                                    <span>${k.anzahl} Geräte · Ø ${k.avgDays} Lagertage</span>
+                                    <span style="display:inline-flex; gap:3px; align-items:center;">${gradeMixHeader}</span>
+                                </div>
                             </div>
                         </div>
                         <div style="display:flex; align-items:center; gap:1.2rem; flex-wrap:wrap;">
@@ -11206,7 +11618,7 @@ Keine Erklärungen, kein Markdown.`;
                         ${_renderTopCustomersBlock(k)}
                         <div style="font-size:0.7rem; font-weight:700; margin:0.8rem 0 0.3rem; color:var(--text-secondary);">📦 Geräte im Konvolut</div>
                         <table class="analyse-table" style="font-size:0.62rem;">
-                            <thead><tr><th>Lager-Nr</th><th>Artikel</th><th>Marke</th><th>Tage</th><th>EK</th><th>VK</th><th>Marge</th></tr></thead>
+                            <thead><tr><th>Lager-Nr</th><th>Artikel</th><th>Marke</th><th style="text-align:center;">Grade</th><th>Tage</th><th>EK</th><th>VK</th><th>Marge</th></tr></thead>
                             <tbody>${rows}</tbody>
                         </table>
                     </div>
@@ -11329,6 +11741,7 @@ Keine Erklärungen, kein Markdown.`;
                     (k.teileGesamt > 1 ? `${k.gruppe} (Teil ${k.teilNr}/${k.teileGesamt})` : k.gruppe),
                     it.score, it.lager_number || '', (it.model||'').replace(/;/g,','),
                     it.brand || '', (it.product_group||'').replace(/;/g,','),
+                    (it.final_grade||'').toString().replace(/;/g,','),
                     it.product_life_days || 0,
                     (parseFloat(it.Buying_Price)||0).toFixed(2).replace('.', ','),
                     (parseFloat(it.Selling_Price)||0).toFixed(2).replace('.', ','),
@@ -11342,7 +11755,7 @@ Keine Erklärungen, kein Markdown.`;
         function exportKonvolut(idx) {
             const k = (dashboardState.konvolute || [])[idx];
             if (!k) return;
-            const header = ['Konvolut','Score','Lager-Nr','Modell','Marke','Warengruppe','Lagertage','EK','VK','Marge%','Top-3 Käufer (P%/erw.€)'].join(';');
+            const header = ['Konvolut','Score','Lager-Nr','Modell','Marke','Warengruppe','Grade','Lagertage','EK','VK','Marge%','Top-3 Käufer (P%/erw.€)'].join(';');
             const csv = '﻿' + header + '\n' + _konvolutToCsvRows(k).join('\n');
             const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
             const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
@@ -11354,7 +11767,7 @@ Keine Erklärungen, kein Markdown.`;
         function exportAlleKonvolute() {
             const konvolute = dashboardState.konvolute || [];
             if (konvolute.length === 0) return;
-            const header = ['Konvolut','Score','Lager-Nr','Modell','Marke','Warengruppe','Lagertage','EK','VK','Marge%','Top-3 Käufer (P%/erw.€)'].join(';');
+            const header = ['Konvolut','Score','Lager-Nr','Modell','Marke','Warengruppe','Grade','Lagertage','EK','VK','Marge%','Top-3 Käufer (P%/erw.€)'].join(';');
             const allRows = konvolute.flatMap(_konvolutToCsvRows);
             const csv = '﻿' + header + '\n' + allRows.join('\n');
             const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -11372,16 +11785,22 @@ Keine Erklärungen, kein Markdown.`;
             doc.setFontSize(16); doc.text('Konvolut-Übersicht — Verkaufspriorität', 14, 16);
             doc.setFontSize(9); doc.setTextColor(120);
             doc.text(`Stand ${new Date().toLocaleDateString('de-DE')} · ${konvolute.length} Konvolute · ${konvolute.reduce((s,k)=>s+k.anzahl,0)} Geräte`, 14, 22);
-            const body = konvolute.map(k => [
-                k.teileGesamt>1?`${k.gruppe} (T${k.teilNr}/${k.teileGesamt})`:k.gruppe,
-                k.anzahl, k.avgScore, k.avgDays + 'T',
-                k.sumEK.toLocaleString('de-DE',{maximumFractionDigits:0})+' €',
-                k.sumVK.toLocaleString('de-DE',{maximumFractionDigits:0})+' €',
-                k.marge.toFixed(0)+'%'
-            ]);
+            const body = konvolute.map(k => {
+                // Grade-Mix als Plaintext für PDF
+                const gc = {};
+                k.items.forEach(it => { const g = String(it.final_grade||'—').trim().toUpperCase()||'—'; gc[g] = (gc[g]||0)+1; });
+                const gradeMix = Object.entries(gc).sort().map(([g,n]) => `${n}×${g}`).join(' ');
+                return [
+                    k.teileGesamt>1?`${k.gruppe} (T${k.teilNr}/${k.teileGesamt})`:k.gruppe,
+                    k.anzahl, k.avgScore, k.avgDays + 'T', gradeMix,
+                    k.sumEK.toLocaleString('de-DE',{maximumFractionDigits:0})+' €',
+                    k.sumVK.toLocaleString('de-DE',{maximumFractionDigits:0})+' €',
+                    k.marge.toFixed(0)+'%'
+                ];
+            });
             doc.autoTable({
                 startY: 28,
-                head: [['Konvolut','Geräte','Ø Score','Ø Tage','Σ EK','Σ VK','Marge']],
+                head: [['Konvolut','Geräte','Ø Score','Ø Tage','Grade-Mix','Σ EK','Σ VK','Marge']],
                 body, styles: { fontSize: 8 }, headStyles: { fillColor: [16,185,129] }
             });
             doc.save(`Konvolute_${new Date().toISOString().split('T')[0]}.pdf`);
@@ -18925,8 +19344,16 @@ Keine Erklärungen, kein Markdown.`;
                     }
                     dashboardState.jtl4yData = data4y;
                     dashboardState.jtl4yLoaded = true;
-                    const minDt = data4y.length ? new Date(Math.min(...data4y.map(d => d.dt.getTime()))) : null;
-                    const maxDt = data4y.length ? new Date(Math.max(...data4y.map(d => d.dt.getTime()))) : null;
+                    // KILLCRITIC-Fix: Math.min(...arr) sprengt bei >100k Elementen den Stack (RangeError).
+                    // Bei 308k Positionen → reduce statt spread.
+                    let _mnTs = Infinity, _mxTs = -Infinity;
+                    for (let _i = 0; _i < data4y.length; _i++) {
+                        const _t = data4y[_i].dt.getTime();
+                        if (_t < _mnTs) _mnTs = _t;
+                        if (_t > _mxTs) _mxTs = _t;
+                    }
+                    const minDt = data4y.length ? new Date(_mnTs) : null;
+                    const maxDt = data4y.length ? new Date(_mxTs) : null;
                     if (statusEl) {
                         statusEl.textContent = `✓ ${data4y.length.toLocaleString('de-DE')} Pos.`;
                         statusEl.style.color = 'var(--accent-green)';
