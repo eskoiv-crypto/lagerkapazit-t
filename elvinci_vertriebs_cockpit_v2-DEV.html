@@ -10038,7 +10038,7 @@ Keine Erklärungen, kein Markdown.`;
                             const hasAny = p.email || p.telefon || p.mobil;
                             const firmaDisplay = p.firma || `<span style="color:var(--text-muted); font-style:italic;">Kunde ${p.kundenNr}</span>`;
                             const tageColor = p.tageInaktiv > 365 ? 'var(--accent-red)' : p.tageInaktiv > 180 ? 'var(--accent-orange)' : p.tageInaktiv > 90 ? '#d97706' : 'var(--accent-green)';
-                            return `<tr class="cc-row-clickable" onclick="showCustomerCard('${_h(p.kundenNr)}')" title="Klick → Kontakt-Karte öffnen">
+                            return `<tr class="cc-row-clickable" data-kn="${_h(p.kundenNr)}" onclick="showCustomerCard(this.dataset.kn)" title="Klick → Kontakt-Karte öffnen">
                                 <td style="font-size:0.6rem; color:var(--text-muted);">${i+1}</td>
                                 <td style="font-size:0.66rem; max-width:240px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${firmaDisplay}</td>
                                 <td>${segBadge(p.segment)}</td>
@@ -10049,7 +10049,7 @@ Keine Erklärungen, kein Markdown.`;
                                 <td class="mono" style="font-size:0.6rem; text-align:center;">${p.letztesKaufDt ? p.letztesKaufDt.toLocaleDateString('de-DE') : '—'}</td>
                                 <td class="mono" style="font-size:0.65rem; text-align:right; font-weight:700; color:${tageColor};">${p.tageInaktiv}</td>
                                 <td style="font-size:0.58rem; max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--text-secondary);" title="${_h(allTop)}">${top1}</td>
-                                <td style="text-align:center; font-size:0.8rem; cursor:pointer;" onclick="event.stopPropagation(); showCustomerCard('${_h(p.kundenNr)}')" title="Kontakt-Karte öffnen">${hasAny ? kontakt + tel + ' <span style=\"color:var(--accent-cyan);font-weight:700;font-size:0.65rem;\">▸</span>' : '<span style=\"color:var(--text-muted);font-size:0.7rem;\">—</span>'}</td>
+                                <td style="text-align:center; font-size:0.8rem; cursor:pointer;" data-kn="${_h(p.kundenNr)}" onclick="event.stopPropagation(); showCustomerCard(this.dataset.kn)" title="Kontakt-Karte öffnen">${hasAny ? kontakt + tel + ' <span style=\"color:var(--accent-cyan);font-weight:700;font-size:0.65rem;\">▸</span>' : '<span style=\"color:var(--text-muted);font-size:0.7rem;\">—</span>'}</td>
                             </tr>`;
                         }).join('')}</tbody>
                     </table>`;
@@ -10188,7 +10188,7 @@ Keine Erklärungen, kein Markdown.`;
                 const kontakt = (p.email ? `📧` : '') + (p.telefon || p.mobil ? `📞` : '');
                 const hasAny = p.email || p.telefon || p.mobil;
                 const statusColor = status === 'ERLEDIGT' ? 'var(--accent-green)' : status === 'KONTAKTIERT' ? 'var(--accent-cyan)' : status === 'KEIN_INTERESSE' ? 'var(--text-muted)' : 'var(--accent-orange)';
-                return `<tr class="cc-row-clickable" onclick="if(event.target.tagName!=='SELECT' && event.target.tagName!=='OPTION') showCustomerCard('${_h(p.kundenNr)}')" title="Klick → Kontakt-Karte">
+                return `<tr class="cc-row-clickable" data-kn="${_h(p.kundenNr)}" onclick="if(event.target.tagName!=='SELECT' && event.target.tagName!=='OPTION') showCustomerCard(this.dataset.kn)" title="Klick → Kontakt-Karte">
                     <td style="font-size:0.65rem; max-width:170px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"><b>${_h(firma)}</b></td>
                     <td style="font-size:0.6rem;">${_h(p.land || '?')}</td>
                     <td class="mono" style="font-size:0.7rem; text-align:right; font-weight:700;">${(p.ltv/1000).toFixed(0)} k €</td>
@@ -10482,7 +10482,7 @@ Keine Erklärungen, kein Markdown.`;
                             const kontakt = (p.email ? `📧` : '') + (p.telefon || p.mobil ? `📞` : '');
                             const hasAny = p.email || p.telefon || p.mobil;
                             const tageColor = p.tageInaktiv > 365 ? 'var(--accent-red)' : p.tageInaktiv > 270 ? 'var(--accent-orange)' : '#d97706';
-                            return `<tr class="cc-row-clickable" onclick="if(event.target.tagName!=='BUTTON') showCustomerCard('${_h(p.kundenNr)}')" title="Klick → Kontakt-Karte">
+                            return `<tr class="cc-row-clickable" data-kn="${_h(p.kundenNr)}" onclick="if(event.target.tagName!=='BUTTON') showCustomerCard(this.dataset.kn)" title="Klick → Kontakt-Karte">
                                 <td style="font-size:0.6rem; color:var(--text-muted);">${i+1}</td>
                                 <td style="font-size:0.66rem; max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"><b>${_h(firma)}</b></td>
                                 <td style="font-size:0.6rem;">${_h(p.land || '?')}</td>
@@ -12122,14 +12122,16 @@ Keine Erklärungen, kein Markdown.`;
                 const ov = overrides[sscc];
                 const hasRabattOverride = ov && typeof ov.rabatt === 'number';
                 const preis = m.vk * (1 - rab / 100);
-                const margeReal = m.vk > 0 ? ((preis - m.ek) / preis * 100) : 0;
+                // KILLCRITIC-Fix (2026-06-12): Guard auf preis statt m.vk — bei 100 % Rabatt
+                // ist preis = 0 und die Division lieferte -Infinity in der Anzeige.
+                const margeReal = preis > 0 ? ((preis - m.ek) / preis * 100) : 0;
                 const rowStyle = excluded
                     ? 'opacity:0.35; text-decoration:line-through;'
                     : '';
                 const rabBg = hasRabattOverride ? 'background:rgba(168,85,247,0.15);' : '';
                 return `<tr style="border-bottom:1px solid var(--border); ${rowStyle}">
                     <td style="padding:0.4rem; font-size:0.7rem; color:var(--text-muted); text-align:center;">
-                        <input type="checkbox" ${excluded ? '' : 'checked'} onchange="angeboteToggleExclude('${_h(sscc)}')" title="${excluded ? 'Wieder aufnehmen' : 'Aus Angebot ausschließen'}" style="cursor:pointer; accent-color:var(--accent-green);">
+                        <input type="checkbox" ${excluded ? '' : 'checked'} data-sscc="${_h(sscc)}" onchange="angeboteToggleExclude(this.dataset.sscc)" title="${excluded ? 'Wieder aufnehmen' : 'Aus Angebot ausschließen'}" style="cursor:pointer; accent-color:var(--accent-green);">
                     </td>
                     <td style="padding:0.4rem; font-size:0.7rem; color:var(--text-muted);">${i+1}</td>
                     <td style="padding:0.4rem; font-size:0.72rem;"><b>${m.bez || '—'}</b><div style="font-size:0.62rem; color:var(--text-muted);">${m.brand} · ${m.wg}</div></td>
@@ -12137,7 +12139,7 @@ Keine Erklärungen, kein Markdown.`;
                     <td style="padding:0.4rem; font-size:0.72rem; text-align:center;"><span style="padding:0.1rem 0.4rem; background:var(--accent-cyan); color:white; border-radius:4px; font-weight:700;">${m.hits}</span></td>
                     <td style="padding:0.4rem; font-size:0.72rem; text-align:right;">${m.vk.toFixed(2).replace('.', ',')} €</td>
                     <td style="padding:0.4rem; text-align:center; ${rabBg}">
-                        <input type="number" min="0" max="100" step="0.5" value="${rab}" onchange="angeboteSetRowRabatt('${_h(sscc)}', this.value)" title="Rabatt für diese Position überschreiben (leer = globaler Wert)" style="width:55px; padding:0.15rem 0.3rem; font-size:0.7rem; border-radius:4px; background:var(--bg-secondary); border:1px solid ${hasRabattOverride ? '#a855f7' : 'var(--border)'}; color:${hasRabattOverride ? '#a855f7' : 'var(--text-primary)'}; font-weight:${hasRabattOverride ? '700' : '400'}; text-align:right;">
+                        <input type="number" min="0" max="100" step="0.5" value="${rab}" data-sscc="${_h(sscc)}" onchange="angeboteSetRowRabatt(this.dataset.sscc, this.value)" title="Rabatt für diese Position überschreiben (leer = globaler Wert)" style="width:55px; padding:0.15rem 0.3rem; font-size:0.7rem; border-radius:4px; background:var(--bg-secondary); border:1px solid ${hasRabattOverride ? '#a855f7' : 'var(--border)'}; color:${hasRabattOverride ? '#a855f7' : 'var(--text-primary)'}; font-weight:${hasRabattOverride ? '700' : '400'}; text-align:right;">
                     </td>
                     <td style="padding:0.4rem; font-size:0.72rem; text-align:right; color:var(--accent-green); font-weight:700;">${preis.toFixed(2).replace('.', ',')} €</td>
                     <td style="padding:0.4rem; font-size:0.7rem; text-align:right; color:${margeReal >= 30 ? 'var(--accent-green)' : margeReal >= 10 ? 'inherit' : 'var(--accent-orange)'};">${margeReal.toFixed(1)}%</td>
@@ -23894,7 +23896,7 @@ location.reload();</pre>
                     <div class="cc-contact-value">${_h(v)}</div>
                     <div class="cc-contact-actions">
                         ${linkBtn}
-                        <button class="cc-action copy" onclick="_ccCopy('${_h(v).replace(/'/g,'&#39;')}', this)" title="In Zwischenablage">📋</button>
+                        <button class="cc-action copy" data-copy="${_h(v)}" onclick="_ccCopy(this.dataset.copy, this)" title="In Zwischenablage">📋</button>
                     </div>
                 </div>`;
             };
@@ -23931,9 +23933,9 @@ location.reload();</pre>
                     </div>
                 </div>
                 <div class="cc-foot">
-                    <button class="primary" onclick="_ccBuildKonvolut('${_h(p.kundenNr)}','${_h(p.firma||'')}')">🎯 Angebot für diesen Kunden</button>
+                    <button class="primary" data-kn="${_h(p.kundenNr)}" data-firma="${_h(p.firma||'')}" onclick="_ccBuildKonvolut(this.dataset.kn, this.dataset.firma)">🎯 Angebot für diesen Kunden</button>
                     ${mailto ? `<a class="secondary" href="${mailto}">📧 E-Mail-Vorlage</a>` : ''}
-                    <button class="secondary" onclick="_ccCopyAll('${_h(p.kundenNr)}')">📋 Komplettkontakt kopieren</button>
+                    <button class="secondary" data-kn="${_h(p.kundenNr)}" onclick="_ccCopyAll(this.dataset.kn)">📋 Komplettkontakt kopieren</button>
                 </div>
             `;
             modal.classList.add('open');
@@ -23945,7 +23947,9 @@ location.reload();</pre>
         }
 
         function _ccCopy(text, btn) {
-            navigator.clipboard.writeText(String(text).replace(/&#39;/g,"'").replace(/&quot;/g,'"').replace(/&amp;/g,'&'))
+            // KILLCRITIC-Fix (2026-06-12): Wert kommt jetzt via dataset (HTML-dekodiert) —
+            // die früheren Entity-Rückersetzungen entfallen; Apostroph-Firmen crashen nicht mehr.
+            navigator.clipboard.writeText(String(text))
                 .then(() => {
                     if (btn) {
                         const orig = btn.textContent;
