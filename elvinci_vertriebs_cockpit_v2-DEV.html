@@ -7,12 +7,15 @@
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
     <!-- KILLCRITIC-Fix K5 (2026-06-12): Version gepinnt (war ungepinnt = "latest").
          4.5.1 = die zum Fix-Zeitpunkt aufgelöste Version, identischer Code wie zuvor geladen.
-         Ein Chart.js-Major-Release hätte das Dashboard sonst ohne Vorwarnung brechen können. -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.1/jspdf.plugin.autotable.min.js"></script>
+         Ein Chart.js-Major-Release hätte das Dashboard sonst ohne Vorwarnung brechen können.
+         KILLCRITIC-Fix K12 (2026-06-12): SRI-Hashes (sha384, von den exakten CDN-Artefakten
+         berechnet) + crossorigin — manipulierte/ausgetauschte CDN-Inhalte werden vom Browser
+         verweigert statt ausgeführt. Bei CDN-Versionswechsel Hash NEU berechnen! -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1" integrity="sha384-jb8JQMbMoBUzgWatfe6COACi2ljcDdZQ2OxczGA3bGNeWe+6DChMTBJemed7ZnvJ" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" integrity="sha384-vtjasyidUo0kW94K5MXDXntzOJpQgBKXmE7e2Ga4LG0skTTLeBi97eFAXsqewJjw" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js" integrity="sha384-D/t0ZMqQW31H3az8ktEiNb39wyKnS82iFY52QPACM+IjKW3jDUhyIgh2PApRqJZs" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" integrity="sha384-JcnsjUPPylna1s1fvi1u12X5qjY5OL56iySh75FdtrwhO/SWXgMjoVqcKyIIWOLk" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.1/jspdf.plugin.autotable.min.js" integrity="sha384-b8MpgG2ZzWN6OPAtiB1JiBmDr9MpTt3NKK6KQf61hC/L7X4wJrvoTeVmMFPgp3nL" crossorigin="anonymous"></script>
     <style>
         :root {
             --bg-primary: #0a0f14;
@@ -6746,16 +6749,35 @@ Keine Erklärungen, kein Markdown.`;
             } catch (_) {}
             return { id: null, email: null, displayName: 'anonymous', mode: 'none' };
         }
+        // KILLCRITIC-Fix K13 (2026-06-12): PII wurde nur beim RENDERN maskiert (maskedH),
+        // lag aber im Klartext in IndexedDB — bei aktivierter Maskierung waren alte
+        // Log-Einträge trotzdem mit echten Kundendaten lesbar. Jetzt: payload-Felder mit
+        // PII-verdächtigen Keys werden bereits BEIM SCHREIBEN maskiert (wenn Maskierung an).
+        // Der ACTOR (Mitarbeiter, der die Aktion ausführt) bleibt bewusst unmaskiert —
+        // ein Audit-Log ohne Verantwortlichen ist zweckfrei (DSGVO Art. 30: Verarbeitungs-
+        // verzeichnis braucht die handelnde Person; Mitarbeiter handeln in ihrer Rolle).
+        const _AUDIT_PII_KEY_RE = /(e?mail|telefon|phone|mobil|firma|company|kunde|customer|displayname|vorname|nachname|name)$/i;
+        function _maskAuditPayloadDeep(obj, depth) {
+            if (!obj || typeof obj !== 'object' || (depth || 0) > 4) return obj;
+            const out = Array.isArray(obj) ? [] : {};
+            for (const [k, v] of Object.entries(obj)) {
+                if (v && typeof v === 'object') out[k] = _maskAuditPayloadDeep(v, (depth || 0) + 1);
+                else if (typeof v === 'string' && v && _AUDIT_PII_KEY_RE.test(k)) out[k] = maskPII(v);
+                else out[k] = v;
+            }
+            return out;
+        }
         async function auditLog(action, payload) {
             const cfg = loadComplianceConfig();
             if (!cfg.auditLogEnabled) return;
             if (typeof idbStores === 'undefined') return;
+            const rawPayload = payload || {};
             const entry = {
                 id: 'evt_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8),
                 timestamp: new Date().toISOString(),
                 action,
                 actor: _currentActor(),
-                payload: payload || {}
+                payload: isPIIMaskingEnabled() ? _maskAuditPayloadDeep(rawPayload) : rawPayload
             };
             // Reihenfolge erzwingen damit Events chronologisch persistiert werden
             _auditQueue = _auditQueue.then(async () => {
@@ -6763,17 +6785,30 @@ Keine Erklärungen, kein Markdown.`;
                     await idbStores.auditLog().put(entry);
                     // Retention: ab und zu (nicht jedes Event) alte löschen
                     if (Math.random() < 0.05) {
-                        const all = await idbStores.auditLog().getAll();
-                        const cutoff = new Date(Date.now() - cfg.auditRetentionDays * 86400_000).toISOString();
-                        for (const e of all) {
-                            if (e.timestamp < cutoff) await idbStores.auditLog().delete(e.id);
-                        }
+                        await _auditRetentionSweep(cfg);
                     }
                 } catch (err) {
                     console.warn('[Audit] persist failed:', err);
                 }
             });
             return _auditQueue;
+        }
+        // K13: Retention als eigene Funktion — läuft jetzt auch deterministisch beim
+        // Start (setupAuditProducers), nicht mehr nur per 5%-Zufall beim Event-Schreiben.
+        async function _auditRetentionSweep(cfg) {
+            try {
+                if (typeof idbStores === 'undefined') return;
+                cfg = cfg || loadComplianceConfig();
+                const all = await idbStores.auditLog().getAll();
+                const cutoff = new Date(Date.now() - cfg.auditRetentionDays * 86400_000).toISOString();
+                let removed = 0;
+                for (const e of all) {
+                    if (e.timestamp < cutoff) { await idbStores.auditLog().delete(e.id); removed++; }
+                }
+                if (removed > 0) console.info(`[Audit] Retention-Sweep: ${removed} Einträge älter ${cfg.auditRetentionDays}T gelöscht`);
+            } catch (err) {
+                console.warn('[Audit] retention sweep failed:', err);
+            }
         }
 
         /** Subscribed Bus-Events und übersetzt sie in Audit-Log-Einträge. */
@@ -6806,6 +6841,9 @@ Keine Erklärungen, kein Markdown.`;
             bus.on('sync:pulled',  (p) => auditLog('sync.pulled', p));
             bus.on('sync:pushed',  (p) => auditLog('sync.pushed', p));
             bus.on('sync:failed',  (p) => auditLog('sync.failed', p));
+            // K13: Retention deterministisch beim Start ausführen (zusätzlich zum
+            // 5%-Zufalls-Trigger beim Schreiben) — Logs verfallen jetzt garantiert.
+            setTimeout(() => { _auditRetentionSweep(); }, 5000);
             console.log('[Audit] Producer registriert');
         }
 
@@ -18447,6 +18485,26 @@ Keine Erklärungen, kein Markdown.`;
         // FILE UPLOAD HANDLING
         // ============================================
         
+        // KILLCRITIC-Fix K9 (2026-06-12): Encoding-Erkennung für CSV-Bytes.
+        // Gleiche Heuristik wie im Haupt-Upload-Pfad (handleFileUpload): UTF-8-BOM
+        // oder ≥2 UTF-8-Umlaut-Bytefolgen (C3 xx) → utf-8, sonst windows-1252
+        // (= was Browser bei Label 'ISO-8859-1' ohnehin dekodieren). Vorher las der
+        // Multi-File-Pfad hart ISO-8859-1 — ein UTF-8-Re-Export zerschoss Umlaute still.
+        function _decodeCsvBytes(rawBytes) {
+            let encoding = 'windows-1252';
+            if (rawBytes.length >= 3 && rawBytes[0] === 0xEF && rawBytes[1] === 0xBB && rawBytes[2] === 0xBF) {
+                encoding = 'utf-8';
+            } else {
+                let utf8Hits = 0;
+                const sampleLen = Math.min(rawBytes.length, 4096);
+                for (let i = 0; i < sampleLen - 1; i++) {
+                    if (rawBytes[i] === 0xC3 && (rawBytes[i + 1] >= 0x80 && rawBytes[i + 1] <= 0xBF)) utf8Hits++;
+                }
+                if (utf8Hits >= 2) encoding = 'utf-8';
+            }
+            return new TextDecoder(encoding).decode(rawBytes);
+        }
+
         // MULTI-FILE UPLOAD für WE/WA-IST (Effizienz-Tracker)
         function handleMultiFileUpload(input, type) {
             // SYNCHRONE VERSION - ohne async/await für maximale Kompatibilität
@@ -18483,7 +18541,8 @@ Keine Erklärungen, kein Markdown.`;
                 const reader = new FileReader();
                 reader.onload = function(e) {
                     try {
-                        const text = e.target.result;
+                        // K9: Bytes lesen + Encoding-Heuristik statt hartem ISO-8859-1
+                        const text = _decodeCsvBytes(new Uint8Array(e.target.result));
                         const result = parseAMMFile(text, file.name, type);
                         
                         if (result && result.stueck > 0) {
@@ -18519,9 +18578,9 @@ Keine Erklärungen, kein Markdown.`;
                         if (boxEl) boxEl.classList.add('active');
                     }
                 };
-                reader.readAsText(file, 'ISO-8859-1');
+                reader.readAsArrayBuffer(file);  // K9: Bytes statt Text — Encoding entscheidet _decodeCsvBytes
             });
-            
+
             input.value = '';
         }
         
@@ -20033,29 +20092,44 @@ Keine Erklärungen, kein Markdown.`;
                     
                     // Header ist Zeile 2 (Index 1)
                     const headerRowIdx = 1;
-                    
+
+                    // KILLCRITIC-Fix K11 (2026-06-12): Spalten aus dem Header mappen statt
+                    // harter Indizes — eine im AMM eingefügte Spalte hätte vorher still
+                    // falsche Daten geliefert. Fallback = die bisherigen festen Indizes,
+                    // damit das Verhalten bei unverändertem Format identisch bleibt.
+                    const _weHdr = (data[headerRowIdx] || []).map(h => String(h || '').toLowerCase().trim());
+                    const _weFindCol = (patterns, fallback) => {
+                        for (let c = 0; c < _weHdr.length; c++) {
+                            if (patterns.some(p => _weHdr[c].includes(p))) return c;
+                        }
+                        return fallback;
+                    };
+                    const colGeraete  = _weFindCol(['geräte gesamt', 'geraete gesamt'], 4);
+                    const colWeDatum  = _weFindCol(['wareneingangsdatum'], 9);
+                    const colErledigt = _weFindCol(['erledigt'], 19);
+                    if (colGeraete !== 4 || colWeDatum !== 9 || colErledigt !== 19) {
+                        console.warn(`[WE-Pipe] Spalten-Layout abweichend vom Standard — Header-Mapping aktiv: Geräte=${colGeraete}, WE-Datum=${colWeDatum}, erledigt=${colErledigt}`);
+                    }
+
                     // Parse future deliveries
                     const heute = new Date();
                     heute.setHours(0, 0, 0, 0);
                     const pipelineWE = {};
                     let totalGeplant = 0;
                     let erledigtCount = 0;
-                    
+
                     for (let i = headerRowIdx + 1; i < data.length; i++) {
                         const row = data[i];
                         if (!row || row.length === 0) continue;
-                        
-                        // Spalte T (Index 19) = erledigt
-                        const erledigt = row[19] ? String(row[19]).toLowerCase().trim() : '';
+
+                        const erledigt = row[colErledigt] ? String(row[colErledigt]).toLowerCase().trim() : '';
                         if (erledigt === 'ja') {
                             erledigtCount++;
                             continue;
                         }
-                        
-                        // Spalte J (Index 9) = Wareneingangsdatum
-                        let weDatum = row[9];
-                        // Spalte E (Index 4) = Geräte gesamt
-                        const geraete = parseInt(row[4]) || 0;
+
+                        let weDatum = row[colWeDatum];
+                        const geraete = parseInt(row[colGeraete]) || 0;
                         
                         if (!weDatum || !geraete) continue;
                         
@@ -20468,6 +20542,7 @@ Keine Erklärungen, kein Markdown.`;
                     const pgStats = {};  // Produktgruppen-Statistiken
                     const brandStats = {};  // Brand-Statistiken
                     const lageralterBuckets = { d7: 0, d14: 0, d30: 0, d60: 0, d90: 0, d90plus: 0 };
+                    const _statusValuesSeen = new Map();  // K10: Status-Vokabular-Diagnose
                     
                     for (let i = 1; i < data.length; i++) {
                         const row = data[i];
@@ -20484,6 +20559,12 @@ Keine Erklärungen, kein Markdown.`;
                         // NEU: Verfügbarkeits-Status ermitteln
                         // A oder M im Status = reserviert/angeboten
                         // Kein A/M = frei verfügbar
+                        // KILLCRITIC-Hinweis K10 (2026-06-12): Diese Heuristik matcht A/M
+                        // IRGENDWO im Status-String — ein neues Status-Wort mit A oder M
+                        // (z.B. "VERKAUFT") würde komplett als reserviert klassifiziert.
+                        // Deshalb: distinct Status-Werte sammeln + nach dem Loop loggen,
+                        // damit Vokabular-Drift im Portal-Export sofort auffällt.
+                        _statusValuesSeen.set(statusRaw || '(leer)', (_statusValuesSeen.get(statusRaw || '(leer)') || 0) + 1);
                         const isReserved = /[AM]/.test(statusRaw);
                         const isAvailable = !isReserved;
                         
@@ -20570,6 +20651,9 @@ Keine Erklärungen, kein Markdown.`;
                         }
                     }
                     
+                    // K10: Status-Vokabular loggen — Drift gegenüber der A/M-Heuristik erkennbar machen
+                    console.info('[StockAnalysis] Status-Werte im Export:',
+                        [..._statusValuesSeen].map(([v, n]) => `"${v}"×${n}`).join(' · '));
                     dashboardState.stockAnalysisData = stockAnalysisData;
                     dashboardState.stockAnalysisLoaded = true;
                     dashboardState.stockAnalysisCount = count;
@@ -20817,6 +20901,25 @@ Keine Erklärungen, kein Markdown.`;
                         }
                     }
                     
+                    // KILLCRITIC-Fix K8 (2026-06-12): Duplikat-ERKENNUNG pro Lager-Nr.
+                    // Bewusst KEIN Auto-Drop: ein retourniertes + erneut verkauftes Gerät
+                    // erscheint legitim zweimal. Aber Export-Fehler (gleiche Zeile doppelt)
+                    // verfälschen still Umsatz/Profit — deshalb sichtbare Warnung.
+                    const _lagerNrCounts = new Map();
+                    for (const r of allSoldData) {
+                        if (r.lagerNr) _lagerNrCounts.set(r.lagerNr, (_lagerNrCounts.get(r.lagerNr) || 0) + 1);
+                    }
+                    const _dupes = [..._lagerNrCounts].filter(([, n]) => n > 1);
+                    dashboardState.allSoldDuplicates = _dupes.map(([nr, n]) => ({ lagerNr: nr, count: n }));
+                    if (_dupes.length > 0) {
+                        const _dupeRows = _dupes.reduce((s, [, n]) => s + n - 1, 0);
+                        console.warn(`[AllSold] ${_dupes.length} Lager-Nrs mehrfach verkauft (${_dupeRows} Extra-Zeilen):`,
+                            _dupes.slice(0, 20).map(([nr, n]) => `${nr}×${n}`).join(', ') + (_dupes.length > 20 ? ' …' : ''));
+                        if (typeof showToast === 'function') {
+                            showToast('warning', `⚠️ ${_dupes.length} doppelte Lager-Nrs in ALL_SOLD`,
+                                `${_dupeRows} Zeilen mit bereits vorhandener Lager-Nr (Retoure-Wiederverkauf oder Export-Fehler). Alle Zeilen zählen in Umsatz/Profit. Details in der Browser-Konsole (F12).`, 8000);
+                        }
+                    }
                     dashboardState.allSoldLoaded = true;
                     dashboardState.allSoldData = allSoldData;
                     bus.emit('data:all-sold-loaded', { count: allSoldData.length });
