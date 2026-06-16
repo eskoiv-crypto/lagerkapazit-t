@@ -9240,7 +9240,7 @@ Keine Erklärungen, kein Markdown.`;
                 statusEl.style.background = 'transparent'; statusEl.style.padding = '0';
                 const parts = [];
                 if (dashboardState.stockAnalysisLoaded) {
-                    parts.push(`<span class="src-pill src-stock" data-tip="Stock-Analysis (Portal-Snapshot): aktuell verkaufsbereite Geräte (Status A/M), dedupliziert nach Lager-Nr. Stichtag: heute beim Upload. Vom Zeitraum-Filter NICHT betroffen.">🟩 ${stockUniq.toLocaleString('de-DE')} Stock</span>`);
+                    parts.push(`<span class="src-pill src-stock" data-tip="Stock-Analysis (Portal-Snapshot): Bestand dedupliziert nach Lager-Nr. Frei verkäuflich sind NUR Geräte mit leerem Status — A/M = im Paket reserviert. Stichtag: heute beim Upload. Vom Zeitraum-Filter NICHT betroffen.">🟩 ${stockUniq.toLocaleString('de-DE')} Stock</span>`);
                 }
                 if (dashboardState.allSoldLoaded) {
                     parts.push(`<span class="src-pill src-sold" data-tip="All-Sold (Verkaufs-Historie): vom Zeitraum-Filter betroffen. ${f.preset === 'all' ? 'Aktuell: alle Verkäufe.' : 'Aktuell gefiltert: ' + soldShown.toLocaleString('de-DE') + ' von ' + soldAll.toLocaleString('de-DE') + ' Verkäufen.'}">🟧 ${soldLabel}</span>`);
@@ -10837,7 +10837,17 @@ Keine Erklärungen, kein Markdown.`;
         //  · Top-5 Kunden via Affinity-Engine (re-use von Konvolut-Logik)
         // ============================================================
         function _liveItems() {
-            return (dashboardState.potenzialScoredItems || []);
+            // VERFÜGBARKEIT (Geschäftsregel User 2026-06-12): nur Geräte mit LEEREM Status
+            // sind frei zum Verkauf. Live View zeigt standardmäßig nur diese; reservierte
+            // (A/M = Paket/Spezialdeal, sonstige Stati) per Toggle einblendbar.
+            // isAvailable kommt aus dem Stock-Parse (Quelle).
+            const all = (dashboardState.potenzialScoredItems || []);
+            if (dashboardState._lvAvailableOnly === false) return all;
+            return all.filter(i => i.isAvailable !== false);
+        }
+        function lvToggleAvailableOnly(checked) {
+            dashboardState._lvAvailableOnly = !!checked;
+            updateLiveView();
         }
         // Multi-Select-State (statt einzelner Werte)
         function _lvMulti() {
@@ -10948,6 +10958,11 @@ Keine Erklärungen, kein Markdown.`;
             const items = _liveItems();
             const f = _liveFilters();
             const filtered = _liveFilterItems(items, f);
+            // Verfügbarkeits-Kennzahlen (Geschäftsregel: nur leerer Status = frei)
+            const _lvAllScored = dashboardState.potenzialScoredItems || [];
+            const _lvReservedN = _lvAllScored.filter(i => i.isAvailable === false).length;
+            const _lvAvailOnly = dashboardState._lvAvailableOnly !== false;
+            const _lvToggle = `<label style="display:inline-flex; align-items:center; gap:0.35rem; font-size:0.7rem; font-weight:700; color:${_lvAvailOnly ? 'var(--accent-green)' : 'var(--text-muted)'}; cursor:pointer; padding:0.15rem 0.5rem; background:${_lvAvailOnly ? 'rgba(16,185,129,0.12)' : 'var(--bg-elevated)'}; border:1px solid ${_lvAvailOnly ? 'var(--accent-green)' : 'var(--border)'}; border-radius:5px; margin-right:0.6rem;" title="Geschäftsregel: nur LEERER Status = frei zum Verkauf. A/M = im Paket reserviert (Kundenpaket/Spezialdeal). Unabhängig von der Lagerverfügbarkeit."><input type="checkbox" ${_lvAvailOnly ? 'checked' : ''} onchange="lvToggleAvailableOnly(this.checked)" style="cursor:pointer; accent-color:var(--accent-green);">✅ Nur verfügbare (leerer Status)${_lvReservedN > 0 ? ` <span style="font-weight:400; color:var(--text-muted);">· ${_lvReservedN.toLocaleString('de-DE')} reserviert ${_lvAvailOnly ? 'ausgeblendet' : 'enthalten'}</span>` : ''}</label>`;
 
             // Breadcrumb (Multi-Select: zeigt alle ausgewählten Werte je Filter als Chips)
             const bc = document.getElementById('lv-breadcrumb');
@@ -10962,7 +10977,7 @@ Keine Erklärungen, kein Markdown.`;
                 if (f.wgs.size > 0)       parts.push(`<span style="color:var(--accent-cyan); font-weight:600;">🏷️ ${_h(_list(f.wgs))}</span>`);
                 if (f.brands.size > 0)    parts.push(`<span style="color:var(--accent-cyan); font-weight:600;">🏭 ${_h(_list(f.brands))}</span>`);
                 if (f.model)              parts.push(`<span style="color:var(--accent-cyan); font-weight:600;">🔎 "${_h(f.model)}"</span>`);
-                bc.innerHTML = parts.length ? `Aktive Filter: ${parts.join(' · ')} → <b>${filtered.length}</b> Geräte` : `<span style="color:var(--text-muted);">Keine Filter aktiv — Live View zeigt alle ${filtered.length} verkaufsbereiten Geräte. Wähle einen Filter für gezieltes Drill-Down.</span>`;
+                bc.innerHTML = _lvToggle + (parts.length ? `Aktive Filter: ${parts.join(' · ')} → <b>${filtered.length}</b> Geräte` : `<span style="color:var(--text-muted);">Keine Filter aktiv — Live View zeigt ${filtered.length.toLocaleString('de-DE')} ${_lvAvailOnly ? 'verfügbare (leerer Status)' : 'Geräte (inkl. reservierte)'}. Wähle einen Filter für gezieltes Drill-Down.</span>`);
             }
 
             // KPI-Cards
@@ -10983,7 +10998,7 @@ Keine Erklärungen, kein Markdown.`;
                     </div>`;
                 }
                 kpis.innerHTML = [
-                    _card('Geräte', n.toLocaleString('de-DE'), 'aktuell verfügbar', 'var(--accent-cyan)'),
+                    _card('Geräte', n.toLocaleString('de-DE'), _lvAvailOnly ? 'verfügbar (leerer Status)' : 'inkl. reservierte (A/M)', 'var(--accent-cyan)'),
                     _card('Σ EK', sumEK.toLocaleString('de-DE',{style:'currency',currency:'EUR',maximumFractionDigits:0}), 'Buchwert', 'var(--text-muted)'),
                     _card('Σ VK', sumVK.toLocaleString('de-DE',{style:'currency',currency:'EUR',maximumFractionDigits:0}), 'Listenwert', 'var(--accent-green)'),
                     _card('Marge', margePct.toFixed(1)+' %', sumProfit.toLocaleString('de-DE',{style:'currency',currency:'EUR',maximumFractionDigits:0}) + ' Profit', margePct >= 40 ? 'var(--accent-green)' : margePct >= 20 ? 'var(--accent-orange)' : 'var(--accent-red)'),
@@ -11000,7 +11015,7 @@ Keine Erklärungen, kein Markdown.`;
                     ? items.filter(it => bestandSet.has(String(it.lager_number || '').trim())).length
                     : null;
                 const bestandTotal = dashboardState.bestandRaw?.length || 0;
-                let bannerHtml = `<b style="color:#a5b4fc;">📊 Datenquelle:</b> Portal Stock-Analysis (verkaufsbereite Geräte, Status A/M/leer) — <b>${stockTotal.toLocaleString('de-DE')}</b> Geräte mit EK/VK-Preisen.`;
+                let bannerHtml = `<b style="color:#a5b4fc;">📊 Datenquelle:</b> Portal Stock-Analysis — Geräte mit EK/VK-Preisen. <b>Frei verkäuflich = LEERER Status</b>; A/M = im Paket reserviert (Kundenpaket/Spezialdeal)${_lvReservedN > 0 ? ` · <b>${_lvReservedN.toLocaleString('de-DE')}</b> reserviert ${_lvAvailOnly ? 'ausgeblendet' : 'eingeblendet'}` : ''}. Angezeigt: <b>${stockTotal.toLocaleString('de-DE')}</b> Geräte.`;
                 if (bestandTotal > 0 && inBestand !== null) {
                     const pct = ((inBestand / stockTotal) * 100).toFixed(1);
                     const missing = stockTotal - inBestand;
@@ -12772,7 +12787,7 @@ Keine Erklärungen, kein Markdown.`;
                 if (stock.length) {
                     const r = _rangeOf(stock, 'datetime_upload');
                     elStock.style.display = 'inline';
-                    elStock.innerHTML = `<span class="src-pill src-stock" data-tip="Stock-Analysis (Portal-Snapshot): aktuell verkaufsbereite Geräte (Status A/M). Bereits verkaufte oder gesperrte Geräte sind hier NICHT enthalten. Stichtag: Zeitpunkt des Portal-Exports.">🟩 STOCK</span> <b style="color:var(--accent-orange);">Portal-Snapshot:</b> WE ${fmt(r.mn)} – ${fmt(r.mx)} <span style="color:var(--text-muted);">· ${stock.length.toLocaleString('de-DE')} Art.</span>`;
+                    elStock.innerHTML = `<span class="src-pill src-stock" data-tip="Stock-Analysis (Portal-Snapshot): Portal-Bestand. Frei verkäuflich sind NUR Geräte mit leerem Status — A/M = im Paket reserviert (Kundenpaket/Spezialdeal). Stichtag: Zeitpunkt des Portal-Exports.">🟩 STOCK</span> <b style="color:var(--accent-orange);">Portal-Snapshot:</b> WE ${fmt(r.mn)} – ${fmt(r.mx)} <span style="color:var(--text-muted);">· ${stock.length.toLocaleString('de-DE')} Art.</span>`;
                     shown = true;
                 } else { elStock.style.display = 'none'; }
             }
@@ -21378,7 +21393,14 @@ Keine Erklärungen, kein Markdown.`;
                     if (colBuyingPrice === undefined || colSellingPrice === undefined || colLagerNumber === undefined) {
                         throw new Error('Spalten nicht gefunden: Buying_Price, Selling_Price, lager_number');
                     }
-                    
+                    // KILLCRITIC (2026-06-12): Wenn die Spalte "status" fehlt/umbenannt ist, würde
+                    // JEDES Gerät als leer=verfügbar zählen — stiller Fehler, der exakt wie
+                    // "Verfügbar-Zahl ändert sich nicht" aussieht. Deshalb laut warnen.
+                    if (colStatus === undefined) {
+                        console.warn('[StockAnalysis] Spalte "status" NICHT gefunden! Vorhandene Header:', Object.keys(headerMap).join(', '));
+                        if (typeof showToast === 'function') showToast('warning', '⚠️ Status-Spalte fehlt im Stock-Export', 'Keine Spalte "status" gefunden — dadurch gelten ALLE Geräte als verfügbar (leer). Der Verfügbarkeits-Filter ist damit wirkungslos. Bitte Spaltennamen im Portal-Export prüfen.', 9000);
+                    }
+
                     // Daten parsen
                     const stockAnalysisData = {};
                     let totalEK = 0, totalVK = 0, count = 0;
