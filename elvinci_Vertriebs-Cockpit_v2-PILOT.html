@@ -9562,7 +9562,10 @@ Keine Erklärungen, kein Markdown.`;
             const fBrand = document.getElementById('potenzial-filter-brand')?.value || '';
             const limit = parseInt(document.getElementById('potenzial-limit')?.value || '200');
 
+            // Konvolut-vorgemerkte Geräte ausblenden (Reservierung gilt in allen Offer-Reitern)
+            const _nResPot = items.filter(i => _isKonvReserved(i.lager_number)).length;
             const filtered = items.filter(i =>
+                !_isKonvReserved(i.lager_number) &&
                 i.score >= minScore &&
                 (!fPg || (i.product_group || '').trim() === fPg) &&
                 (!fBrand || (i.brand || '').trim() === fBrand)
@@ -9573,7 +9576,7 @@ Keine Erklärungen, kein Markdown.`;
             if (info) {
                 const sumEK = filtered.reduce((s,i)=>s+(parseFloat(i.Buying_Price)||0),0);
                 const sumVK = filtered.reduce((s,i)=>s+(parseFloat(i.Selling_Price)||0),0);
-                info.innerHTML = `<strong>${filtered.length.toLocaleString('de-DE')}</strong> Geräte gefiltert · EK ${sumEK.toLocaleString('de-DE',{style:'currency',currency:'EUR',maximumFractionDigits:0})} · VK ${sumVK.toLocaleString('de-DE',{style:'currency',currency:'EUR',maximumFractionDigits:0})}` + (filtered.length > limit ? ` · zeige erste ${limit}` : '');
+                info.innerHTML = `<strong>${filtered.length.toLocaleString('de-DE')}</strong> Geräte gefiltert · EK ${sumEK.toLocaleString('de-DE',{style:'currency',currency:'EUR',maximumFractionDigits:0})} · VK ${sumVK.toLocaleString('de-DE',{style:'currency',currency:'EUR',maximumFractionDigits:0})}` + (filtered.length > limit ? ` · zeige erste ${limit}` : '') + (_nResPot > 0 ? ` · <span style="color:#a855f7; font-weight:700;">🔒 ${_nResPot} vorgemerkt ausgeblendet</span>` : '');
             }
 
             tbody.innerHTML = filtered.slice(0, limit).map(item => {
@@ -10376,6 +10379,7 @@ Keine Erklärungen, kein Markdown.`;
             // Stock-Items: prüfen ob Bezeichnung/Modell Tokens enthält
             const matched = [];
             stockRaw.forEach(item => {
+                if (_isKonvReserved(item.lager_number)) return;  // vorgemerkte Geräte nicht zur Reaktivierung matchen
                 const text = `${item.brand || ''} ${item.model || ''} ${item.product_group || ''}`.toLowerCase();
                 let hitCount = 0;
                 for (const tok of customerTokens) {
@@ -12617,7 +12621,7 @@ Keine Erklärungen, kein Markdown.`;
                         </div>
                     </div>
                     <div id="konvolut-body-${idx}" style="display:none; max-height:480px; overflow-y:auto; padding:0.5rem 1rem 1rem;">
-                        ${_renderTopCustomersBlock(k)}
+                        ${_renderTopCustomersBlock(k, idx)}
                         <div style="font-size:0.7rem; font-weight:700; margin:0.8rem 0 0.3rem; color:var(--text-secondary);">📦 Geräte im Konvolut</div>
                         <table class="analyse-table" style="font-size:0.62rem;">
                             <thead><tr><th>Lager-Nr</th><th>Artikel</th><th>Marke</th><th style="text-align:center;">Grade</th><th>Tage</th><th>EK</th><th>VK</th><th>Marge</th></tr></thead>
@@ -12630,7 +12634,105 @@ Keine Erklärungen, kein Markdown.`;
 
         // Render-Helper: Top-Kunden-Block in jedem Konvolut (Phase 2026-05-28)
         // Erweiterung 2026-06-03: bei targetCustomer rückt der ausgewählte Kunde nach oben + farbliche Markierung.
-        function _renderTopCustomersBlock(k) {
+        // ====== MEHRERE KUNDEN → 1 ANGEBOT (Matching-Logik via matchCustomersForKonvolut) ======
+        // Segment-Rabatt wie im Kunden-Match: aktiv≥50k=3% · pre-churn=4% · high-value-churn=5% · sonst 0%
+        function _segmentRabatt(p) {
+            if (!p) return 0;
+            if (p.segment === 'aktiv' && (p.ltv || 0) >= 50000) return 3;
+            if (p.segment === 'high-value-churn') return 5;
+            if (p.segment === 'pre-churn') return 4;
+            return 0;
+        }
+        function _findProfileByFirma(firma) {
+            const profs = dashboardState.customerProfiles || {};
+            const q = String(firma || '').trim().toLowerCase();
+            if (!q) return null;
+            return Object.values(profs).find(p => String(p.firma || '').trim().toLowerCase() === q) || null;
+        }
+        // Erzeugt EINE Excel-Datei: 1 Übersicht-Sheet + je Kunde 1 Angebots-Sheet (statisch,
+        // mit dessen Segment-Rabatt). Das identische Konvolut geht an mehrere Kandidaten.
+        function konvolutAngebotAnMehrere(idx) {
+            if (typeof XLSX === 'undefined') { showToast('error', 'XLSX-Library nicht geladen', 'Bitte Seite neu laden (Strg+F5)'); return; }
+            const k = (dashboardState.konvolute || [])[idx];
+            if (!k || !Array.isArray(k.items) || !k.items.length) { showToast('warning', 'Kein Konvolut', 'Konvolut nicht gefunden.'); return; }
+            const boxes = Array.from(document.querySelectorAll('.kt-select-' + idx + ':checked'));
+            const firmas = boxes.map(b => b.dataset.firma).filter(Boolean);
+            if (firmas.length === 0) { showToast('warning', 'Keine Kunden gewählt', 'Mindestens einen Abnehmer ankreuzen.'); return; }
+
+            const titel = k.teileGesamt > 1 ? `${k.gruppe} (Teil ${k.teilNr}/${k.teileGesamt})` : k.gruppe;
+            const wb = XLSX.utils.book_new();
+            const used = new Set();
+            const sheetName = (firma) => {
+                let n = String(firma || 'Kunde').replace(/[\\\/\?\*\[\]:]/g, ' ').substring(0, 28).trim() || 'Kunde';
+                let base = n, c = 2; while (used.has(n)) { n = (base.substring(0, 25) + ' ' + c); c++; } used.add(n); return n;
+            };
+
+            // Übersicht-Sheet
+            const ov = [
+                ['Konvolut-Angebot an mehrere Kunden'],
+                ['Konvolut', String(titel)],
+                ['Geräte', k.anzahl],
+                ['Σ Listen-VK', { v: k.sumVK || 0, t: 'n', z: '#,##0.00 "€"' }],
+                [],
+                ['⚠ EXKLUSIV: 1 physisches Konvolut — wer zuerst zusagt, bekommt es. Nicht mehrfach verkaufen!'],
+                [],
+                ['Kunde', 'Segment', 'Rabatt %', 'Σ Kunden-Preis', 'P(Kauf)'],
+            ];
+            const perKunde = firmas.map(firma => {
+                const prof = _findProfileByFirma(firma);
+                const rab = _segmentRabatt(prof);
+                const sumPreis = (k.items || []).reduce((s, it) => s + (parseFloat(it.Selling_Price) || 0) * (1 - rab / 100), 0);
+                const top = (k.topCustomers || []).find(c => c.company === firma);
+                ov.push([
+                    String(firma), String(prof ? (prof.segment || '—') : 'unbekannt'),
+                    { v: rab / 100, t: 'n', z: '0.0%' }, { v: sumPreis, t: 'n', z: '#,##0.00 "€"' },
+                    (top && typeof top.pBuy === 'number') ? { v: top.pBuy, t: 'n', z: '0.0%' } : '—',
+                ]);
+                return { firma, prof, rab };
+            });
+            const wsOv = XLSX.utils.aoa_to_sheet(ov);
+            wsOv['!cols'] = [{ wch: 32 }, { wch: 18 }, { wch: 10 }, { wch: 16 }, { wch: 10 }];
+            wsOv['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 4 } }, { s: { r: 5, c: 0 }, e: { r: 5, c: 4 } }];
+            XLSX.utils.book_append_sheet(wb, wsOv, 'Übersicht');
+
+            // Pro-Kunde Angebots-Sheet (statisch, sicher zum Weiterleiten — kein EK/Marge/LTV)
+            perKunde.forEach(({ firma, prof, rab }) => {
+                const aoa = [
+                    ['Angebot für ' + String(firma)],
+                    ['Datum: ' + new Date().toLocaleDateString('de-DE') + (prof ? (' · Kunden-Nr: ' + prof.kundenNr) : '')],
+                    ['elvinci.de GmbH'],
+                    [],
+                    ['Pos.', 'Bezeichnung', 'Marke', 'Warengruppe', 'Grade', 'Zustand', 'Listen-VK', 'Rabatt', 'Ihr Preis', 'Ersparnis'],
+                ];
+                let sL = 0, sP = 0, sE = 0;
+                (k.items || []).forEach((it, i) => {
+                    const vk = parseFloat(it.Selling_Price) || 0;
+                    const preis = vk * (1 - rab / 100);
+                    const ersp = vk - preis;
+                    sL += vk; sP += preis; sE += ersp;
+                    const bez = [it.brand, it.model].filter(Boolean).join(' ') || it.article_number || '';
+                    aoa.push([
+                        i + 1, String(bez), String(it.brand || ''), String(it.product_group || ''),
+                        String(it.final_grade || ''), String(it.usage || ''),
+                        { v: vk, t: 'n', z: '#,##0.00 "€"' }, { v: rab / 100, t: 'n', z: '0.0%' },
+                        { v: preis, t: 'n', z: '#,##0.00 "€"' }, { v: ersp, t: 'n', z: '#,##0.00 "€"' },
+                    ]);
+                });
+                aoa.push([]);
+                aoa.push(['', 'Σ GESAMT', '', '', '', '', { v: sL, t: 'n', z: '#,##0.00 "€"' }, '', { v: sP, t: 'n', z: '#,##0.00 "€"' }, { v: sE, t: 'n', z: '#,##0.00 "€"' }]);
+                const ws = XLSX.utils.aoa_to_sheet(aoa);
+                ws['!cols'] = [{ wch: 6 }, { wch: 36 }, { wch: 12 }, { wch: 22 }, { wch: 9 }, { wch: 16 }, { wch: 12 }, { wch: 8 }, { wch: 13 }, { wch: 13 }];
+                ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 9 } }, { s: { r: 1, c: 0 }, e: { r: 1, c: 9 } }, { s: { r: 2, c: 0 }, e: { r: 2, c: 9 } }];
+                ws['!autofilter'] = { ref: `A5:J${(k.items || []).length + 5}` };
+                XLSX.utils.book_append_sheet(wb, ws, sheetName(firma));
+            });
+
+            const fname = `Konvolut_${String(titel).replace(/[^a-zA-Z0-9]/g, '_').substring(0, 30)}_${firmas.length}Kunden_${new Date().toISOString().split('T')[0]}.xlsx`;
+            XLSX.writeFile(wb, fname);
+            showToast('success', `📨 Angebot an ${firmas.length} Kunden`, `1 Datei · Übersicht + ${firmas.length} Kunden-Sheets (je Segment-Rabatt). ⚠ Exklusiv: nur 1× verkaufbar — wer zuerst zusagt, bekommt das Konvolut.`, 9000);
+        }
+
+        function _renderTopCustomersBlock(k, idx) {
             let tops = (k.topCustomers || []).slice();
             const target = k.targetCustomer;
             if (target && tops.length) {
@@ -12687,6 +12789,7 @@ Keine Erklärungen, kein Markdown.`;
                 const targetMark = c.isTarget ? '<span style="background:var(--accent-cyan); color:white; font-size:0.55rem; font-weight:700; padding:1px 6px; border-radius:3px; margin-right:4px;">ZIEL</span>' : '';
                 const bgStyle = c.isTarget ? 'background:rgba(6,182,212,0.12);' : '';
                 return `<tr style="${bgStyle}">
+                    <td style="text-align:center;"><input type="checkbox" class="kt-select-${idx}" data-firma="${_h(c.company)}" checked title="In Sammel-Angebot aufnehmen"></td>
                     <td style="font-size:0.62rem; font-weight:700; color:${i===0?'var(--accent-green)':'inherit'};">${i+1}.</td>
                     <td style="font-size:0.65rem; max-width:240px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${_h(c.company)}">${targetMark}${_h(c.company)} ${trustIcons}</td>
                     <td class="mono" style="font-size:0.6rem; text-align:right;">${c.count}×</td>
@@ -12711,6 +12814,7 @@ Keine Erklärungen, kein Markdown.`;
                     </div>
                     <table style="width:100%; font-size:0.62rem; border-collapse:collapse;">
                         <thead><tr style="color:var(--text-muted); text-align:left; font-size:0.55rem; text-transform:uppercase; letter-spacing:0.04em;">
+                            <th style="padding:0.2rem 0.3rem;" title="In Sammel-Angebot aufnehmen">📨</th>
                             <th style="padding:0.2rem 0.3rem;">#</th>
                             <th style="padding:0.2rem 0.3rem;">Kunde</th>
                             <th style="padding:0.2rem 0.3rem; text-align:right;" title="Anzahl historischer Käufe in WG+Marke">Ähnl.</th>
@@ -12721,6 +12825,10 @@ Keine Erklärungen, kein Markdown.`;
                         </tr></thead>
                         <tbody>${rows}</tbody>
                     </table>
+                    <div style="margin-top:0.45rem; display:flex; justify-content:space-between; align-items:center; gap:0.5rem; flex-wrap:wrap;">
+                        <span style="font-size:0.58rem; color:var(--text-muted);">📨 Kunden ankreuzen → <b>1 Angebot an alle</b> (je Segment-Rabatt). <b style="color:#a855f7;">Exklusiv:</b> nur 1× verkaufbar — wer zuerst zusagt.</span>
+                        <button onclick="event.stopPropagation(); konvolutAngebotAnMehrere(${idx})" style="padding:0.3rem 0.7rem; background:linear-gradient(135deg,#a855f7,#0071e3); color:white; border:none; border-radius:5px; font-size:0.66rem; font-weight:700; cursor:pointer;">📨 Angebot an ausgewählte Kunden</button>
+                    </div>
                 </div>`;
         }
 
@@ -14425,7 +14533,7 @@ Keine Erklärungen, kein Markdown.`;
             
             // Filter Slow-Mover
             const slowMovers = Object.entries(stockData)
-                .filter(([lagerNr, item]) => item.lifeDays >= threshold)
+                .filter(([lagerNr, item]) => item.lifeDays >= threshold && !_isKonvReserved(lagerNr))
                 .map(([lagerNr, item]) => ({ lagerNr, ...item }))
                 .sort((a, b) => b.lifeDays - a.lifeDays);
             
@@ -14471,7 +14579,7 @@ Keine Erklärungen, kein Markdown.`;
             const stockData = dashboardState.stockAnalysisData || {};
             
             const slowMovers = Object.entries(stockData)
-                .filter(([lagerNr, item]) => item.lifeDays >= threshold)
+                .filter(([lagerNr, item]) => item.lifeDays >= threshold && !_isKonvReserved(lagerNr))
                 .map(([lagerNr, item]) => ({ lagerNr, ...item }))
                 .sort((a, b) => b.lifeDays - a.lifeDays);
             
