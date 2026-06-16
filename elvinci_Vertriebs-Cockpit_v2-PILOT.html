@@ -11504,13 +11504,18 @@ Keine Erklärungen, kein Markdown.`;
             const rabattInit = dashboardState._angeboteCurrentRabatt || 0;
             const eff = dashboardState._angeboteEffRabatt || (() => rabattInit);
             if (!p || !matches.length) { showToast('warning', 'Nichts zu exportieren', 'Kein Kunde / keine Matches.'); return; }
+            // Grüne Spalten (User 2026-06-12) als statische Zusatzspalten N–Q ANGEHÄNGT.
+            // Bewusst hinten: so bleiben die Formel-Spalten H–M und ALLE Cross-Sheet-
+            // Referenzen (Info-Sheet, Angebot-Sheet) unverändert gültig.
             const headers = ['Rang','Bezeichnung','Marke','Warengruppe','Grade','SSCC','Match-Hits',
-                             'Listen-VK','EK','Rabatt %','Kunden-Preis','Marge €','Marge %'];
+                             'Listen-VK','EK','Rabatt %','Kunden-Preis','Marge €','Marge %',
+                             'Zustand','Artikel-Nr','Online-Preis','Status'];
             const rows = matches.map((m, i) => [
                 i + 1, String(m.bez || ''), String(m.brand || ''), String(m.wg || ''),
                 String(m.grade || ''), String(m.sscc || ''), parseInt(m.hits) || 0,
                 Number(m.vk) || 0, Number(m.ek) || 0, Number(eff(m)) || 0,
                 null, null, null,
+                String(m.usage || ''), String(m.artNr || ''), Number(m.online) || 0, String(m.status || ''),
             ]);
             const ok = _writeLiveExcel({
                 sheetName: 'Kunden-Angebot', headers, rows,
@@ -11521,10 +11526,11 @@ Keine Erklärungen, kein Markdown.`;
                 ],
                 numberFormats: [
                     { col: 'H', format: '#,##0.00 "€"' }, { col: 'I', format: '#,##0.00 "€"' },
-                    { col: 'J', format: '0.0"%"' },
+                    { col: 'J', format: '0.0"%"' }, { col: 'P', format: '#,##0.00 "€"' },
                 ],
                 colWidths: [{wch:6},{wch:30},{wch:10},{wch:18},{wch:7},{wch:14},{wch:10},
-                            {wch:11},{wch:10},{wch:10},{wch:13},{wch:11},{wch:9}],
+                            {wch:11},{wch:10},{wch:10},{wch:13},{wch:11},{wch:9},
+                            {wch:16},{wch:14},{wch:12},{wch:8}],
                 metaSheet: (function() {
                     // Letzte Datenzeile im Haupt-Sheet — H/I/J/K/L sind Listen-VK / EK / Rabatt / Kunden-Preis / Marge €
                     const lastRow = matches.length + 1;
@@ -11568,11 +11574,14 @@ Keine Erklärungen, kein Markdown.`;
                     const SHEET = "'Kunden-Angebot'";
                     const fEur = '#,##0.00 "€"';
                     const fPct = '0.0"%"';
+                    // Spalten A–J: Pos · Bezeichnung · Marke · Warengruppe · Grade · Zustand ·
+                    // Listen-VK · Rabatt · Ihr Preis · Ersparnis. "Zustand"(usage) jetzt als
+                    // EIGENE Spalte aus Haupt-Sheet N — vorher zeigte die Spalte fälschlich Grade.
                     const aoa = [
-                        ['Angebot für ' + String(p.firma || ('Kunde ' + p.kundenNr)), '', '', '', '', '', ''],
-                        ['Datum: ' + new Date().toLocaleDateString('de-DE') + ' · Kunden-Nr: ' + p.kundenNr, '', '', '', '', '', ''],
-                        ['', '', '', '', '', '', ''],
-                        ['Pos.', 'Bezeichnung', 'Marke', 'Warengruppe', 'Zustand', 'Listen-VK', 'Rabatt', 'Ihr Preis', 'Ersparnis'],
+                        ['Angebot für ' + String(p.firma || ('Kunde ' + p.kundenNr))],
+                        ['Datum: ' + new Date().toLocaleDateString('de-DE') + ' · Kunden-Nr: ' + p.kundenNr],
+                        [],
+                        ['Pos.', 'Bezeichnung', 'Marke', 'Warengruppe', 'Grade', 'Zustand', 'Listen-VK', 'Rabatt', 'Ihr Preis', 'Ersparnis'],
                     ];
                     // Daten-Zeilen — alle Werte LIVE referenziert (außer Pos.)
                     for (let i = 0; i < matches.length; i++) {
@@ -11583,34 +11592,35 @@ Keine Erklärungen, kein Markdown.`;
                             { f: `${SHEET}!C${r}`, t: 's' },                          // Marke
                             { f: `${SHEET}!D${r}`, t: 's' },                          // Warengruppe
                             { f: `${SHEET}!E${r}`, t: 's' },                          // Grade
+                            { f: `${SHEET}!N${r}`, t: 's' },                          // Zustand (usage) — Haupt-Sheet N
                             { f: `${SHEET}!H${r}`, t: 'n', z: fEur },                 // Listen-VK
                             { f: `${SHEET}!J${r}/100`, t: 'n', z: fPct },             // Rabatt %
                             { f: `${SHEET}!K${r}`, t: 'n', z: fEur },                 // Ihr Preis
                             { f: `${SHEET}!H${r}-${SHEET}!K${r}`, t: 'n', z: fEur },  // Ersparnis
                         ]);
                     }
-                    // Summen-Zeile
+                    // Summen-Zeile (Listen-VK=G, Ihr Preis=I, Ersparnis=J)
                     const sumRow = aoa.length + 1;
                     aoa.push([
-                        '', 'Σ GESAMT', '', '', '',
-                        { f: `SUM(F5:F${sumRow - 1})`, t: 'n', z: fEur },
+                        '', 'Σ GESAMT', '', '', '', '',
+                        { f: `SUM(G5:G${sumRow - 1})`, t: 'n', z: fEur },
                         '',
-                        { f: `SUM(H5:H${sumRow - 1})`, t: 'n', z: fEur },
                         { f: `SUM(I5:I${sumRow - 1})`, t: 'n', z: fEur },
+                        { f: `SUM(J5:J${sumRow - 1})`, t: 'n', z: fEur },
                     ]);
                     return [{
                         name: 'Angebot',
                         aoa,
                         colWidths: [
-                            { wch: 6 }, { wch: 36 }, { wch: 12 }, { wch: 22 }, { wch: 9 },
+                            { wch: 6 }, { wch: 36 }, { wch: 12 }, { wch: 22 }, { wch: 9 }, { wch: 16 },
                             { wch: 12 }, { wch: 8 }, { wch: 13 }, { wch: 13 },
                         ],
                         merges: [
-                            { s: { r: 0, c: 0 }, e: { r: 0, c: 8 } },   // Header über alle Spalten
-                            { s: { r: 1, c: 0 }, e: { r: 1, c: 8 } },   // Subtitel über alle Spalten
+                            { s: { r: 0, c: 0 }, e: { r: 0, c: 9 } },   // Header über alle Spalten
+                            { s: { r: 1, c: 0 }, e: { r: 1, c: 9 } },   // Subtitel über alle Spalten
                         ],
                         freeze: { xSplit: 0, ySplit: 4 },
-                        autofilter: { ref: `A4:I${matches.length + 4}` },
+                        autofilter: { ref: `A4:J${matches.length + 4}` },
                     }];
                 })(),
                 hint: [
@@ -11652,12 +11662,14 @@ Keine Erklärungen, kein Markdown.`;
             }
 
             // STATISCHE Werte (keine Cross-Sheet-Formeln — Datei muss eigenstaendig funktionieren)
+            // Spalten A–J inkl. Grade + echtem Zustand (usage) — vorher zeigte die
+            // "Zustand"-Spalte fälschlich den Grade.
             const aoa = [
                 ['Angebot für ' + String(p.firma || ('Kunde ' + p.kundenNr))],
                 ['Datum: ' + new Date().toLocaleDateString('de-DE') + ' · Kunden-Nr: ' + p.kundenNr],
                 ['elvinci.de GmbH'],
                 [],
-                ['Pos.', 'Bezeichnung', 'Marke', 'Warengruppe', 'Zustand', 'Listen-VK', 'Rabatt', 'Ihr Preis', 'Ersparnis'],
+                ['Pos.', 'Bezeichnung', 'Marke', 'Warengruppe', 'Grade', 'Zustand', 'Listen-VK', 'Rabatt', 'Ihr Preis', 'Ersparnis'],
             ];
             const eff = dashboardState._angeboteEffRabatt || (() => rabattInit);
             let sumListen = 0, sumPreis = 0, sumErsparnis = 0;
@@ -11673,16 +11685,17 @@ Keine Erklärungen, kein Markdown.`;
                     String(m.brand || ''),
                     String(m.wg || ''),
                     String(m.grade || ''),
+                    String(m.usage || ''),
                     { v: vk, t: 'n', z: '#,##0.00 "€"' },
                     { v: rab / 100, t: 'n', z: '0.0%' },
                     { v: preis, t: 'n', z: '#,##0.00 "€"' },
                     { v: ersparnis, t: 'n', z: '#,##0.00 "€"' },
                 ]);
             });
-            // Summenzeile
+            // Summenzeile (Listen-VK=G, Ihr Preis=I, Ersparnis=J)
             aoa.push([]);
             aoa.push([
-                '', 'Σ GESAMT', '', '', '',
+                '', 'Σ GESAMT', '', '', '', '',
                 { v: sumListen,    t: 'n', z: '#,##0.00 "€"' },
                 '',
                 { v: sumPreis,     t: 'n', z: '#,##0.00 "€"' },
@@ -11691,16 +11704,16 @@ Keine Erklärungen, kein Markdown.`;
 
             const ws = XLSX.utils.aoa_to_sheet(aoa);
             ws['!cols'] = [
-                { wch: 6 }, { wch: 36 }, { wch: 12 }, { wch: 22 }, { wch: 9 },
+                { wch: 6 }, { wch: 36 }, { wch: 12 }, { wch: 22 }, { wch: 9 }, { wch: 16 },
                 { wch: 12 }, { wch: 8 }, { wch: 13 }, { wch: 13 },
             ];
             ws['!merges'] = [
-                { s: { r: 0, c: 0 }, e: { r: 0, c: 8 } },
-                { s: { r: 1, c: 0 }, e: { r: 1, c: 8 } },
-                { s: { r: 2, c: 0 }, e: { r: 2, c: 8 } },
+                { s: { r: 0, c: 0 }, e: { r: 0, c: 9 } },
+                { s: { r: 1, c: 0 }, e: { r: 1, c: 9 } },
+                { s: { r: 2, c: 0 }, e: { r: 2, c: 9 } },
             ];
             ws['!freeze'] = { xSplit: 0, ySplit: 5 };
-            ws['!autofilter'] = { ref: `A5:I${matches.length + 5}` };
+            ws['!autofilter'] = { ref: `A5:J${matches.length + 5}` };
 
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, 'Angebot');
@@ -11911,6 +11924,7 @@ Keine Erklärungen, kein Markdown.`;
                     minVk: 0, maxVk: 0,
                     minMarge: 0, minHits: 0,
                     limit: 100,
+                    availableOnly: true,   // Geschäftsregel: nur leerer Status = verkäuflich
                 };
             }
             return dashboardState._angeboteFilters;
@@ -11940,6 +11954,10 @@ Keine Erklärungen, kein Markdown.`;
         }
         function angeboteSetMatchTopN(val) {
             _angeboteFilters().matchTopN = parseInt(val) || 5;
+            _angeboteRenderMatch(dashboardState._angeboteSelectedKunde);
+        }
+        function angeboteToggleAvailableOnly(checked) {
+            _angeboteFilters().availableOnly = !!checked;
             _angeboteRenderMatch(dashboardState._angeboteSelectedKunde);
         }
         // Per-Position-Overrides (Rabatt, Exclude) — pro Lager-Nr/SSCC
@@ -12000,7 +12018,8 @@ Keine Erklärungen, kein Markdown.`;
             // Cross-Match: für jedes Stock-Item Token-Overlap mit customerTokens
             const matches = [];
             stock.forEach(it => {
-                // Reale Felder in stockAnalysisRaw: model, article_number, brand, product_group, lager_number, Selling_Price, Buying_Price
+                // Reale Felder in stockAnalysisRaw: model, article_number, brand, product_group,
+                // lager_number, Selling_Price, Buying_Price, Online_Price, usage, status, isAvailable
                 const brand = it.brand || it.Brand || it.Marke || '';
                 const wg    = it.product_group || it.Product_Group || it.Warengruppe || '';
                 const model = it.model || '';
@@ -12018,8 +12037,15 @@ Keine Erklärungen, kein Markdown.`;
                 matches.push({
                     bez: bezDisplay, vk, ek, marge, hits,
                     sscc: it.lager_number || it.SSCC || it.sscc || '',
-                    brand, wg,
+                    brand, wg, model,
                     grade: it.final_grade || it.grade || '',
+                    // Grüne Spalten (User 2026-06-12): Zustand, Artikel-Nr, Online-Preis, Status
+                    usage: it.usage || '',
+                    artNr: artNr,
+                    online: Number(it.Online_Price || 0) || 0,
+                    status: it.status || '',
+                    // Verfügbarkeit: aus Quelle (isAvailable) — defensiver Fallback auf Status-leer
+                    available: (typeof it.isAvailable === 'boolean') ? it.isAvailable : ((it.status || '') === ''),
                     matchScore: hits * 10 + Math.max(0, marge),  // primär Hits, sekundär Marge
                 });
             });
@@ -12027,15 +12053,19 @@ Keine Erklärungen, kein Markdown.`;
 
             // ============== FILTER ANWENDEN ==============
             const f = _angeboteFilters();
-            // Counts vor dem Filter (fuer UI)
+            // VERFÜGBARKEIT (Geschäftsregel User 2026-06-12): nur leerer Status = verkäuflich.
+            // Reservierte (A/M = Paket/Spezialdeal, sonstige Stati) standardmäßig ausgeblendet.
+            const nReserviert = matches.filter(m => !m.available).length;
+            const availBase = (f.availableOnly !== false) ? matches.filter(m => m.available) : matches;
+            // Counts vor den restlichen Filtern (über Verfügbarkeits-Basis → Chips konsistent)
             const allWgs = {};   const allBrands = {};   const allGrades = {};
-            matches.forEach(m => {
+            availBase.forEach(m => {
                 if (m.wg)    allWgs[m.wg]       = (allWgs[m.wg] || 0) + 1;
                 if (m.brand) allBrands[m.brand] = (allBrands[m.brand] || 0) + 1;
                 const g = m.grade || '—';
                 allGrades[g] = (allGrades[g] || 0) + 1;
             });
-            const filtered = matches.filter(m => {
+            const filtered = availBase.filter(m => {
                 if (f.wgs.size > 0    && !f.wgs.has(m.wg))    return false;
                 if (f.brands.size > 0 && !f.brands.has(m.brand)) return false;
                 if (f.grades.size > 0) {
@@ -12096,7 +12126,14 @@ Keine Erklärungen, kein Markdown.`;
                 <div style="background:var(--bg-card); border:1px solid var(--border); border-radius:10px; padding:0.7rem 0.85rem; margin-bottom:0.6rem;">
                     <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem; margin-bottom:0.5rem;">
                         <div style="font-size:0.7rem; font-weight:700; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.04em;">🔍 Filter</div>
-                        <button onclick="angeboteResetFilters()" style="padding:0.25rem 0.6rem; background:var(--bg-elevated); color:var(--text-muted); border:1px solid var(--border); border-radius:4px; font-size:0.65rem; cursor:pointer;">↺ Alle zurücksetzen</button>
+                        <div style="display:flex; align-items:center; gap:0.6rem; flex-wrap:wrap;">
+                            <label style="display:inline-flex; align-items:center; gap:0.35rem; font-size:0.7rem; font-weight:700; color:${f.availableOnly !== false ? 'var(--accent-green)' : 'var(--text-muted)'}; cursor:pointer; padding:0.2rem 0.5rem; background:${f.availableOnly !== false ? 'rgba(16,185,129,0.12)' : 'var(--bg-elevated)'}; border:1px solid ${f.availableOnly !== false ? 'var(--accent-green)' : 'var(--border)'}; border-radius:5px;" title="Geschäftsregel: nur Geräte mit LEEREM Status sind frei zum Verkauf. A/M = im Paket reserviert (Kundenpaket/Spezialdeal). Reservierte werden hier ${f.availableOnly !== false ? 'ausgeblendet' : 'mitgezeigt'}.">
+                                <input type="checkbox" ${f.availableOnly !== false ? 'checked' : ''} onchange="angeboteToggleAvailableOnly(this.checked)" style="cursor:pointer; accent-color:var(--accent-green);">
+                                ✅ Nur verfügbare (leerer Status)
+                                ${nReserviert > 0 ? `<span style="font-weight:400; color:var(--text-muted);">· ${nReserviert} reserviert ${f.availableOnly !== false ? 'ausgeblendet' : 'enthalten'}</span>` : ''}
+                            </label>
+                            <button onclick="angeboteResetFilters()" style="padding:0.25rem 0.6rem; background:var(--bg-elevated); color:var(--text-muted); border:1px solid var(--border); border-radius:4px; font-size:0.65rem; cursor:pointer;">↺ Alle zurücksetzen</button>
+                        </div>
                     </div>
                     <details style="margin-bottom:0.4rem;"${f.wgs.size > 0 ? ' open' : ''}>
                         <summary style="cursor:pointer; font-size:0.7rem; color:var(--text-primary); padding:0.2rem 0;">📦 Warengruppe ${f.wgs.size > 0 ? `<span style="color:var(--accent-cyan); font-weight:700;">(${f.wgs.size} aktiv)</span>` : `<span style="color:var(--text-muted);">(${wgEntries.length} verfügbar)</span>`} ${f.wgs.size > 0 ? `<button onclick="event.preventDefault(); event.stopPropagation(); angeboteClearSetFilter('wgs')" style="margin-left:0.5rem; padding:0 0.4rem; font-size:0.6rem; background:transparent; border:1px solid var(--border); border-radius:3px; color:var(--text-muted); cursor:pointer;">×</button>` : ''}</summary>
@@ -12154,8 +12191,9 @@ Keine Erklärungen, kein Markdown.`;
                         <input type="checkbox" ${excluded ? '' : 'checked'} data-sscc="${_h(sscc)}" onchange="angeboteToggleExclude(this.dataset.sscc)" title="${excluded ? 'Wieder aufnehmen' : 'Aus Angebot ausschließen'}" style="cursor:pointer; accent-color:var(--accent-green);">
                     </td>
                     <td style="padding:0.4rem; font-size:0.7rem; color:var(--text-muted);">${i+1}</td>
-                    <td style="padding:0.4rem; font-size:0.72rem;"><b>${m.bez || '—'}</b><div style="font-size:0.62rem; color:var(--text-muted);">${m.brand} · ${m.wg}</div></td>
+                    <td style="padding:0.4rem; font-size:0.72rem;"><b>${_h(m.bez) || '—'}</b><div style="font-size:0.62rem; color:var(--text-muted);">${_h(m.brand)} · ${_h(m.wg)}${m.artNr ? ' · Art ' + _h(m.artNr) : ''}</div></td>
                     <td style="padding:0.4rem; font-size:0.72rem; text-align:center;">${_gradeBadge(m.grade)}</td>
+                    <td style="padding:0.4rem; font-size:0.66rem; text-align:center; color:var(--text-secondary);" title="Zustand (usage)">${_h(m.usage) || '—'}</td>
                     <td style="padding:0.4rem; font-size:0.72rem; text-align:center;"><span style="padding:0.1rem 0.4rem; background:var(--accent-cyan); color:white; border-radius:4px; font-weight:700;">${m.hits}</span></td>
                     <td style="padding:0.4rem; font-size:0.72rem; text-align:right;">${m.vk.toFixed(2).replace('.', ',')} €</td>
                     <td style="padding:0.4rem; text-align:center; ${rabBg}">
@@ -12215,6 +12253,7 @@ Keine Erklärungen, kein Markdown.`;
                                 <th style="padding:0.5rem; text-align:left;">#</th>
                                 <th style="padding:0.5rem; text-align:left;">Artikel</th>
                                 <th style="padding:0.5rem; text-align:center;">Grade</th>
+                                <th style="padding:0.5rem; text-align:center;" title="Zustand laut Portal (usage): neu / gebraucht / wenig gebraucht …">Zustand</th>
                                 <th style="padding:0.5rem; text-align:center;">Match</th>
                                 <th style="padding:0.5rem; text-align:right;">Listen-VK</th>
                                 <th style="padding:0.5rem; text-align:center;" title="Pro Zeile editierbar — überschreibt globalen Rabatt">Rabatt %</th>
@@ -12222,7 +12261,7 @@ Keine Erklärungen, kein Markdown.`;
                                 <th style="padding:0.5rem; text-align:right;">Marge %</th>
                             </tr>
                         </thead>
-                        <tbody>${rows || '<tr><td colspan="9" style="padding:1rem; text-align:center; color:var(--text-muted);">Keine Matches</td></tr>'}</tbody>
+                        <tbody>${rows || '<tr><td colspan="10" style="padding:1rem; text-align:center; color:var(--text-muted);">Keine Matches</td></tr>'}</tbody>
                     </table>
                 </div>
                 ${filtered.length > limit ? `<div style="margin-top:0.5rem; font-size:0.65rem; color:var(--text-muted); text-align:right;">Top ${limit} von ${filtered.length} angezeigt — Export enthält alle ${activeMatches.length} aktiven Positionen</div>` : ''}
@@ -12239,20 +12278,24 @@ Keine Erklärungen, kein Markdown.`;
             const rabatt = dashboardState._angeboteCurrentRabatt || 0;
             const eff = dashboardState._angeboteEffRabatt || (() => rabatt);
             if (!p || !matches.length) { showToast('warning', 'Nichts zu exportieren', 'Kein Kunde / keine Matches.'); return; }
-            const headers = ['Rang','Bezeichnung','Marke','Warengruppe','Grade','SSCC','Match-Hits','Listen-VK','Rabatt %','Kunden-Preis','EK','Marge %'];
+            // Grüne Spalten (User 2026-06-12): Zustand, Artikel-Nr, Online-Preis, Status mit aufgenommen
+            const headers = ['Rang','Bezeichnung','Marke','Warengruppe','Grade','Zustand','Artikel-Nr','SSCC','Match-Hits','Listen-VK','Online-Preis','Rabatt %','Kunden-Preis','EK','Marge %','Status'];
+            const clean = s => (s == null ? '' : String(s)).replace(/;/g, ',');
             const rows = matches.map((m, i) => {
                 const rab = eff(m);
                 const preis = m.vk * (1 - rab / 100);
                 const margeReal = preis > 0 ? ((preis - m.ek) / preis * 100) : 0;
                 return [
-                    i+1, (m.bez||'').replace(/;/g,','), (m.brand||'').replace(/;/g,','), (m.wg||'').replace(/;/g,','),
-                    (m.grade||'').toString().replace(/;/g,','),
-                    m.sscc, m.hits,
+                    i+1, clean(m.bez), clean(m.brand), clean(m.wg),
+                    clean(m.grade), clean(m.usage), clean(m.artNr),
+                    clean(m.sscc), m.hits,
                     m.vk.toFixed(2).replace('.', ','),
+                    (Number(m.online)||0).toFixed(2).replace('.', ','),
                     rab.toFixed(1).replace('.', ','),
                     preis.toFixed(2).replace('.', ','),
                     m.ek.toFixed(2).replace('.', ','),
                     margeReal.toFixed(1).replace('.', ','),
+                    clean(m.status),
                 ].join(';');
             });
             const meta = `Kunde;${(p.firma||p.kundenNr).replace(/;/g,',')};Kunden-Nr;${p.kundenNr};Segment;${p.segment};LTV;${Math.round(p.ltv)};Rabatt-Empfehlung %;${rabatt}\n`;
@@ -12281,8 +12324,16 @@ Keine Erklärungen, kein Markdown.`;
             const minMarge  = parseFloat(document.getElementById('konvolut-minmarge')?.value || '0');
             const customer  = document.getElementById('konvolut-customer')?.value || '';
 
-            // Filter: Score + Marge + (optional) Kunden-WG-Marke-Match
-            let relevant = items.filter(i => (i.score || 0) >= minScore && (i.marge || 0) >= minMarge);
+            // VERFÜGBARKEIT (Geschäftsregel User 2026-06-12): reservierte Geräte (Status A/M
+            // oder sonstiger Wert = Paket/Spezialdeal) gehören NICHT in eine Lager-Räumung —
+            // konsistent zur Kunden-Angebote-Regel. isAvailable kommt aus stockAnalysisRaw.
+            const nReserviertKonv = items.filter(i => i.isAvailable === false).length;
+            if (nReserviertKonv > 0) {
+                console.info(`[Konvolut] ${nReserviertKonv} reservierte Geräte (nicht-leerer Status) ausgeschlossen.`);
+                showToast('info', '🔒 Reservierte ausgeblendet', `${nReserviertKonv} Geräte mit Status A/M (Paket/Spezialdeal) fließen nicht in die Räumungs-Konvolute.`, 4000);
+            }
+            // Filter: Verfügbarkeit + Score + Marge + (optional) Kunden-WG-Marke-Match
+            let relevant = items.filter(i => i.isAvailable !== false && (i.score || 0) >= minScore && (i.marge || 0) >= minMarge);
 
             // KUNDEN-FILTER: nur Geräte deren (WG, Marke) der Kunde historisch gekauft hat
             let customerTuples = null;
@@ -21357,17 +21408,18 @@ Keine Erklärungen, kein Markdown.`;
                         const brand = (row[colBrand] || '').toString().trim().toUpperCase();
                         const statusRaw = (row[colStatus] || '').toString().trim().toUpperCase();
                         
-                        // NEU: Verfügbarkeits-Status ermitteln
-                        // A oder M im Status = reserviert/angeboten
-                        // Kein A/M = frei verfügbar
-                        // KILLCRITIC-Hinweis K10 (2026-06-12): Diese Heuristik matcht A/M
-                        // IRGENDWO im Status-String — ein neues Status-Wort mit A oder M
-                        // (z.B. "VERKAUFT") würde komplett als reserviert klassifiziert.
-                        // Deshalb: distinct Status-Werte sammeln + nach dem Loop loggen,
-                        // damit Vokabular-Drift im Portal-Export sofort auffällt.
+                        // VERFÜGBARKEITS-REGEL (User-Vorgabe 2026-06-12):
+                        // NUR ein LEERER Status = frei zum Verkauf. Jeder Statuswert bedeutet
+                        // "nicht frei": A/M = in einem Paket reserviert (Kundenpaket oder
+                        // Spezialdeal), jeder sonstige Code ebenfalls nicht verkäuflich.
+                        // Maßgeblich ist allein der Portal-Status — UNABHÄNGIG von der
+                        // Lagerverfügbarkeit (kein AMM-/BESTAND-Cross-Check).
+                        // Ersetzt die alte /[AM]/-Heuristik (K10), die nicht-leere Nicht-AM-
+                        // Stati fälschlich als verfügbar zählte.
+                        // Status-Vokabular weiter mitloggen (Drift-Diagnose).
                         _statusValuesSeen.set(statusRaw || '(leer)', (_statusValuesSeen.get(statusRaw || '(leer)') || 0) + 1);
-                        const isReserved = /[AM]/.test(statusRaw);
-                        const isAvailable = !isReserved;
+                        const isAvailable = (statusRaw === '');
+                        const isReserved = !isAvailable;
                         
                         if (!lagerNr) continue;
                         
@@ -21377,8 +21429,8 @@ Keine Erklärungen, kein Markdown.`;
                             pg: pg,
                             brand: brand,
                             status: statusRaw,
-                            isReserved: isReserved,      // NEU: true wenn A oder M
-                            isAvailable: isAvailable,    // NEU: true wenn frei verfügbar
+                            isReserved: isReserved,      // true wenn Status NICHT leer (A/M/sonstiger Code)
+                            isAvailable: isAvailable,    // true NUR wenn Status leer = frei zum Verkauf
                             model: colModel !== undefined ? (row[colModel] || '').toString().trim() : '',
                             articleNumber: colArticleNumber !== undefined ? (row[colArticleNumber] || '').toString().trim() : '',
                             dateUpload: colDatetimeUpload !== undefined ? (row[colDatetimeUpload] || '').toString().trim() : '',
