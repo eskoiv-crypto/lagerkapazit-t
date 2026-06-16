@@ -4800,6 +4800,8 @@
 
                             <!-- ===== GEMEINSAMER OUTPUT-BEREICH (Konvolut-Karten) ===== -->
                             <div id="konvolut-summary" style="margin-top: 0.9rem; font-size:0.75rem; color: var(--text-secondary);"></div>
+                            <!-- Session-Reservierung: in Konvolute übernommene Geräte werden bei der nächsten Erzeugung übersprungen (gilt bis Daten-Refresh) -->
+                            <div id="konvolut-reservation-bar" style="margin-top: 0.5rem; display:none;"></div>
                             <div id="konvolut-container" style="margin-top: 0.75rem; display:flex; flex-direction:column; gap:0.6rem;"></div>
                             <div id="konvolut-export-bar" style="margin-top:0.75rem; display:none; gap:0.5rem;">
                                 <button onclick="exportAlleKonvolute()" style="padding:0.45rem 0.9rem; background: var(--accent-cyan); color:white; border:none; border-radius:6px; font-size:0.72rem; cursor:pointer;" title="Statische CSV">📥 CSV</button>
@@ -10841,7 +10843,8 @@ Keine Erklärungen, kein Markdown.`;
             // sind frei zum Verkauf. Live View zeigt standardmäßig nur diese; reservierte
             // (A/M = Paket/Spezialdeal, sonstige Stati) per Toggle einblendbar.
             // isAvailable kommt aus dem Stock-Parse (Quelle).
-            const all = (dashboardState.potenzialScoredItems || []);
+            // Session-vorgemerkte (in Konvolute übernommene) Geräte immer ausblenden
+            const all = (dashboardState.potenzialScoredItems || []).filter(i => !_isKonvReserved(i.lager_number));
             if (dashboardState._lvAvailableOnly === false) return all;
             return all.filter(i => i.isAvailable !== false);
         }
@@ -12033,6 +12036,8 @@ Keine Erklärungen, kein Markdown.`;
             // Cross-Match: für jedes Stock-Item Token-Overlap mit customerTokens
             const matches = [];
             stock.forEach(it => {
+                // Session-vorgemerkte (in Konvolute übernommene) Geräte nicht erneut anbieten
+                if (_isKonvReserved(it.lager_number)) return;
                 // Reale Felder in stockAnalysisRaw: model, article_number, brand, product_group,
                 // lager_number, Selling_Price, Buying_Price, Online_Price, usage, status, isAvailable
                 const brand = it.brand || it.Brand || it.Marke || '';
@@ -12347,8 +12352,14 @@ Keine Erklärungen, kein Markdown.`;
                 console.info(`[Konvolut] ${nReserviertKonv} reservierte Geräte (nicht-leerer Status) ausgeschlossen.`);
                 showToast('info', '🔒 Reservierte ausgeblendet', `${nReserviertKonv} Geräte mit Status A/M (Paket/Spezialdeal) fließen nicht in die Räumungs-Konvolute.`, 4000);
             }
-            // Filter: Verfügbarkeit + Score + Marge + (optional) Kunden-WG-Marke-Match
-            let relevant = items.filter(i => i.isAvailable !== false && (i.score || 0) >= minScore && (i.marge || 0) >= minMarge);
+            // SESSION-RESERVIERUNG: bereits in Konvolute übernommene Geräte überspringen
+            // (bis Daten-Refresh), damit dasselbe Gerät nicht in zwei Konvoluten landet.
+            const nVorgemerkt = items.filter(i => _isKonvReserved(i.lager_number)).length;
+            if (nVorgemerkt > 0) {
+                console.info(`[Konvolut] ${nVorgemerkt} bereits vorgemerkte Geräte übersprungen.`);
+            }
+            // Filter: Verfügbarkeit + nicht-vorgemerkt + Score + Marge + (optional) Kunden-WG-Marke-Match
+            let relevant = items.filter(i => i.isAvailable !== false && !_isKonvReserved(i.lager_number) && (i.score || 0) >= minScore && (i.marge || 0) >= minMarge);
 
             // KUNDEN-FILTER: nur Geräte deren (WG, Marke) der Kunde historisch gekauft hat
             let customerTuples = null;
@@ -12483,12 +12494,69 @@ Keine Erklärungen, kein Markdown.`;
                 .join(' ');
         }
 
+        // ====== KONVOLUT-RESERVIERUNG (Session, "same day - no refresh") ======
+        // Geräte, die per "Übernehmen" in ein Konvolut gesperrt wurden, bleiben in dieser
+        // Browser-Session vorgemerkt und werden NICHT erneut verteilt — in allen drei
+        // Pool-Lesern (Konvolut-Generator, Kunden-Match, Live-View). Bewusst nur RAM:
+        // bei Daten-Refresh (Stock-Upload) sind die Lager-Nrn eines neuen Snapshots gültig,
+        // darum wird das Set dort geleert (sonst Dangling-Verweis auf alten Snapshot).
+        function _konvReserved() {
+            if (!dashboardState._konvolutReservedLagerNrs) dashboardState._konvolutReservedLagerNrs = new Set();
+            return dashboardState._konvolutReservedLagerNrs;
+        }
+        function _isKonvReserved(lagerNr) {
+            const ln = String(lagerNr == null ? '' : lagerNr).trim();
+            return ln !== '' && _konvReserved().has(ln);
+        }
+        // Konvolut sperren/freigeben — Toggle anhand aktuellem Sperr-Zustand der Karte
+        function konvolutToggleReserve(idx) {
+            const k = (dashboardState.konvolute || [])[idx];
+            if (!k || !Array.isArray(k.items)) return;
+            const set = _konvReserved();
+            const lagerNrs = k.items.map(it => String(it.lager_number || '').trim()).filter(Boolean);
+            const allReserved = lagerNrs.length > 0 && lagerNrs.every(ln => set.has(ln));
+            if (allReserved) {
+                lagerNrs.forEach(ln => set.delete(ln));
+                showToast('info', '🔓 Konvolut freigegeben', `${lagerNrs.length} Geräte wieder verfügbar für Erzeugung & Matching.`, 3500);
+            } else {
+                lagerNrs.forEach(ln => set.add(ln));
+                showToast('success', '🔒 Konvolut vorgemerkt', `${lagerNrs.length} Geräte gesperrt — werden beim nächsten Erzeugen / Matching übersprungen (bis Daten-Refresh).`, 4500);
+            }
+            renderKonvolute();
+            // andere Pool-Leser aktualisieren, falls aktiv
+            try { if (typeof updateLiveView === 'function' && document.getElementById('tab-liveview')?.style.display !== 'none') updateLiveView(); } catch(e){}
+            try { if (dashboardState._angeboteSelectedKunde) _angeboteRenderMatch(dashboardState._angeboteSelectedKunde); } catch(e){}
+        }
+        function konvolutResetReservations() {
+            const set = _konvReserved();
+            if (set.size === 0) { showToast('info', 'Nichts vorgemerkt', 'Es sind aktuell keine Geräte in Konvoluten reserviert.'); return; }
+            const n = set.size;
+            set.clear();
+            renderKonvolute();
+            try { if (typeof updateLiveView === 'function' && document.getElementById('tab-liveview')?.style.display !== 'none') updateLiveView(); } catch(e){}
+            try { if (dashboardState._angeboteSelectedKunde) _angeboteRenderMatch(dashboardState._angeboteSelectedKunde); } catch(e){}
+            showToast('success', '↺ Vormerkungen zurückgesetzt', `${n} Geräte wieder freigegeben.`, 3500);
+        }
+        function renderKonvolutReservationBar() {
+            const bar = document.getElementById('konvolut-reservation-bar');
+            if (!bar) return;
+            const n = _konvReserved().size;
+            if (n === 0) { bar.style.display = 'none'; bar.innerHTML = ''; return; }
+            bar.style.display = 'block';
+            bar.innerHTML = `<div style="display:flex; align-items:center; gap:0.6rem; flex-wrap:wrap; padding:0.45rem 0.7rem; background:rgba(168,85,247,0.10); border:1px solid #a855f7; border-radius:8px;">
+                <span style="font-size:0.72rem; font-weight:700; color:#a855f7;">🔒 ${n.toLocaleString('de-DE')} Geräte in Konvoluten vorgemerkt</span>
+                <span style="font-size:0.66rem; color:var(--text-muted);">— werden bei Erzeugung, Kunden-Match & Live-View übersprungen (bis Daten-Refresh).</span>
+                <button onclick="konvolutResetReservations()" style="margin-left:auto; padding:0.25rem 0.6rem; background:var(--bg-elevated); color:var(--text-muted); border:1px solid var(--border); border-radius:4px; font-size:0.65rem; cursor:pointer;">↺ Vormerkungen zurücksetzen</button>
+            </div>`;
+        }
+
         function renderKonvolute() {
             const konvolute = dashboardState.konvolute || [];
             const container = document.getElementById('konvolut-container');
             const summary = document.getElementById('konvolut-summary');
             const exportBar = document.getElementById('konvolut-export-bar');
             if (!container) return;
+            renderKonvolutReservationBar();
 
             if (konvolute.length === 0) {
                 container.innerHTML = '';
@@ -12508,6 +12576,9 @@ Keine Erklärungen, kein Markdown.`;
             container.innerHTML = konvolute.map((k, idx) => {
                 const titel = k.teileGesamt > 1 ? `${k.gruppe} — Teil ${k.teilNr}/${k.teileGesamt}` : k.gruppe;
                 const scoreColor = k.avgScore >= 80 ? 'var(--accent-red)' : k.avgScore >= 60 ? 'var(--accent-orange)' : 'var(--accent-cyan)';
+                // Sperr-Zustand: alle Geräte des Konvoluts vorgemerkt?
+                const _kLagerNrs = k.items.map(it => String(it.lager_number || '').trim()).filter(Boolean);
+                const kReserved = _kLagerNrs.length > 0 && _kLagerNrs.every(ln => _konvReserved().has(ln));
                 const rows = k.items.map(it => {
                     const ek = parseFloat(it.Buying_Price)||0, vk = parseFloat(it.Selling_Price)||0;
                     return `<tr>
@@ -12523,12 +12594,12 @@ Keine Erklärungen, kein Markdown.`;
                 }).join('');
                 const gradeMixHeader = _gradeMix(k.items);
                 return `
-                <div style="border:1px solid var(--border); border-radius:10px; overflow:hidden; background: var(--bg-card);">
+                <div style="border:1px solid ${kReserved ? '#a855f7' : 'var(--border)'}; border-radius:10px; overflow:hidden; background: var(--bg-card); ${kReserved ? 'box-shadow:0 0 0 1px #a855f7 inset;' : ''}">
                     <div onclick="toggleKonvolut(${idx})" style="cursor:pointer; padding:0.7rem 1rem; display:flex; justify-content:space-between; align-items:center; gap:0.5rem; flex-wrap:wrap; background: var(--bg-elevated);">
                         <div style="display:flex; align-items:center; gap:0.7rem; flex-wrap:wrap;">
                             <span style="display:inline-flex; align-items:center; justify-content:center; min-width:34px; height:34px; border-radius:8px; background:${scoreColor}; color:white; font-weight:700; font-size:0.8rem;">${k.avgScore}</span>
                             <div>
-                                <div style="font-weight:700; font-size:0.85rem;">📦 ${_h(titel)}</div>
+                                <div style="font-weight:700; font-size:0.85rem;">${kReserved ? '🔒 ' : '📦 '}${_h(titel)}${kReserved ? ' <span style="font-size:0.6rem; font-weight:700; color:#a855f7; background:rgba(168,85,247,0.15); padding:1px 6px; border-radius:4px; vertical-align:middle;">VORGEMERKT</span>' : ''}</div>
                                 <div style="font-size:0.65rem; color:var(--text-muted); display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
                                     <span>${k.anzahl} Geräte · Ø ${k.avgDays} Lagertage</span>
                                     <span style="display:inline-flex; gap:3px; align-items:center;">${gradeMixHeader}</span>
@@ -12539,6 +12610,7 @@ Keine Erklärungen, kein Markdown.`;
                             <div style="text-align:right;"><div style="font-size:0.6rem; color:var(--text-muted);">EK</div><div class="mono" style="font-weight:600; font-size:0.8rem;">${k.sumEK.toLocaleString('de-DE',{style:'currency',currency:'EUR',maximumFractionDigits:0})}</div></div>
                             <div style="text-align:right;"><div style="font-size:0.6rem; color:var(--text-muted);">VK</div><div class="mono" style="font-weight:600; font-size:0.8rem; color:var(--accent-green);">${k.sumVK.toLocaleString('de-DE',{style:'currency',currency:'EUR',maximumFractionDigits:0})}</div></div>
                             <div style="text-align:right;"><div style="font-size:0.6rem; color:var(--text-muted);">Marge</div><div class="mono" style="font-weight:600; font-size:0.8rem;">${k.marge.toFixed(0)}%</div></div>
+                            <button onclick="event.stopPropagation(); konvolutToggleReserve(${idx})" style="padding:0.35rem 0.7rem; background:${kReserved ? '#a855f7' : 'var(--bg-elevated)'}; color:${kReserved ? 'white' : '#a855f7'}; border:1px solid #a855f7; border-radius:5px; font-size:0.68rem; font-weight:700; cursor:pointer;" title="${kReserved ? 'Freigeben: Geräte wieder für Erzeugung/Matching verfügbar machen' : 'Übernehmen: Geräte sperren, damit sie nicht in weitere Konvolute/Angebote fließen (bis Daten-Refresh)'}">${kReserved ? '🔓 Freigeben' : '🔒 Übernehmen'}</button>
                             <button onclick="event.stopPropagation(); exportKonvolut(${idx})" style="padding:0.35rem 0.7rem; background:var(--accent-cyan); color:white; border:none; border-radius:5px; font-size:0.68rem; cursor:pointer;" title="CSV">📥 CSV</button>
                             <button onclick="event.stopPropagation(); exportKonvolutXLSX(${idx})" style="padding:0.35rem 0.7rem; background:var(--accent-green); color:white; border:none; border-radius:5px; font-size:0.68rem; cursor:pointer;" title="Excel mit Live-Formeln">📊 Excel</button>
                             <span id="konvolut-arrow-${idx}" style="font-size:0.9rem; color:var(--text-muted);">▸</span>
@@ -15591,6 +15663,7 @@ Keine Erklärungen, kein Markdown.`;
             // im Reset. Ohne _origStats-Reset konnte ein Wechsel auf Preset 'all' nach
             // Reset+Neuupload veraltete Aggregate zurückschreiben.
             dashboardState._origStats = null;
+            dashboardState._konvolutReservedLagerNrs = new Set();  // Konvolut-Vormerkungen leeren
             dashboardState.jtl4yData = [];
             dashboardState.jtl4yLoaded = false;
             dashboardState.stammdaten = {};
@@ -21562,6 +21635,12 @@ Keine Erklärungen, kein Markdown.`;
                         usage: item.usage
                     }));
                     dashboardState.stockAnalysisRaw = stockAnalysisRaw;
+                    // Daten-Refresh: Konvolut-Vormerkungen leeren — Lager-Nrn beziehen sich auf
+                    // den alten Snapshot, der neue Status/Bestand ist jetzt maßgeblich.
+                    if (dashboardState._konvolutReservedLagerNrs && dashboardState._konvolutReservedLagerNrs.size > 0) {
+                        console.info(`[Konvolut] Daten-Refresh → ${dashboardState._konvolutReservedLagerNrs.size} Vormerkungen geleert.`);
+                        dashboardState._konvolutReservedLagerNrs = new Set();
+                    }
                     
                     // NEU: Erweiterte Statistiken
                     dashboardState.stockAvgLifeDays = lifeDaysCount > 0 ? Math.round(totalLifeDays / lifeDaysCount) : 0;
