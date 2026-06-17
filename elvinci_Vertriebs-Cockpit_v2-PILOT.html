@@ -9496,7 +9496,8 @@ Keine Erklärungen, kein Markdown.`;
                 const days = item.product_life_days || 0;
                 const ek = parseFloat(item.Buying_Price) || 0;
                 const vk = parseFloat(item.Selling_Price) || 0;
-                const marge = calculateMarginFromEkVk(ek, vk);
+                const marge = calculateMarginFromEkVk(ek, vk);        // EK-basiert (Aufschlag) — NUR für Score-Input
+                const margeVk = vk > 0 ? ((vk - ek) / vk * 100) : 0;  // VK-basiert — für Anzeige/Filter/Export (Offer-Konvention)
                 const pg = (item.product_group || '').toLowerCase();
                 
                 // Lagertage-Score: Je älter, desto höher (max 100)
@@ -9516,6 +9517,7 @@ Keine Erklärungen, kein Markdown.`;
                     ...item,
                     score,
                     marge,
+                    margeVk,
                     daysScore,
                     margeScore,
                     pgScore
@@ -9607,7 +9609,7 @@ Keine Erklärungen, kein Markdown.`;
                         <td class="mono ${item.product_life_days > 180 ? 'negative' : ''}">${item.product_life_days || 0}</td>
                         <td class="mono">${ek.toLocaleString('de-DE', {style:'currency',currency:'EUR'})}</td>
                         <td class="mono">${vk.toLocaleString('de-DE', {style:'currency',currency:'EUR'})}</td>
-                        <td class="mono ${item.marge >= 50 ? 'positive' : item.marge >= 20 ? '' : 'warning'}">${item.marge.toFixed(0)}%</td>
+                        <td class="mono ${item.margeVk >= 50 ? 'positive' : item.margeVk >= 20 ? '' : 'warning'}">${(item.margeVk||0).toFixed(0)}%</td>
                         <td>${empfehlung}</td>
                     </tr>
                 `;
@@ -12590,7 +12592,7 @@ Keine Erklärungen, kein Markdown.`;
                 console.info(`[Konvolut] ${nVorgemerkt} bereits vorgemerkte Geräte übersprungen.`);
             }
             // Filter: Verfügbarkeit + nicht-vorgemerkt + Score + Marge + (optional) Kunden-WG-Marke-Match
-            let relevant = items.filter(i => i.isAvailable !== false && !_isKonvReserved(i.lager_number) && (i.score || 0) >= minScore && (i.marge || 0) >= minMarge);
+            let relevant = items.filter(i => i.isAvailable !== false && !_isKonvReserved(i.lager_number) && (i.score || 0) >= minScore && (i.margeVk || 0) >= minMarge);
 
             // KUNDEN-FILTER: nur Geräte deren (WG, Marke) der Kunde historisch gekauft hat
             let customerTuples = null;
@@ -12624,10 +12626,10 @@ Keine Erklärungen, kein Markdown.`;
             // Sort-Comparator-Dispatcher (höher = besser)
             const sortVal = (it) => {
                 switch (sortBy) {
-                    case 'marge_pct':    return it.marge || 0;
+                    case 'marge_pct':    return it.margeVk || 0;
                     case 'profit_eur':   return (parseFloat(it.Selling_Price)||0) - (parseFloat(it.Buying_Price)||0);
                     case 'lagertage':    return it.product_life_days || 0;
-                    case 'marge_x_tage': return (it.marge || 0) * (it.product_life_days || 0) / 100;
+                    case 'marge_x_tage': return (it.margeVk || 0) * (it.product_life_days || 0) / 100;
                     case 'score':
                     default:             return it.score || 0;
                 }
@@ -12830,7 +12832,7 @@ Keine Erklärungen, kein Markdown.`;
                         <td class="mono" style="font-size:0.62rem;">${it.product_life_days||0}T</td>
                         <td class="mono" style="font-size:0.62rem;">${ek.toLocaleString('de-DE',{style:'currency',currency:'EUR'})}</td>
                         <td class="mono" style="font-size:0.62rem;">${vk.toLocaleString('de-DE',{style:'currency',currency:'EUR'})}</td>
-                        <td class="mono" style="font-size:0.62rem; color:${it.marge>=50?'var(--accent-green)':it.marge>=20?'inherit':'var(--accent-orange)'}">${it.marge.toFixed(0)}%</td>
+                        <td class="mono" style="font-size:0.62rem; color:${it.margeVk>=50?'var(--accent-green)':it.margeVk>=20?'inherit':'var(--accent-orange)'}">${(it.margeVk||0).toFixed(0)}%</td>
                     </tr>`;
                 }).join('');
                 const gradeMixHeader = _gradeMix(k.items);
@@ -13095,7 +13097,7 @@ Keine Erklärungen, kein Markdown.`;
                     (parseFloat(it.Buying_Price)||0).toFixed(2).replace('.', ','),
                     (parseFloat(it.Selling_Price)||0).toFixed(2).replace('.', ','),
                     (Number(it.Online_Price)||0).toFixed(2).replace('.', ','),
-                    it.marge.toFixed(1).replace('.', ','),
+                    (it.margeVk||0).toFixed(1).replace('.', ','),
                     (it.status||'').toString().replace(/;/g,','),
                     top
                 ].join(';'));
@@ -13270,7 +13272,7 @@ Keine Erklärungen, kein Markdown.`;
                     item.product_life_days || 0,
                     (parseFloat(item.Buying_Price) || 0).toFixed(2).replace('.', ','),
                     (parseFloat(item.Selling_Price) || 0).toFixed(2).replace('.', ','),
-                    item.marge.toFixed(1).replace('.', ',')
+                    (item.margeVk||0).toFixed(1).replace('.', ',')
                 ].join(';'));
             });
             
@@ -13311,7 +13313,7 @@ Keine Erklärungen, kein Markdown.`;
                 item.product_life_days || 0,
                 (parseFloat(item.Buying_Price) || 0).toFixed(0) + '€',
                 (parseFloat(item.Selling_Price) || 0).toFixed(0) + '€',
-                item.marge.toFixed(0) + '%'
+                (item.margeVk||0).toFixed(0) + '%'
             ]);
             
             doc.autoTable({
