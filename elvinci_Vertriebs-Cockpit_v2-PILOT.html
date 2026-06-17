@@ -11632,46 +11632,49 @@ Keine Erklärungen, kein Markdown.`;
                         ['Angebot für ' + String(p.firma || ('Kunde ' + p.kundenNr))],
                         ['Datum: ' + new Date().toLocaleDateString('de-DE') + ' · Kunden-Nr: ' + p.kundenNr],
                         [],
-                        ['Pos.', 'Bezeichnung', 'Marke', 'Warengruppe', 'Grade', 'Zustand', 'Listen-VK', 'Rabatt', 'Ihr Preis', 'Ersparnis'],
+                        ['Pos.', 'Bezeichnung', 'Lager-Nr', 'Artikel-Nr', 'Marke', 'Warengruppe', 'Grade', 'Zustand', 'Listen-VK', 'Rabatt', 'Ihr Preis', 'Ersparnis'],
                     ];
-                    // Daten-Zeilen — alle Werte LIVE referenziert (außer Pos.)
+                    // Daten-Zeilen — alle Werte LIVE aus dem Haupt-Sheet referenziert (außer Pos.)
+                    // Haupt-Sheet "Kunden-Angebot": F=SSCC(Lager-Nr), O=Artikel-Nr, N=Zustand
                     for (let i = 0; i < matches.length; i++) {
                         const r = i + 2;  // Zeile im Haupt-Sheet
                         aoa.push([
                             i + 1,
                             { f: `${SHEET}!B${r}`, t: 's' },                          // Bezeichnung
+                            { f: `${SHEET}!F${r}`, t: 's' },                          // Lager-Nr (SSCC) — Haupt F
+                            { f: `${SHEET}!O${r}`, t: 's' },                          // Artikel-Nr — Haupt O
                             { f: `${SHEET}!C${r}`, t: 's' },                          // Marke
                             { f: `${SHEET}!D${r}`, t: 's' },                          // Warengruppe
                             { f: `${SHEET}!E${r}`, t: 's' },                          // Grade
-                            { f: `${SHEET}!N${r}`, t: 's' },                          // Zustand (usage) — Haupt-Sheet N
+                            { f: `${SHEET}!N${r}`, t: 's' },                          // Zustand (usage) — Haupt N
                             { f: `${SHEET}!H${r}`, t: 'n', z: fEur },                 // Listen-VK
                             { f: `${SHEET}!J${r}/100`, t: 'n', z: fPct },             // Rabatt %
                             { f: `${SHEET}!K${r}`, t: 'n', z: fEur },                 // Ihr Preis
                             { f: `${SHEET}!H${r}-${SHEET}!K${r}`, t: 'n', z: fEur },  // Ersparnis
                         ]);
                     }
-                    // Summen-Zeile (Listen-VK=G, Ihr Preis=I, Ersparnis=J)
+                    // Summen-Zeile (Listen-VK=I, Ihr Preis=K, Ersparnis=L)
                     const sumRow = aoa.length + 1;
                     aoa.push([
-                        '', 'Σ GESAMT', '', '', '', '',
-                        { f: `SUM(G5:G${sumRow - 1})`, t: 'n', z: fEur },
-                        '',
+                        '', 'Σ GESAMT', '', '', '', '', '', '',
                         { f: `SUM(I5:I${sumRow - 1})`, t: 'n', z: fEur },
-                        { f: `SUM(J5:J${sumRow - 1})`, t: 'n', z: fEur },
+                        '',
+                        { f: `SUM(K5:K${sumRow - 1})`, t: 'n', z: fEur },
+                        { f: `SUM(L5:L${sumRow - 1})`, t: 'n', z: fEur },
                     ]);
                     return [{
                         name: 'Angebot',
                         aoa,
                         colWidths: [
-                            { wch: 6 }, { wch: 36 }, { wch: 12 }, { wch: 22 }, { wch: 9 }, { wch: 16 },
+                            { wch: 6 }, { wch: 36 }, { wch: 12 }, { wch: 14 }, { wch: 12 }, { wch: 22 }, { wch: 9 }, { wch: 16 },
                             { wch: 12 }, { wch: 8 }, { wch: 13 }, { wch: 13 },
                         ],
                         merges: [
-                            { s: { r: 0, c: 0 }, e: { r: 0, c: 9 } },   // Header über alle Spalten
-                            { s: { r: 1, c: 0 }, e: { r: 1, c: 9 } },   // Subtitel über alle Spalten
+                            { s: { r: 0, c: 0 }, e: { r: 0, c: 11 } },   // Header über alle Spalten
+                            { s: { r: 1, c: 0 }, e: { r: 1, c: 11 } },   // Subtitel über alle Spalten
                         ],
                         freeze: { xSplit: 0, ySplit: 4 },
-                        autofilter: { ref: `A4:J${matches.length + 4}` },
+                        autofilter: { ref: `A4:L${matches.length + 4}` },
                     }];
                 })(),
                 hint: [
@@ -11720,7 +11723,7 @@ Keine Erklärungen, kein Markdown.`;
                 ['Datum: ' + new Date().toLocaleDateString('de-DE') + ' · Kunden-Nr: ' + p.kundenNr],
                 ['elvinci.de GmbH'],
                 [],
-                ['Pos.', 'Bezeichnung', 'Marke', 'Warengruppe', 'Grade', 'Zustand', 'Listen-VK', 'Rabatt', 'Ihr Preis', 'Ersparnis'],
+                ['Pos.', 'Bezeichnung', 'Lager-Nr', 'Artikel-Nr', 'Marke', 'Warengruppe', 'Grade', 'Zustand', 'Listen-VK', 'Rabatt', 'Ihr Preis', 'Ersparnis'],
             ];
             const eff = dashboardState._angeboteEffRabatt || (() => rabattInit);
             let sumListen = 0, sumPreis = 0, sumErsparnis = 0;
@@ -11733,6 +11736,8 @@ Keine Erklärungen, kein Markdown.`;
                 aoa.push([
                     i + 1,
                     String(m.bez || ''),
+                    String(m.sscc || ''),
+                    String(m.artNr || ''),
                     String(m.brand || ''),
                     String(m.wg || ''),
                     String(m.grade || ''),
@@ -11743,10 +11748,10 @@ Keine Erklärungen, kein Markdown.`;
                     { v: ersparnis, t: 'n', z: '#,##0.00 "€"' },
                 ]);
             });
-            // Summenzeile (Listen-VK=G, Ihr Preis=I, Ersparnis=J)
+            // Summenzeile (Listen-VK=I, Ihr Preis=K, Ersparnis=L)
             aoa.push([]);
             aoa.push([
-                '', 'Σ GESAMT', '', '', '', '',
+                '', 'Σ GESAMT', '', '', '', '', '', '',
                 { v: sumListen,    t: 'n', z: '#,##0.00 "€"' },
                 '',
                 { v: sumPreis,     t: 'n', z: '#,##0.00 "€"' },
@@ -11755,16 +11760,16 @@ Keine Erklärungen, kein Markdown.`;
 
             const ws = XLSX.utils.aoa_to_sheet(aoa);
             ws['!cols'] = [
-                { wch: 6 }, { wch: 36 }, { wch: 12 }, { wch: 22 }, { wch: 9 }, { wch: 16 },
+                { wch: 6 }, { wch: 36 }, { wch: 12 }, { wch: 14 }, { wch: 12 }, { wch: 22 }, { wch: 9 }, { wch: 16 },
                 { wch: 12 }, { wch: 8 }, { wch: 13 }, { wch: 13 },
             ];
             ws['!merges'] = [
-                { s: { r: 0, c: 0 }, e: { r: 0, c: 9 } },
-                { s: { r: 1, c: 0 }, e: { r: 1, c: 9 } },
-                { s: { r: 2, c: 0 }, e: { r: 2, c: 9 } },
+                { s: { r: 0, c: 0 }, e: { r: 0, c: 11 } },
+                { s: { r: 1, c: 0 }, e: { r: 1, c: 11 } },
+                { s: { r: 2, c: 0 }, e: { r: 2, c: 11 } },
             ];
             ws['!freeze'] = { xSplit: 0, ySplit: 5 };
-            ws['!autofilter'] = { ref: `A5:J${matches.length + 5}` };
+            ws['!autofilter'] = { ref: `A5:L${matches.length + 5}` };
 
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, 'Angebot');
@@ -11984,7 +11989,7 @@ Keine Erklärungen, kein Markdown.`;
                 if (coverage === 0) return;
                 const vk = Number(it.Selling_Price || 0) || 0, ek = Number(it.Buying_Price || 0) || 0;
                 const marge = vk > 0 ? ((vk - ek) / vk * 100) : 0;     // VK-basiert (Offer-Konvention)
-                results.push({ sscc: it.lager_number || '', bez: [brand, model].filter(Boolean).join(' ') || artNr || '(o. Bez.)', brand, wg, grade: it.final_grade || it.grade || '', usage: it.usage || '', vk, ek, marge, coverage, totalHits, matchedKn, matchedFirma });
+                results.push({ sscc: it.lager_number || '', artNr: artNr, bez: [brand, model].filter(Boolean).join(' ') || artNr || '(o. Bez.)', brand, wg, grade: it.final_grade || it.grade || '', usage: it.usage || '', vk, ek, marge, coverage, totalHits, matchedKn, matchedFirma });
             });
             results.sort((a, b) => b.coverage - a.coverage || b.totalHits - a.totalHits || b.marge - a.marge);
             dashboardState._angeboteGroupResults = results;
@@ -11995,7 +12000,7 @@ Keine Erklärungen, kein Markdown.`;
                 const covColor = r.coverage === N ? 'var(--accent-green)' : r.coverage > 1 ? 'var(--accent-cyan)' : 'var(--text-muted)';
                 return `<tr style="border-bottom:1px solid var(--border);">
                     <td style="padding:0.4rem; font-size:0.7rem; color:var(--text-muted);">${i + 1}</td>
-                    <td style="padding:0.4rem; font-size:0.72rem;"><b>${_e(r.bez)}</b><div style="font-size:0.62rem; color:var(--text-muted);">${_e(r.brand)} · ${_e(r.wg)} · ${_e(r.sscc)}</div></td>
+                    <td style="padding:0.4rem; font-size:0.72rem;"><b>${_e(r.bez)}</b><div style="font-size:0.62rem; color:var(--text-muted);">${_e(r.brand)} · ${_e(r.wg)} · Lager ${_e(r.sscc)}${r.artNr ? ' · Art ' + _e(r.artNr) : ''}</div></td>
                     <td style="padding:0.4rem; text-align:center;">${_gradeBadge(r.grade)}</td>
                     <td style="padding:0.4rem; font-size:0.66rem; text-align:center; color:var(--text-secondary);">${_e(r.usage) || '—'}</td>
                     <td style="padding:0.4rem; text-align:center;" title="${_e(r.matchedFirma.join(', '))}"><span style="padding:0.1rem 0.45rem; background:${covColor}22; color:${covColor}; border-radius:6px; font-weight:700; font-size:0.72rem;">${r.coverage}/${N}</span></td>
@@ -12073,21 +12078,21 @@ Keine Erklärungen, kein Markdown.`;
                     ['Datum: ' + new Date().toLocaleDateString('de-DE') + ' · Kunden-Nr: ' + p.kundenNr],
                     ['elvinci.de GmbH'],
                     [],
-                    ['Pos.', 'Bezeichnung', 'Marke', 'Warengruppe', 'Grade', 'Zustand', 'Listen-VK', 'Rabatt', 'Ihr Preis', 'Ersparnis'],
+                    ['Pos.', 'Bezeichnung', 'Lager-Nr', 'Artikel-Nr', 'Marke', 'Warengruppe', 'Grade', 'Zustand', 'Listen-VK', 'Rabatt', 'Ihr Preis', 'Ersparnis'],
                 ];
                 let sL = 0, sP = 0, sE = 0;
                 items.forEach((r, i) => {
                     const vk = r.vk, preis = vk * (1 - rab / 100), ersp = vk - preis;
                     sL += vk; sP += preis; sE += ersp;
-                    aoa.push([i + 1, String(r.bez), String(r.brand || ''), String(r.wg || ''), String(r.grade || ''), String(r.usage || ''),
+                    aoa.push([i + 1, String(r.bez), String(r.sscc || ''), String(r.artNr || ''), String(r.brand || ''), String(r.wg || ''), String(r.grade || ''), String(r.usage || ''),
                         { v: vk, t: 'n', z: '#,##0.00 "€"' }, { v: rab / 100, t: 'n', z: '0.0%' }, { v: preis, t: 'n', z: '#,##0.00 "€"' }, { v: ersp, t: 'n', z: '#,##0.00 "€"' }]);
                 });
                 aoa.push([]);
-                aoa.push(['', 'Σ GESAMT', '', '', '', '', { v: sL, t: 'n', z: '#,##0.00 "€"' }, '', { v: sP, t: 'n', z: '#,##0.00 "€"' }, { v: sE, t: 'n', z: '#,##0.00 "€"' }]);
+                aoa.push(['', 'Σ GESAMT', '', '', '', '', '', '', { v: sL, t: 'n', z: '#,##0.00 "€"' }, '', { v: sP, t: 'n', z: '#,##0.00 "€"' }, { v: sE, t: 'n', z: '#,##0.00 "€"' }]);
                 const ws = XLSX.utils.aoa_to_sheet(aoa);
-                ws['!cols'] = [{ wch: 6 }, { wch: 36 }, { wch: 12 }, { wch: 22 }, { wch: 9 }, { wch: 16 }, { wch: 12 }, { wch: 8 }, { wch: 13 }, { wch: 13 }];
-                ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 9 } }, { s: { r: 1, c: 0 }, e: { r: 1, c: 9 } }, { s: { r: 2, c: 0 }, e: { r: 2, c: 9 } }];
-                if (items.length) ws['!autofilter'] = { ref: `A5:J${items.length + 5}` };
+                ws['!cols'] = [{ wch: 6 }, { wch: 36 }, { wch: 12 }, { wch: 14 }, { wch: 12 }, { wch: 22 }, { wch: 9 }, { wch: 16 }, { wch: 12 }, { wch: 8 }, { wch: 13 }, { wch: 13 }];
+                ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 11 } }, { s: { r: 1, c: 0 }, e: { r: 1, c: 11 } }, { s: { r: 2, c: 0 }, e: { r: 2, c: 11 } }];
+                if (items.length) ws['!autofilter'] = { ref: `A5:L${items.length + 5}` };
                 XLSX.utils.book_append_sheet(wb, ws, sheetName(p.firma || ('Kunde ' + p.kundenNr)));
             });
             const fname = `Gruppen-Angebot_${profiles.length}Kunden_${new Date().toISOString().split('T')[0]}.xlsx`;
@@ -12941,7 +12946,7 @@ Keine Erklärungen, kein Markdown.`;
                     ['Datum: ' + new Date().toLocaleDateString('de-DE') + (prof ? (' · Kunden-Nr: ' + prof.kundenNr) : '')],
                     ['elvinci.de GmbH'],
                     [],
-                    ['Pos.', 'Bezeichnung', 'Marke', 'Warengruppe', 'Grade', 'Zustand', 'Listen-VK', 'Rabatt', 'Ihr Preis', 'Ersparnis'],
+                    ['Pos.', 'Bezeichnung', 'Lager-Nr', 'Artikel-Nr', 'Marke', 'Warengruppe', 'Grade', 'Zustand', 'Listen-VK', 'Rabatt', 'Ihr Preis', 'Ersparnis'],
                 ];
                 let sL = 0, sP = 0, sE = 0;
                 (k.items || []).forEach((it, i) => {
@@ -12951,18 +12956,18 @@ Keine Erklärungen, kein Markdown.`;
                     sL += vk; sP += preis; sE += ersp;
                     const bez = [it.brand, it.model].filter(Boolean).join(' ') || it.article_number || '';
                     aoa.push([
-                        i + 1, String(bez), String(it.brand || ''), String(it.product_group || ''),
+                        i + 1, String(bez), String(it.lager_number || ''), String(it.article_number || ''), String(it.brand || ''), String(it.product_group || ''),
                         String(it.final_grade || ''), String(it.usage || ''),
                         { v: vk, t: 'n', z: '#,##0.00 "€"' }, { v: rab / 100, t: 'n', z: '0.0%' },
                         { v: preis, t: 'n', z: '#,##0.00 "€"' }, { v: ersp, t: 'n', z: '#,##0.00 "€"' },
                     ]);
                 });
                 aoa.push([]);
-                aoa.push(['', 'Σ GESAMT', '', '', '', '', { v: sL, t: 'n', z: '#,##0.00 "€"' }, '', { v: sP, t: 'n', z: '#,##0.00 "€"' }, { v: sE, t: 'n', z: '#,##0.00 "€"' }]);
+                aoa.push(['', 'Σ GESAMT', '', '', '', '', '', '', { v: sL, t: 'n', z: '#,##0.00 "€"' }, '', { v: sP, t: 'n', z: '#,##0.00 "€"' }, { v: sE, t: 'n', z: '#,##0.00 "€"' }]);
                 const ws = XLSX.utils.aoa_to_sheet(aoa);
-                ws['!cols'] = [{ wch: 6 }, { wch: 36 }, { wch: 12 }, { wch: 22 }, { wch: 9 }, { wch: 16 }, { wch: 12 }, { wch: 8 }, { wch: 13 }, { wch: 13 }];
-                ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 9 } }, { s: { r: 1, c: 0 }, e: { r: 1, c: 9 } }, { s: { r: 2, c: 0 }, e: { r: 2, c: 9 } }];
-                ws['!autofilter'] = { ref: `A5:J${(k.items || []).length + 5}` };
+                ws['!cols'] = [{ wch: 6 }, { wch: 36 }, { wch: 12 }, { wch: 14 }, { wch: 12 }, { wch: 22 }, { wch: 9 }, { wch: 16 }, { wch: 12 }, { wch: 8 }, { wch: 13 }, { wch: 13 }];
+                ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 11 } }, { s: { r: 1, c: 0 }, e: { r: 1, c: 11 } }, { s: { r: 2, c: 0 }, e: { r: 2, c: 11 } }];
+                ws['!autofilter'] = { ref: `A5:L${(k.items || []).length + 5}` };
                 XLSX.utils.book_append_sheet(wb, ws, sheetName(firma));
             });
 
