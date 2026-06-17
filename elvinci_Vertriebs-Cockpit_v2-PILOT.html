@@ -11495,14 +11495,17 @@ Keine Erklärungen, kein Markdown.`;
                 return [konvLabel, parseInt(it.score) || 0, it.lager_number || '',
                         String(it.model || ''), it.brand || '', String(it.product_group || ''),
                         it.final_grade || '', parseInt(it.product_life_days) || 0,
-                        ek, vk, null, null, Number(marge.toFixed(1)), null];
+                        ek, vk, null, null, Number(marge.toFixed(1)), null,
+                        // grüne Ware-Spalten O–R (statisch, wie in den Angeboten)
+                        String(it.usage || ''), String(it.article_number || ''), Number(it.Online_Price) || 0, String(it.status || '')];
             });
         }
         function _konvolutXLSXConfig(rows, filename, sheetName, hintExtra) {
             return {
                 sheetName,
                 headers: ['Konvolut','Score','Lager-Nr','Modell','Marke','Warengruppe',
-                          'Grade','Lagertage','EK','VK','Marge €','Marge %','Ziel-Marge %','Soll-VK'],
+                          'Grade','Lagertage','EK','VK','Marge €','Marge %','Ziel-Marge %','Soll-VK',
+                          'Zustand','Artikel-Nr','Online-Preis','Status'],
                 rows,
                 formulas: [
                     { col: 'K', formula: 'J{r}-I{r}', format: '#,##0.00 "€"' },
@@ -11511,10 +11514,11 @@ Keine Erklärungen, kein Markdown.`;
                 ],
                 numberFormats: [
                     { col: 'I', format: '#,##0.00 "€"' }, { col: 'J', format: '#,##0.00 "€"' },
-                    { col: 'M', format: '0.0"%"' },
+                    { col: 'M', format: '0.0"%"' }, { col: 'Q', format: '#,##0.00 "€"' },
                 ],
                 colWidths: [{wch:28},{wch:6},{wch:12},{wch:18},{wch:10},{wch:20},
-                            {wch:7},{wch:10},{wch:10},{wch:10},{wch:11},{wch:9},{wch:13},{wch:11}],
+                            {wch:7},{wch:10},{wch:10},{wch:10},{wch:11},{wch:9},{wch:13},{wch:11},
+                            {wch:16},{wch:14},{wch:12},{wch:8}],
                 hint: ['Konvolut — Excel mit Formeln', '',
                        'Spalte J (VK) ändern → K (Marge €) und L (Marge %) rechnen automatisch nach.',
                        'Spalte M (Ziel-Marge %) ändern → N (Soll-VK) zeigt nötigen VK.',
@@ -13085,10 +13089,14 @@ Keine Erklärungen, kein Markdown.`;
                     it.score, it.lager_number || '', (it.model||'').replace(/;/g,','),
                     it.brand || '', (it.product_group||'').replace(/;/g,','),
                     (it.final_grade||'').toString().replace(/;/g,','),
+                    (it.usage||'').toString().replace(/;/g,','),
+                    (it.article_number||'').toString().replace(/;/g,','),
                     it.product_life_days || 0,
                     (parseFloat(it.Buying_Price)||0).toFixed(2).replace('.', ','),
                     (parseFloat(it.Selling_Price)||0).toFixed(2).replace('.', ','),
+                    (Number(it.Online_Price)||0).toFixed(2).replace('.', ','),
                     it.marge.toFixed(1).replace('.', ','),
+                    (it.status||'').toString().replace(/;/g,','),
                     top
                 ].join(';'));
             });
@@ -13098,7 +13106,7 @@ Keine Erklärungen, kein Markdown.`;
         function exportKonvolut(idx) {
             const k = (dashboardState.konvolute || [])[idx];
             if (!k) return;
-            const header = ['Konvolut','Score','Lager-Nr','Modell','Marke','Warengruppe','Grade','Lagertage','EK','VK','Marge%','Top-3 Käufer (P%/erw.€)'].join(';');
+            const header = ['Konvolut','Score','Lager-Nr','Modell','Marke','Warengruppe','Grade','Zustand','Artikel-Nr','Lagertage','EK','VK','Online-Preis','Marge%','Status','Top-3 Käufer (P%/erw.€)'].join(';');
             const csv = '﻿' + header + '\n' + _konvolutToCsvRows(k).join('\n');
             const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
             const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
@@ -13110,7 +13118,7 @@ Keine Erklärungen, kein Markdown.`;
         function exportAlleKonvolute() {
             const konvolute = dashboardState.konvolute || [];
             if (konvolute.length === 0) return;
-            const header = ['Konvolut','Score','Lager-Nr','Modell','Marke','Warengruppe','Grade','Lagertage','EK','VK','Marge%','Top-3 Käufer (P%/erw.€)'].join(';');
+            const header = ['Konvolut','Score','Lager-Nr','Modell','Marke','Warengruppe','Grade','Zustand','Artikel-Nr','Lagertage','EK','VK','Online-Preis','Marge%','Status','Top-3 Käufer (P%/erw.€)'].join(';');
             const allRows = konvolute.flatMap(_konvolutToCsvRows);
             const csv = '﻿' + header + '\n' + allRows.join('\n');
             const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
