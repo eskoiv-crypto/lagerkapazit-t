@@ -11040,6 +11040,19 @@ Keine Erklärungen, kein Markdown.`;
                 } else if (bestandTotal === 0) {
                     bannerHtml += `<br><span style="color:var(--accent-orange);">⚠️ AMM-BESTAND nicht geladen — Cross-Check für "wirklich im Lager?" nicht möglich.</span>`;
                 }
+                // Audit-Aufschlüsselung zum Abgleich mit dem Portal-Export (Roh vs. dedupliziert + Status)
+                const _raw = dashboardState.stockRawRows || 0;
+                const _uniq = dashboardState.stockUniqueCount || items.length;
+                const _dupes = Math.max(0, _raw - _uniq);
+                const _vocab = dashboardState.stockStatusVocab || {};
+                const _vocabStr = Object.entries(_vocab).sort((a, b) => b[1] - a[1])
+                    .map(([s, n]) => `${s === '(leer)' ? '🟢 leer (frei)' : _h(s)}: <b>${n.toLocaleString('de-DE')}</b>`).join(' · ');
+                bannerHtml += `<details style="margin-top:0.4rem;"><summary style="cursor:pointer; font-size:0.66rem; color:#a5b4fc; font-weight:700;">🔎 Status-Aufschlüsselung (Abgleich mit Portal-Export)</summary>
+                    <div style="font-size:0.66rem; color:var(--text-secondary); margin-top:0.3rem; line-height:1.6;">
+                        <b>${_raw.toLocaleString('de-DE')}</b> Roh-Zeilen (mit Lager-Nr) → <b>${_uniq.toLocaleString('de-DE')}</b> eindeutige Lager-Nr${_dupes > 0 ? ` · <b style="color:var(--accent-orange);">${_dupes.toLocaleString('de-DE')} Dubletten</b> (dedupliziert)` : ' (keine Dubletten)'}<br>
+                        Status-Verteilung (eindeutig): ${_vocabStr || '—'}<br>
+                        <span style="color:var(--text-muted);">„frei" zählt NUR leeren Status. Vergleicht der Kollege seinen Portal-Export, muss er (a) nach Lager-Nr deduplizieren und (b) exakt auf „Status = leer" filtern — sonst weichen die Zahlen ab.</span>
+                    </div></details>`;
                 banner.innerHTML = bannerHtml;
             }
 
@@ -22001,6 +22014,13 @@ Keine Erklärungen, kein Markdown.`;
                     dashboardState.stockAnalysisRaw = stockAnalysisRaw;
                     // Stock-Upload-Sequenz hochzählen → erkennt "Konvolute/Views aus altem Snapshot"
                     dashboardState._stockUploadSeq = (dashboardState._stockUploadSeq || 0) + 1;
+                    // AUDIT-Aufschlüsselung (für "warum diese Zahl?"-Abgleich mit dem Portal-Export):
+                    // Roh-Zeilen (mit Lager-Nr) vs. eindeutige Lager-Nr (= dedupliziert) + Status-Verteilung.
+                    dashboardState.stockRawRows = count;                          // Zeilen mit Lager-Nr (vor Dedup)
+                    dashboardState.stockUniqueCount = stockAnalysisRaw.length;    // eindeutige Lager-Nr
+                    const _vocab = {};
+                    stockAnalysisRaw.forEach(it => { const s = ((it.status || '') === '') ? '(leer)' : it.status; _vocab[s] = (_vocab[s] || 0) + 1; });
+                    dashboardState.stockStatusVocab = _vocab;                     // dedupliziert (= was Live-View zählt)
                     // Daten-Refresh: Konvolut-Vormerkungen leeren — Lager-Nrn beziehen sich auf
                     // den alten Snapshot, der neue Status/Bestand ist jetzt maßgeblich.
                     if (dashboardState._konvolutReservedLagerNrs && dashboardState._konvolutReservedLagerNrs.size > 0) {
