@@ -12671,6 +12671,8 @@ Keine Erklärungen, kein Markdown.`;
             }
 
             dashboardState.konvolute = konvolute;
+            // Stempel: aus welcher Stock-Upload-Sequenz stammen diese Konvolute? (Stale-Erkennung)
+            dashboardState._konvolutStockSeq = dashboardState._stockUploadSeq || 0;
             renderKonvolute();
         }
 
@@ -12782,8 +12784,16 @@ Keine Erklärungen, kein Markdown.`;
             const totGeraete = konvolute.reduce((s,k)=>s+k.anzahl,0);
             const totEK = konvolute.reduce((s,k)=>s+k.sumEK,0);
             const totVK = konvolute.reduce((s,k)=>s+k.sumVK,0);
+            // STALE-Erkennung: Konvolute aus älterem Stock-Snapshot als der aktuell geladene?
+            const _konvStale = dashboardState._konvolutStockSeq != null
+                && dashboardState._konvolutStockSeq !== (dashboardState._stockUploadSeq || 0);
+            const _staleHtml = _konvStale ? `<div style="margin-bottom:0.5rem; padding:0.5rem 0.75rem; background:rgba(249,115,22,0.12); border:1px solid var(--accent-orange); border-radius:8px; display:flex; align-items:center; gap:0.6rem; flex-wrap:wrap;">
+                    <span style="font-size:0.72rem; font-weight:700; color:var(--accent-orange);">⚠️ Stock-Daten wurden seit Erzeugung aktualisiert</span>
+                    <span style="font-size:0.66rem; color:var(--text-muted);">— diese Konvolute zeigen noch den alten Stand (evtl. verkaufte/entfernte Geräte enthalten).</span>
+                    <button onclick="generateKonvolute()" style="margin-left:auto; padding:0.3rem 0.7rem; background:var(--accent-orange); color:white; border:none; border-radius:5px; font-size:0.68rem; font-weight:700; cursor:pointer;">🔄 Konvolute neu erzeugen</button>
+                </div>` : '';
             if (summary) {
-                summary.innerHTML = `<strong style="color:var(--accent-green);">${konvolute.length} Konvolute</strong> · ${totGeraete.toLocaleString('de-DE')} Geräte · EK ${totEK.toLocaleString('de-DE',{style:'currency',currency:'EUR',maximumFractionDigits:0})} · VK ${totVK.toLocaleString('de-DE',{style:'currency',currency:'EUR',maximumFractionDigits:0})} · Marge ${(totVK>0?((totVK-totEK)/totVK*100):0).toFixed(0)}%`;
+                summary.innerHTML = _staleHtml + `<strong style="color:var(--accent-green);">${konvolute.length} Konvolute</strong> · ${totGeraete.toLocaleString('de-DE')} Geräte · EK ${totEK.toLocaleString('de-DE',{style:'currency',currency:'EUR',maximumFractionDigits:0})} · VK ${totVK.toLocaleString('de-DE',{style:'currency',currency:'EUR',maximumFractionDigits:0})} · Marge ${(totVK>0?((totVK-totEK)/totVK*100):0).toFixed(0)}%`;
             }
             if (exportBar) exportBar.style.display = 'flex';
 
@@ -15982,6 +15992,10 @@ Keine Erklärungen, kein Markdown.`;
             // Reset+Neuupload veraltete Aggregate zurückschreiben.
             dashboardState._origStats = null;
             dashboardState._konvolutReservedLagerNrs = new Set();  // Konvolut-Vormerkungen leeren
+            dashboardState.konvolute = [];
+            dashboardState._stockUploadSeq = 0;
+            dashboardState._konvolutStockSeq = null;
+            dashboardState._angeboteGroup = [];
             dashboardState.jtl4yData = [];
             dashboardState.jtl4yLoaded = false;
             dashboardState.stammdaten = {};
@@ -20028,6 +20042,37 @@ Keine Erklärungen, kein Markdown.`;
             });
         }
 
+        // Auto-Repaint der sichtbaren On-Demand-Ansichten bei Daten-Änderung (z.B. Stock-Re-Upload).
+        // Die Analyse-Reiter laufen bereits über updateAnalyseProPanel; Live-View, Angebote-Match
+        // und Konvolut-Karten hängen NICHT in der Kette → hier gezielt nachziehen (nur wenn sichtbar
+        // bzw. veraltet), damit ein zweiter Stock-Upload ohne Tab-Wechsel sofort durchschlägt.
+        function _repaintOnDemandViews() {
+            try {
+                const lv = document.getElementById('tab-liveview');
+                if (lv && lv.classList.contains('active') && typeof updateLiveView === 'function') updateLiveView();
+            } catch (e) { console.warn('[Repaint] LiveView', e); }
+            try {
+                const ang = document.getElementById('tab-angebote');
+                if (ang && ang.classList.contains('active')) {
+                    if (typeof _angeboteGroupList === 'function' && _angeboteGroupList().length) {
+                        renderAngeboteGroup();
+                    } else if (dashboardState._angeboteSelectedKunde) {
+                        _angeboteRenderSteckbrief(dashboardState._angeboteSelectedKunde);
+                        _angeboteRenderMatch(dashboardState._angeboteSelectedKunde);
+                    }
+                }
+            } catch (e) { console.warn('[Repaint] Angebote', e); }
+            try {
+                // Konvolut-Karten NUR neu rendern, wenn sie veraltet sind (Stock-Seq weicht ab) →
+                // zeigt das Stale-Banner, ohne bei jedem Refresh aufgeklappte Karten zu kollabieren.
+                if ((dashboardState.konvolute || []).length
+                    && dashboardState._konvolutStockSeq != null
+                    && dashboardState._konvolutStockSeq !== (dashboardState._stockUploadSeq || 0)) {
+                    renderKonvolute();
+                }
+            } catch (e) { console.warn('[Repaint] Konvolute', e); }
+        }
+
         // 10X-2: Legacy-Subscriber. Bindet die bisherigen updateX()-Calls an den Bus.
         // Wird einmal auf DOMContentLoaded gerufen. Jede Funktion bekommt ihren eigenen
         // Try/Catch via bus.emit internem Error-Handler → ein kaputter Consumer stoppt
@@ -20057,6 +20102,7 @@ Keine Erklärungen, kein Markdown.`;
             });
             bus.on('data:refresh', guardedCall('checkAngebotsAnalyseAvailability'));
             bus.on('data:refresh', guardedCall('renderAnomaliesPanel'));
+            bus.on('data:refresh', _repaintOnDemandViews);  // Live-View / Angebote / Stale-Konvolute nachziehen
 
             // data:reset — UI-State sauber neu aufbauen
             bus.on('data:reset', guardedCall('updateStats'));
@@ -21953,6 +21999,8 @@ Keine Erklärungen, kein Markdown.`;
                         usage: item.usage
                     }));
                     dashboardState.stockAnalysisRaw = stockAnalysisRaw;
+                    // Stock-Upload-Sequenz hochzählen → erkennt "Konvolute/Views aus altem Snapshot"
+                    dashboardState._stockUploadSeq = (dashboardState._stockUploadSeq || 0) + 1;
                     // Daten-Refresh: Konvolut-Vormerkungen leeren — Lager-Nrn beziehen sich auf
                     // den alten Snapshot, der neue Status/Bestand ist jetzt maßgeblich.
                     if (dashboardState._konvolutReservedLagerNrs && dashboardState._konvolutReservedLagerNrs.size > 0) {
