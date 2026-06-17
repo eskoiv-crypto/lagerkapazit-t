@@ -4705,6 +4705,16 @@
                                         <button onclick="angeboteClearCustomer()" style="padding:0.55rem 0.8rem; background:var(--bg-elevated); color:var(--text-primary); border:1px solid var(--border); border-radius:6px; font-size:0.75rem; cursor:pointer;">↺ Reset</button>
                                     </div>
 
+                                    <!-- GRUPPEN-MATCH: mehrere Kunden → gemeinsame Trefferliste -->
+                                    <div style="display:flex; gap:0.6rem; padding:0.7rem 0.85rem; background:rgba(168,85,247,0.06); border:1px dashed #a855f7; border-radius:10px; margin-bottom:1rem; flex-wrap:wrap; align-items:end;">
+                                        <div style="flex:2; min-width:220px;">
+                                            <label style="display:block; font-size:0.65rem; color:#a855f7; text-transform:uppercase; letter-spacing:0.04em; margin-bottom:0.2rem; font-weight:700;">👥 Gruppen-Match — mehrere Kunden <span class="vc-info" data-tip="Mehrere Kunden hinzufügen → EINE gemeinsame Trefferliste aus der vereinten Kaufhistorie, sortiert nach 'für wie viele der Kunden passt das Gerät'. Preise je Kunde via Segment-Rabatt im Export. Exklusiv: jedes Gerät nur 1× verkaufbar.">ⓘ</span></label>
+                                            <input type="text" id="angebote-group-input" list="angebote-customer-list" placeholder="Kunde zur Gruppe hinzufügen…" onchange="angeboteGroupAdd(this)" style="width:100%; padding:0.5rem 0.7rem; font-size:0.82rem; border-radius:6px; background:var(--bg-secondary); border:1px solid #a855f7; color:var(--text-primary);">
+                                        </div>
+                                        <button onclick="angeboteGroupClear()" style="padding:0.5rem 0.8rem; background:var(--bg-elevated); color:var(--text-muted); border:1px solid var(--border); border-radius:6px; font-size:0.72rem; cursor:pointer;">Gruppe leeren</button>
+                                        <div id="angebote-group-chips" style="flex-basis:100%; display:flex; gap:0.4rem; flex-wrap:wrap;"></div>
+                                    </div>
+
                                     <!-- Kunden-Steckbrief (wird gezeigt sobald Kunde ausgewählt) -->
                                     <div id="angebote-customer-card" style="display:none; margin-bottom:1rem;"></div>
 
@@ -11842,6 +11852,8 @@ Keine Erklärungen, kein Markdown.`;
                 dashboardState._angeboteOverrides = {};
                 dashboardState._angeboteGlobalRabatt = null;
             }
+            // Einzel-Suche gewinnt → aktive Gruppe leeren (deterministisch, ein Modus aktiv)
+            if (_angeboteGroupList().length) { dashboardState._angeboteGroup = []; renderAngeboteGroupChips(); }
             dashboardState._angeboteSelectedKunde = match;
             _angeboteRenderSteckbrief(match);
             _angeboteRenderMatch(match);
@@ -11854,6 +11866,8 @@ Keine Erklärungen, kein Markdown.`;
             dashboardState._angeboteFilters = null;
             dashboardState._angeboteOverrides = {};
             dashboardState._angeboteGlobalRabatt = null;
+            dashboardState._angeboteGroup = [];
+            renderAngeboteGroupChips();
             _angeboteHideCustomer();
         }
 
@@ -11864,6 +11878,202 @@ Keine Erklärungen, kein Markdown.`;
             if (card) card.style.display = 'none';
             if (matchC) matchC.style.display = 'none';
             if (empty) empty.style.display = '';
+        }
+
+        // ===================================================================
+        // GRUPPEN-MATCH: mehrere Kunden gleichzeitig → gemeinsame Trefferliste
+        // (Vereinigung der Kaufhistorien; sortiert nach Coverage = für wie viele
+        //  der gewählten Kunden passt das Gerät. Preise pro Kunde via Segment-Rabatt
+        //  im Export. Exklusiv: jedes Gerät nur 1× verkaufbar.)
+        // ===================================================================
+        function _angeboteGroupList() {
+            if (!Array.isArray(dashboardState._angeboteGroup)) dashboardState._angeboteGroup = [];
+            return dashboardState._angeboteGroup;
+        }
+        function _resolveKunde(q) {
+            const arr = Object.values(dashboardState.customerProfiles || {});
+            const s = String(q || '').trim().toLowerCase();
+            if (!s) return null;
+            return arr.find(p => (p.firma || '').toLowerCase() === s || String(p.kundenNr) === s)
+                || arr.find(p => (p.firma || '').toLowerCase().startsWith(s))
+                || arr.find(p => (p.firma || '').toLowerCase().includes(s)) || null;
+        }
+        function angeboteGroupAdd(inputEl) {
+            const p = _resolveKunde(inputEl.value);
+            if (!p) { if ((inputEl.value || '').trim()) showToast('warning', 'Kunde nicht gefunden', inputEl.value); inputEl.value = ''; return; }
+            const grp = _angeboteGroupList();
+            if (!grp.some(x => String(x.kundenNr) === String(p.kundenNr))) grp.push(p);
+            inputEl.value = '';
+            dashboardState._angeboteSelectedKunde = null;  // Gruppenmodus gewinnt
+            renderAngeboteGroup();
+        }
+        function angeboteGroupRemove(kundenNr) {
+            dashboardState._angeboteGroup = _angeboteGroupList().filter(p => String(p.kundenNr) !== String(kundenNr));
+            renderAngeboteGroup();
+        }
+        function angeboteGroupClear() {
+            dashboardState._angeboteGroup = [];
+            renderAngeboteGroupChips();
+            _angeboteHideCustomer();
+        }
+        function renderAngeboteGroupChips() {
+            const el = document.getElementById('angebote-group-chips');
+            if (!el) return;
+            const grp = _angeboteGroupList();
+            el.innerHTML = grp.map(p =>
+                `<span style="display:inline-flex; align-items:center; gap:0.35rem; padding:0.2rem 0.55rem; background:rgba(168,85,247,0.18); color:#a855f7; border:1px solid #a855f7; border-radius:999px; font-size:0.66rem; font-weight:700;">
+                    ${_h(p.firma || ('Kunde ' + p.kundenNr))}
+                    <span data-kn="${_h(String(p.kundenNr))}" onclick="angeboteGroupRemove(this.dataset.kn)" style="cursor:pointer; font-weight:900;" title="Aus Gruppe entfernen">✕</span>
+                </span>`).join('');
+        }
+        function renderAngeboteGroup() {
+            renderAngeboteGroupChips();
+            const grp = _angeboteGroupList();
+            if (grp.length === 0) { _angeboteHideCustomer(); return; }
+            _angeboteRenderGroupMatch(grp);
+        }
+        function _angeboteRenderGroupMatch(profiles) {
+            const card = document.getElementById('angebote-customer-card');
+            const empty = document.getElementById('angebote-customer-empty');
+            const matchC = document.getElementById('angebote-customer-match-container');
+            if (!matchC) return;
+            if (card) card.style.display = 'none';
+            if (empty) empty.style.display = 'none';
+            matchC.style.display = '';
+            const _e = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+            const N = profiles.length;
+            // Token-Set je Kunde (Top-5-Artikel)
+            const custTok = profiles.map(p => {
+                const top = (p.topNArtikel || p.top5Artikel || p.top3Artikel || []).slice(0, 5);
+                const set = new Set();
+                top.forEach(t => _angeboteTokens(t.bez).forEach(tok => set.add(tok)));
+                return { p, set };
+            });
+            const stock = dashboardState.stockAnalysisRaw || [];
+            if (!stock.length) { matchC.innerHTML = `<div style="padding:1rem; text-align:center; color:var(--text-muted); font-size:0.85rem; background:var(--bg-card); border-radius:8px;">📦 Bitte zuerst Stock-Analysis hochladen.</div>`; return; }
+            const results = [];
+            stock.forEach(it => {
+                if (it.isAvailable === false) return;                  // nur frei (leerer Status)
+                if (_isKonvReserved(it.lager_number)) return;          // vorgemerkte raus
+                const brand = it.brand || '', wg = it.product_group || '', model = it.model || '', artNr = it.article_number || '';
+                const itTokens = _angeboteTokens([brand, model, wg, artNr].filter(Boolean).join(' '));
+                let coverage = 0, totalHits = 0; const matchedKn = [], matchedFirma = [];
+                custTok.forEach(({ p, set }) => {
+                    let h = 0; itTokens.forEach(t => { if (set.has(t)) h++; });
+                    if (h > 0) { coverage++; totalHits += h; matchedKn.push(String(p.kundenNr)); matchedFirma.push(p.firma || ('Kunde ' + p.kundenNr)); }
+                });
+                if (coverage === 0) return;
+                const vk = Number(it.Selling_Price || 0) || 0, ek = Number(it.Buying_Price || 0) || 0;
+                const marge = vk > 0 ? ((vk - ek) / vk * 100) : 0;     // VK-basiert (Offer-Konvention)
+                results.push({ sscc: it.lager_number || '', bez: [brand, model].filter(Boolean).join(' ') || artNr || '(o. Bez.)', brand, wg, grade: it.final_grade || it.grade || '', usage: it.usage || '', vk, ek, marge, coverage, totalHits, matchedKn, matchedFirma });
+            });
+            results.sort((a, b) => b.coverage - a.coverage || b.totalHits - a.totalHits || b.marge - a.marge);
+            dashboardState._angeboteGroupResults = results;
+            const limit = 300;
+            const σVk = results.reduce((s, r) => s + r.vk, 0);
+            const namesLine = profiles.map(p => _e(p.firma || ('Kunde ' + p.kundenNr))).join(' · ');
+            const rows = results.slice(0, limit).map((r, i) => {
+                const covColor = r.coverage === N ? 'var(--accent-green)' : r.coverage > 1 ? 'var(--accent-cyan)' : 'var(--text-muted)';
+                return `<tr style="border-bottom:1px solid var(--border);">
+                    <td style="padding:0.4rem; font-size:0.7rem; color:var(--text-muted);">${i + 1}</td>
+                    <td style="padding:0.4rem; font-size:0.72rem;"><b>${_e(r.bez)}</b><div style="font-size:0.62rem; color:var(--text-muted);">${_e(r.brand)} · ${_e(r.wg)} · ${_e(r.sscc)}</div></td>
+                    <td style="padding:0.4rem; text-align:center;">${_gradeBadge(r.grade)}</td>
+                    <td style="padding:0.4rem; font-size:0.66rem; text-align:center; color:var(--text-secondary);">${_e(r.usage) || '—'}</td>
+                    <td style="padding:0.4rem; text-align:center;" title="${_e(r.matchedFirma.join(', '))}"><span style="padding:0.1rem 0.45rem; background:${covColor}22; color:${covColor}; border-radius:6px; font-weight:700; font-size:0.72rem;">${r.coverage}/${N}</span></td>
+                    <td style="padding:0.4rem; font-size:0.72rem; text-align:center;"><span style="padding:0.1rem 0.4rem; background:var(--accent-cyan); color:white; border-radius:4px; font-weight:700;">${r.totalHits}</span></td>
+                    <td style="padding:0.4rem; font-size:0.72rem; text-align:right;">${r.vk.toFixed(2).replace('.', ',')} €</td>
+                    <td style="padding:0.4rem; font-size:0.7rem; text-align:right; color:${r.marge >= 30 ? 'var(--accent-green)' : r.marge >= 10 ? 'inherit' : 'var(--accent-orange)'};">${r.marge.toFixed(1)}%</td>
+                </tr>`;
+            }).join('');
+            matchC.innerHTML = `
+                <div style="padding:0.85rem 1rem; background:linear-gradient(135deg, rgba(168,85,247,0.08), rgba(0,113,227,0.04)); border:1px solid #a855f7; border-radius:10px; margin-bottom:0.75rem;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem;">
+                        <div style="font-size:0.9rem; font-weight:700; color:var(--text-primary);">👥 Gruppen-Match · ${N} Kunden · <span style="color:#a855f7;">${results.length}</span> gemeinsame Treffer · Σ Listen-VK ${Math.round(σVk).toLocaleString('de-DE')} €</div>
+                        <button onclick="exportAngebotsGruppe()" style="padding:0.35rem 0.7rem; background:linear-gradient(135deg,#a855f7,#0071e3); color:white; border:none; border-radius:5px; font-size:0.7rem; font-weight:700; cursor:pointer;" title="Eine Excel-Datei: Übersicht + je Kunde ein Angebots-Sheet (nur seine Treffer, eigener Segment-Rabatt).">📨 Gruppen-Angebot (pro Kunde)</button>
+                    </div>
+                    <div style="font-size:0.68rem; color:var(--text-secondary); margin-top:0.35rem;">Kunden: ${namesLine}</div>
+                    <div style="font-size:0.64rem; color:var(--text-muted); margin-top:0.2rem;">Sortiert nach „Passt für X/${N}". <b style="color:#a855f7;">Exklusiv:</b> jedes Gerät nur 1× verkaufbar — wer zuerst zusagt. Preise pro Kunde im Export (Segment-Rabatt).</div>
+                </div>
+                <div style="max-height:560px; overflow-y:auto; background:var(--bg-card); border-radius:8px;">
+                    <table style="width:100%; border-collapse:collapse;">
+                        <thead style="position:sticky; top:0; background:var(--bg-elevated); z-index:1;">
+                            <tr style="font-size:0.62rem; color:var(--text-muted); text-transform:uppercase;">
+                                <th style="padding:0.5rem; text-align:left;">#</th>
+                                <th style="padding:0.5rem; text-align:left;">Artikel</th>
+                                <th style="padding:0.5rem; text-align:center;">Grade</th>
+                                <th style="padding:0.5rem; text-align:center;">Zustand</th>
+                                <th style="padding:0.5rem; text-align:center;" title="Für wie viele der gewählten Kunden passt das Gerät">Passt für</th>
+                                <th style="padding:0.5rem; text-align:center;">Treffer</th>
+                                <th style="padding:0.5rem; text-align:right;">Listen-VK</th>
+                                <th style="padding:0.5rem; text-align:right;">Marge %</th>
+                            </tr>
+                        </thead>
+                        <tbody>${rows || '<tr><td colspan="8" style="padding:1rem; text-align:center; color:var(--text-muted);">Keine gemeinsamen Treffer — die gewählten Kunden haben keine überlappenden Tokens mit dem Stock.</td></tr>'}</tbody>
+                    </table>
+                </div>
+                ${results.length > limit ? `<div style="margin-top:0.5rem; font-size:0.65rem; color:var(--text-muted); text-align:right;">Top ${limit} von ${results.length} angezeigt — Export enthält alle.</div>` : ''}
+            `;
+        }
+        function exportAngebotsGruppe() {
+            if (typeof XLSX === 'undefined') { showToast('error', 'XLSX-Library nicht geladen', 'Bitte Seite neu laden (Strg+F5)'); return; }
+            const profiles = _angeboteGroupList();
+            const results = dashboardState._angeboteGroupResults || [];
+            if (!profiles.length || !results.length) { showToast('warning', 'Nichts zu exportieren', 'Keine Kunden / keine Treffer.'); return; }
+            const wb = XLSX.utils.book_new();
+            const used = new Set();
+            const sheetName = (firma) => {
+                let n = String(firma || 'Kunde').replace(/[\\\/\?\*\[\]:]/g, ' ').substring(0, 28).trim() || 'Kunde';
+                let base = n, c = 2; while (used.has(n)) { n = (base.substring(0, 25) + ' ' + c); c++; } used.add(n); return n;
+            };
+            // Übersicht
+            const ov = [
+                ['Gruppen-Angebot (mehrere Kunden, gemeinsame Trefferliste)'],
+                ['Kunden in der Gruppe', profiles.length],
+                ['Gemeinsame Treffer (Geräte)', results.length],
+                [],
+                ['⚠ EXKLUSIV: jedes Gerät nur 1× verkaufbar — wer zuerst zusagt, bekommt es. Nicht mehrfach verkaufen!'],
+                [],
+                ['Kunde', 'Segment', 'Rabatt %', 'Treffer (Geräte)', 'Σ Kunden-Preis'],
+            ];
+            const perKunde = profiles.map(p => {
+                const kn = String(p.kundenNr);
+                const items = results.filter(r => r.matchedKn.includes(kn));
+                const rab = _segmentRabatt(p);
+                const sumPreis = items.reduce((s, r) => s + r.vk * (1 - rab / 100), 0);
+                ov.push([String(p.firma || ('Kunde ' + kn)), String(p.segment || '—'), { v: rab / 100, t: 'n', z: '0.0%' }, items.length, { v: sumPreis, t: 'n', z: '#,##0.00 "€"' }]);
+                return { p, items, rab };
+            });
+            const wsOv = XLSX.utils.aoa_to_sheet(ov);
+            wsOv['!cols'] = [{ wch: 32 }, { wch: 18 }, { wch: 10 }, { wch: 14 }, { wch: 16 }];
+            wsOv['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 4 } }, { s: { r: 4, c: 0 }, e: { r: 4, c: 4 } }];
+            XLSX.utils.book_append_sheet(wb, wsOv, 'Übersicht');
+            // Pro Kunde: nur SEINE Treffer, mit Segment-Rabatt (statisch, versandfertig)
+            perKunde.forEach(({ p, items, rab }) => {
+                const aoa = [
+                    ['Angebot für ' + String(p.firma || ('Kunde ' + p.kundenNr))],
+                    ['Datum: ' + new Date().toLocaleDateString('de-DE') + ' · Kunden-Nr: ' + p.kundenNr],
+                    ['elvinci.de GmbH'],
+                    [],
+                    ['Pos.', 'Bezeichnung', 'Marke', 'Warengruppe', 'Grade', 'Zustand', 'Listen-VK', 'Rabatt', 'Ihr Preis', 'Ersparnis'],
+                ];
+                let sL = 0, sP = 0, sE = 0;
+                items.forEach((r, i) => {
+                    const vk = r.vk, preis = vk * (1 - rab / 100), ersp = vk - preis;
+                    sL += vk; sP += preis; sE += ersp;
+                    aoa.push([i + 1, String(r.bez), String(r.brand || ''), String(r.wg || ''), String(r.grade || ''), String(r.usage || ''),
+                        { v: vk, t: 'n', z: '#,##0.00 "€"' }, { v: rab / 100, t: 'n', z: '0.0%' }, { v: preis, t: 'n', z: '#,##0.00 "€"' }, { v: ersp, t: 'n', z: '#,##0.00 "€"' }]);
+                });
+                aoa.push([]);
+                aoa.push(['', 'Σ GESAMT', '', '', '', '', { v: sL, t: 'n', z: '#,##0.00 "€"' }, '', { v: sP, t: 'n', z: '#,##0.00 "€"' }, { v: sE, t: 'n', z: '#,##0.00 "€"' }]);
+                const ws = XLSX.utils.aoa_to_sheet(aoa);
+                ws['!cols'] = [{ wch: 6 }, { wch: 36 }, { wch: 12 }, { wch: 22 }, { wch: 9 }, { wch: 16 }, { wch: 12 }, { wch: 8 }, { wch: 13 }, { wch: 13 }];
+                ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 9 } }, { s: { r: 1, c: 0 }, e: { r: 1, c: 9 } }, { s: { r: 2, c: 0 }, e: { r: 2, c: 9 } }];
+                if (items.length) ws['!autofilter'] = { ref: `A5:J${items.length + 5}` };
+                XLSX.utils.book_append_sheet(wb, ws, sheetName(p.firma || ('Kunde ' + p.kundenNr)));
+            });
+            const fname = `Gruppen-Angebot_${profiles.length}Kunden_${new Date().toISOString().split('T')[0]}.xlsx`;
+            XLSX.writeFile(wb, fname);
+            showToast('success', `📨 Gruppen-Angebot · ${profiles.length} Kunden`, `1 Datei · Übersicht + ${profiles.length} Kunden-Sheets (nur eigene Treffer, je Segment-Rabatt). ⚠ Exklusiv: nur 1× verkaufbar.`, 9000);
         }
 
         function _segBadge(seg) {
