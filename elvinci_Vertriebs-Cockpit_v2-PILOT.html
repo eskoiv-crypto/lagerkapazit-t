@@ -5290,7 +5290,16 @@
                                     <div class="import-status" id="status-stock-analysis"></div>
                                 </div>
                                 <input type="file" class="file-input" id="file-stock-analysis" accept=".xlsx,.xls" onchange="handleFileUpload(this, 'stock-analysis')">
-                                
+
+                                <!-- Odoo-Bestand (stock.lot) — führendes System ab 19.06.2026; merged mit Portal per Lager-Nr -->
+                                <div class="import-box" id="import-odoo-stock" onclick="document.getElementById('file-odoo-stock').click()" style="border-color: #a855f7;">
+                                    <div class="import-icon">🟣</div>
+                                    <div class="import-label">ODOO</div>
+                                    <div class="import-desc">Bestand (stock.lot)</div>
+                                    <div class="import-status" id="status-odoo-stock"></div>
+                                </div>
+                                <input type="file" class="file-input" id="file-odoo-stock" accept=".xlsx,.xls" onchange="handleFileUpload(this, 'odoo-stock')">
+
                                 <!-- All-Sold (Portal) -->
                                 <div class="import-box" id="import-all-sold" onclick="document.getElementById('file-all-sold').click()" style="border-color: var(--accent-orange);">
                                     <div class="import-icon">💰</div>
@@ -12712,6 +12721,7 @@ Keine Erklärungen, kein Markdown.`;
                 'C': ['#f97316', 'rgba(249,115,22,0.18)'],    // mittel
                 'D': ['#ef4444', 'rgba(239,68,68,0.18)'],     // schlecht
                 'N': ['#22c55e', 'rgba(34,197,94,0.18)'],     // NEU
+                'T': ['#a855f7', 'rgba(168,85,247,0.18)'],    // Transportschaden (Odoo)
             };
             const [color, bg] = map[first] || ['#94a3b8', 'rgba(148,163,184,0.18)'];
             return `<span style="display:inline-block; padding:1px 6px; background:${bg}; color:${color}; border-radius:4px; font-size:0.62rem; font-weight:700; min-width:24px; text-align:center;" title="Grade ${g}">${_h(g)}</span>`;
@@ -15995,6 +16005,8 @@ Keine Erklärungen, kein Markdown.`;
             dashboardState.auftragStatusMap = {};
             dashboardState.plannerDataMap = {};
             dashboardState.stockAnalysisData = {};
+            dashboardState._stockSrcPortal = {}; dashboardState._stockSrcOdoo = null; dashboardState._stockSrcOdooKnown = null;
+            dashboardState._stockPortalRows = 0; dashboardState._stockOdooRows = 0;
             dashboardState.stockAnalysisRaw = [];
             dashboardState.stockPgStats = {};
             dashboardState.stockBrandStats = {};
@@ -20193,7 +20205,7 @@ Keine Erklärungen, kein Markdown.`;
             // Excel-Dateien (inkl. Analyse-Typen) - ABER: JTL-Sales kann auch CSV sein!
             // stock-analysis und all-sold sind immer Excel
             // jtl-sales: abhängig von Dateiendung
-            const forceExcel = type === 'auftrag-status' || type === 'planner' || type === 'stock-analysis' || type === 'all-sold';
+            const forceExcel = type === 'auftrag-status' || type === 'planner' || type === 'stock-analysis' || type === 'all-sold' || type === 'odoo-stock';
             
             // P1-2: Enqueue — serielle Abarbeitung gegen Race-Conditions
             // P2-19/22: File-Size für Progress-Bar mitgeben
@@ -21403,6 +21415,83 @@ Keine Erklärungen, kein Markdown.`;
             return isNaN(parsed.getTime()) ? null : parsed;
         }
         
+        // ============================================================
+        // ZWEI-SYSTEM-MERGE: Portal/JTL (Restbestand) + Odoo (ab 19.06.2026)
+        // Vereinigt _stockSrcPortal ∪ _stockSrcOdoo per Lager-Nr; bei Konflikt
+        // gewinnt ODOO (führendes System) — verhindert Doppelzählung und das
+        // Anbieten bereits in Odoo verkaufter Geräte. Beide Quellen liefern dasselbe
+        // Item-Format; hier werden ALLE Aggregate aus der gemergten Menge neu gerechnet
+        // (per eindeutiger Lager-Nr). Wird nach jedem Stock-Upload (Portal ODER Odoo) gerufen.
+        // ============================================================
+        function rebuildMergedStock() {
+            const portal = dashboardState._stockSrcPortal || {};
+            const odoo   = dashboardState._stockSrcOdoo   || {};
+            // Alle Lager-Nrn, die Odoo KENNT (inkl. Verkauft) — für die entscheidet Odoo.
+            const known = dashboardState._stockSrcOdooKnown || null;
+            const merged = {};
+            // Portal liefert nur Geräte, die Odoo NICHT kennt (reiner Restbestand). Ein in Odoo
+            // verkauftes Gerät fehlt in odoo{} UND wird hier aus Portal entfernt → nicht mehr „frei".
+            for (const k in portal) { if (known && known.has(k)) continue; merged[k] = portal[k]; }
+            for (const k in odoo)   merged[k] = odoo[k];   // Odoo-Bestand (Verfügbar/Angeboten), Odoo-Vorrang
+
+            let count=0, totalEK=0, totalVK=0, totalLifeDays=0, lifeDaysCount=0;
+            let reservedCount=0, availableCount=0, reservedEK=0, reservedVK=0, availableEK=0, availableVK=0;
+            let nPortal=0, nOdoo=0;
+            const pgStats={}, brandStats={}, lageralterBuckets={d7:0,d14:0,d30:0,d60:0,d90:0,d90plus:0}, vocab={};
+            const raw=[];
+            for (const lagerNr in merged) {
+                const item = merged[lagerNr];
+                const ek=item.ek||0, vk=item.vk||0, pg=item.pg||'', brand=item.brand||'', lifeDays=item.lifeDays||0;
+                count++;
+                if (item._src === 'Odoo') nOdoo++; else nPortal++;
+                if (item.isReserved) { reservedCount++; reservedEK+=ek; reservedVK+=vk; }
+                else { availableCount++; availableEK+=ek; availableVK+=vk; }
+                totalEK+=ek; totalVK+=vk;
+                if (lifeDays>0){ totalLifeDays+=lifeDays; lifeDaysCount++;
+                    if(lifeDays<=7)lageralterBuckets.d7++; else if(lifeDays<=14)lageralterBuckets.d14++;
+                    else if(lifeDays<=30)lageralterBuckets.d30++; else if(lifeDays<=60)lageralterBuckets.d60++;
+                    else if(lifeDays<=90)lageralterBuckets.d90++; else lageralterBuckets.d90plus++;
+                }
+                if (pg){ if(!pgStats[pg])pgStats[pg]={lagerCount:0,soldCount:0,ekSum:0,vkSum:0,profit:0,lifeDaysSum:0,lifeDaysCount:0,availableCount:0,reservedCount:0};
+                    pgStats[pg].lagerCount++; pgStats[pg].ekSum+=ek; pgStats[pg].vkSum+=vk;
+                    if(item.isAvailable)pgStats[pg].availableCount++; if(item.isReserved)pgStats[pg].reservedCount++;
+                    if(lifeDays>0){pgStats[pg].lifeDaysSum+=lifeDays; pgStats[pg].lifeDaysCount++;}
+                }
+                if (brand){ if(!brandStats[brand])brandStats[brand]={lagerCount:0,soldCount:0,ekSum:0,vkSum:0,profit:0,availableCount:0,reservedCount:0};
+                    brandStats[brand].lagerCount++; brandStats[brand].ekSum+=ek; brandStats[brand].vkSum+=vk;
+                    if(item.isAvailable)brandStats[brand].availableCount++; if(item.isReserved)brandStats[brand].reservedCount++;
+                }
+                const sv = ((item.status||'')==='')?'(leer)':item.status; vocab[sv]=(vocab[sv]||0)+1;
+                raw.push({ lager_number:lagerNr, Buying_Price:ek, Selling_Price:vk, product_group:pg, brand:brand,
+                    status:item.status, isReserved:item.isReserved, isAvailable:item.isAvailable, model:item.model,
+                    article_number:item.articleNumber, datetime_upload:item.dateUpload, product_life_days:lifeDays,
+                    final_grade:item.grade, supply_type:item.supplyType, Online_Price:item.onlinePrice, usage:item.usage,
+                    _src:item._src || 'Portal' });
+            }
+            dashboardState.stockAnalysisData = merged;
+            dashboardState.stockAnalysisRaw = raw;
+            dashboardState.stockAnalysisLoaded = true;
+            dashboardState.stockAnalysisCount = count;
+            dashboardState.stockReservedCount=reservedCount; dashboardState.stockAvailableCount=availableCount;
+            dashboardState.stockReservedEK=reservedEK; dashboardState.stockReservedVK=reservedVK;
+            dashboardState.stockAvailableEK=availableEK; dashboardState.stockAvailableVK=availableVK;
+            dashboardState.stockAvgLifeDays = lifeDaysCount>0?Math.round(totalLifeDays/lifeDaysCount):0;
+            dashboardState.stockLageralterBuckets=lageralterBuckets;
+            dashboardState.stockPgStats=pgStats; dashboardState.stockBrandStats=brandStats;
+            dashboardState.stockTotalEK=totalEK; dashboardState.stockTotalVK=totalVK;
+            dashboardState.stockStatusVocab=vocab;
+            dashboardState.stockUniqueCount=count;
+            dashboardState.stockRawRows=(dashboardState._stockPortalRows||0)+(dashboardState._stockOdooRows||0);
+            dashboardState.stockSourceCounts={portal:nPortal, odoo:nOdoo};
+            dashboardState._stockUploadSeq=(dashboardState._stockUploadSeq||0)+1;
+            if (dashboardState._konvolutReservedLagerNrs && dashboardState._konvolutReservedLagerNrs.size>0){
+                console.info(`[Konvolut] Daten-Refresh → ${dashboardState._konvolutReservedLagerNrs.size} Vormerkungen geleert.`);
+                dashboardState._konvolutReservedLagerNrs=new Set();
+            }
+            console.info(`[Stock-Merge] ${count} eindeutige Geräte (Portal ${nPortal} · Odoo ${nOdoo}) · frei ${availableCount} · reserviert ${reservedCount}`);
+            bus.emit('data:stock-analysis-loaded', { count });
+        }
+
         function processExcel(workbook, type, filename) {
             const statusEl = document.getElementById('status-' + type);
             const boxEl = document.getElementById('import-' + type);
@@ -21991,83 +22080,103 @@ Keine Erklärungen, kein Markdown.`;
                         }
                     }
                     
-                    // K10: Status-Vokabular loggen — Drift gegenüber der A/M-Heuristik erkennbar machen
-                    console.info('[StockAnalysis] Status-Werte im Export:',
+                    // K10: Status-Vokabular der Portal-Datei loggen (Drift-Diagnose).
+                    console.info('[StockAnalysis] Status-Werte (Portal):',
                         [..._statusValuesSeen].map(([v, n]) => `"${v}"×${n}`).join(' · '));
-                    dashboardState.stockAnalysisData = stockAnalysisData;
-                    dashboardState.stockAnalysisLoaded = true;
-                    dashboardState.stockAnalysisCount = count;
-                    bus.emit('data:stock-analysis-loaded', { count });
-                    
-                    // NEU: Verfügbarkeits-Statistiken
-                    dashboardState.stockReservedCount = reservedCount;
-                    dashboardState.stockAvailableCount = availableCount;
-                    dashboardState.stockReservedEK = reservedEK;
-                    dashboardState.stockReservedVK = reservedVK;
-                    dashboardState.stockAvailableEK = availableEK;
-                    dashboardState.stockAvailableVK = availableVK;
-                    
-                    // NEU: Rohdaten als Array für Dead Stock und Potenzial-Analyse
-                    const stockAnalysisRaw = Object.entries(stockAnalysisData).map(([lagerNr, item]) => ({
-                        lager_number: lagerNr,
-                        Buying_Price: item.ek,
-                        Selling_Price: item.vk,
-                        product_group: item.pg,
-                        brand: item.brand,
-                        status: item.status,
-                        isReserved: item.isReserved,      // NEU
-                        isAvailable: item.isAvailable,    // NEU
-                        model: item.model,
-                        article_number: item.articleNumber,
-                        datetime_upload: item.dateUpload,
-                        product_life_days: item.lifeDays,
-                        final_grade: item.grade,
-                        supply_type: item.supplyType,
-                        Online_Price: item.onlinePrice,
-                        usage: item.usage
-                    }));
-                    dashboardState.stockAnalysisRaw = stockAnalysisRaw;
-                    // Stock-Upload-Sequenz hochzählen → erkennt "Konvolute/Views aus altem Snapshot"
-                    dashboardState._stockUploadSeq = (dashboardState._stockUploadSeq || 0) + 1;
-                    // AUDIT-Aufschlüsselung (für "warum diese Zahl?"-Abgleich mit dem Portal-Export):
-                    // Roh-Zeilen (mit Lager-Nr) vs. eindeutige Lager-Nr (= dedupliziert) + Status-Verteilung.
-                    dashboardState.stockRawRows = count;                          // Zeilen mit Lager-Nr (vor Dedup)
-                    dashboardState.stockUniqueCount = stockAnalysisRaw.length;    // eindeutige Lager-Nr
-                    const _vocab = {};
-                    stockAnalysisRaw.forEach(it => { const s = ((it.status || '') === '') ? '(leer)' : it.status; _vocab[s] = (_vocab[s] || 0) + 1; });
-                    dashboardState.stockStatusVocab = _vocab;                     // dedupliziert (= was Live-View zählt)
-                    // Daten-Refresh: Konvolut-Vormerkungen leeren — Lager-Nrn beziehen sich auf
-                    // den alten Snapshot, der neue Status/Bestand ist jetzt maßgeblich.
-                    if (dashboardState._konvolutReservedLagerNrs && dashboardState._konvolutReservedLagerNrs.size > 0) {
-                        console.info(`[Konvolut] Daten-Refresh → ${dashboardState._konvolutReservedLagerNrs.size} Vormerkungen geleert.`);
-                        dashboardState._konvolutReservedLagerNrs = new Set();
-                    }
-                    
-                    // NEU: Erweiterte Statistiken
-                    dashboardState.stockAvgLifeDays = lifeDaysCount > 0 ? Math.round(totalLifeDays / lifeDaysCount) : 0;
-                    dashboardState.stockLageralterBuckets = lageralterBuckets;
-                    dashboardState.stockPgStats = pgStats;
-                    dashboardState.stockBrandStats = brandStats;
-                    dashboardState.stockTotalEK = totalEK;
-                    dashboardState.stockTotalVK = totalVK;
-                    
+                    // Portal-Quelle ablegen + gemergten Bestand neu berechnen (Portal ∪ Odoo, Odoo-Vorrang).
+                    // Aggregate, Raw-Projektion, Vokabular, Seq, Reservierungs-Reset → zentral in rebuildMergedStock.
+                    dashboardState._stockSrcPortal = stockAnalysisData;
+                    dashboardState._stockPortalRows = count;   // Roh-Zeilen Portal (mit Lager-Nr) für Audit
+                    rebuildMergedStock();
+
                     if (statusEl) {
-                        const marge = totalVK - totalEK;
-                        const margePercent = totalEK > 0 ? (marge / totalEK * 100).toFixed(0) : 0;
-                        const avgDays = dashboardState.stockAvgLifeDays;
-                        // NEU: Verfügbarkeits-Info anzeigen
-                        statusEl.innerHTML = `✓ ${count.toLocaleString('de-DE')} | ${availableCount.toLocaleString('de-DE')} frei | ${reservedCount.toLocaleString('de-DE')} reserv.`;
+                        const hasOdoo = dashboardState._stockSrcOdoo && Object.keys(dashboardState._stockSrcOdoo).length;
+                        statusEl.innerHTML = `✓ ${dashboardState.stockAnalysisCount.toLocaleString('de-DE')} | ${dashboardState.stockAvailableCount.toLocaleString('de-DE')} frei | ${dashboardState.stockReservedCount.toLocaleString('de-DE')} reserv.${hasOdoo ? ' · inkl. Odoo' : ''}`;
                         statusEl.style.color = 'var(--accent-green)';
                     }
-                    
                     // Warenwert berechnen wenn BESTAND geladen
                     if (dashboardState.bestandLoaded) {
                         calculateWarenwert();
                     }
-                    
                     // NEU: Verkaufsanalyse PRO aktualisieren
                     updateAnalyseProPanel();
-                    
+
+                } else if (type === 'odoo-stock') {
+                    // ====== ODOO stock.lot Export (führendes System ab 19.06.2026) ======
+                    // Bridge zum Portal = "Lager-Code" (900xxxxxxx). Verkaufsstatus: Verfügbar=frei,
+                    // Angeboten=reserviert, Verkauft=KEIN Bestand (= Verkauf, hier ausgeschlossen).
+                    const sheetName = workbook.SheetNames[0];
+                    const sheet = workbook.Sheets[sheetName];
+                    const data = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: false, defval: '' });
+                    const headers = (data[0] || []).map(h => (h || '').toString().trim());
+                    const HX = {}; headers.forEach((h, i) => { HX[h] = i; });
+                    const cLager = HX['Lager-Code'], cStatus = HX['Verkaufsstatus'], cProd = HX['Produkt'],
+                          cGrade = HX['Grade'], cBrand = HX['Marke'], cKat = HX['Produktkategorie'],
+                          cEK = HX['Einkaufspreis'], cVK = HX['Verkaufspreis'], cVKrab = HX['Verkaufspreis (nach Rabatt)'],
+                          cLief = HX['Lieferantentyp'], cGebr = HX['Gebraucht'], cPool = HX['Pool-Eintritt'], cErst = HX['Erstellt am'];
+                    if (cLager === undefined || cStatus === undefined) {
+                        throw new Error('Odoo-Export: Spalten "Lager-Code" / "Verkaufsstatus" nicht gefunden. Header: ' + headers.join(', '));
+                    }
+                    const _now = new Date();
+                    const _leaf = s => (s || '').toString().split('/').pop().trim();
+                    const odooMap = {};
+                    const odooKnown = new Set();   // ALLE Odoo-Lager-Nrn inkl. Verkauft → Odoo entscheidet darüber
+                    let soldSkipped = 0, rows = 0; const statusSeen = {};
+                    for (let i = 1; i < data.length; i++) {
+                        const row = data[i];
+                        if (!row || row.length < 3) continue;
+                        const lagerNr = (row[cLager] || '').toString().trim();
+                        if (!lagerNr) continue;
+                        rows++;
+                        odooKnown.add(lagerNr);
+                        const vstatus = (row[cStatus] || '').toString().trim();
+                        statusSeen[vstatus] = (statusSeen[vstatus] || 0) + 1;
+                        if (vstatus === 'Verkauft') { soldSkipped++; continue; }   // verkauft = kein Bestand
+                        const isAvailable = (vstatus === 'Verfügbar');             // sonst (Angeboten/…) = reserviert
+                        const isReserved = !isAvailable;
+                        const prod = (row[cProd] || '').toString().trim();
+                        const mArt = prod.match(/^\[([^\]]+)\]\s*(.*)$/);
+                        const artNr = mArt ? mArt[1] : '';
+                        const model = mArt ? mArt[2] : prod;
+                        const mG = (row[cGrade] || '').toString().match(/\(([A-Za-z])\)/);
+                        const grade = mG ? mG[1].toUpperCase() : '';
+                        const gebr = (cGebr !== undefined ? (row[cGebr] || '') : '').toString().trim().toLowerCase();
+                        const usage = (gebr === 'true' || gebr === '1' || gebr === 'wahr') ? 'gebraucht'
+                                    : (gebr === 'false' || gebr === '0' || gebr === 'falsch') ? 'neu' : '';
+                        const lief = (cLief !== undefined ? (row[cLief] || '') : '').toString().split('(')[0].trim();
+                        const dStr = (cPool !== undefined && row[cPool]) ? row[cPool] : (cErst !== undefined ? row[cErst] : '');
+                        const d = _parseAnyDate(dStr);
+                        const lifeDays = d ? Math.max(0, Math.floor((_now - d) / 86400000)) : 0;
+                        odooMap[lagerNr] = {
+                            ek: parseFloat(row[cEK]) || 0,
+                            vk: parseFloat(row[cVK]) || 0,
+                            pg: _leaf(row[cKat]).toLowerCase(),
+                            brand: (row[cBrand] || '').toString().trim().toUpperCase(),
+                            status: isAvailable ? '' : 'ANGEBOTEN',
+                            isReserved, isAvailable,
+                            model, articleNumber: artNr,
+                            dateUpload: (dStr || '').toString().slice(0, 10),
+                            lifeDays,
+                            grade,
+                            supplyType: lief,
+                            onlinePrice: cVKrab !== undefined ? (parseFloat(row[cVKrab]) || 0) : 0,
+                            usage,
+                            _src: 'Odoo'
+                        };
+                    }
+                    console.info('[Odoo] Verkaufsstatus:', Object.entries(statusSeen).map(([k, v]) => `${k}:${v}`).join(' · '), `· ${soldSkipped} Verkauft ausgeschlossen`);
+                    dashboardState._stockSrcOdoo = odooMap;
+                    dashboardState._stockSrcOdooKnown = odooKnown;
+                    dashboardState._stockOdooRows = rows;
+                    rebuildMergedStock();
+                    if (statusEl) {
+                        const hasPortal = dashboardState._stockSrcPortal && Object.keys(dashboardState._stockSrcPortal).length;
+                        statusEl.innerHTML = `✓ Odoo ${Object.keys(odooMap).length.toLocaleString('de-DE')} im Bestand · ${soldSkipped} verkauft${hasPortal ? ' · inkl. Portal' : ''}`;
+                        statusEl.style.color = 'var(--accent-green)';
+                    }
+                    if (dashboardState.bestandLoaded) calculateWarenwert();
+                    updateAnalyseProPanel();
+
                 } else if (type === 'pipeline') {
                     // ====== AUFTRAG_STATUS (AMM-Pipeline-Datei, täglich) ======
                     // Spalten: Auftrag · Land · Status · Liefertag · Kundenname · Spediteur · VSA · Summe · SU · AK · QU · Eintrag
