@@ -3768,6 +3768,14 @@
                                 </div>
                             </div>
                             
+                            <!-- PHASE 2: Lager-Nr Coverage-Matrix (Zwei-Welten: Portal/JTL + Odoo) -->
+                            <div class="analytics-section-title">🔑 Lager-Nr Coverage (Zwei-Welten-Abgleich)
+                                <span class="vc-info" data-tip="Die Lager-Nr (900…) ist über alle Systeme eindeutig und der verlässlichste Validierungs-Schlüssel. Diese Matrix zeigt, aus welcher Welt (Portal/JTL = alt, Odoo = neu seit 19.06.2026) Bestand und Verkäufe stammen und deckt Konflikte auf (verkauft & trotzdem frei, Doppel-Verkäufe, Verkäufe ohne Lager-Nr).">ⓘ</span>
+                            </div>
+                            <div id="dq-lagernr-coverage" style="margin-bottom: 1.5rem;">
+                                <div style="font-size: 0.7rem; color: var(--text-muted); padding: 0.5rem;">Noch keine Daten geladen.</div>
+                            </div>
+
                             <!-- Validierungs-KPIs -->
                             <div class="analytics-section-title">✅ Validierungs-Ergebnisse</div>
                             <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.75rem; margin-bottom: 1.5rem;">
@@ -14173,6 +14181,89 @@ Keine Erklärungen, kein Markdown.`;
             if (hasData) {
                 runDataValidation();
             }
+            try { renderLagerNrCoverage(); } catch(e) { console.warn('[Coverage] render failed', e); }
+        }
+
+        // PHASE 2: Lager-Nr Coverage-Matrix — Zwei-Welten-Abgleich (Portal/JTL alt + Odoo neu).
+        // Lager-Nr (900…) ist über alle Systeme eindeutig → bester Validierungs-Schlüssel.
+        function renderLagerNrCoverage() {
+            const el = document.getElementById('dq-lagernr-coverage');
+            if (!el) return;
+            const norm = v => (v == null ? '' : String(v).trim());
+            // --- Quellen einsammeln ---
+            const stockRaw = dashboardState.stockAnalysisRaw || [];
+            const sold     = dashboardState.allSoldData || [];
+            const bestand  = dashboardState.bestandRaw || [];
+            const sc = dashboardState.stockSourceCounts || { portal:0, odoo:0 };
+            const soc = dashboardState._soldSourceCounts || { portal:0, odoo:0 };
+
+            // Bestand-Lager-Nrn (nur 900…-Pattern als valider Geräte-Key)
+            const bestandSet = new Set();
+            bestand.forEach(b => { const ln = norm(b.lagerNr || b.lager_number || b['Lager-Nr']); if (/^900/.test(ln)) bestandSet.add(ln); });
+
+            // Stock-Sets je Welt + frei/reserviert
+            const stockAllSet = new Set(), stockFreeSet = new Set();
+            stockRaw.forEach(r => { const ln = norm(r.lager_number); if (!ln) return; stockAllSet.add(ln); if (r.isAvailable) stockFreeSet.add(ln); });
+
+            // Sold-Sets je Welt
+            const soldSet = new Set(); let soldNoKey = 0;
+            const soldOdoo = new Set(), soldPortal = new Set();
+            sold.forEach(s => { const ln = norm(s.lagerNr); if (!ln) { soldNoKey++; return; } soldSet.add(ln);
+                if ((s._src||'Portal') === 'Odoo') soldOdoo.add(ln); else soldPortal.add(ln); });
+
+            // --- Konflikte (die eigentliche Validierung) ---
+            // (1) verkauft UND noch als „frei" im Bestand → Snapshot-Versatz / Datei veraltet
+            let soldButFree = 0; soldSet.forEach(ln => { if (stockFreeSet.has(ln)) soldButFree++; });
+            // (2) Lager-Nr in BEIDEN Verkaufs-Welten (Doppelerfassung Portal+Odoo, durch Merge bereinigt)
+            let soldBothWorlds = 0; soldOdoo.forEach(ln => { if (soldPortal.has(ln)) soldBothWorlds++; });
+            // (3) Doppel-Verkäufe (gleiche Lager-Nr mehrfach im Merged-Datensatz)
+            const dupes = (dashboardState.allSoldDuplicates || []).length;
+            // (4) Bestand-Geräte, die im Portal/Odoo-Stock fehlen (Klassifizierungs-Rückstand)
+            let bestandNotInStock = 0; bestandSet.forEach(ln => { if (!stockAllSet.has(ln)) bestandNotInStock++; });
+
+            const fmt = n => Number(n||0).toLocaleString('de-DE');
+            const srcRow = (label, portalN, odooN, total, tip) => `
+                <tr>
+                  <td style="padding:0.4rem 0.6rem;font-weight:600;">${label} ${tip?`<span class="vc-info" data-tip="${tip}">ⓘ</span>`:''}</td>
+                  <td style="padding:0.4rem 0.6rem;text-align:right;color:var(--text-secondary);">${fmt(portalN)}</td>
+                  <td style="padding:0.4rem 0.6rem;text-align:right;color:#a855f7;font-weight:600;">${fmt(odooN)}</td>
+                  <td style="padding:0.4rem 0.6rem;text-align:right;font-weight:700;">${fmt(total)}</td>
+                </tr>`;
+            const conflict = (label, n, badWhenPositive, tip) => {
+                const ok = badWhenPositive ? (n === 0) : true;
+                const col = ok ? 'var(--accent-green)' : 'var(--accent-red, #ef4444)';
+                return `<div style="display:flex;justify-content:space-between;gap:0.5rem;padding:0.4rem 0.6rem;border-bottom:1px solid var(--border-subtle,rgba(255,255,255,0.06));">
+                    <span style="font-size:0.7rem;">${ok?'✓':'⚠️'} ${label} <span class="vc-info" data-tip="${tip}">ⓘ</span></span>
+                    <span style="font-weight:700;color:${col};">${fmt(n)}</span></div>`;
+            };
+
+            el.innerHTML = `
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+                <div style="background:var(--bg-elevated);border-radius:8px;padding:0.5rem;">
+                  <table style="width:100%;border-collapse:collapse;font-size:0.72rem;">
+                    <thead><tr style="color:var(--text-muted);font-size:0.62rem;text-transform:uppercase;">
+                      <th style="text-align:left;padding:0.3rem 0.6rem;">Datensatz</th>
+                      <th style="text-align:right;padding:0.3rem 0.6rem;">Portal/JTL</th>
+                      <th style="text-align:right;padding:0.3rem 0.6rem;color:#a855f7;">Odoo</th>
+                      <th style="text-align:right;padding:0.3rem 0.6rem;">Σ eindeutig</th>
+                    </tr></thead>
+                    <tbody>
+                      ${srcRow('Bestand (Geräte)', sc.portal, sc.odoo, stockAllSet.size, 'Eindeutige Lager-Nrn im gemergten Bestand, aufgeteilt nach Quell-Welt. Odoo hat Vorrang bei Überschneidungen.')}
+                      ${srcRow('· davon frei', '', '', stockFreeSet.size, 'Verkaufsbereite Geräte (leerer Status / Verfügbar).')}
+                      ${srcRow('Verkäufe', soc.portal, soc.odoo, soldSet.size + soldNoKey, 'Verkäufe nach Quell-Welt. Odoo „Verkauft" fließt seit 19.06.2026 mit ein.')}
+                      ${srcRow('AMM BESTAND (900…)', bestandSet.size, '', bestandSet.size, 'Physischer AMM-Bestand mit gültiger 900…-Lager-Nr.')}
+                    </tbody>
+                  </table>
+                </div>
+                <div style="background:var(--bg-elevated);border-radius:8px;padding:0.25rem 0.25rem;">
+                  <div style="font-size:0.62rem;color:var(--text-muted);text-transform:uppercase;padding:0.4rem 0.6rem;">Konflikt-Prüfung (Lager-Nr)</div>
+                  ${conflict('Verkauft &amp; trotzdem „frei" im Bestand', soldButFree, true, 'Lager-Nrn, die als verkauft gelten, aber im Bestand noch als frei stehen. >0 = Bestands-Datei veraltet oder Verkauf noch nicht synchronisiert.')}
+                  ${conflict('Lager-Nr in BEIDEN Verkaufs-Welten', soldBothWorlds, false, 'Dieselbe Lager-Nr ist in Portal UND Odoo verkauft (Doppelerfassung beim System-Wechsel). Der Merge behält die Odoo-Zeile — Umsatz wird NICHT doppelt gezählt.')}
+                  ${conflict('Doppel-Verkäufe (Mehrfach-Lager-Nr)', dupes, true, 'Lager-Nrn, die mehrfach im Verkaufs-Datensatz vorkommen (Retoure-Wiederverkauf ODER Export-Fehler). Alle Zeilen zählen in Umsatz/Profit.')}
+                  ${conflict('Verkäufe ohne Lager-Nr', soldNoKey, false, 'Verkaufszeilen ohne 900…-Schlüssel (alte Portal-Verkäufe). Nicht per Lager-Nr validierbar, zählen aber voll in die Auswertung.')}
+                  ${conflict('Bestand-Geräte ohne Stock-Eintrag', bestandNotInStock, false, 'AMM-Bestand mit 900…-Lager-Nr, die im Portal/Odoo-Stock fehlen (Klassifizierungs-Rückstand oder Zeitversatz).')}
+                </div>
+              </div>`;
         }
         
         function updateAnalyseKPIs() {
@@ -21492,6 +21583,87 @@ Keine Erklärungen, kein Markdown.`;
             bus.emit('data:stock-analysis-loaded', { count });
         }
 
+        // ====== PHASE 2: Zwei-Welten-Verkaufs-Merge (Portal/JTL ALL_SOLD + Odoo „Verkauft") ======
+        // Bridge = Lager-Nr (900xxxxxxx, immer einmalig). Union mit Odoo-Vorrang (defensiv):
+        // ist eine Lager-Nr in BEIDEN Quellen verkauft (Doppel-Erfassung beim System-Wechsel),
+        // gilt die Odoo-Zeile — die alte Welt liefert nur Verkäufe, die Odoo NICHT kennt.
+        // Zeilen OHNE Lager-Nr (alte Portal-Verkäufe ohne sauberen Key) werden NIE dedupliziert.
+        // Recompute aller Verkaufs-Aggregate erfolgt hier zentral → Verkäufer/Kunden/CLV/Top-Seller
+        // und der globale Zeitfilter (getFilteredSold/_rebuildFilteredSalesStats) sehen beide Welten.
+        function rebuildMergedSold() {
+            const portal = dashboardState._soldSrcPortal || [];
+            const odoo   = dashboardState._soldSrcOdoo   || [];
+            const odooLagers = new Set();
+            for (const r of odoo) { if (r && r.lagerNr) odooLagers.add(r.lagerNr); }
+            const merged = [];
+            for (const r of odoo) merged.push(r);                       // Odoo-Verkäufe (Vorrang)
+            let dropped = 0;
+            for (const r of portal) {                                   // Portal nur, was Odoo nicht kennt
+                if (r.lagerNr && odooLagers.has(r.lagerNr)) { dropped++; continue; }
+                merged.push(r);
+            }
+            const nPortal = merged.filter(r => (r._src || 'Portal') !== 'Odoo').length;
+            const nOdoo   = merged.length - nPortal;
+
+            // Aggregate identisch zur ALL_SOLD-Logik (eine Quelle der Wahrheit)
+            let totalProfit=0, totalVK=0, totalEK=0;
+            const soldPgStats={}, soldBrandStats={}, soldByStats={};
+            const margeDistribution={ negativ:0, niedrig:0, mittel:0, hoch:0 };
+            const dailySales={};
+            for (const s of merged) {
+                const ek=parseFloat(s.ek)||0, vk=parseFloat(s.vk)||0, profit=parseFloat(s.profit)||0;
+                const pg=String(s.pg||'').toLowerCase(), brand=String(s.brand||'').toUpperCase();
+                const soldBy=String(s.soldBy||'').trim();
+                const jtlPrice=parseFloat(s.jtlPrice)||vk;
+                totalProfit+=profit; totalVK+=vk; totalEK+=ek;
+                if(profit<0)margeDistribution.negativ++; else if(profit<50)margeDistribution.niedrig++;
+                else if(profit<150)margeDistribution.mittel++; else margeDistribution.hoch++;
+                if(pg){ if(!soldPgStats[pg])soldPgStats[pg]={count:0,ekSum:0,vkSum:0,profit:0};
+                    soldPgStats[pg].count++; soldPgStats[pg].ekSum+=ek; soldPgStats[pg].vkSum+=vk; soldPgStats[pg].profit+=profit; }
+                if(brand){ if(!soldBrandStats[brand])soldBrandStats[brand]={count:0,ekSum:0,vkSum:0,profit:0};
+                    soldBrandStats[brand].count++; soldBrandStats[brand].ekSum+=ek; soldBrandStats[brand].vkSum+=vk; soldBrandStats[brand].profit+=profit; }
+                if(soldBy){ if(!soldByStats[soldBy])soldByStats[soldBy]={count:0,profit:0,umsatz:0};
+                    soldByStats[soldBy].count++; soldByStats[soldBy].profit+=profit; soldByStats[soldBy].umsatz+=jtlPrice; }
+                const ds=String(s.saleDate||'').substring(0,10);
+                if(ds){ if(!dailySales[ds])dailySales[ds]={count:0,profit:0,vk:0,umsatz:0};
+                    dailySales[ds].count++; dailySales[ds].profit+=profit; dailySales[ds].vk+=vk; dailySales[ds].umsatz+=jtlPrice; }
+            }
+            const monthlyRevenue={};
+            Object.entries(dailySales).forEach(([date,st])=>{ const mk=date.substring(0,7);
+                if(!monthlyRevenue[mk])monthlyRevenue[mk]={umsatz:0,profit:0,count:0};
+                monthlyRevenue[mk].umsatz+=st.umsatz; monthlyRevenue[mk].profit+=st.profit; monthlyRevenue[mk].count+=st.count; });
+
+            // Duplikat-Erkennung (gleiche Lager-Nr mehrfach im MERGED-Datensatz) — sichtbare Warnung, kein Auto-Drop
+            const _cnt=new Map();
+            for (const r of merged){ if(r.lagerNr) _cnt.set(r.lagerNr,(_cnt.get(r.lagerNr)||0)+1); }
+            const _dupes=[..._cnt].filter(([,n])=>n>1);
+            dashboardState.allSoldDuplicates=_dupes.map(([nr,n])=>({lagerNr:nr,count:n}));
+
+            const n=merged.length;
+            dashboardState.allSoldData=merged;
+            dashboardState.allSoldLoaded=true;
+            dashboardState.allSoldCount=n;
+            dashboardState.allSoldProfit=totalProfit;
+            dashboardState.allSoldAvgProfit=n>0?totalProfit/n:0;
+            dashboardState.allSoldAvgVK=n>0?totalVK/n:0;
+            dashboardState.allSoldTotalEK=totalEK;
+            dashboardState.allSoldTotalVK=totalVK;
+            dashboardState.soldPgStats=soldPgStats;
+            dashboardState.soldBrandStats=soldBrandStats;
+            dashboardState.soldByStats=soldByStats;
+            dashboardState.sellerStats=soldByStats;
+            dashboardState.margeDistribution=margeDistribution;
+            dashboardState.dailySales=dailySales;
+            dashboardState.monthlyRevenue=monthlyRevenue;
+            dashboardState._soldSourceCounts={ portal:nPortal, odoo:nOdoo };
+            // Baseline für den globalen Zeitfilter neu setzen; aktiven Filter sofort re-anwenden
+            dashboardState._origStats=null;
+            const _gf=dashboardState.globalTimeFilter;
+            if (_gf && _gf.preset && _gf.preset!=='all') { try { _rebuildFilteredSalesStats(getFilteredSold()); } catch(e){} }
+            console.info(`[Sold-Merge] ${n} Verkäufe (Portal ${nPortal} · Odoo ${nOdoo}) · ${dropped} Portal-Zeilen durch Odoo ersetzt · Σ Profit ${Math.round(totalProfit).toLocaleString('de-DE')}€`);
+            bus.emit('data:all-sold-loaded', { count: n });
+        }
+
         function processExcel(workbook, type, filename) {
             const statusEl = document.getElementById('status-' + type);
             const boxEl = document.getElementById('import-' + type);
@@ -22114,6 +22286,10 @@ Keine Erklärungen, kein Markdown.`;
                           cGrade = HX['Grade'], cBrand = HX['Marke'], cKat = HX['Produktkategorie'],
                           cEK = HX['Einkaufspreis'], cVK = HX['Verkaufspreis'], cVKrab = HX['Verkaufspreis (nach Rabatt)'],
                           cLief = HX['Lieferantentyp'], cGebr = HX['Gebraucht'], cPool = HX['Pool-Eintritt'], cErst = HX['Erstellt am'];
+                    // PHASE 2: Verkaufs-Spalten (für „Verkauft"-Zeilen → Verkaufsanalyse)
+                    const cAuftrag = HX['Auftrag/Angebot (primär)'], cKunde = HX['Kunde'],
+                          cKdNr = HX['Kundennummer'], cVerk = HX['Verkäufer'];
+                    const odooSold = [];   // Odoo-Verkäufe → _soldSrcOdoo
                     if (cLager === undefined || cStatus === undefined) {
                         throw new Error('Odoo-Export: Spalten "Lager-Code" / "Verkaufsstatus" nicht gefunden. Header: ' + headers.join(', '));
                     }
@@ -22131,7 +22307,38 @@ Keine Erklärungen, kein Markdown.`;
                         odooKnown.add(lagerNr);
                         const vstatus = (row[cStatus] || '').toString().trim();
                         statusSeen[vstatus] = (statusSeen[vstatus] || 0) + 1;
-                        if (vstatus === 'Verkauft') { soldSkipped++; continue; }   // verkauft = kein Bestand
+                        if (vstatus === 'Verkauft') {
+                            // verkauft = kein Bestand, aber = VERKAUF → in die Verkaufsanalyse (Lager-Nr-Key)
+                            soldSkipped++;
+                            const sEK = parseFloat(row[cEK]) || 0;
+                            const sVKrab = cVKrab !== undefined ? (parseFloat(row[cVKrab]) || 0) : 0;
+                            const sVKlist = parseFloat(row[cVK]) || 0;
+                            const sVK = sVKrab > 0 ? sVKrab : sVKlist;   // realisierter Preis (nach Rabatt)
+                            const sGradeM = (row[cGrade] || '').toString().match(/\(([A-Za-z])\)/);
+                            const sdRaw = cErst !== undefined ? row[cErst] : (cPool !== undefined ? row[cPool] : '');
+                            const sd = _parseAnyDate(sdRaw);
+                            odooSold.push({
+                                lagerNr: lagerNr,
+                                article: (row[cProd] || '').toString().trim(),
+                                orderNr: cAuftrag !== undefined ? (row[cAuftrag] || '').toString().trim() : '',
+                                ek: sEK,
+                                vk: sVK,
+                                jtlPrice: sVK,
+                                profit: sVK - sEK,
+                                pg: _leaf(row[cKat]).toLowerCase(),
+                                brand: (row[cBrand] || '').toString().trim().toUpperCase(),
+                                saleDate: sd ? sd.toISOString().slice(0, 10) : (sdRaw || '').toString().slice(0, 10),
+                                company: cKunde !== undefined ? (row[cKunde] || '').toString().trim() : '',
+                                customerNumber: cKdNr !== undefined ? (row[cKdNr] || '').toString().trim() : '',
+                                soldBy: cVerk !== undefined ? (row[cVerk] || '').toString().trim() : '',
+                                grade: sGradeM ? sGradeM[1].toUpperCase() : '',
+                                supply: '',
+                                supplyType: (cLief !== undefined ? (row[cLief] || '') : '').toString().split('(')[0].trim(),
+                                paid: '',
+                                _src: 'Odoo'
+                            });
+                            continue;
+                        }
                         const isAvailable = (vstatus === 'Verfügbar');             // sonst (Angeboten/…) = reserviert
                         const isReserved = !isAvailable;
                         const prod = (row[cProd] || '').toString().trim();
@@ -22169,6 +22376,14 @@ Keine Erklärungen, kein Markdown.`;
                     dashboardState._stockSrcOdooKnown = odooKnown;
                     dashboardState._stockOdooRows = rows;
                     rebuildMergedStock();
+                    // PHASE 2: Odoo-Verkäufe in die Verkaufsanalyse mergen (Lager-Nr-Dedup, Odoo-Vorrang)
+                    dashboardState._soldSrcOdoo = odooSold;
+                    if (odooSold.length || (dashboardState._soldSrcPortal && dashboardState._soldSrcPortal.length)) {
+                        rebuildMergedSold();
+                        try { updateAnalyseProPanel(); } catch(e) {}
+                        try { updateProfitDisplay(); } catch(e) {}
+                    }
+                    console.info(`[Odoo] ${odooSold.length} Verkäufe in Verkaufsanalyse übernommen.`);
                     if (statusEl) {
                         const hasPortal = dashboardState._stockSrcPortal && Object.keys(dashboardState._stockSrcPortal).length;
                         statusEl.innerHTML = `✓ Odoo ${Object.keys(odooMap).length.toLocaleString('de-DE')} im Bestand · ${soldSkipped} verkauft${hasPortal ? ' · inkl. Portal' : ''}`;
@@ -22384,42 +22599,25 @@ Keine Erklärungen, kein Markdown.`;
                                 `${_dupeRows} Zeilen mit bereits vorhandener Lager-Nr (Retoure-Wiederverkauf oder Export-Fehler). Alle Zeilen zählen in Umsatz/Profit. Details in der Browser-Konsole (F12).`, 8000);
                         }
                     }
+                    // PHASE 2: Portal-Verkäufe als Quelle ablegen, zentraler Merge mit Odoo (Lager-Nr-Dedup).
+                    // rebuildMergedSold() setzt allSoldData + alle Aggregate (überschreibt die Inline-Werte unten);
+                    // ohne Odoo-Daten ist merged === Portal → Portal-only-Verhalten unverändert.
                     dashboardState.allSoldLoaded = true;
-                    dashboardState.allSoldData = allSoldData;
-                    bus.emit('data:all-sold-loaded', { count: allSoldData.length });
+                    dashboardState._soldSrcPortal = allSoldData;
+                    rebuildMergedSold();   // setzt allSoldData + ALLE Aggregate (Portal ∪ Odoo) — keine Inline-Clobber mehr
                     try { populateCustomerDropdown(); } catch(e) { console.warn('[KonvolutCustomer] populate failed', e); }
-                    dashboardState.allSoldCount = count;
-                    dashboardState.allSoldProfit = totalProfit;
-                    dashboardState.allSoldAvgProfit = count > 0 ? totalProfit / count : 0;
-                    dashboardState.allSoldAvgVK = count > 0 ? totalVK / count : 0;
-                    dashboardState.allSoldTotalEK = totalEK;
-                    dashboardState.allSoldTotalVK = totalVK;
-                    
-                    // NEU: Erweiterte Statistiken
-                    dashboardState.soldPgStats = soldPgStats;
-                    dashboardState.soldBrandStats = soldBrandStats;
-                    dashboardState.soldByStats = soldByStats;
-                    dashboardState.margeDistribution = margeDistribution;
-                    dashboardState.dailySales = dailySales;
-                    
-                    // NEU: Seller Stats für Verkäufer-Tab (mit Umsatz)
-                    dashboardState.sellerStats = soldByStats;
-                    
-                    // NEU: Monatliche Revenue für Trend-Chart
-                    const monthlyRevenue = {};
-                    Object.entries(dailySales).forEach(([date, stats]) => {
-                        const monthKey = date.substring(0, 7); // YYYY-MM
-                        if (!monthlyRevenue[monthKey]) monthlyRevenue[monthKey] = { umsatz: 0, profit: 0, count: 0 };
-                        monthlyRevenue[monthKey].umsatz += stats.umsatz;
-                        monthlyRevenue[monthKey].profit += stats.profit;
-                        monthlyRevenue[monthKey].count += stats.count;
-                    });
-                    dashboardState.monthlyRevenue = monthlyRevenue;
-                    
+                    // (Die per-Zeile berechneten Inline-Aggregate dienten nur dem Portal-only-Pfad und
+                    //  würden die gemergten Werte überschreiben — rebuildMergedSold() ist jetzt alleinige Wahrheit.)
+
                     if (statusEl) {
-                        const avgProfit = (totalProfit / count).toFixed(0);
-                        const margePercent = totalEK > 0 ? ((totalProfit / totalEK) * 100).toFixed(0) : 0;
-                        statusEl.innerHTML = `✓ ${count.toLocaleString('de-DE')} | Ø ${avgProfit}€ | ${margePercent}%`;
+                        const sc = dashboardState._soldSourceCounts || { portal: count, odoo: 0 };
+                        const mCount = dashboardState.allSoldCount || count;
+                        const mProfit = dashboardState.allSoldProfit || totalProfit;
+                        const mEK = dashboardState.allSoldTotalEK || totalEK;
+                        const avgProfit = mCount > 0 ? (mProfit / mCount).toFixed(0) : '0';
+                        const margePercent = mEK > 0 ? ((mProfit / mEK) * 100).toFixed(0) : 0;
+                        statusEl.innerHTML = `✓ ${mCount.toLocaleString('de-DE')} | Ø ${avgProfit}€ | ${margePercent}%` +
+                            (sc.odoo ? ` <span style="color:#a855f7;">· inkl. ${sc.odoo} Odoo</span>` : '');
                         statusEl.style.color = 'var(--accent-green)';
                     }
                     
