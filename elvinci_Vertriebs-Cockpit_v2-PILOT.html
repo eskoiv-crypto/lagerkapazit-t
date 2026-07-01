@@ -14186,97 +14186,90 @@ Keine Erklärungen, kein Markdown.`;
             try { reconcileAllSources(); renderLagerNrCoverage(); } catch(e) { console.warn('[Reconcile] render failed', e); }
         }
 
-        // ====== PHASE 2: ZWEI-WELTEN-ABSTIMMUNG (Reconciliation-Engine) ======
-        // Lager-Nr (900…) = Identität eines physischen Geräts, über alle Systeme eindeutig.
-        // Baut ein per-Lager-Nr-Ledger über ALLE Quellen (AMM-BESTAND, Portal-Stock, Odoo-Stock,
-        // Portal-ALL_SOLD, Odoo-Verkauft) und deckt Konflikte + Waisen auf. POLICY: nur FLAGGEN,
-        // nie stumm droppen — die Aggregate der Merges bleiben unangetastet, dies ist eine
-        // reine Audit-/Nachvollziehbarkeits-Schicht darüber. Bestand = aktueller Snapshot,
-        // Verkauf = historisches Ereignis (darf rückblickend zählen, auch bei späterer Retoure).
+        // ====== ABSTIMMUNGS-ENGINE — EINE klare Aussage je Gerät (Lager-Nr 900…) ======
+        // Realität (User 2026-07-01): JTL + Portal sind ZWEI abgelöste WaWis, EINGEFROREN (kein Zu-/
+        // Abgang mehr). ODOO ist das EINZIGE lebende WaWi. AMM-BESTAND ist das PHYSISCHE Lager (QE=im
+        // Lager, VS=Versand, AA=Ausgang) — unabhängig vom WaWi. Zwei orthogonale Dimensionen je Gerät:
+        //   Kaufmännisch  → Odoo-Verkaufsstatus (Vorrang) › sonst Alt-Verkauf (Portal/JTL) › sonst unklass.
+        //   Physisch      → AMM-Status (QE/VS/AA) oder „nicht im Lager".
+        // Universum = AKTUELLE Geräte = AMM ∪ Odoo (∪ Portal-Reststock). Rein historische Alt-Verkäufe
+        // (nur in ALL_SOLD, physisch/kaufmännisch nicht mehr da) zählen NICHT hier, sondern im
+        // kumulativen Verkaufs-Register. POLICY: nur flaggen, nichts verändern.
         function reconcileAllSources() {
             const norm = v => (v == null ? '' : String(v).trim());
             const pStock = dashboardState._stockSrcPortal || {};
             const oStock = dashboardState._stockSrcOdoo   || {};
-            const pSold  = dashboardState._soldSrcPortal  || [];
-            const oSold  = dashboardState._soldSrcOdoo    || [];
-            const bestand = dashboardState.bestandRaw || [];
+            const pSold  = dashboardState._soldSrcPortal  || [];   // Portal ALL_SOLD (alt, eingefroren)
+            const oSold  = dashboardState._soldSrcOdoo    || [];   // Odoo „Verkauft" (lebendes WaWi)
+            const bestand = dashboardState.bestandRaw || [];       // AMM physisches Lager (QE/VS/AA)
             const anyData = Object.keys(pStock).length || Object.keys(oStock).length || pSold.length || oSold.length || bestand.length;
             if (!anyData) { dashboardState._reconciliation = null; return null; }
 
-            // --- per-Lager-Nr-Ledger ---
-            const L = new Map();
-            const get = ln => { let e = L.get(ln); if (!e) { e = { ln, bestand:false, ps:null, os:null, psold:false, osold:false,
-                pEK:null, pVK:null, oEK:null, oVK:null, pGrade:'', oGrade:'' }; L.set(ln, e); } return e; };
-            const stState = it => it.isReserved ? 'reserviert' : (it.isAvailable ? 'frei' : 'reserviert'); // non-leer Status = reserviert
-
-            bestand.forEach(b => { const ln = norm(b.lagerNr || b.lager_number || b['Lager-Nr']); if (/^900/.test(ln)) get(ln).bestand = true; });
-            Object.keys(pStock).forEach(ln => { const it = pStock[ln]; const e = get(norm(ln)); e.ps = stState(it); e.pEK = it.ek; e.pVK = it.vk; e.pGrade = norm(it.grade); });
-            Object.keys(oStock).forEach(ln => { const it = oStock[ln]; const e = get(norm(ln)); e.os = stState(it); e.oEK = it.ek; e.oVK = it.vk; e.oGrade = norm(it.grade); });
+            // --- Quell-Sets ---
+            const odooStockSet   = new Set(Object.keys(oStock).map(norm));
+            const odooSoldSet    = new Set();
+            const portalStockSet = new Set(Object.keys(pStock).map(norm));
+            const portalSoldSet  = new Set();
             let soldNoKey = 0;
-            pSold.forEach(s => { const ln = norm(s.lagerNr); if (!ln) { soldNoKey++; return; } get(ln).psold = true; });
-            oSold.forEach(s => { const ln = norm(s.lagerNr); if (!ln) { soldNoKey++; return; } get(ln).osold = true; });
+            oSold.forEach(s => { const ln = norm(s.lagerNr); if (ln) odooSoldSet.add(ln); else soldNoKey++; });
+            pSold.forEach(s => { const ln = norm(s.lagerNr); if (ln) portalSoldSet.add(ln); else soldNoKey++; });
+            const ammStatus = new Map();   // Lager-Nr → QE/VS/AA
+            bestand.forEach(b => { const ln = norm(b.lagerNr || b.lager_number || b['Lager-Nr']); if (/^900/.test(ln)) ammStatus.set(ln, norm(b.status).toUpperCase()); });
 
-            // --- Buckets (jedes Gerät GENAU einmal) + Konflikte/Waisen ---
-            const buckets = { frei:0, reserviert:0, verkauft:0, eingang:0 };
-            const conflicts = { SOLD_BUT_IN_STOCK:[], SOLD_BOTH_WORLDS:[], STOCK_STATE_MISMATCH:[], PRICE_DRIFT:[], GRADE_MISMATCH:[] };
-            const orphans   = { BESTAND_ORPHAN:[], SOLD_NO_PROVENANCE:[] };
-            const drift = (a, b) => (a != null && b != null && Math.abs(a - b) > Math.max(2, 0.05 * Math.abs(a)));
+            const uni = new Set([...ammStatus.keys(), ...odooStockSet, ...odooSoldSet, ...portalStockSet]);
 
-            // Effektiver Bestand = NACH Odoo-Vorrang-Merge. Neuwareneingang laeuft nur noch ueber Odoo;
-            // der Portal-Stock ist eingefrorener Restbestand. Ein Portal-Eintrag zaehlt daher nur, wenn
-            // Odoo das Geraet NICHT kennt (Odoo-bekannte — inkl. „Verkauft" — werden im Merge aus Portal
-            // entfernt). Damit ist „Rest-Geraet ueber Odoo verkauft, steht noch im alten Portal-Snapshot"
-            // KEIN Konflikt (= Normalfall der Umstellung), sondern sauber aufgeloest.
-            const odooKnown = dashboardState._stockSrcOdooKnown || new Set();
-            for (const e of L.values()) {
-                const sold = e.psold || e.osold;
-                const pEff   = !!e.ps && !odooKnown.has(e.ln);          // Portal zaehlt nur, wenn Odoo es nicht kennt
-                const effFree = (e.os === 'frei')       || (e.ps === 'frei'       && pEff);
-                const effRes  = (e.os === 'reserviert') || (e.ps === 'reserviert' && pEff);
-                const effInStock = !!e.os || pEff;
-                // Bucket-Zuordnung (verkauft schlaegt Bestand fuer die Zaehlung)
-                if (sold) buckets.verkauft++;
-                else if (effRes) buckets.reserviert++;
-                else if (effFree) buckets.frei++;
-                else if (e.bestand) buckets.eingang++;
-                // Konflikte — nur wenn das Geraet EFFEKTIV noch im Bestand steht (nicht der Umstellungs-Normalfall)
-                if (sold && effInStock) {
-                    const sw = e.osold ? 'Odoo' : 'Portal'; const stw = e.os ? 'Odoo' : 'Portal';
-                    conflicts.SOLD_BUT_IN_STOCK.push({ ln:e.ln, detail:`verkauft (${sw}) · steht effektiv noch als ${e.os||e.ps} im Bestand (${stw})` });
-                }
-                if (e.psold && e.osold) conflicts.SOLD_BOTH_WORLDS.push({ ln:e.ln, detail:'verkauft in Portal UND Odoo — sollte nicht vorkommen (Verkauf laeuft ueber eine Quelle); Merge behaelt Odoo' });
-                if (e.ps && e.os && e.ps !== e.os) conflicts.STOCK_STATE_MISMATCH.push({ ln:e.ln, detail:`Portal ${e.ps} vs Odoo ${e.os} → Odoo gilt` });
-                if (e.ps && e.os && (drift(e.pVK, e.oVK) || drift(e.pEK, e.oEK)))
-                    conflicts.PRICE_DRIFT.push({ ln:e.ln, detail:`EK ${Math.round(e.pEK)}→${Math.round(e.oEK)}€ · VK ${Math.round(e.pVK)}→${Math.round(e.oVK)}€ (Portal→Odoo)` });
-                if (e.pGrade && e.oGrade && e.pGrade !== e.oGrade) conflicts.GRADE_MISMATCH.push({ ln:e.ln, detail:`Grade Portal ${e.pGrade} vs Odoo ${e.oGrade}` });
-                // Waisen
-                if (e.bestand && !effInStock && !sold) orphans.BESTAND_ORPHAN.push({ ln:e.ln, detail:'im AMM-Bestand, aber weder im (effektiven) Stock noch verkauft (unklassifiziert / Zeitversatz)' });
-                if (sold && !effInStock && !e.bestand) orphans.SOLD_NO_PROVENANCE.push({ ln:e.ln, detail:'verkauft, aber nie in einer Bestandsquelle gesehen (Herkunft nicht validierbar)' });
+            const comm = { verfuegbar:0, reserviert:0, verkauft:0, unklassifiziert:0, altRest:0 };
+            const phys = { QE:0, VS:0, AA:0, none:0 };
+            const anomalies = { PHANTOM_STOCK:[], UNKLASSIFIZIERT:[], VERKAUFT_IM_LAGER:[] };
+
+            for (const ln of uni) {
+                const amm = ammStatus.get(ln) || null;
+                const inO = odooStockSet.has(ln);
+                const oAvail = inO && oStock[ln] && oStock[ln].isAvailable;
+                const oSoldF = odooSoldSet.has(ln);
+                const inP = portalStockSet.has(ln);
+                const oldSold = portalSoldSet.has(ln);
+                // Kaufmännischer Status — Odoo (lebendes WaWi) hat Vorrang
+                let c;
+                if (oSoldF)       c = 'verkauft';
+                else if (inO)     c = oAvail ? 'verfuegbar' : 'reserviert';
+                else if (oldSold) c = 'verkauft';
+                else if (inP)     c = 'altRest';
+                else              c = 'unklassifiziert';
+                comm[c]++;
+                // Physischer Status (AMM)
+                if (amm === 'QE') phys.QE++; else if (amm === 'VS') phys.VS++; else if (amm === 'AA') phys.AA++; else phys.none++;
+                // Anomalien — die echten „stimmt nicht"-Fälle
+                if (inO && !oSoldF && (c === 'verfuegbar' || c === 'reserviert') && !amm)
+                    anomalies.PHANTOM_STOCK.push({ ln, detail:`Odoo „${oAvail ? 'Verfügbar' : 'reserviert'}", aber physisch NICHT im AMM-Lager (Phantom-Bestand)` });
+                if (amm === 'QE' && c === 'unklassifiziert')
+                    anomalies.UNKLASSIFIZIERT.push({ ln, detail:'physisch im AMM-Lager (QE), aber nicht im lebenden WaWi Odoo & nicht verkauft → muss klassifiziert/migriert werden' });
+                if (c === 'verkauft' && amm === 'QE')
+                    anomalies.VERKAUFT_IM_LAGER.push({ ln, detail:'verkauft, steht aber physisch noch als QE im Lager — Kommissionierung/Versand offen' });
             }
 
-            const conflictCount = Object.values(conflicts).reduce((s, a) => s + a.length, 0);
-            const orphanCount   = Object.values(orphans).reduce((s, a) => s + a.length, 0);
+            // --- Verkaufs-Register (kumulativ, getrennt vom Bestand) ---
+            const salesDouble = [...odooSoldSet].filter(ln => portalSoldSet.has(ln)).map(ln => ({ ln, detail:'in Portal-ALL_SOLD UND Odoo-Verkauft — Doppelzählung droht (Merge behält Odoo)' }));
+            const salesTotal = new Set([...portalSoldSet, ...odooSoldSet]).size;
+
+            const anomalyCount = anomalies.PHANTOM_STOCK.length + anomalies.UNKLASSIFIZIERT.length + anomalies.VERKAUFT_IM_LAGER.length;
             const result = {
                 when: new Date().toLocaleString('de-DE'),
-                sources: {
-                    bestand: bestand.filter(b => /^900/.test(norm(b.lagerNr || b.lager_number || b['Lager-Nr']))).length,
-                    portalStock: Object.keys(pStock).length, odooStock: Object.keys(oStock).length,
-                    portalSold: pSold.filter(s => norm(s.lagerNr)).length, odooSold: oSold.filter(s => norm(s.lagerNr)).length
-                },
-                unique: L.size, buckets, soldNoKey,
-                conflicts, orphans, conflictCount, orphanCount,
-                ok: (conflictCount + orphanCount) === 0
+                universe: uni.size,
+                comm, phys, anomalies, anomalyCount,
+                sales: { total: salesTotal, portal: portalSoldSet.size, odoo: odooSoldSet.size, noKey: soldNoKey, double: salesDouble },
+                ok: (anomalyCount + salesDouble.length) === 0
             };
             dashboardState._reconciliation = result;
-            console.info(`[Reconcile] ${result.unique} eindeutige Geräte · frei ${buckets.frei} · reserviert ${buckets.reserviert} · verkauft ${buckets.verkauft} · Eingang ${buckets.eingang} · ${conflictCount} Konflikte · ${orphanCount} Waisen`);
+            console.info(`[Reconcile] Universum ${uni.size} · verfügbar ${comm.verfuegbar} · reserviert ${comm.reserviert} · verkauft ${comm.verkauft} · unklass ${comm.unklassifiziert} || AMM QE ${phys.QE}/VS ${phys.VS}/AA ${phys.AA}/– ${phys.none} || Anomalien Phantom ${anomalies.PHANTOM_STOCK.length}/Unklass ${anomalies.UNKLASSIFIZIERT.length}/VerkImLager ${anomalies.VERKAUFT_IM_LAGER.length} || Verkäufe ${salesTotal} (P ${portalSoldSet.size}+O ${odooSoldSet.size}) doppelt ${salesDouble.length}`);
             return result;
         }
 
         function exportReconciliationCSV() {
             const r = dashboardState._reconciliation; if (!r) { showToast('info', 'Keine Abstimmungsdaten', 'Lade zuerst die Quell-Dateien.', 4000); return; }
-            const rows = [['Lager-Nr', 'Kategorie', 'Typ', 'Detail']];
-            Object.entries(r.conflicts).forEach(([typ, arr]) => arr.forEach(x => rows.push([x.ln, 'Konflikt', typ, x.detail || ''])));
-            Object.entries(r.orphans).forEach(([typ, arr]) => arr.forEach(x => rows.push([x.ln, 'Waise', typ, x.detail || ''])));
+            const rows = [['Lager-Nr', 'Anomalie', 'Detail']];
+            Object.entries(r.anomalies).forEach(([typ, arr]) => arr.forEach(x => rows.push([x.ln, typ, x.detail || ''])));
+            r.sales.double.forEach(x => rows.push([x.ln, 'SALES_DOUBLE', x.detail || '']));
             const csv = rows.map(row => row.map(c => `"${String(c).replace(/"/g, '""')}"`).join(';')).join('\r\n');
             const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
             const link = document.createElement('a'); link.href = URL.createObjectURL(blob);
@@ -14291,71 +14284,66 @@ Keine Erklärungen, kein Markdown.`;
             const r = dashboardState._reconciliation || reconcileAllSources();
             if (!r) { el.innerHTML = '<div style="font-size:0.7rem;color:var(--text-muted);padding:0.5rem;">Noch keine Daten geladen.</div>'; return; }
             const fmt = n => Number(n||0).toLocaleString('de-DE');
-            const s = r.sources;
-            const CT = {
-                SOLD_BUT_IN_STOCK:   { label:'Verkauft & effektiv noch im Bestand', bad:true,  tip:'Lager-Nr gilt als verkauft, steht aber NACH Odoo-Vorrang noch als frei/reserviert im Bestand. Rest-Geräte, die über Odoo verkauft wurden und nur noch im eingefrorenen Portal-Snapshot stehen, sind hier bewusst NICHT enthalten (= Normalfall der Umstellung). Bleibt >0 = echter Sync-Versatz oder Retoure+Wiedereinlagerung — nur geflaggt, nicht geändert.' },
-                SOLD_BOTH_WORLDS:    { label:'Verkauft in BEIDEN Quellen',      bad:true,  tip:'Dieselbe Lager-Nr in Portal UND Odoo verkauft. Da der Verkauf über EINE Quelle läuft (Portal historisch → Odoo laufend), sollte das nicht vorkommen. >0 = echte Doppelerfassung/Export-Fehler. Der Merge behält die Odoo-Zeile → kein Doppel-Umsatz.' },
-                STOCK_STATE_MISMATCH:{ label:'Bestand-Status uneinig (Portal/Odoo)', bad:false, tip:'Portal sagt frei, Odoo sagt reserviert (o. umgekehrt). Odoo gilt (Vorrang) — hier nur zur Transparenz gelistet.' },
-                PRICE_DRIFT:         { label:'Preis-Drift Portal↔Odoo',         bad:false, tip:'Gleiche Lager-Nr, aber EK/VK weichen zwischen Portal und Odoo ab (>2€ bzw. >5%). Hinweis auf veraltete Preise in einer Quelle.' },
-                GRADE_MISMATCH:      { label:'Grade-Abweichung Portal↔Odoo',    bad:false, tip:'Gleiche Lager-Nr, aber unterschiedlicher Zustand/Grade zwischen den Systemen.' }
+            const AM = {
+                PHANTOM_STOCK:    { label:'Phantom-Bestand (Odoo verkaufbar, physisch weg)', tip:'Odoo führt das Gerät als Verfügbar/reserviert, aber es liegt NICHT (mehr) physisch im AMM-Lager. Odoo bietet Ware an, die real nicht da ist — verkaufskritisch.' },
+                UNKLASSIFIZIERT:  { label:'Unklassifiziert (im Lager, nicht in Odoo)',      tip:'Physisch im AMM-Lager (QE), aber nicht im lebenden WaWi Odoo und nicht verkauft. Muss ins Odoo migriert/klassifiziert werden, sonst unverkäuflich.' },
+                VERKAUFT_IM_LAGER:{ label:'Verkauft, aber noch im Lager (QE)',              tip:'Verkauft, liegt aber physisch noch als QE im Lager — Kommissionierung/Versand offen. Kurzfristig normal, dauerhaft = Ausgang hakt.' }
             };
-            const OT = {
-                BESTAND_ORPHAN:    { label:'AMM-Bestand ohne Stock-Eintrag', tip:'Physisch im AMM-Bestand, aber weder im Portal/Odoo-Stock noch verkauft. Klassifizierungs-Rückstand oder Zeitversatz — nichts geht verloren, nur sichtbar gemacht.' },
-                SOLD_NO_PROVENANCE:{ label:'Verkauf ohne Bestands-Herkunft',  tip:'Verkauft, aber die Lager-Nr tauchte in keiner Bestandsquelle auf. Herkunft nicht per Lager-Nr validierbar (zählt trotzdem voll im Umsatz).' }
-            };
-            const srcRow = (label, p, o, total, tip) => `
-                <tr><td style="padding:0.35rem 0.6rem;font-weight:600;">${label} ${tip?`<span class="vc-info" data-tip="${tip}">ⓘ</span>`:''}</td>
-                <td style="padding:0.35rem 0.6rem;text-align:right;color:var(--text-secondary);">${p===''?'':fmt(p)}</td>
-                <td style="padding:0.35rem 0.6rem;text-align:right;color:#a855f7;font-weight:600;">${o===''?'':fmt(o)}</td>
-                <td style="padding:0.35rem 0.6rem;text-align:right;font-weight:700;">${fmt(total)}</td></tr>`;
-            const issueBlock = (map, meta) => Object.entries(map).map(([typ, arr]) => {
-                const m = meta[typ]; const n = arr.length; const ok = m.bad ? (n === 0) : (n === 0);
-                const col = n === 0 ? 'var(--accent-green)' : (m.bad ? 'var(--accent-red,#ef4444)' : 'var(--accent-orange,#f59e0b)');
-                const list = n > 0 ? `<div style="max-height:90px;overflow:auto;font-size:0.6rem;color:var(--text-muted);font-family:monospace;padding:0.2rem 0.6rem 0.4rem;">${arr.slice(0,50).map(x=>`${x.ln}${x.detail?' — '+x.detail:''}`).join('<br>')}${n>50?`<br>… +${n-50} weitere`:''}</div>` : '';
+            const barRow = (label, val, tip, col) => `
+                <div style="display:flex;justify-content:space-between;padding:0.3rem 0.6rem;font-size:0.72rem;">
+                  <span>${label} ${tip?`<span class="vc-info" data-tip="${tip}">ⓘ</span>`:''}</span>
+                  <span style="font-weight:700;${col?`color:${col};`:''}">${fmt(val)}</span></div>`;
+            const anomBlock = Object.entries(r.anomalies).map(([typ, arr]) => {
+                const m = AM[typ]; const n = arr.length;
+                const col = n === 0 ? 'var(--accent-green)' : 'var(--accent-red,#ef4444)';
+                const list = n > 0 ? `<div style="max-height:110px;overflow:auto;font-size:0.6rem;color:var(--text-muted);font-family:monospace;padding:0.2rem 0.6rem 0.4rem;">${arr.slice(0,80).map(x=>`${x.ln} — ${x.detail}`).join('<br>')}${n>80?`<br>… +${n-80} weitere`:''}</div>` : '';
                 return `<div style="border-bottom:1px solid var(--border-subtle,rgba(255,255,255,0.06));">
-                    <div style="display:flex;justify-content:space-between;gap:0.5rem;padding:0.35rem 0.6rem;">
-                      <span style="font-size:0.7rem;">${n===0?'✓':(m.bad?'⚠️':'ℹ️')} ${m.label} <span class="vc-info" data-tip="${m.tip}">ⓘ</span></span>
+                    <div style="display:flex;justify-content:space-between;gap:0.5rem;padding:0.4rem 0.6rem;">
+                      <span style="font-size:0.72rem;">${n===0?'✓':'⚠️'} ${m.label} <span class="vc-info" data-tip="${m.tip}">ⓘ</span></span>
                       <span style="font-weight:700;color:${col};">${fmt(n)}</span></div>${list}</div>`;
             }).join('');
-
             const bannerCol = r.ok ? 'var(--accent-green)' : 'var(--accent-orange,#f59e0b)';
             const bannerBg  = r.ok ? 'rgba(16,185,129,0.12)' : 'rgba(245,158,11,0.12)';
-            const total = r.buckets.frei + r.buckets.reserviert + r.buckets.verkauft + r.buckets.eingang;
+            const totalAnom = r.anomalyCount + r.sales.double.length;
             el.innerHTML = `
               <div style="background:${bannerBg};border:1px solid ${bannerCol};border-radius:8px;padding:0.6rem 0.8rem;margin-bottom:0.75rem;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;">
                 <div style="font-size:0.72rem;">
-                  <span style="font-weight:700;color:${bannerCol};">${r.ok ? '✓ Abstimmung sauber' : '⚠️ '+(r.conflictCount+r.orphanCount)+' Punkt(e) zu prüfen'}</span>
-                  · <b>${fmt(r.unique)}</b> eindeutige Geräte&nbsp; frei ${fmt(r.buckets.frei)} · reserviert ${fmt(r.buckets.reserviert)} · verkauft ${fmt(r.buckets.verkauft)} · Eingang ${fmt(r.buckets.eingang)}
-                  <span style="color:var(--text-muted);">(Σ ${fmt(total)}, jedes Gerät genau 1×)</span>
+                  <span style="font-weight:700;color:${bannerCol};">${r.ok ? '✓ Alles eindeutig' : '⚠️ '+fmt(totalAnom)+' Anomalie(n)'}</span>
+                  · Universum <b>${fmt(r.universe)}</b> aktuelle Geräte (AMM ∪ Odoo) · Verkaufs-Register ${fmt(r.sales.total)} kumulativ
                 </div>
                 <div style="display:flex;gap:0.5rem;align-items:center;">
                   <span style="font-size:0.58rem;color:var(--text-muted);">Stand ${r.when}</span>
-                  <button onclick="exportReconciliationCSV()" style="padding:0.2rem 0.6rem;background:transparent;border:1px solid var(--accent-cyan);color:var(--accent-cyan);border-radius:4px;font-size:0.62rem;cursor:pointer;">⬇ Konflikte/Waisen (CSV)</button>
+                  <button onclick="exportReconciliationCSV()" style="padding:0.2rem 0.6rem;background:transparent;border:1px solid var(--accent-cyan);color:var(--accent-cyan);border-radius:4px;font-size:0.62rem;cursor:pointer;">⬇ Anomalien (CSV)</button>
                 </div>
               </div>
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
-                <div style="background:var(--bg-elevated);border-radius:8px;padding:0.5rem;">
-                  <table style="width:100%;border-collapse:collapse;font-size:0.72rem;">
-                    <thead><tr style="color:var(--text-muted);font-size:0.6rem;text-transform:uppercase;">
-                      <th style="text-align:left;padding:0.3rem 0.6rem;">Quelle</th>
-                      <th style="text-align:right;padding:0.3rem 0.6rem;">Portal/JTL</th>
-                      <th style="text-align:right;padding:0.3rem 0.6rem;color:#a855f7;">Odoo</th>
-                      <th style="text-align:right;padding:0.3rem 0.6rem;">Σ</th>
-                    </tr></thead>
-                    <tbody>
-                      ${srcRow('Bestand (Geräte)', s.portalStock, s.odooStock, s.portalStock + s.odooStock, 'Geräte je Bestands-Welt (vor Merge). Odoo hat bei Überschneidung Vorrang.')}
-                      ${srcRow('Verkäufe (mit Lager-Nr)', s.portalSold, s.odooSold, s.portalSold + s.odooSold, 'Verkaufszeilen je Welt mit gültiger Lager-Nr.')}
-                      ${srcRow('Verkäufe ohne Lager-Nr', '', '', r.soldNoKey, 'Alte Portal-Verkäufe ohne 900…-Schlüssel — zählen voll im Umsatz, sind aber nicht per Lager-Nr abstimmbar.')}
-                      ${srcRow('AMM BESTAND (900…)', s.bestand, '', s.bestand, 'Physischer AMM-Bestand mit gültiger 900…-Lager-Nr.')}
-                    </tbody>
-                  </table>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:0.75rem;">
+                <div style="background:var(--bg-elevated);border-radius:8px;padding:0.4rem;">
+                  <div style="font-size:0.6rem;color:var(--text-muted);text-transform:uppercase;padding:0.3rem 0.6rem;">Kaufmännisch · Odoo = lebendes WaWi</div>
+                  ${barRow('Verfügbar', r.comm.verfuegbar, 'Odoo-Status Verfügbar = verkaufsbereit.', 'var(--accent-green)')}
+                  ${barRow('Angeboten / Reserviert', r.comm.reserviert, 'Odoo Angeboten oder Reserviert = weich/fest gebunden.', 'var(--accent-orange,#f59e0b)')}
+                  ${barRow('Verkauft (aktuell im Universum)', r.comm.verkauft, 'Odoo-Verkauft oder Alt-WaWi-Verkauf, sofern das Gerät noch im aktuellen Universum (AMM/Odoo) ist. Rein historische Verkäufe stehen im Verkaufs-Register unten.')}
+                  ${barRow('Unklassifiziert', r.comm.unklassifiziert, 'Physisch da, aber in keinem WaWi geführt.', r.comm.unklassifiziert>0?'var(--accent-red,#ef4444)':'')}
+                  ${r.comm.altRest>0 ? barRow('Alt-Restbestand (Portal)', r.comm.altRest, 'Nur im eingefrorenen Portal-Stock, nie nach Odoo migriert.') : ''}
                 </div>
-                <div style="background:var(--bg-elevated);border-radius:8px;">
-                  <div style="font-size:0.6rem;color:var(--text-muted);text-transform:uppercase;padding:0.4rem 0.6rem;">Konflikte (geflaggt, nicht verändert)</div>
-                  ${issueBlock(r.conflicts, CT)}
-                  <div style="font-size:0.6rem;color:var(--text-muted);text-transform:uppercase;padding:0.4rem 0.6rem;">Waisen / Vollständigkeit</div>
-                  ${issueBlock(r.orphans, OT)}
+                <div style="background:var(--bg-elevated);border-radius:8px;padding:0.4rem;">
+                  <div style="font-size:0.6rem;color:var(--text-muted);text-transform:uppercase;padding:0.3rem 0.6rem;">Physisch · AMM-Lager</div>
+                  ${barRow('QE — im Lager', r.phys.QE, 'Physisch eingelagert (Quality/Standard-Lagerplatz).')}
+                  ${barRow('VS — im Versand', r.phys.VS, 'In Versandabwicklung (verkauft, geht raus).')}
+                  ${barRow('AA — Ausgang/Auslieferung', r.phys.AA, 'In Auslieferung/Kommissionierung (verkauft).')}
+                  ${barRow('nicht im AMM-Lager', r.phys.none, 'Kein physischer AMM-Eintrag (ausgeliefert oder noch nicht eingelagert).')}
                 </div>
+              </div>
+              <div style="background:var(--bg-elevated);border-radius:8px;margin-bottom:0.75rem;">
+                <div style="font-size:0.6rem;color:var(--text-muted);text-transform:uppercase;padding:0.4rem 0.6rem;">Anomalien — eine klare Aussage je Gerät (geflaggt, nichts verändert)</div>
+                ${anomBlock}
+              </div>
+              <div style="background:var(--bg-elevated);border-radius:8px;padding:0.4rem;">
+                <div style="font-size:0.6rem;color:var(--text-muted);text-transform:uppercase;padding:0.3rem 0.6rem;">Verkaufs-Register (kumulativ, getrennt vom Bestand)</div>
+                ${barRow('Verkäufe gesamt (eindeutige Lager-Nr)', r.sales.total, 'Portal ALL_SOLD (alt, eingefroren) + Odoo-Verkauft (laufend), dedupliziert über Lager-Nr.')}
+                ${barRow('· davon Portal/JTL (alt)', r.sales.portal, 'Historisches Verkaufsarchiv der abgelösten WaWis.')}
+                ${barRow('· davon Odoo (laufend)', r.sales.odoo, 'Verkäufe im lebenden WaWi.', '#a855f7')}
+                ${barRow('doppelt in beiden Quellen', r.sales.double.length, 'Lager-Nr in Portal UND Odoo verkauft — sollte 0 sein (Verkauf läuft über eine Quelle).', r.sales.double.length>0?'var(--accent-red,#ef4444)':'var(--accent-green)')}
+                ${r.sales.noKey>0 ? barRow('ohne Lager-Nr', r.sales.noKey, 'Verkaufszeilen ohne 900…-Schlüssel — nicht abstimmbar, zählen aber im Umsatz.') : ''}
               </div>`;
         }
         
@@ -20350,13 +20338,13 @@ Keine Erklärungen, kein Markdown.`;
                         const r = reconcileAllSources();
                         try { renderLagerNrCoverage(); } catch(e) {}
                         if (r) {
-                            const issues = r.conflictCount + r.orphanCount;
+                            const issues = r.anomalyCount + r.sales.double.length;
                             if (issues > 0) {
-                                showToast('warning', `⚖️ Abstimmung: ${issues} Punkt(e) zu prüfen`,
-                                    `${r.unique.toLocaleString('de-DE')} Geräte abgestimmt · ${r.conflictCount} Konflikte · ${r.orphanCount} Waisen. Details im Reiter „🔍 Datenqualität".`, 8000);
+                                showToast('warning', `⚖️ Abstimmung: ${issues} Anomalie(n)`,
+                                    `${r.universe.toLocaleString('de-DE')} aktuelle Geräte · Phantom-Bestand ${r.anomalies.PHANTOM_STOCK.length} · unklassifiziert ${r.anomalies.UNKLASSIFIZIERT.length} · verkauft&im-Lager ${r.anomalies.VERKAUFT_IM_LAGER.length}. Details im Reiter „🔍 Datenqualität".`, 8000);
                             } else {
-                                showToast('success', `⚖️ Abstimmung sauber`,
-                                    `${r.unique.toLocaleString('de-DE')} eindeutige Geräte · frei ${r.buckets.frei} · reserviert ${r.buckets.reserviert} · verkauft ${r.buckets.verkauft} · keine Doppel/Waisen.`, 6000);
+                                showToast('success', `⚖️ Alles eindeutig`,
+                                    `${r.universe.toLocaleString('de-DE')} aktuelle Geräte · verfügbar ${r.comm.verfuegbar} · reserviert ${r.comm.reserviert} · verkauft ${r.comm.verkauft} · keine Anomalien.`, 6000);
                             }
                         }
                     } catch(e) { console.warn('[Reconcile] scheduled run failed', e); }
