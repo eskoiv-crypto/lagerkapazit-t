@@ -14221,11 +14221,14 @@ Keine Erklärungen, kein Markdown.`;
             const comm = { verfuegbar:0, reserviert:0, verkauft:0, unklassifiziert:0, altRest:0 };
             const phys = { QE:0, VS:0, AA:0, none:0 };
             const anomalies = { PHANTOM_STOCK:[], UNKLASSIFIZIERT:[], VERKAUFT_IM_LAGER:[] };
+            // FREIVERKÄUFLICHER WARENWERT: Summe EK/VK über alle „frei"-Geräte (nicht reserviert/verkauft/angeboten)
+            let freiEK = 0, freiVK = 0;
 
             for (const ln of uni) {
                 const amm = ammStatus.get(ln) || null;
                 const inO = odooStockSet.has(ln);
                 const oAvail = inO && oStock[ln] && oStock[ln].isAvailable;
+                const pAvail = portalStockSet.has(ln) && pStock[ln] && pStock[ln].isAvailable;
                 const oSoldF = odooSoldSet.has(ln);
                 const inP = portalStockSet.has(ln);
                 const oldSold = portalSoldSet.has(ln);
@@ -14234,9 +14237,13 @@ Keine Erklärungen, kein Markdown.`;
                 if (oSoldF)       c = 'verkauft';
                 else if (inO)     c = oAvail ? 'verfuegbar' : 'reserviert';
                 else if (oldSold) c = 'verkauft';
-                else if (inP)     c = 'altRest';
+                else if (inP)     c = pAvail ? 'verfuegbar' : 'reserviert';   // alter Portal-Restbestand zählt mit
                 else              c = 'unklassifiziert';
                 comm[c]++;
+                if (c === 'verfuegbar') {   // freiverkäuflicher Warenwert
+                    const it = inO ? oStock[ln] : (inP ? pStock[ln] : null);
+                    if (it) { freiEK += (+it.ek || 0); freiVK += (+it.vk || 0); }
+                }
                 // Physischer Status (AMM)
                 if (amm === 'QE') phys.QE++; else if (amm === 'VS') phys.VS++; else if (amm === 'AA') phys.AA++; else phys.none++;
                 // Anomalien — die echten „stimmt nicht"-Fälle
@@ -14257,6 +14264,7 @@ Keine Erklärungen, kein Markdown.`;
                 when: new Date().toLocaleString('de-DE'),
                 universe: uni.size,
                 comm, phys, anomalies, anomalyCount,
+                frei: { count: comm.verfuegbar, ek: freiEK, vk: freiVK },
                 sales: { total: salesTotal, portal: portalSoldSet.size, odoo: odooSoldSet.size, noKey: soldNoKey, double: salesDouble },
                 ok: (anomalyCount + salesDouble.length) === 0
             };
@@ -14305,7 +14313,18 @@ Keine Erklärungen, kein Markdown.`;
             const bannerCol = r.ok ? 'var(--accent-green)' : 'var(--accent-orange,#f59e0b)';
             const bannerBg  = r.ok ? 'rgba(16,185,129,0.12)' : 'rgba(245,158,11,0.12)';
             const totalAnom = r.anomalyCount + r.sales.double.length;
+            const eur = v => Number(v||0).toLocaleString('de-DE', { style:'currency', currency:'EUR', minimumFractionDigits:0, maximumFractionDigits:0 });
+            const fr = r.frei || { count:0, ek:0, vk:0 };
             el.innerHTML = `
+              <div style="background:linear-gradient(135deg,rgba(16,185,129,0.16),rgba(59,130,246,0.12));border:1px solid var(--accent-green);border-radius:10px;padding:0.9rem 1.1rem;margin-bottom:0.75rem;">
+                <div style="font-size:0.62rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;">💶 Freiverkäuflicher Warenwert <span class="vc-info" data-tip="Gesamter Warenwert alles freiverkäuflichen Lagerbestands = jedes Gerät (alt UND neu), das NICHT reserviert, NICHT verkauft und NICHT in einem Angebot ist (Odoo-Status „Verfügbar" + freier Portal-Restbestand). Reserviert/Angeboten/Verkauft sind ausgeschlossen.">ⓘ</span></div>
+                <div style="display:flex;align-items:baseline;gap:1.2rem;flex-wrap:wrap;margin-top:0.2rem;">
+                  <div style="font-size:1.9rem;font-weight:800;color:var(--accent-green);line-height:1;">${eur(fr.vk)}<span style="font-size:0.8rem;font-weight:600;color:var(--text-secondary);"> VK</span></div>
+                  <div style="font-size:1.1rem;font-weight:700;color:var(--text-secondary);">${eur(fr.ek)}<span style="font-size:0.7rem;font-weight:500;"> EK</span></div>
+                  <div style="font-size:0.95rem;font-weight:700;">${fmt(fr.count)}<span style="font-size:0.7rem;font-weight:500;color:var(--text-secondary);"> Geräte frei</span></div>
+                </div>
+                <div style="font-size:0.6rem;color:var(--text-muted);margin-top:0.35rem;">frei = nicht reserviert · nicht verkauft · nicht im Angebot${r.comm.unklassifiziert>0?` &nbsp;·&nbsp; ⚠️ zusätzlich ${fmt(r.comm.unklassifiziert)} Geräte physisch im Lager, aber noch nicht in Odoo (Wert erst nach Klassifizierung)`:''}</div>
+              </div>
               <div style="background:${bannerBg};border:1px solid ${bannerCol};border-radius:8px;padding:0.6rem 0.8rem;margin-bottom:0.75rem;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;">
                 <div style="font-size:0.72rem;">
                   <span style="font-weight:700;color:${bannerCol};">${r.ok ? '✓ Alles eindeutig' : '⚠️ '+fmt(totalAnom)+' Anomalie(n)'}</span>
@@ -20338,13 +20357,15 @@ Keine Erklärungen, kein Markdown.`;
                         const r = reconcileAllSources();
                         try { renderLagerNrCoverage(); } catch(e) {}
                         if (r) {
+                            const eur0 = v => Number(v||0).toLocaleString('de-DE', { style:'currency', currency:'EUR', maximumFractionDigits:0 });
+                            const freiLine = `💶 Freiverkäuflich: <b>${eur0(r.frei.vk)} VK</b> · ${eur0(r.frei.ek)} EK · ${r.frei.count.toLocaleString('de-DE')} Geräte`;
                             const issues = r.anomalyCount + r.sales.double.length;
                             if (issues > 0) {
-                                showToast('warning', `⚖️ Abstimmung: ${issues} Anomalie(n)`,
-                                    `${r.universe.toLocaleString('de-DE')} aktuelle Geräte · Phantom-Bestand ${r.anomalies.PHANTOM_STOCK.length} · unklassifiziert ${r.anomalies.UNKLASSIFIZIERT.length} · verkauft&im-Lager ${r.anomalies.VERKAUFT_IM_LAGER.length}. Details im Reiter „🔍 Datenqualität".`, 8000);
+                                showToast('warning', `💶 ${eur0(r.frei.vk)} freiverkäuflich · ⚠️ ${issues} Anomalie(n)`,
+                                    `${freiLine}<br>${r.universe.toLocaleString('de-DE')} aktuelle Geräte · Phantom-Bestand ${r.anomalies.PHANTOM_STOCK.length} · unklassifiziert ${r.anomalies.UNKLASSIFIZIERT.length} · verkauft&im-Lager ${r.anomalies.VERKAUFT_IM_LAGER.length}. Details im Reiter „🔍 Datenqualität".`, 9000);
                             } else {
-                                showToast('success', `⚖️ Alles eindeutig`,
-                                    `${r.universe.toLocaleString('de-DE')} aktuelle Geräte · verfügbar ${r.comm.verfuegbar} · reserviert ${r.comm.reserviert} · verkauft ${r.comm.verkauft} · keine Anomalien.`, 6000);
+                                showToast('success', `💶 ${eur0(r.frei.vk)} freiverkäuflich`,
+                                    `${freiLine}<br>${r.universe.toLocaleString('de-DE')} aktuelle Geräte · keine Anomalien.`, 7000);
                             }
                         }
                     } catch(e) { console.warn('[Reconcile] scheduled run failed', e); }
