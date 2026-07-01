@@ -14222,29 +14222,36 @@ Keine Erklärungen, kein Markdown.`;
             const orphans   = { BESTAND_ORPHAN:[], SOLD_NO_PROVENANCE:[] };
             const drift = (a, b) => (a != null && b != null && Math.abs(a - b) > Math.max(2, 0.05 * Math.abs(a)));
 
+            // Effektiver Bestand = NACH Odoo-Vorrang-Merge. Neuwareneingang laeuft nur noch ueber Odoo;
+            // der Portal-Stock ist eingefrorener Restbestand. Ein Portal-Eintrag zaehlt daher nur, wenn
+            // Odoo das Geraet NICHT kennt (Odoo-bekannte — inkl. „Verkauft" — werden im Merge aus Portal
+            // entfernt). Damit ist „Rest-Geraet ueber Odoo verkauft, steht noch im alten Portal-Snapshot"
+            // KEIN Konflikt (= Normalfall der Umstellung), sondern sauber aufgeloest.
+            const odooKnown = dashboardState._stockSrcOdooKnown || new Set();
             for (const e of L.values()) {
                 const sold = e.psold || e.osold;
-                const stFree = e.ps === 'frei' || e.os === 'frei';
-                const stRes  = e.ps === 'reserviert' || e.os === 'reserviert';
-                const inStock = !!(e.ps || e.os);
-                // Bucket-Zuordnung (verkauft schlägt Bestand für die Zählung, wird aber als Konflikt geflaggt)
+                const pEff   = !!e.ps && !odooKnown.has(e.ln);          // Portal zaehlt nur, wenn Odoo es nicht kennt
+                const effFree = (e.os === 'frei')       || (e.ps === 'frei'       && pEff);
+                const effRes  = (e.os === 'reserviert') || (e.ps === 'reserviert' && pEff);
+                const effInStock = !!e.os || pEff;
+                // Bucket-Zuordnung (verkauft schlaegt Bestand fuer die Zaehlung)
                 if (sold) buckets.verkauft++;
-                else if (stRes) buckets.reserviert++;
-                else if (stFree) buckets.frei++;
+                else if (effRes) buckets.reserviert++;
+                else if (effFree) buckets.frei++;
                 else if (e.bestand) buckets.eingang++;
-                // Konflikte
-                if (sold && inStock) {
+                // Konflikte — nur wenn das Geraet EFFEKTIV noch im Bestand steht (nicht der Umstellungs-Normalfall)
+                if (sold && effInStock) {
                     const sw = e.osold ? 'Odoo' : 'Portal'; const stw = e.os ? 'Odoo' : 'Portal';
-                    conflicts.SOLD_BUT_IN_STOCK.push({ ln:e.ln, detail:`verkauft (${sw}) · noch im Bestand: ${e.os||e.ps} (${stw})` });
+                    conflicts.SOLD_BUT_IN_STOCK.push({ ln:e.ln, detail:`verkauft (${sw}) · steht effektiv noch als ${e.os||e.ps} im Bestand (${stw})` });
                 }
-                if (e.psold && e.osold) conflicts.SOLD_BOTH_WORLDS.push({ ln:e.ln, detail:'verkauft in Portal UND Odoo — Merge behält Odoo (kein Doppel-Umsatz)' });
+                if (e.psold && e.osold) conflicts.SOLD_BOTH_WORLDS.push({ ln:e.ln, detail:'verkauft in Portal UND Odoo — sollte nicht vorkommen (Verkauf laeuft ueber eine Quelle); Merge behaelt Odoo' });
                 if (e.ps && e.os && e.ps !== e.os) conflicts.STOCK_STATE_MISMATCH.push({ ln:e.ln, detail:`Portal ${e.ps} vs Odoo ${e.os} → Odoo gilt` });
                 if (e.ps && e.os && (drift(e.pVK, e.oVK) || drift(e.pEK, e.oEK)))
                     conflicts.PRICE_DRIFT.push({ ln:e.ln, detail:`EK ${Math.round(e.pEK)}→${Math.round(e.oEK)}€ · VK ${Math.round(e.pVK)}→${Math.round(e.oVK)}€ (Portal→Odoo)` });
                 if (e.pGrade && e.oGrade && e.pGrade !== e.oGrade) conflicts.GRADE_MISMATCH.push({ ln:e.ln, detail:`Grade Portal ${e.pGrade} vs Odoo ${e.oGrade}` });
                 // Waisen
-                if (e.bestand && !inStock && !sold) orphans.BESTAND_ORPHAN.push({ ln:e.ln, detail:'im AMM-Bestand, aber weder im Portal/Odoo-Stock noch verkauft (unklassifiziert / Zeitversatz)' });
-                if (sold && !inStock && !e.bestand) orphans.SOLD_NO_PROVENANCE.push({ ln:e.ln, detail:'verkauft, aber nie in einer Bestandsquelle gesehen (Herkunft nicht validierbar)' });
+                if (e.bestand && !effInStock && !sold) orphans.BESTAND_ORPHAN.push({ ln:e.ln, detail:'im AMM-Bestand, aber weder im (effektiven) Stock noch verkauft (unklassifiziert / Zeitversatz)' });
+                if (sold && !effInStock && !e.bestand) orphans.SOLD_NO_PROVENANCE.push({ ln:e.ln, detail:'verkauft, aber nie in einer Bestandsquelle gesehen (Herkunft nicht validierbar)' });
             }
 
             const conflictCount = Object.values(conflicts).reduce((s, a) => s + a.length, 0);
@@ -14286,8 +14293,8 @@ Keine Erklärungen, kein Markdown.`;
             const fmt = n => Number(n||0).toLocaleString('de-DE');
             const s = r.sources;
             const CT = {
-                SOLD_BUT_IN_STOCK:   { label:'Verkauft & trotzdem im Bestand', bad:true,  tip:'Lager-Nr gilt als verkauft, steht aber noch im Bestand. Kann echter Sync-Versatz (Bestandsdatei veraltet) ODER Retoure+Wiedereinlagerung sein — deshalb nur geflaggt, nicht automatisch geändert.' },
-                SOLD_BOTH_WORLDS:    { label:'Verkauft in BEIDEN Welten',       bad:false, tip:'Dieselbe Lager-Nr in Portal UND Odoo verkauft (Doppelerfassung beim System-Wechsel). Der Merge behält die Odoo-Zeile → Umsatz wird NICHT doppelt gezählt.' },
+                SOLD_BUT_IN_STOCK:   { label:'Verkauft & effektiv noch im Bestand', bad:true,  tip:'Lager-Nr gilt als verkauft, steht aber NACH Odoo-Vorrang noch als frei/reserviert im Bestand. Rest-Geräte, die über Odoo verkauft wurden und nur noch im eingefrorenen Portal-Snapshot stehen, sind hier bewusst NICHT enthalten (= Normalfall der Umstellung). Bleibt >0 = echter Sync-Versatz oder Retoure+Wiedereinlagerung — nur geflaggt, nicht geändert.' },
+                SOLD_BOTH_WORLDS:    { label:'Verkauft in BEIDEN Quellen',      bad:true,  tip:'Dieselbe Lager-Nr in Portal UND Odoo verkauft. Da der Verkauf über EINE Quelle läuft (Portal historisch → Odoo laufend), sollte das nicht vorkommen. >0 = echte Doppelerfassung/Export-Fehler. Der Merge behält die Odoo-Zeile → kein Doppel-Umsatz.' },
                 STOCK_STATE_MISMATCH:{ label:'Bestand-Status uneinig (Portal/Odoo)', bad:false, tip:'Portal sagt frei, Odoo sagt reserviert (o. umgekehrt). Odoo gilt (Vorrang) — hier nur zur Transparenz gelistet.' },
                 PRICE_DRIFT:         { label:'Preis-Drift Portal↔Odoo',         bad:false, tip:'Gleiche Lager-Nr, aber EK/VK weichen zwischen Portal und Odoo ab (>2€ bzw. >5%). Hinweis auf veraltete Preise in einer Quelle.' },
                 GRADE_MISMATCH:      { label:'Grade-Abweichung Portal↔Odoo',    bad:false, tip:'Gleiche Lager-Nr, aber unterschiedlicher Zustand/Grade zwischen den Systemen.' }
