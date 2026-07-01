@@ -5219,7 +5219,7 @@
                         <div style="font-size: 0.65rem; font-weight: 600; color: var(--accent-orange); margin-bottom: 0.4rem;">
                             2️⃣ VERKAUFSDATEN <span style="font-weight: 400; opacity: 0.8;">(Portal &amp; JTL)</span>
                         </div>
-                        <div class="import-grid" style="grid-template-columns: repeat(3, 1fr);">
+                        <div class="import-grid" style="grid-template-columns: repeat(4, 1fr);">
                             <div class="import-box" id="import-jtl-main" onclick="document.getElementById('file-jtl-main').click()" style="border-color: var(--accent-orange);">
                                 <div class="import-icon">📊</div>
                                 <div class="import-label">JTL EXPORT</div>
@@ -5243,6 +5243,15 @@
                                 <div class="import-status" id="status-stock-main"></div>
                             </div>
                             <input type="file" class="file-input" id="file-stock-main" accept=".xlsx,.xls" onchange="handleFileUpload(this, 'stock-analysis'); document.getElementById('status-stock-main').innerHTML='✓';">
+
+                            <!-- ODOO (stock.lot) — führendes System ab 19.06.2026: Bestand + „Verkauft"; merged mit Portal/JTL per Lager-Nr -->
+                            <div class="import-box" id="import-odoo-stock" onclick="document.getElementById('file-odoo-stock').click()" style="border-color: #a855f7;">
+                                <div class="import-icon">🟣</div>
+                                <div class="import-label">ODOO</div>
+                                <div class="import-desc">Bestand + Verkauf (stock.lot)</div>
+                                <div class="import-status" id="status-odoo-stock"></div>
+                            </div>
+                            <input type="file" class="file-input" id="file-odoo-stock" accept=".xlsx,.xls" onchange="handleFileUpload(this, 'odoo-stock')">
                         </div>
                     </div>
 
@@ -5298,15 +5307,8 @@
                                     <div class="import-status" id="status-stock-analysis"></div>
                                 </div>
                                 <input type="file" class="file-input" id="file-stock-analysis" accept=".xlsx,.xls" onchange="handleFileUpload(this, 'stock-analysis')">
+                                <!-- ODOO-Upload verschoben in den sichtbaren Bereich „2️⃣ VERKAUFSDATEN" (kein Passwort). -->
 
-                                <!-- Odoo-Bestand (stock.lot) — führendes System ab 19.06.2026; merged mit Portal per Lager-Nr -->
-                                <div class="import-box" id="import-odoo-stock" onclick="document.getElementById('file-odoo-stock').click()" style="border-color: #a855f7;">
-                                    <div class="import-icon">🟣</div>
-                                    <div class="import-label">ODOO</div>
-                                    <div class="import-desc">Bestand (stock.lot)</div>
-                                    <div class="import-status" id="status-odoo-stock"></div>
-                                </div>
-                                <input type="file" class="file-input" id="file-odoo-stock" accept=".xlsx,.xls" onchange="handleFileUpload(this, 'odoo-stock')">
 
                                 <!-- All-Sold (Portal) -->
                                 <div class="import-box" id="import-all-sold" onclick="document.getElementById('file-all-sold').click()" style="border-color: var(--accent-orange);">
