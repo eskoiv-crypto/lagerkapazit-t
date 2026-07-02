@@ -3578,6 +3578,8 @@
 
                         <!-- TAB: ÜBERSICHT -->
                         <div id="tab-uebersicht" class="analyse-tab-content active" style="padding: 1rem;">
+                            <!-- PHASE A (2026-07-02): Tages-Kennzahlen gehören auf die Übersicht, nicht in den System-Reiter Datenqualität -->
+                            <div id="uebersicht-daily-kpis" style="margin-bottom: 1rem;"></div>
                             <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.75rem; margin-bottom: 1rem;">
                                 <div class="analyse-kpi">
                                     <div class="analyse-kpi-value" id="kpi-lagerbestand-wert">—</div>
@@ -5192,6 +5194,21 @@
                     </div>
                     <div id="import-body" style="margin-top: 0.85rem;">
 
+                    <!-- PHASE A (2026-07-02): EIN Upload-Ziel — Typ wird automatisch erkannt (Dateiname + Header-Sniff) -->
+                    <div id="auto-dropzone" onclick="document.getElementById('file-auto').click()"
+                         style="border: 1.5px dashed var(--border-subtle, rgba(255,255,255,0.25)); border-radius: 10px; padding: 1rem; text-align: center; cursor: pointer; margin-bottom: 0.5rem;"
+                         onmouseover="this.style.borderColor='var(--accent-cyan)'" onmouseout="this.style.borderColor='var(--border-subtle, rgba(255,255,255,0.25))'">
+                        <div style="font-size: 1.25rem;">⬆️</div>
+                        <div style="font-size: 0.78rem; font-weight: 600;">Dateien hier ablegen oder klicken — Typ wird automatisch erkannt</div>
+                        <div style="font-size: 0.62rem; color: var(--text-muted); margin-top: 0.25rem;">Täglich: <b>Odoo (stock.lot)</b> + <b>BESTAND134</b> · optional AUFTRAG_STATUS · Portal/JTL-Archive merkt sich das Dashboard lokal</div>
+                    </div>
+                    <input type="file" class="file-input" id="file-auto" multiple accept=".csv,.xlsx,.xls" style="display: none;" onchange="handleAutoFiles(this)">
+                    <div id="archive-status" style="font-size: 0.65rem; color: var(--text-secondary); margin-bottom: 0.5rem;"></div>
+                    <div style="margin-bottom: 0.5rem;">
+                        <button onclick="toggleManualUpload()" id="manual-upload-toggle" type="button" style="padding: 0.2rem 0.6rem; background: transparent; border: 1px solid var(--border-subtle, rgba(255,255,255,0.15)); color: var(--text-muted); border-radius: 4px; font-size: 0.62rem; cursor: pointer;">▸ Manuelle Zuordnung</button>
+                    </div>
+                    <div id="manual-upload-sections" style="display: none;">
+
                     <!-- 1. STAMMDATEN (Basis - muss zuerst geladen werden) -->
                     <div style="margin-bottom: 0.5rem; padding: 0.5rem; background: rgba(16, 185, 129, 0.1); border-radius: 6px;">
                         <div style="font-size: 0.65rem; font-weight: 600; color: var(--accent-green); margin-bottom: 0.4rem;">
@@ -5281,119 +5298,7 @@
                         </div>
                     </div>
                     
-                    <!-- 5. ANALYSE PRO (Passwortgeschützt - EK/VK/Profit) -->
-                    <div id="analyse-section" style="padding: 0.5rem; background: rgba(249, 115, 22, 0.08); border: 1px solid rgba(249, 115, 22, 0.25); border-radius: 6px;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem;">
-                            <div style="font-size: 0.65rem; font-weight: 600; color: var(--accent-orange);">
-                                3️⃣ ANALYSE PRO <span style="font-weight: 400; opacity: 0.8;">(Warenwert)</span>
-                            </div>
-                            <button id="analyse-lock-btn" onclick="toggleAnalyseAccess()" style="padding: 0.1rem 0.4rem; background: transparent; border: 1px solid var(--accent-orange); color: var(--accent-orange); border-radius: 3px; font-size: 0.6rem; cursor: pointer;">
-                                🔒
-                            </button>
-                        </div>
-                        
-                        <!-- Gesperrter Zustand -->
-                        <div id="analyse-locked" style="text-align: center; padding: 0.5rem; color: var(--text-muted); font-size: 0.65rem;">
-                            🔐 Passwort für Warenwert-Daten
-                        </div>
-                        
-                        <!-- Entsperrter Zustand -->
-                        <div id="analyse-unlocked" style="display: none;">
-                            <!-- Upload-Grid für alle 3 Analyse-Dateien -->
-                            <div class="import-grid" style="margin-bottom: 0.5rem;">
-                                <!-- Stock-Analysis (Portal) -->
-                                <div class="import-box" id="import-stock-analysis" onclick="document.getElementById('file-stock-analysis').click()" style="border-color: var(--accent-orange);">
-                                    <div class="import-icon">📊</div>
-                                    <div class="import-label">STOCK</div>
-                                    <div class="import-desc">Portal: EK/VK</div>
-                                    <div class="import-status" id="status-stock-analysis"></div>
-                                </div>
-                                <input type="file" class="file-input" id="file-stock-analysis" accept=".xlsx,.xls" onchange="handleFileUpload(this, 'stock-analysis')">
-                                <!-- ODOO-Upload verschoben in den sichtbaren Bereich „2️⃣ VERKAUFSDATEN" (kein Passwort). -->
-
-
-                                <!-- All-Sold (Portal) -->
-                                <div class="import-box" id="import-all-sold" onclick="document.getElementById('file-all-sold').click()" style="border-color: var(--accent-orange);">
-                                    <div class="import-icon">💰</div>
-                                    <div class="import-label">SOLD</div>
-                                    <div class="import-desc">Portal: Profit</div>
-                                    <div class="import-status" id="status-all-sold"></div>
-                                </div>
-                                <input type="file" class="file-input" id="file-all-sold" accept=".xlsx,.xls" onchange="handleFileUpload(this, 'all-sold')">
-                                
-                                <!-- JTL Sales Orders -->
-                                <div class="import-box" id="import-jtl-sales" onclick="document.getElementById('file-jtl-sales').click()" style="border-color: var(--accent-orange);">
-                                    <div class="import-icon">🧾</div>
-                                    <div class="import-label">JTL</div>
-                                    <div class="import-desc">Sales Orders</div>
-                                    <div class="import-status" id="status-jtl-sales"></div>
-                                </div>
-                                <input type="file" class="file-input" id="file-jtl-sales" accept=".csv,.xlsx,.xls" onchange="handleFileUpload(this, 'jtl-sales')">
-                            </div>
-                            
-                            <!-- Warenwert-Anzeige (kompakt) -->
-                            <div id="warenwert-display" style="display: none; background: var(--bg-elevated); border-radius: 6px; padding: 0.5rem;">
-                                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.4rem; text-align: center;">
-                                    <div>
-                                        <div style="font-size: 0.55rem; color: var(--text-muted); text-transform: uppercase;">Kapital</div>
-                                        <div id="warenwert-ek" style="font-size: 0.85rem; font-weight: 600; color: var(--accent-orange); font-family: var(--font-mono);">—</div>
-                                    </div>
-                                    <div>
-                                        <div style="font-size: 0.55rem; color: var(--text-muted); text-transform: uppercase;">Umsatz</div>
-                                        <div id="warenwert-vk" style="font-size: 0.85rem; font-weight: 600; color: var(--accent-green); font-family: var(--font-mono);">—</div>
-                                    </div>
-                                    <div>
-                                        <div style="font-size: 0.55rem; color: var(--text-muted); text-transform: uppercase;">Marge</div>
-                                        <div id="warenwert-marge" style="font-size: 0.85rem; font-weight: 600; color: var(--accent-cyan); font-family: var(--font-mono);">—</div>
-                                    </div>
-                                </div>
-                                <div style="margin-top: 0.4rem; padding-top: 0.4rem; border-top: 1px solid var(--border-subtle); font-size: 0.6rem; color: var(--text-muted); text-align: center;">
-                                    <span id="warenwert-match-count">0</span>/<span id="warenwert-total-count">0</span> Artikel
-                                </div>
-                            </div>
-                            
-                            <!-- Profit-Anzeige (wenn All-Sold geladen) -->
-                            <div id="profit-display" style="display: none; margin-top: 0.4rem; background: var(--bg-elevated); border-radius: 6px; padding: 0.5rem;">
-                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem; text-align: center;">
-                                    <div>
-                                        <div style="font-size: 0.55rem; color: var(--text-muted); text-transform: uppercase;">Ø Profit/Stk</div>
-                                        <div id="profit-avg" style="font-size: 0.85rem; font-weight: 600; color: var(--accent-green); font-family: var(--font-mono);">—</div>
-                                    </div>
-                                    <div>
-                                        <div style="font-size: 0.55rem; color: var(--text-muted); text-transform: uppercase;">Ø VK/Stk</div>
-                                        <div id="profit-vk-avg" style="font-size: 0.85rem; font-weight: 600; color: var(--accent-cyan); font-family: var(--font-mono);">—</div>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <!-- PHASE 2: Lookup-Status-Anzeige (wenn JTL geladen) -->
-                            <div id="lookup-display" style="display: none; margin-top: 0.4rem; background: rgba(14, 165, 233, 0.08); border: 1px solid rgba(14, 165, 233, 0.2); border-radius: 6px; padding: 0.5rem;">
-                                <div style="font-size: 0.55rem; font-weight: 600; color: var(--accent-cyan); margin-bottom: 0.3rem;">📚 ARTIKELNUMMER-LOOKUP</div>
-                                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.3rem; text-align: center;">
-                                    <div>
-                                        <div style="font-size: 0.5rem; color: var(--text-muted);">Artikel</div>
-                                        <div id="lookup-count" style="font-size: 0.75rem; font-weight: 600; color: var(--text-primary); font-family: var(--font-mono);">—</div>
-                                    </div>
-                                    <div>
-                                        <div style="font-size: 0.5rem; color: var(--text-muted);">Bekannt</div>
-                                        <div id="lookup-known" style="font-size: 0.75rem; font-weight: 600; color: var(--accent-green); font-family: var(--font-mono);">—</div>
-                                    </div>
-                                    <div>
-                                        <div style="font-size: 0.5rem; color: var(--text-muted);">Unbekannt</div>
-                                        <div id="lookup-unknown" style="font-size: 0.75rem; font-weight: 600; color: var(--accent-amber); font-family: var(--font-mono);">—</div>
-                                    </div>
-                                </div>
-                                <div style="margin-top: 0.3rem; text-align: center;">
-                                    <button onclick="showLookupDetails()" style="padding: 0.15rem 0.4rem; background: var(--bg-secondary); color: var(--text-secondary); border: 1px solid var(--border-subtle); border-radius: 3px; font-size: 0.5rem; cursor: pointer;">
-                                        🔍 Details
-                                    </button>
-                                    <button onclick="clearLookup()" style="padding: 0.15rem 0.4rem; background: var(--bg-secondary); color: var(--text-muted); border: 1px solid var(--border-subtle); border-radius: 3px; font-size: 0.5rem; cursor: pointer; margin-left: 0.3rem;">
-                                        🗑️
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                    </div><!-- /manual-upload-sections (PHASE A: Analyse-Pro-Passwort-Box entfernt - Duplikat-Uploads, Deko-Passwort; Warenwert ersetzt durch Tages-Kennzahlen im Datenqualitaet-Reiter) -->
                     
                     <!-- Abgleich-Status -->
                     <div id="validation-status" style="margin-top: 0.5rem; padding: 0.5rem; background: var(--bg-elevated); border-radius: 6px; display: none;">
@@ -5577,41 +5482,109 @@
                     }
                 }
                 
-                // Andere Dateien normal verarbeiten
-                otherFiles.forEach(({ file, type }) => {
-                    if (type) {
-                        const input = document.getElementById('file-' + type);
-                        if (input) {
-                            const dt = new DataTransfer();
-                            dt.items.add(file);
-                            input.files = dt.files;
-                            handleFileUpload(input, type);
-                            showToast('success', 'Datei erkannt', `"${file.name}" → ${type.toUpperCase()}`);
-                        }
-                    } else {
-                        showToast('warning', 'Unbekannter Dateityp', `"${file.name}" konnte nicht zugeordnet werden.`);
-                    }
-                });
+                // PHASE A: Andere Dateien über die zentrale Auto-Route (Name → Header-Sniff).
+                // Vorher: Umweg über versteckte Inputs — Dateien ohne Input (Odoo, Portal,
+                // AUFTRAG_STATUS) wurden dabei STILLSCHWEIGEND verworfen.
+                otherFiles.forEach(({ file, type }) => routeAutoFile(file, type));
             });
         }
         
         function detectFileType(filename) {
             const lower = filename.toLowerCase();
-            
+            const isCsv = lower.endsWith('.csv');
+
+            // PHASE A (2026-07-02): Neue Welt zuerst — Odoo, Portal-Archive, CLV-Daten.
+            // Vorher kannte die Erkennung nur die AMM-Alt-Welt; Odoo/Portal-Drops
+            // wurden stillschweigend verworfen.
+            if (/losserie|stock[._-]?lot|odoo/i.test(lower)) return 'odoo-stock';
+            if (/all[_-]?sold/i.test(lower)) return 'all-sold';
+            if (/stock[_-]?analysis/i.test(lower)) return 'stock-analysis';
+            if (/kundenstamm|stammdaten/i.test(lower) && isCsv) return 'stamm';
+            if (/ab[_-]?2022|4[_-]?jahre|jtl[_-]?4y/i.test(lower) && isCsv) return 'jtl4y';
+            if (/auftrag[_-]?status/i.test(lower)) return 'pipeline';
+
             if (/bestand/i.test(lower)) return 'bestand';
-            if (/^we[_-]/i.test(lower) && lower.endsWith('.csv')) return 'we-ist';
-            if (/^wa[_-]/i.test(lower) && lower.endsWith('.csv')) return 'wa-ist';
+            if (/^we[_-]/i.test(lower) && isCsv) return 'we-ist';
+            if (/^wa[_-]/i.test(lower) && isCsv) return 'wa-ist';
             if (/wareneingang|we.?pipe/i.test(lower)) return 'we-pipe';
             if (/fulfilment|fulfillment|wa.?pipe/i.test(lower)) return 'wa-pipe';
             if (/status|auftrag.*status/i.test(lower)) return 'auftrag-status';
             if (/planner|aufgaben/i.test(lower)) return 'planner';
-            
+
             // NEU: Angebots-Dateien erkennen
-            if (/^paletten[_-]|angebot|offer|quotation/i.test(lower) && (lower.endsWith('.xlsx') || lower.endsWith('.xls') || lower.endsWith('.csv'))) {
+            if (/^paletten[_-]|angebot|offer|quotation/i.test(lower) && (lower.endsWith('.xlsx') || lower.endsWith('.xls') || isCsv)) {
                 return 'angebot';
             }
-            
+
             return null;
+        }
+
+        // PHASE A: Header-Sniff — wenn der Dateiname nichts hergibt, entscheidet der
+        // Inhalt. Jede Quelle hat eine eindeutige Spalten-Signatur (Parser mappen eh
+        // schon über Spalten-NAMEN, siehe Odoo-Lektion "nie über Index").
+        async function sniffFileType(file) {
+            const lower = (file.name || '').toLowerCase();
+            try {
+                if (lower.endsWith('.xlsx') || lower.endsWith('.xls')) {
+                    const buf = await file.arrayBuffer();
+                    const wb = XLSX.read(new Uint8Array(buf), { type: 'array', sheetRows: 2 });
+                    const sheet = wb.Sheets[wb.SheetNames[0]];
+                    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: false, defval: '' });
+                    const H = new Set((rows[0] || []).map(h => String(h || '').trim()));
+                    if (H.has('Lager-Code') && H.has('Verkaufsstatus')) return 'odoo-stock';
+                    if (H.has('lager_number') && H.has('Buying_Price')) return 'stock-analysis';
+                    if (H.has('Portal Buying Price') || (H.has('Lager Nr.') && H.has('Sold By'))) return 'all-sold';
+                    if (H.has('Auftrag') && H.has('Liefertag')) return 'pipeline';
+                    return null;
+                }
+                if (lower.endsWith('.csv')) {
+                    const head = await file.slice(0, 8192).text();
+                    const first = (head.split(/\r?\n/)[0] || '');
+                    if (/Kunden-Nr/.test(first) && /Auftragsdatum/.test(first)) return 'jtl4y';
+                    if (/Kundennummer/.test(first) && /Firma/.test(first)) return 'stamm';
+                    if (/Bestell Nr\./.test(first) && /(Netto Gesamt|VK Netto)/.test(first)) return 'jtl-sales';
+                    const fl = first.toLowerCase();
+                    if (fl.includes('palette') && (fl.includes('lg-platz') || fl.includes('lgplatz') || fl.includes('lagerplatz'))) return 'bestand';
+                }
+            } catch (e) { console.warn('[Sniff] Header-Erkennung fehlgeschlagen:', file.name, e); }
+            return null;
+        }
+
+        // Zentrale Auto-Route: Dateiname → notfalls Header-Sniff → Upload-Pfad.
+        async function routeAutoFile(file, preType) {
+            let type = preType || detectFileType(file.name);
+            if (!type) type = await sniffFileType(file);
+            if (!type) {
+                showToast('warning', 'Dateityp nicht erkannt',
+                    `"${file.name}" konnte weder am Namen noch am Inhalt zugeordnet werden. Über „Manuelle Zuordnung" laden.`, 7000);
+                return;
+            }
+            if (type === 'angebot') {
+                if (!dashboardState.stockAnalysisLoaded || !dashboardState.allSoldLoaded) {
+                    showToast('warning', 'Angebots-Analyse', 'Bitte zuerst Stock-Analysis und All-Sold laden!');
+                } else {
+                    switchAnalyseTab('angebotsanalyse');
+                    processMultipleAngebotFiles([file]);
+                }
+                return;
+            }
+            showToast('success', `→ ${FIELD_LABELS[type] || type.toUpperCase()}`, `"${file.name}" erkannt.`, 3500);
+            processUploadedFile(file, type);
+        }
+
+        function handleAutoFiles(input) {
+            const files = Array.from((input && input.files) || []);
+            if (input) input.value = '';
+            files.forEach(f => routeAutoFile(f));
+        }
+
+        function toggleManualUpload() {
+            const el = document.getElementById('manual-upload-sections');
+            const btn = document.getElementById('manual-upload-toggle');
+            if (!el) return;
+            const open = el.style.display !== 'none';
+            el.style.display = open ? 'none' : 'block';
+            if (btn) btn.textContent = (open ? '▸' : '▾') + ' Manuelle Zuordnung';
         }
         
         // --- HISTORICAL COMPARISON ---
@@ -7633,8 +7606,78 @@ Keine Erklärungen, kein Markdown.`;
                     this._cache.auditLog = createIDBStore('elvinci_nh5_audit', 'events', 1, 'id');
                 }
                 return this._cache.auditLog;
+            },
+            /** Original-Dateien der eingefrorenen Quellen (Portal/JTL). Key = Upload-Typ. */
+            archives() {
+                if (!this._cache.archives) {
+                    this._cache.archives = createIDBStore('elvinci_nh5_archive', 'files', 1, 'type');
+                }
+                return this._cache.archives;
             }
         };
+
+        // ============================================
+        // PHASE B (2026-07-02): LOKALES ARCHIV FÜR EINGEFRORENE QUELLEN
+        // ============================================
+        // JTL + Portal sind abgelöste WaWis — ihre Exporte ändern sich NIE mehr.
+        // Deshalb wird die Original-Datei beim Upload als Blob in IndexedDB gelegt
+        // und beim nächsten Start durch EXAKT denselben Upload-Pfad wiederhergestellt
+        // (Replay = Upload → kein Drift-Risiko zwischen Parse-Logik und Persistenz).
+        // Tagesaktuelle Quellen (Odoo, BESTAND, Pipeline) werden BEWUSST nicht
+        // archiviert — veraltete Bestandszahlen wären gefährlicher als ein Upload.
+        const ARCHIVE_TYPES = ['stock-analysis', 'all-sold', 'jtl-sales', 'jtl4y', 'stamm'];
+
+        async function saveArchiveFile(type, file) {
+            if (!ARCHIVE_TYPES.includes(type)) return;
+            try {
+                await idbStores.archives().put({ type, name: file.name, blob: file, savedAt: new Date().toISOString() });
+                console.info(`[Archiv] ${type} lokal gespeichert (${file.name})`);
+                updateArchiveStatusUI();
+            } catch (e) { console.warn('[Archiv] Speichern fehlgeschlagen', e); }
+        }
+
+        async function restoreArchivesFromIDB() {
+            let recs = [];
+            try { recs = await idbStores.archives().getAll(); }
+            catch (e) { console.warn('[Archiv] Lesen fehlgeschlagen', e); return; }
+            updateArchiveStatusUI(recs);
+            if (!recs.length) return;
+            // Stabile Reihenfolge: Bestand vor Verkauf vor CLV-Daten
+            const order = { 'stock-analysis': 1, 'all-sold': 2, 'jtl-sales': 3, 'jtl4y': 4, 'stamm': 5 };
+            recs.sort((a, b) => (order[a.type] || 9) - (order[b.type] || 9));
+            let n = 0;
+            for (const rec of recs) {
+                if (!rec || !rec.blob || !ARCHIVE_TYPES.includes(rec.type)) continue;
+                const f = (rec.blob instanceof File) ? rec.blob : new File([rec.blob], rec.name || rec.type);
+                processUploadedFile(f, rec.type, { fromArchive: true });
+                n++;
+            }
+            if (n > 0) {
+                showToast('info', '📦 Archiv wiederhergestellt',
+                    `${n} eingefrorene Quelle(n) aus dem lokalen Speicher geladen.<br>Tagesaktuell noch laden: <b>Odoo (stock.lot)</b> + <b>BESTAND</b>.`, 8000);
+            }
+        }
+
+        async function clearLocalArchive() {
+            try {
+                await idbStores.archives().clear();
+                showToast('success', 'Archiv geleert', 'Die eingefrorenen Quellen werden beim nächsten Upload automatisch neu gespeichert.', 5000);
+                updateArchiveStatusUI([]);
+            } catch (e) { showToast('error', 'Archiv leeren fehlgeschlagen', String(e), 5000); }
+        }
+
+        async function updateArchiveStatusUI(recsMaybe) {
+            const el = document.getElementById('archive-status');
+            if (!el) return;
+            let recs = recsMaybe;
+            if (!recs) { try { recs = await idbStores.archives().getAll(); } catch (e) { recs = []; } }
+            if (!recs || !recs.length) { el.innerHTML = ''; return; }
+            const newest = recs.map(r => r.savedAt || '').sort().pop() || '';
+            const dt = newest ? new Date(newest).toLocaleDateString('de-DE') : '';
+            const names = recs.map(r => FIELD_LABELS[r.type] || r.type).join(' · ');
+            el.innerHTML = `📦 <b>Lokales Archiv:</b> ${names} <span style="color:var(--text-muted);">(Stand ${dt})</span>
+                <button onclick="clearLocalArchive()" style="margin-left:0.5rem;padding:0.1rem 0.45rem;background:transparent;border:1px solid var(--border-subtle,rgba(255,255,255,0.15));color:var(--text-muted);border-radius:4px;font-size:0.6rem;cursor:pointer;">Archiv leeren</button>`;
+        }
 
         /** CDN-Health-Check. Alle 4 kritischen Libs müssen geladen sein. */
         function detectCDNAvailability() {
@@ -8125,7 +8168,12 @@ Keine Erklärungen, kein Markdown.`;
             'pipeline': 'PIPELINE (AMM)',
             'jtl4y': 'JTL 4-JAHRE (CLV/Churn)',
             'stamm': 'KUNDEN-STAMMDATEN',
-            'planner': 'PLANNER'
+            'planner': 'PLANNER',
+            'odoo-stock': 'ODOO (stock.lot)',
+            'all-sold': 'ALL SOLD (Portal)',
+            'stock-analysis': 'STOCK-ANALYSIS (Portal)',
+            'jtl-sales': 'JTL EXPORT',
+            'angebot': 'ANGEBOT'
         };
         
         // Validiere Dateiname für Typ
@@ -14305,9 +14353,14 @@ Keine Erklärungen, kein Markdown.`;
         // Renderer für den Datenqualität-Reiter (nutzt das gespeicherte Reconciliation-Ergebnis)
         function renderLagerNrCoverage() {
             const el = document.getElementById('dq-lagernr-coverage');
-            if (!el) return;
+            const uebEl = document.getElementById('uebersicht-daily-kpis');
+            if (!el && !uebEl) return;
             const r = dashboardState._reconciliation || reconcileAllSources();
-            if (!r) { el.innerHTML = '<div style="font-size:0.7rem;color:var(--text-muted);padding:0.5rem;">Noch keine Daten geladen.</div>'; return; }
+            if (!r) {
+                if (el) el.innerHTML = '<div style="font-size:0.7rem;color:var(--text-muted);padding:0.5rem;">Noch keine Daten geladen.</div>';
+                if (uebEl) uebEl.innerHTML = '';
+                return;
+            }
             const fmt = n => Number(n||0).toLocaleString('de-DE');
             const AM = {
                 PHANTOM_STOCK:    { label:'Phantom-Bestand (Odoo verkaufbar, physisch weg)', tip:'Odoo führt das Gerät als Verfügbar/reserviert, aber es liegt NICHT (mehr) physisch im AMM-Lager. Odoo bietet Ware an, die real nicht da ist — verkaufskritisch.' },
@@ -14334,7 +14387,9 @@ Keine Erklärungen, kein Markdown.`;
             const fr = r.frei || { count:0, ek:0, vk:0 };
             const qu = r.qeUnsold || { count:0, ek:0, vk:0, frei:0, reserviert:0, unklassifiziert:0, ohnePreis:0 };
             const hasAmm = (r.phys.QE + r.phys.VS + r.phys.AA) > 0;
-            el.innerHTML = `
+            // PHASE A: Kacheln als eigener Baustein — landen auf der ÜBERSICHT (Tagesstart)
+            // UND im Datenqualität-Reiter (dort mit dem vollen Abstimmungs-Panel darunter).
+            const tilesHtml = `
               <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:0.75rem;margin-bottom:0.75rem;">
               <div style="background:linear-gradient(135deg,rgba(16,185,129,0.16),rgba(59,130,246,0.12));border:1px solid var(--accent-green);border-radius:10px;padding:0.9rem 1.1rem;">
                 <div style="font-size:0.62rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;">💶 Freiverkäuflicher Warenwert <span class="vc-info" data-tip="Gesamter Warenwert alles freiverkäuflichen Lagerbestands = jedes Gerät (alt UND neu), das NICHT reserviert, NICHT verkauft und NICHT in einem Angebot ist (Odoo-Status „Verfügbar" + freier Portal-Restbestand). Reserviert/Angeboten/Verkauft sind ausgeschlossen.">ⓘ</span></div>
@@ -14356,7 +14411,10 @@ Keine Erklärungen, kein Markdown.`;
                 <div style="font-size:0.6rem;color:var(--text-muted);margin-top:0.35rem;">frei ${fmt(qu.frei)} · reserviert/angeboten ${fmt(qu.reserviert)} · unklassifiziert ${fmt(qu.unklassifiziert)}${qu.ohnePreis>0?` &nbsp;·&nbsp; ⚠️ ${fmt(qu.ohnePreis)} ohne Preisquelle (nicht im Wert)`:''}</div>`
                 : `<div style="font-size:0.72rem;color:var(--text-muted);margin-top:0.4rem;">BESTAND-Datei (AMM) laden, um die physische Tages-Kennzahl zu berechnen.</div>`}
               </div>
-              </div>
+              </div>`;
+            if (uebEl) uebEl.innerHTML = tilesHtml;
+            if (!el) return;
+            el.innerHTML = tilesHtml + `
               <div style="background:${bannerBg};border:1px solid ${bannerCol};border-radius:8px;padding:0.6rem 0.8rem;margin-bottom:0.75rem;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;">
                 <div style="font-size:0.72rem;">
                   <span style="font-weight:700;color:${bannerCol};">${r.ok ? '✓ Alles eindeutig' : '⚠️ '+fmt(totalAnom)+' Anomalie(n)'}</span>
@@ -15485,7 +15543,7 @@ Keine Erklärungen, kein Markdown.`;
             dashboardState.angebotAnalyseResults = angebotAnalyseResults;
             renderAngebotResults();
             
-            showToast(`${angebotAnalyseResults.length} Artikel analysiert!`, 'success');
+            showToast('success', `${angebotAnalyseResults.length} Artikel analysiert!`);
         }
         
         // Ergebnisse rendern
@@ -15622,7 +15680,7 @@ Keine Erklärungen, kein Markdown.`;
             const fileName = `Angebots_Analyse_${new Date().toISOString().slice(0, 10)}.xlsx`;
             XLSX.writeFile(wb, fileName);
             
-            showToast(`Export: ${fileName}`, 'success');
+            showToast('success', `Export: ${fileName}`);
         }
         
         // ============================================
@@ -15858,7 +15916,7 @@ Keine Erklärungen, kein Markdown.`;
                     if (resultsEl) resultsEl.innerHTML = `<span style="color: var(--accent-green);">✓ ${match.artNr} → Faktor ${faktor} zugewiesen</span>`;
                     searchInput.value = '';
                     updateLookupDisplay();
-                    showToast(`Faktor ${faktor} für ${match.artNr} gespeichert`, 'success');
+                    showToast('success', `Faktor ${faktor} für ${match.artNr} gespeichert`);
                 }
             } else if (matches.length <= 10) {
                 // Mehrere Treffer - alle zuweisen mit Bestätigung
@@ -15870,7 +15928,7 @@ Keine Erklärungen, kein Markdown.`;
                     if (resultsEl) resultsEl.innerHTML = `<span style="color: var(--accent-green);">✓ ${count} Artikel auf Faktor ${faktor} gesetzt</span>`;
                     searchInput.value = '';
                     updateLookupDisplay();
-                    showToast(`${count} Artikel auf Faktor ${faktor} gesetzt`, 'success');
+                    showToast('success', `${count} Artikel auf Faktor ${faktor} gesetzt`);
                 } else {
                     // Liste anzeigen
                     if (resultsEl) {
@@ -16191,6 +16249,11 @@ Keine Erklärungen, kein Markdown.`;
             updateLookupDisplay();     // PHASE 2: Artikelnummer-Lookup Anzeige
             loadManualFaktoren();      // PHASE 3: Manuelle Faktoren laden
             updateManualFaktorenCount(); // PHASE 3: Zähler aktualisieren
+
+            // PHASE B (2026-07-02): Eingefrorene Quellen (Portal/JTL) aus dem lokalen
+            // IndexedDB-Archiv wiederherstellen — Replay durch den normalen Upload-Pfad.
+            // Läuft async NACH der kompletten Init (Bus-Subscriber sind registriert).
+            try { restoreArchivesFromIDB(); } catch (e) { console.warn('[Archiv] Restore-Start fehlgeschlagen', e); }
         });
         
         // ============================================
@@ -20432,13 +20495,18 @@ Keine Erklärungen, kein Markdown.`;
 
         function handleFileUpload(input, type) {
             console.log('>>> handleFileUpload:', type);
-            
+
             if (!input || !input.files || !input.files[0]) {
                 console.log('Keine Datei');
                 return;
             }
-            
-            const file = input.files[0];
+            processUploadedFile(input.files[0], type);
+        }
+
+        // PHASE A/B (2026-07-02): Kern des Upload-Pfads — gemeinsam genutzt von den
+        // File-Inputs, der Drag&Drop-Auto-Erkennung UND dem Archiv-Replay (IndexedDB).
+        // opts.fromArchive = true → kein erneutes Persistieren, keine Klassifizierungs-Toasts.
+        function processUploadedFile(file, type, opts = {}) {
             const filename = file.name;
             console.log('Datei:', filename);
             
@@ -20460,7 +20528,8 @@ Keine Erklärungen, kein Markdown.`;
 
             // 10X-6: Klassifizierungs-Hinweis. Bei 🔴 Rot zeigen wir einen kurzen Toast,
             // damit User bewusst ist welche Datenklasse verarbeitet wird (DSGVO-Awareness).
-            try {
+            // Beim Archiv-Replay (Start-Wiederherstellung) unterdrückt — sonst Toast-Spam.
+            if (!opts.fromArchive) try {
                 const cls = (typeof getDataClassification === 'function') ? getDataClassification(type) : null;
                 if (cls && cls.tier === 'red' && typeof showToast === 'function') {
                     showToast('info', `${cls.label} ${label}`, cls.desc, 5000);
@@ -20507,6 +20576,7 @@ Keine Erklärungen, kein Markdown.`;
                             const workbook = XLSX.read(data, { type: 'array', cellDates: true });
                             console.log('Excel OK:', workbook.SheetNames);
                             processExcel(workbook, type, filename);
+                            if (!opts.fromArchive) saveArchiveFile(type, file);
                         } catch (err) {
                             const userMsg = handleUploadError(type, err, filename);
                             if (statusEl) {
@@ -20580,6 +20650,7 @@ Keine Erklärungen, kein Markdown.`;
                                 }
                                 console.log('CSV OK:', results.data.length, 'Zeilen');
                                 processCSV(results.data, type, filename);
+                                if (!opts.fromArchive) saveArchiveFile(type, file);
                             } catch (err) {
                                 const userMsg = handleUploadError(type, err, filename);
                                 if (statusEl) {
