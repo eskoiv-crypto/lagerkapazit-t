@@ -133,8 +133,13 @@
 </div>
 <p class="hint">VK ist die belastbare Größe. Der EK ist strukturell untererfasst (viele Geräte ohne EK, v.a. AEG-Zwenkau) — EK-Summen sind Untergrenzen. Unklassifizierte Geräte haben gar keine Preisquelle und zählen nur in der Stückzahl.</p>
 
-<h2>6 · Datenqualität: die drei Anomalien</h2>
-<p>Nach jedem Upload gleicht das Cockpit alle Quellen über die Lager-Nr ab und stellt für jedes aktuelle Gerät <b>eine klare Aussage</b> auf: kaufmännischer Status (Odoo hat Vorrang) × physischer Status (AMM). Drei Konflikte werden geflaggt — nie automatisch „repariert":</p>
+<h2>6 · Datenqualität: Konsistenz-Quote und die drei Anomalien</h2>
+<p>Nach jedem Upload gleicht das Cockpit alle Quellen über die Lager-Nr ab und stellt für jedes aktuelle Gerät <b>eine klare Aussage</b> auf: kaufmännischer Status (Odoo hat Vorrang) × physischer Status (AMM).</p>
+<div class="card">
+    <h3>🎯 Daten-Konsistenz — die eine Zahl</h3>
+    <p>Die große Prozentzahl im Datenqualität-Reiter validiert <b>alle Systeme gegeneinander</b>: Anteil der aktuellen Geräte (AMM ∪ Odoo), deren Aussage über alle Quellen widerspruchsfrei ist. Jedes Gerät mit Anomalie zählt als inkonsistent. <span class="ok">≥ 98 % grün</span> · <span class="warn">≥ 90 % orange</span> · <span class="crit">darunter rot</span>. Ziel: die Anomalie-Liste abarbeiten, bis die Zahl grün ist. Dieselbe Zahl führt auch die Tageszusammenfassung (Toast) nach dem Upload an.</p>
+</div>
+<p>Drei Konflikte werden geflaggt — nie automatisch „repariert":</p>
 <table>
     <tr><th>Anomalie</th><th>Bedeutung</th><th>Was tun</th></tr>
     <tr><td>👻 Phantom-Bestand</td><td>Odoo führt das Gerät als verkaufbar, aber es steht physisch nicht (mehr) im AMM-Lager. <b>Odoo bietet Ware an, die nicht da ist.</b></td><td>Wiederfinden oder in Odoo ausbuchen. Verschwindet ein Phantom beim nächsten synchronen Upload von selbst, war es nur Zeitversatz der Exporte.</td></tr>

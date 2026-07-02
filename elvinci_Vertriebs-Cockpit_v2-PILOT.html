@@ -3775,13 +3775,18 @@
                             <div style="background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(16, 185, 129, 0.1)); border: 1px solid var(--accent-blue); border-radius: 10px; padding: 1rem; margin-bottom: 1rem;">
                                 <div class="analytics-section-title" style="margin: 0 0 0.5rem 0;">🔍 Datenqualitäts-Validator</div>
                                 <div style="font-size: 0.7rem; color: var(--text-secondary);">
-                                    Cross-Referenz-Prüfung zwischen <strong>JTL</strong>, <strong>Portal (Stock-Analysis/All-Sold)</strong> und <strong>AMM (BESTAND)</strong> Daten anhand von Lagernummer, Artikelnummer und Bezeichnung.
+                                    Cross-Referenz-Prüfung zwischen <strong>Odoo (lebendes WaWi)</strong>, <strong>AMM (BESTAND, physisches Lager)</strong> und den eingefrorenen Archiven <strong>Portal (Stock-Analysis/All-Sold)</strong> + <strong>JTL</strong> — anhand der universellen Lager-Nr, Artikelnummer und Bezeichnung.
                                 </div>
                             </div>
                             
                             <!-- Datenquellen-Status -->
                             <div class="analytics-section-title">📊 Geladene Datenquellen</div>
-                            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.75rem; margin-bottom: 1.5rem;">
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 0.75rem; margin-bottom: 1.5rem;">
+                                <div id="dq-source-odoo" style="background: var(--bg-elevated); border-radius: 8px; padding: 0.75rem; border-left: 4px solid var(--text-muted);">
+                                    <div style="font-size: 0.7rem; font-weight: 600;">🟣 Odoo (stock.lot) <span class="vc-info" data-tip="Das EINZIGE lebende Warenwirtschaftssystem (seit 19.06.2026). Liefert aktuellen Bestand (Verfügbar/Angeboten/Reserviert) und laufende Verkäufe. Hat bei allen Merges Vorrang vor den eingefrorenen Archiven.">ⓘ</span></div>
+                                    <div style="font-size: 1.2rem; font-weight: 700;" id="dq-odoo-count">—</div>
+                                    <div style="font-size: 0.55rem; color: var(--text-muted);" id="dq-odoo-sub">Bestand · Verkäufe</div>
+                                </div>
                                 <div id="dq-source-bestand" style="background: var(--bg-elevated); border-radius: 8px; padding: 0.75rem; border-left: 4px solid var(--text-muted);">
                                     <div style="font-size: 0.7rem; font-weight: 600;">AMM BESTAND <span class="vc-info" data-tip="Aktueller physischer Lagerbestand aus dem AMM-Lagerverwaltungssystem (BESTAND134*.CSV). Enthält ALLE Geräte: verkaufsbereite, bereits verkaufte (Versand) und frisch eingegangene unklassifizierte Ware.">ⓘ</span></div>
                                     <div style="font-size: 1.2rem; font-weight: 700;" id="dq-bestand-count">—</div>
@@ -3817,7 +3822,7 @@
                             <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.75rem; margin-bottom: 1.5rem;">
                                 <div class="analyse-kpi" style="border: 2px solid transparent;" id="dq-kpi-overall">
                                     <div class="analyse-kpi-value" id="dq-overall-score">—</div>
-                                    <div class="analyse-kpi-label">Gesamt-Score <span class="vc-info" data-tip="Gewichteter Gesamt-Wert aller Einzel-Checks. Über 90 % = Daten sind sauber und vertrauenswürdig. Unter 80 % = einzelne Prüfungen genauer ansehen (Details unten).">ⓘ</span></div>
+                                    <div class="analyse-kpi-label">Alt-Welt-Score (Portal/JTL) <span class="vc-info" data-tip="Mittelwert der Alt-Welt-Einzel-Checks (BESTAND ↔ Portal ↔ JTL). Deckt Odoo NICHT ab und sinkt naturgemäß, je mehr Bestand nach Odoo wandert — die maßgebliche Zahl ist die Daten-Konsistenz oben (validiert ALLE Systeme inkl. Odoo).">ⓘ</span></div>
                                 </div>
                                 <div class="analyse-kpi">
                                     <div class="analyse-kpi-value" id="dq-match-bestand-stock">—</div>
@@ -14033,7 +14038,7 @@ Keine Erklärungen, kein Markdown.`;
             // === Zusammenfassung ===
             updateDQSummary(diskrepanzen, bestandData, stockData, soldData, jtlLookup);
             
-            showToast(`Validierung abgeschlossen: ${diskrepanzen.length} Diskrepanzen`, diskrepanzen.length > 50 ? 'warning' : 'success');
+            showToast(diskrepanzen.length > 50 ? 'warning' : 'success', 'Validierung abgeschlossen', `${diskrepanzen.length} Diskrepanzen`);
         }
         
         function updateDataSourceStatus(bestandData, stockData, soldData, jtlLookup) {
@@ -14336,10 +14341,22 @@ Keine Erklärungen, kein Markdown.`;
             const salesTotal = new Set([...portalSoldSet, ...odooSoldSet]).size;
 
             const anomalyCount = anomalies.PHANTOM_STOCK.length + anomalies.UNKLASSIFIZIERT.length + anomalies.VERKAUFT_IM_LAGER.length;
+            // DATEN-KONSISTENZ (User-Wunsch 2026-07-02): EINE Prozentzahl, die alle Systeme
+            // gegeneinander validiert. Definition: Anteil der aktuellen Geräte (AMM ∪ Odoo),
+            // deren Aussage über alle Quellen widerspruchsfrei ist. Die 3 Anomalie-Klassen
+            // sind je Gerät wechselseitig ausschließend → anomalyCount = eindeutige Geräte.
+            // Verkaufs-Register-Doppel laufen GETRENNT (kumulatives Register ≠ Universum).
+            const cleanCount = Math.max(0, uni.size - anomalyCount);
+            const consistency = {
+                pct: uni.size > 0 ? (cleanCount / uni.size * 100) : 100,
+                clean: cleanCount,
+                total: uni.size
+            };
             const result = {
                 when: new Date().toLocaleString('de-DE'),
                 universe: uni.size,
                 comm, phys, anomalies, anomalyCount,
+                consistency,
                 frei: { count: comm.verfuegbar, ek: freiEK, vk: freiVK },
                 qeUnsold,
                 sales: { total: salesTotal, portal: portalSoldSet.size, odoo: odooSoldSet.size, noKey: soldNoKey, double: salesDouble },
@@ -14367,6 +14384,15 @@ Keine Erklärungen, kein Markdown.`;
             const el = document.getElementById('dq-lagernr-coverage');
             const uebEl = document.getElementById('uebersicht-daily-kpis');
             if (!el && !uebEl) return;
+            // Odoo-Quellkarte aktuell halten (Reconcile feuert nach jedem Upload)
+            const _odooN = Object.keys(dashboardState._stockSrcOdoo || {}).length;
+            const _odooSoldN = (dashboardState._soldSrcOdoo || []).length;
+            const _odooCountEl = document.getElementById('dq-odoo-count');
+            if (_odooCountEl) _odooCountEl.textContent = _odooN > 0 ? _odooN.toLocaleString('de-DE') : '—';
+            const _odooSubEl = document.getElementById('dq-odoo-sub');
+            if (_odooSubEl) _odooSubEl.textContent = _odooN > 0 ? `im Bestand · ${_odooSoldN.toLocaleString('de-DE')} verkauft` : 'Bestand · Verkäufe';
+            const _odooCard = document.getElementById('dq-source-odoo');
+            if (_odooCard) _odooCard.style.borderLeftColor = _odooN > 0 ? '#a855f7' : 'var(--text-muted)';
             const r = dashboardState._reconciliation || reconcileAllSources();
             if (!r) {
                 if (el) el.innerHTML = '<div style="font-size:0.7rem;color:var(--text-muted);padding:0.5rem;">Noch keine Daten geladen.</div>';
@@ -14392,9 +14418,10 @@ Keine Erklärungen, kein Markdown.`;
                       <span style="font-size:0.72rem;">${n===0?'✓':'⚠️'} ${m.label} <span class="vc-info" data-tip="${m.tip}">ⓘ</span></span>
                       <span style="font-weight:700;color:${col};">${fmt(n)}</span></div>${list}</div>`;
             }).join('');
-            const bannerCol = r.ok ? 'var(--accent-green)' : 'var(--accent-orange,#f59e0b)';
-            const bannerBg  = r.ok ? 'rgba(16,185,129,0.12)' : 'rgba(245,158,11,0.12)';
-            const totalAnom = r.anomalyCount + r.sales.double.length;
+            // DATEN-KONSISTENZ: eine große, verteidigbare Zahl. Schwellen: ≥98 grün, ≥90 orange, sonst rot.
+            const cons = r.consistency || { pct: 100, clean: r.universe, total: r.universe };
+            const consCol = cons.pct >= 98 ? 'var(--accent-green)' : cons.pct >= 90 ? 'var(--accent-orange,#f59e0b)' : 'var(--accent-red,#ef4444)';
+            const consStr = cons.pct.toLocaleString('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
             const eur = v => Number(v||0).toLocaleString('de-DE', { style:'currency', currency:'EUR', minimumFractionDigits:0, maximumFractionDigits:0 });
             const fr = r.frei || { count:0, ek:0, vk:0 };
             const qu = r.qeUnsold || { count:0, ek:0, vk:0, frei:0, reserviert:0, unklassifiziert:0, ohnePreis:0 };
@@ -14432,14 +14459,25 @@ Keine Erklärungen, kein Markdown.`;
             if (uebEl) uebEl.innerHTML = tilesHtml;
             if (!el) return;
             el.innerHTML = tilesHtml + `
-              <div style="background:${bannerBg};border:1px solid ${bannerCol};border-radius:8px;padding:0.6rem 0.8rem;margin-bottom:0.75rem;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;">
-                <div style="font-size:0.72rem;">
-                  <span style="font-weight:700;color:${bannerCol};">${r.ok ? '✓ Alles eindeutig' : '⚠️ '+fmt(totalAnom)+' Anomalie(n)'}</span>
-                  · Universum <b>${fmt(r.universe)}</b> aktuelle Geräte (AMM ∪ Odoo) · Verkaufs-Register ${fmt(r.sales.total)} kumulativ
-                </div>
-                <div style="display:flex;gap:0.5rem;align-items:center;">
-                  <span style="font-size:0.58rem;color:var(--text-muted);">Stand ${r.when}</span>
-                  <button onclick="exportReconciliationCSV()" style="padding:0.2rem 0.6rem;background:transparent;border:1px solid var(--accent-cyan);color:var(--accent-cyan);border-radius:4px;font-size:0.62rem;cursor:pointer;">⬇ Anomalien (CSV)</button>
+              <div style="background:var(--bg-elevated);border:1px solid ${consCol};border-radius:10px;padding:0.9rem 1.1rem;margin-bottom:0.75rem;">
+                <div style="display:flex;align-items:center;gap:1.5rem;flex-wrap:wrap;">
+                  <div style="min-width:170px;">
+                    <div style="font-size:0.62rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;">🎯 Daten-Konsistenz <span class="vc-info" data-tip="Alle Systeme gegeneinander validiert: Anteil der aktuellen Geräte (Universum = AMM ∪ Odoo), deren Aussage über Odoo, AMM und die Archive WIDERSPRUCHSFREI ist. Jedes Gerät mit Anomalie (Phantom, Unklassifiziert, Verkauft-im-Lager) zählt als inkonsistent. 100 % = jedes Gerät hat genau eine klare, konfliktfreie Zuordnung. Verkaufs-Register-Doppel werden getrennt geprüft.">ⓘ</span></div>
+                    <div style="font-size:2.6rem;font-weight:800;color:${consCol};line-height:1.05;">${consStr}<span style="font-size:1.15rem;font-weight:700;"> %</span></div>
+                  </div>
+                  <div style="flex:1;min-width:230px;">
+                    <div style="height:8px;background:var(--bg-secondary);border-radius:999px;overflow:hidden;margin-bottom:0.45rem;">
+                      <div style="height:100%;width:${Math.max(0, Math.min(100, cons.pct))}%;background:${consCol};border-radius:999px;"></div>
+                    </div>
+                    <div style="font-size:0.68rem;color:var(--text-secondary);">
+                      ✓ <b>${fmt(cons.clean)}</b> Geräte widerspruchsfrei &nbsp;·&nbsp; ⚠️ <b style="color:${r.anomalyCount>0?'var(--accent-red,#ef4444)':'inherit'};">${fmt(r.anomalyCount)}</b> mit Anomalie &nbsp;·&nbsp; Universum ${fmt(cons.total)} aktuelle Geräte (AMM ∪ Odoo)
+                    </div>
+                    <div style="font-size:0.6rem;color:var(--text-muted);margin-top:0.2rem;">Verkaufs-Register (getrennt geprüft): ${fmt(r.sales.total)} kumulativ · Doppel-Erfassungen ${fmt(r.sales.double.length)}${r.sales.noKey>0?` · ohne Lager-Nr ${fmt(r.sales.noKey)}`:''}</div>
+                  </div>
+                  <div style="display:flex;flex-direction:column;gap:0.35rem;align-items:flex-end;">
+                    <button onclick="exportReconciliationCSV()" style="padding:0.2rem 0.6rem;background:transparent;border:1px solid var(--accent-cyan);color:var(--accent-cyan);border-radius:4px;font-size:0.62rem;cursor:pointer;">⬇ Anomalien (CSV)</button>
+                    <span style="font-size:0.58rem;color:var(--text-muted);">Stand ${r.when}</span>
+                  </div>
                 </div>
               </div>
               <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:0.75rem;">
@@ -20484,11 +20522,12 @@ Keine Erklärungen, kein Markdown.`;
                             const qu = r.qeUnsold || { count:0, vk:0 };
                             const qeLine = qu.count > 0 ? `<br>🏬 Nicht verkauft im Lager (QE): <b>${eur0(qu.vk)} VK</b> · ${qu.count.toLocaleString('de-DE')} Geräte` : '';
                             const issues = r.anomalyCount + r.sales.double.length;
+                            const consPct = (r.consistency ? r.consistency.pct : 100).toLocaleString('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
                             if (issues > 0) {
-                                showToast('warning', `💶 ${eur0(r.frei.vk)} freiverkäuflich · ⚠️ ${issues} Anomalie(n)`,
+                                showToast('warning', `🎯 ${consPct} % Daten-Konsistenz · ⚠️ ${issues} Anomalie(n)`,
                                     `${freiLine}${qeLine}<br>${r.universe.toLocaleString('de-DE')} aktuelle Geräte · Phantom-Bestand ${r.anomalies.PHANTOM_STOCK.length} · unklassifiziert ${r.anomalies.UNKLASSIFIZIERT.length} · verkauft&im-Lager ${r.anomalies.VERKAUFT_IM_LAGER.length}. Details im Reiter „🔍 Datenqualität".`, 9000);
                             } else {
-                                showToast('success', `💶 ${eur0(r.frei.vk)} freiverkäuflich`,
+                                showToast('success', `🎯 ${consPct} % Daten-Konsistenz · 💶 ${eur0(r.frei.vk)} freiverkäuflich`,
                                     `${freiLine}${qeLine}<br>${r.universe.toLocaleString('de-DE')} aktuelle Geräte · keine Anomalien.`, 7000);
                             }
                         }
