@@ -14225,6 +14225,10 @@ Keine Erklärungen, kein Markdown.`;
             const anomalies = { PHANTOM_STOCK:[], UNKLASSIFIZIERT:[], VERKAUFT_IM_LAGER:[] };
             // FREIVERKÄUFLICHER WARENWERT: Summe EK/VK über alle „frei"-Geräte (nicht reserviert/verkauft/angeboten)
             let freiEK = 0, freiVK = 0;
+            // TAGES-KENNZAHL (To-do #1, 2026-07-02): „Nicht verkauft & physisch im Lager (AMM QE)".
+            // VK ist die belastbare Größe (EK strukturell untererfasst, ~978 Geräte ohne EK);
+            // unklassifizierte Geräte haben KEINE Preisquelle → zählen im Stück, nicht im Wert.
+            const qeUnsold = { count:0, ek:0, vk:0, frei:0, reserviert:0, unklassifiziert:0, ohnePreis:0 };
 
             for (const ln of uni) {
                 const amm = ammStatus.get(ln) || null;
@@ -14248,6 +14252,16 @@ Keine Erklärungen, kein Markdown.`;
                 }
                 // Physischer Status (AMM)
                 if (amm === 'QE') phys.QE++; else if (amm === 'VS') phys.VS++; else if (amm === 'AA') phys.AA++; else phys.none++;
+                // Tages-Kennzahl: physisch QE + kaufmännisch NICHT verkauft
+                if (amm === 'QE' && c !== 'verkauft') {
+                    qeUnsold.count++;
+                    if (c === 'verfuegbar') qeUnsold.frei++;
+                    else if (c === 'reserviert') qeUnsold.reserviert++;
+                    else qeUnsold.unklassifiziert++;
+                    const qit = inO ? oStock[ln] : (inP ? pStock[ln] : null);
+                    if (qit) { qeUnsold.ek += (+qit.ek || 0); qeUnsold.vk += (+qit.vk || 0); }
+                    else qeUnsold.ohnePreis++;
+                }
                 // Anomalien — die echten „stimmt nicht"-Fälle
                 if (inO && !oSoldF && (c === 'verfuegbar' || c === 'reserviert') && !amm)
                     anomalies.PHANTOM_STOCK.push({ ln, detail:`Odoo „${oAvail ? 'Verfügbar' : 'reserviert'}", aber physisch NICHT im AMM-Lager (Phantom-Bestand)` });
@@ -14267,11 +14281,12 @@ Keine Erklärungen, kein Markdown.`;
                 universe: uni.size,
                 comm, phys, anomalies, anomalyCount,
                 frei: { count: comm.verfuegbar, ek: freiEK, vk: freiVK },
+                qeUnsold,
                 sales: { total: salesTotal, portal: portalSoldSet.size, odoo: odooSoldSet.size, noKey: soldNoKey, double: salesDouble },
                 ok: (anomalyCount + salesDouble.length) === 0
             };
             dashboardState._reconciliation = result;
-            console.info(`[Reconcile] Universum ${uni.size} · verfügbar ${comm.verfuegbar} · reserviert ${comm.reserviert} · verkauft ${comm.verkauft} · unklass ${comm.unklassifiziert} || AMM QE ${phys.QE}/VS ${phys.VS}/AA ${phys.AA}/– ${phys.none} || Anomalien Phantom ${anomalies.PHANTOM_STOCK.length}/Unklass ${anomalies.UNKLASSIFIZIERT.length}/VerkImLager ${anomalies.VERKAUFT_IM_LAGER.length} || Verkäufe ${salesTotal} (P ${portalSoldSet.size}+O ${odooSoldSet.size}) doppelt ${salesDouble.length}`);
+            console.info(`[Reconcile] Universum ${uni.size} · verfügbar ${comm.verfuegbar} · reserviert ${comm.reserviert} · verkauft ${comm.verkauft} · unklass ${comm.unklassifiziert} || AMM QE ${phys.QE}/VS ${phys.VS}/AA ${phys.AA}/– ${phys.none} || QE-nicht-verkauft ${qeUnsold.count} (frei ${qeUnsold.frei}/res ${qeUnsold.reserviert}/unklass ${qeUnsold.unklassifiziert}) VK ${Math.round(qeUnsold.vk)} || Anomalien Phantom ${anomalies.PHANTOM_STOCK.length}/Unklass ${anomalies.UNKLASSIFIZIERT.length}/VerkImLager ${anomalies.VERKAUFT_IM_LAGER.length} || Verkäufe ${salesTotal} (P ${portalSoldSet.size}+O ${odooSoldSet.size}) doppelt ${salesDouble.length}`);
             return result;
         }
 
@@ -14317,8 +14332,11 @@ Keine Erklärungen, kein Markdown.`;
             const totalAnom = r.anomalyCount + r.sales.double.length;
             const eur = v => Number(v||0).toLocaleString('de-DE', { style:'currency', currency:'EUR', minimumFractionDigits:0, maximumFractionDigits:0 });
             const fr = r.frei || { count:0, ek:0, vk:0 };
+            const qu = r.qeUnsold || { count:0, ek:0, vk:0, frei:0, reserviert:0, unklassifiziert:0, ohnePreis:0 };
+            const hasAmm = (r.phys.QE + r.phys.VS + r.phys.AA) > 0;
             el.innerHTML = `
-              <div style="background:linear-gradient(135deg,rgba(16,185,129,0.16),rgba(59,130,246,0.12));border:1px solid var(--accent-green);border-radius:10px;padding:0.9rem 1.1rem;margin-bottom:0.75rem;">
+              <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:0.75rem;margin-bottom:0.75rem;">
+              <div style="background:linear-gradient(135deg,rgba(16,185,129,0.16),rgba(59,130,246,0.12));border:1px solid var(--accent-green);border-radius:10px;padding:0.9rem 1.1rem;">
                 <div style="font-size:0.62rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;">💶 Freiverkäuflicher Warenwert <span class="vc-info" data-tip="Gesamter Warenwert alles freiverkäuflichen Lagerbestands = jedes Gerät (alt UND neu), das NICHT reserviert, NICHT verkauft und NICHT in einem Angebot ist (Odoo-Status „Verfügbar" + freier Portal-Restbestand). Reserviert/Angeboten/Verkauft sind ausgeschlossen.">ⓘ</span></div>
                 <div style="display:flex;align-items:baseline;gap:1.2rem;flex-wrap:wrap;margin-top:0.2rem;">
                   <div style="font-size:1.9rem;font-weight:800;color:var(--accent-green);line-height:1;">${eur(fr.vk)}<span style="font-size:0.8rem;font-weight:600;color:var(--text-secondary);"> VK</span></div>
@@ -14326,6 +14344,18 @@ Keine Erklärungen, kein Markdown.`;
                   <div style="font-size:0.95rem;font-weight:700;">${fmt(fr.count)}<span style="font-size:0.7rem;font-weight:500;color:var(--text-secondary);"> Geräte frei</span></div>
                 </div>
                 <div style="font-size:0.6rem;color:var(--text-muted);margin-top:0.35rem;">frei = nicht reserviert · nicht verkauft · nicht im Angebot${r.comm.unklassifiziert>0?` &nbsp;·&nbsp; ⚠️ zusätzlich ${fmt(r.comm.unklassifiziert)} Geräte physisch im Lager, aber noch nicht in Odoo (Wert erst nach Klassifizierung)`:''}</div>
+              </div>
+              <div style="background:linear-gradient(135deg,rgba(59,130,246,0.16),rgba(168,85,247,0.10));border:1px solid var(--accent-cyan,#22d3ee);border-radius:10px;padding:0.9rem 1.1rem;">
+                <div style="font-size:0.62rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;">🏬 Nicht verkauft · physisch im Lager (QE) <span class="vc-info" data-tip="Tages-Kennzahl: jedes Gerät, das laut AMM physisch im Lager steht (Status QE) und kaufmännisch NICHT verkauft ist — egal ob frei, reserviert/angeboten oder noch unklassifiziert. VK ist die belastbare Größe (EK strukturell untererfasst). Unklassifizierte Geräte haben keine Preisquelle und zählen nur in der Stückzahl, nicht im Wert.">ⓘ</span></div>
+                ${hasAmm ? `
+                <div style="display:flex;align-items:baseline;gap:1.2rem;flex-wrap:wrap;margin-top:0.2rem;">
+                  <div style="font-size:1.9rem;font-weight:800;color:var(--accent-cyan,#22d3ee);line-height:1;">${eur(qu.vk)}<span style="font-size:0.8rem;font-weight:600;color:var(--text-secondary);"> VK</span></div>
+                  <div style="font-size:1.1rem;font-weight:700;color:var(--text-secondary);">${eur(qu.ek)}<span style="font-size:0.7rem;font-weight:500;"> EK</span></div>
+                  <div style="font-size:0.95rem;font-weight:700;">${fmt(qu.count)}<span style="font-size:0.7rem;font-weight:500;color:var(--text-secondary);"> Geräte</span></div>
+                </div>
+                <div style="font-size:0.6rem;color:var(--text-muted);margin-top:0.35rem;">frei ${fmt(qu.frei)} · reserviert/angeboten ${fmt(qu.reserviert)} · unklassifiziert ${fmt(qu.unklassifiziert)}${qu.ohnePreis>0?` &nbsp;·&nbsp; ⚠️ ${fmt(qu.ohnePreis)} ohne Preisquelle (nicht im Wert)`:''}</div>`
+                : `<div style="font-size:0.72rem;color:var(--text-muted);margin-top:0.4rem;">BESTAND-Datei (AMM) laden, um die physische Tages-Kennzahl zu berechnen.</div>`}
+              </div>
               </div>
               <div style="background:${bannerBg};border:1px solid ${bannerCol};border-radius:8px;padding:0.6rem 0.8rem;margin-bottom:0.75rem;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;">
                 <div style="font-size:0.72rem;">
@@ -20368,13 +20398,15 @@ Keine Erklärungen, kein Markdown.`;
                         if (r) {
                             const eur0 = v => Number(v||0).toLocaleString('de-DE', { style:'currency', currency:'EUR', maximumFractionDigits:0 });
                             const freiLine = `💶 Freiverkäuflich: <b>${eur0(r.frei.vk)} VK</b> · ${eur0(r.frei.ek)} EK · ${r.frei.count.toLocaleString('de-DE')} Geräte`;
+                            const qu = r.qeUnsold || { count:0, vk:0 };
+                            const qeLine = qu.count > 0 ? `<br>🏬 Nicht verkauft im Lager (QE): <b>${eur0(qu.vk)} VK</b> · ${qu.count.toLocaleString('de-DE')} Geräte` : '';
                             const issues = r.anomalyCount + r.sales.double.length;
                             if (issues > 0) {
                                 showToast('warning', `💶 ${eur0(r.frei.vk)} freiverkäuflich · ⚠️ ${issues} Anomalie(n)`,
-                                    `${freiLine}<br>${r.universe.toLocaleString('de-DE')} aktuelle Geräte · Phantom-Bestand ${r.anomalies.PHANTOM_STOCK.length} · unklassifiziert ${r.anomalies.UNKLASSIFIZIERT.length} · verkauft&im-Lager ${r.anomalies.VERKAUFT_IM_LAGER.length}. Details im Reiter „🔍 Datenqualität".`, 9000);
+                                    `${freiLine}${qeLine}<br>${r.universe.toLocaleString('de-DE')} aktuelle Geräte · Phantom-Bestand ${r.anomalies.PHANTOM_STOCK.length} · unklassifiziert ${r.anomalies.UNKLASSIFIZIERT.length} · verkauft&im-Lager ${r.anomalies.VERKAUFT_IM_LAGER.length}. Details im Reiter „🔍 Datenqualität".`, 9000);
                             } else {
                                 showToast('success', `💶 ${eur0(r.frei.vk)} freiverkäuflich`,
-                                    `${freiLine}<br>${r.universe.toLocaleString('de-DE')} aktuelle Geräte · keine Anomalien.`, 7000);
+                                    `${freiLine}${qeLine}<br>${r.universe.toLocaleString('de-DE')} aktuelle Geräte · keine Anomalien.`, 7000);
                             }
                         }
                     } catch(e) { console.warn('[Reconcile] scheduled run failed', e); }
@@ -20383,6 +20415,17 @@ Keine Erklärungen, kein Markdown.`;
             bus.on('data:stock-analysis-loaded', _scheduleReconcile);
             bus.on('data:all-sold-loaded', _scheduleReconcile);
             bus.on('data:bestand-loaded', _scheduleReconcile);
+
+            // LAGERDAUER-FIX: BESTAND liefert die WE-Daten für die Lagerdauer. Wird BESTAND
+            // NACH Odoo/Portal geladen, muss der Stock-Merge neu rechnen, damit lifeDays
+            // vom (unbrauchbaren) Pool-Eintritt auf das echte AMM-WE-Datum umspringt.
+            bus.on('data:bestand-loaded', () => {
+                const hasStock = (dashboardState._stockSrcPortal && Object.keys(dashboardState._stockSrcPortal).length) ||
+                                 (dashboardState._stockSrcOdoo   && Object.keys(dashboardState._stockSrcOdoo).length);
+                if (!hasStock) return;
+                try { rebuildMergedStock(); updateAnalyseProPanel(); }
+                catch (e) { console.warn('[Lagerdauer] Stock-Rebuild nach BESTAND-Upload fehlgeschlagen', e); }
+            });
 
             console.log('[EventBus] Legacy-Subscribers registriert. Refresh-Listener:', bus.listenerCount('data:refresh'));
         }
@@ -21662,6 +21705,22 @@ Keine Erklärungen, kein Markdown.`;
             for (const k in portal) { if (known && known.has(k)) continue; merged[k] = portal[k]; }
             for (const k in odoo)   merged[k] = odoo[k];   // Odoo-Bestand (Verfügbar/Angeboten), Odoo-Vorrang
 
+            // LAGERDAUER-FIX (To-do #2, 2026-07-02): Odoo „Pool-Eintritt" wird bei der Migration
+            // zurückgesetzt (alles 0–8 Tage) und Portal-lifeDays sind seit dem Einfrieren stale.
+            // Einzige belastbare Altersquelle ist das AMM-WE-Datum (BESTAND134). Wo eines existiert,
+            // überschreibt es item.lifeDays — sonst bleibt der Upload-Wert als Fallback stehen.
+            const _weMap = new Map();
+            for (const b of (dashboardState.bestandRaw || [])) {
+                const ln = String(b.lagerNr || '').trim();
+                if (!/^900/.test(ln)) continue;
+                const d = _parseAnyDate(b.weDatum);
+                if (!d) continue;
+                const prev = _weMap.get(ln);
+                if (!prev || d < prev) _weMap.set(ln, d);   // Mehrfachzeilen: frühestes WE = Einlagerung
+            }
+            const _nowTs = Date.now();
+            let lifeFromWE = 0, lifeFallback = 0;
+
             let count=0, totalEK=0, totalVK=0, totalLifeDays=0, lifeDaysCount=0;
             let reservedCount=0, availableCount=0, reservedEK=0, reservedVK=0, availableEK=0, availableVK=0;
             let nPortal=0, nOdoo=0;
@@ -21672,6 +21731,16 @@ Keine Erklärungen, kein Markdown.`;
             const raw=[];
             for (const lagerNr in merged) {
                 const item = merged[lagerNr];
+                const _we = _weMap.get(String(lagerNr).trim());
+                if (_we) {
+                    item.lifeDays = Math.max(0, Math.floor((_nowTs - _we.getTime()) / 86400000));
+                    item.weDatum = _we.toLocaleDateString('de-DE');
+                    item._lifeSrc = 'AMM-WE';
+                    lifeFromWE++;
+                } else {
+                    if (item._lifeSrc !== 'AMM-WE') item._lifeSrc = 'upload';
+                    if (item.lifeDays > 0) lifeFallback++;
+                }
                 const ek=item.ek||0, vk=item.vk||0, pg=item.pg||'', brand=item.brand||'', lifeDays=item.lifeDays||0;
                 count++;
                 const isOdoo = (item._src === 'Odoo');
@@ -21716,6 +21785,7 @@ Keine Erklärungen, kein Markdown.`;
             dashboardState.stockAvailBreakdown={ odoo:availOdoo, portal:availPortal };
             dashboardState.stockAvailableEK=availableEK; dashboardState.stockAvailableVK=availableVK;
             dashboardState.stockAvgLifeDays = lifeDaysCount>0?Math.round(totalLifeDays/lifeDaysCount):0;
+            dashboardState.stockLifeDaysSource = { fromWE: lifeFromWE, fallback: lifeFallback };
             dashboardState.stockLageralterBuckets=lageralterBuckets;
             dashboardState.stockPgStats=pgStats; dashboardState.stockBrandStats=brandStats;
             dashboardState.stockTotalEK=totalEK; dashboardState.stockTotalVK=totalVK;
@@ -21728,7 +21798,7 @@ Keine Erklärungen, kein Markdown.`;
                 console.info(`[Konvolut] Daten-Refresh → ${dashboardState._konvolutReservedLagerNrs.size} Vormerkungen geleert.`);
                 dashboardState._konvolutReservedLagerNrs=new Set();
             }
-            console.info(`[Stock-Merge] ${count} eindeutige Geräte (Portal ${nPortal} · Odoo ${nOdoo}) · frei ${availableCount} · reserviert ${reservedCount}`);
+            console.info(`[Stock-Merge] ${count} eindeutige Geräte (Portal ${nPortal} · Odoo ${nOdoo}) · frei ${availableCount} · reserviert ${reservedCount} · Lagerdauer: ${lifeFromWE}× AMM-WE / ${lifeFallback}× Upload-Fallback`);
             bus.emit('data:stock-analysis-loaded', { count });
         }
 
