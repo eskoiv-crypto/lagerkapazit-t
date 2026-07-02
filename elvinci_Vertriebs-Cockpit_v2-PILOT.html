@@ -14278,8 +14278,10 @@ Keine Erklärungen, kein Markdown.`;
             const portalStockSet = new Set(Object.keys(pStock).map(norm));
             const portalSoldSet  = new Set();
             let soldNoKey = 0;
-            oSold.forEach(s => { const ln = norm(s.lagerNr); if (ln) odooSoldSet.add(ln); else soldNoKey++; });
-            pSold.forEach(s => { const ln = norm(s.lagerNr); if (ln) portalSoldSet.add(ln); else soldNoKey++; });
+            // Verkaufsdatum + Quelle je Lager-Nr — nötig fürs Versand-Fenster (Odoo-Vorrang: zuerst gesetzt gewinnt)
+            const soldInfo = new Map();
+            oSold.forEach(s => { const ln = norm(s.lagerNr); if (ln) { odooSoldSet.add(ln); if (!soldInfo.has(ln)) soldInfo.set(ln, { src: 'Odoo', d: _parseAnyDate(s.saleDate) }); } else soldNoKey++; });
+            pSold.forEach(s => { const ln = norm(s.lagerNr); if (ln) { portalSoldSet.add(ln); if (!soldInfo.has(ln)) soldInfo.set(ln, { src: 'Alt (Portal/JTL)', d: _parseAnyDate(s.saleDate) }); } else soldNoKey++; });
             const ammStatus = new Map();   // Lager-Nr → QE/VS/AA
             bestand.forEach(b => { const ln = norm(b.lagerNr || b.lager_number || b['Lager-Nr']); if (/^900/.test(ln)) ammStatus.set(ln, norm(b.status).toUpperCase()); });
 
@@ -14288,6 +14290,14 @@ Keine Erklärungen, kein Markdown.`;
             const comm = { verfuegbar:0, reserviert:0, verkauft:0, unklassifiziert:0, altRest:0 };
             const phys = { QE:0, VS:0, AA:0, none:0 };
             const anomalies = { PHANTOM_STOCK:[], UNKLASSIFIZIERT:[], VERKAUFT_IM_LAGER:[] };
+            // VERSAND-FENSTER (User-Befund 2026-07-02): „Verkauft & noch QE" ist bei FRISCHEN
+            // Verkäufen normale Kommissionierung, keine Datenanomalie — Odoo-Verkäufe gibt es
+            // erst seit ~22.06., d.h. ohne Fenster wären ~700 laufende Aufträge „Anomalien"
+            // und die Konsistenz-Quote wäre künstlich rot. Innerhalb des Fensters → eigener
+            // sichtbarer Pipeline-Zähler (nichts wird versteckt); älter/ohne Datum → Anomalie.
+            const VERSAND_FENSTER_TAGE = 14;
+            const _nowR = Date.now();
+            const versandPipeline = { count: 0, odoo: 0, alt: 0 };
             // FREIVERKÄUFLICHER WARENWERT: Summe EK/VK über alle „frei"-Geräte (nicht reserviert/verkauft/angeboten)
             let freiEK = 0, freiVK = 0;
             // TAGES-KENNZAHL (To-do #1, 2026-07-02): „Nicht verkauft & physisch im Lager (AMM QE)".
@@ -14332,8 +14342,16 @@ Keine Erklärungen, kein Markdown.`;
                     anomalies.PHANTOM_STOCK.push({ ln, detail:`Odoo „${oAvail ? 'Verfügbar' : 'reserviert'}", aber physisch NICHT im AMM-Lager (Phantom-Bestand)` });
                 if (amm === 'QE' && c === 'unklassifiziert')
                     anomalies.UNKLASSIFIZIERT.push({ ln, detail:'physisch im AMM-Lager (QE), aber nicht im lebenden WaWi Odoo & nicht verkauft → muss klassifiziert/migriert werden' });
-                if (c === 'verkauft' && amm === 'QE')
-                    anomalies.VERKAUFT_IM_LAGER.push({ ln, detail:'verkauft, steht aber physisch noch als QE im Lager — Kommissionierung/Versand offen' });
+                if (c === 'verkauft' && amm === 'QE') {
+                    const si = soldInfo.get(ln) || {};
+                    const days = si.d ? Math.floor((_nowR - si.d.getTime()) / 86400000) : null;
+                    if (days !== null && days >= 0 && days <= VERSAND_FENSTER_TAGE) {
+                        versandPipeline.count++;
+                        if (si.src === 'Odoo') versandPipeline.odoo++; else versandPipeline.alt++;
+                    } else {
+                        anomalies.VERKAUFT_IM_LAGER.push({ ln, detail: `verkauft (${si.src || 'Quelle unbekannt'}${si.d ? ' am ' + si.d.toLocaleDateString('de-DE') + ', vor ' + days + ' Tagen' : ', Datum unbekannt'}), steht aber immer noch als QE im Lager` });
+                    }
+                }
             }
 
             // --- Verkaufs-Register (kumulativ, getrennt vom Bestand) ---
@@ -14357,13 +14375,14 @@ Keine Erklärungen, kein Markdown.`;
                 universe: uni.size,
                 comm, phys, anomalies, anomalyCount,
                 consistency,
+                versandPipeline: { ...versandPipeline, fensterTage: VERSAND_FENSTER_TAGE },
                 frei: { count: comm.verfuegbar, ek: freiEK, vk: freiVK },
                 qeUnsold,
                 sales: { total: salesTotal, portal: portalSoldSet.size, odoo: odooSoldSet.size, noKey: soldNoKey, double: salesDouble },
                 ok: (anomalyCount + salesDouble.length) === 0
             };
             dashboardState._reconciliation = result;
-            console.info(`[Reconcile] Universum ${uni.size} · verfügbar ${comm.verfuegbar} · reserviert ${comm.reserviert} · verkauft ${comm.verkauft} · unklass ${comm.unklassifiziert} || AMM QE ${phys.QE}/VS ${phys.VS}/AA ${phys.AA}/– ${phys.none} || QE-nicht-verkauft ${qeUnsold.count} (frei ${qeUnsold.frei}/res ${qeUnsold.reserviert}/unklass ${qeUnsold.unklassifiziert}) VK ${Math.round(qeUnsold.vk)} || Anomalien Phantom ${anomalies.PHANTOM_STOCK.length}/Unklass ${anomalies.UNKLASSIFIZIERT.length}/VerkImLager ${anomalies.VERKAUFT_IM_LAGER.length} || Verkäufe ${salesTotal} (P ${portalSoldSet.size}+O ${odooSoldSet.size}) doppelt ${salesDouble.length}`);
+            console.info(`[Reconcile] Universum ${uni.size} · verfügbar ${comm.verfuegbar} · reserviert ${comm.reserviert} · verkauft ${comm.verkauft} · unklass ${comm.unklassifiziert} || AMM QE ${phys.QE}/VS ${phys.VS}/AA ${phys.AA}/– ${phys.none} || QE-nicht-verkauft ${qeUnsold.count} (frei ${qeUnsold.frei}/res ${qeUnsold.reserviert}/unklass ${qeUnsold.unklassifiziert}) VK ${Math.round(qeUnsold.vk)} || Anomalien Phantom ${anomalies.PHANTOM_STOCK.length}/Unklass ${anomalies.UNKLASSIFIZIERT.length}/VerkImLager ${anomalies.VERKAUFT_IM_LAGER.length} · Versand-Pipeline ≤${VERSAND_FENSTER_TAGE}T ${versandPipeline.count} (Odoo ${versandPipeline.odoo}/Alt ${versandPipeline.alt}) || Verkäufe ${salesTotal} (P ${portalSoldSet.size}+O ${odooSoldSet.size}) doppelt ${salesDouble.length}`);
             return result;
         }
 
@@ -14403,7 +14422,7 @@ Keine Erklärungen, kein Markdown.`;
             const AM = {
                 PHANTOM_STOCK:    { label:'Phantom-Bestand (Odoo verkaufbar, physisch weg)', tip:'Odoo führt das Gerät als Verfügbar/reserviert, aber es liegt NICHT (mehr) physisch im AMM-Lager. Odoo bietet Ware an, die real nicht da ist — verkaufskritisch.' },
                 UNKLASSIFIZIERT:  { label:'Unklassifiziert (im Lager, nicht in Odoo)',      tip:'Physisch im AMM-Lager (QE), aber nicht im lebenden WaWi Odoo und nicht verkauft. Muss ins Odoo migriert/klassifiziert werden, sonst unverkäuflich.' },
-                VERKAUFT_IM_LAGER:{ label:'Verkauft, aber noch im Lager (QE)',              tip:'Verkauft, liegt aber physisch noch als QE im Lager — Kommissionierung/Versand offen. Kurzfristig normal, dauerhaft = Ausgang hakt.' }
+                VERKAUFT_IM_LAGER:{ label:`Verkauft, aber nach >${(r.versandPipeline&&r.versandPipeline.fensterTage)||14} Tagen noch im Lager (QE)`, tip:'Verkauft, liegt aber physisch immer noch als QE im Lager — und zwar LÄNGER als das Versand-Fenster (oder ohne bekanntes Verkaufsdatum). Frisch Verkauftes in der normalen Kommissionierung zählt hier NICHT rein (eigene Pipeline-Zeile unten).' }
             };
             const barRow = (label, val, tip, col) => `
                 <div style="display:flex;justify-content:space-between;padding:0.3rem 0.6rem;font-size:0.72rem;">
@@ -14462,7 +14481,7 @@ Keine Erklärungen, kein Markdown.`;
               <div style="background:var(--bg-elevated);border:1px solid ${consCol};border-radius:10px;padding:0.9rem 1.1rem;margin-bottom:0.75rem;">
                 <div style="display:flex;align-items:center;gap:1.5rem;flex-wrap:wrap;">
                   <div style="min-width:170px;">
-                    <div style="font-size:0.62rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;">🎯 Daten-Konsistenz <span class="vc-info" data-tip="Alle Systeme gegeneinander validiert: Anteil der aktuellen Geräte (Universum = AMM ∪ Odoo), deren Aussage über Odoo, AMM und die Archive WIDERSPRUCHSFREI ist. Jedes Gerät mit Anomalie (Phantom, Unklassifiziert, Verkauft-im-Lager) zählt als inkonsistent. 100 % = jedes Gerät hat genau eine klare, konfliktfreie Zuordnung. Verkaufs-Register-Doppel werden getrennt geprüft.">ⓘ</span></div>
+                    <div style="font-size:0.62rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;">🎯 Daten-Konsistenz <span class="vc-info" data-tip="Alle Systeme gegeneinander validiert: Anteil der aktuellen Geräte (Universum = AMM ∪ Odoo), deren Aussage über Odoo, AMM und die Archive WIDERSPRUCHSFREI ist. Jedes Gerät mit Anomalie (Phantom, Unklassifiziert, Verkauft-im-Lager nach Ablauf des Versand-Fensters) zählt als inkonsistent. Frisch Verkauftes in der normalen Kommissionierung (≤14 Tage) ist KEINE Anomalie und wird als Versand-Pipeline separat ausgewiesen. Verkaufs-Register-Doppel werden getrennt geprüft.">ⓘ</span></div>
                     <div style="font-size:2.6rem;font-weight:800;color:${consCol};line-height:1.05;">${consStr}<span style="font-size:1.15rem;font-weight:700;"> %</span></div>
                   </div>
                   <div style="flex:1;min-width:230px;">
@@ -14472,7 +14491,7 @@ Keine Erklärungen, kein Markdown.`;
                     <div style="font-size:0.68rem;color:var(--text-secondary);">
                       ✓ <b>${fmt(cons.clean)}</b> Geräte widerspruchsfrei &nbsp;·&nbsp; ⚠️ <b style="color:${r.anomalyCount>0?'var(--accent-red,#ef4444)':'inherit'};">${fmt(r.anomalyCount)}</b> mit Anomalie &nbsp;·&nbsp; Universum ${fmt(cons.total)} aktuelle Geräte (AMM ∪ Odoo)
                     </div>
-                    <div style="font-size:0.6rem;color:var(--text-muted);margin-top:0.2rem;">Verkaufs-Register (getrennt geprüft): ${fmt(r.sales.total)} kumulativ · Doppel-Erfassungen ${fmt(r.sales.double.length)}${r.sales.noKey>0?` · ohne Lager-Nr ${fmt(r.sales.noKey)}`:''}</div>
+                    <div style="font-size:0.6rem;color:var(--text-muted);margin-top:0.2rem;">🚚 ${fmt((r.versandPipeline||{}).count)} in Versand-Pipeline (verkauft ≤${(r.versandPipeline&&r.versandPipeline.fensterTage)||14} T, normal — zählt nicht als Anomalie) · Verkaufs-Register (getrennt geprüft): ${fmt(r.sales.total)} kumulativ · Doppel-Erfassungen ${fmt(r.sales.double.length)}${r.sales.noKey>0?` · ohne Lager-Nr ${fmt(r.sales.noKey)}`:''}</div>
                   </div>
                   <div style="display:flex;flex-direction:column;gap:0.35rem;align-items:flex-end;">
                     <button onclick="exportReconciliationCSV()" style="padding:0.2rem 0.6rem;background:transparent;border:1px solid var(--accent-cyan);color:var(--accent-cyan);border-radius:4px;font-size:0.62rem;cursor:pointer;">⬇ Anomalien (CSV)</button>
@@ -14500,6 +14519,10 @@ Keine Erklärungen, kein Markdown.`;
               <div style="background:var(--bg-elevated);border-radius:8px;margin-bottom:0.75rem;">
                 <div style="font-size:0.6rem;color:var(--text-muted);text-transform:uppercase;padding:0.4rem 0.6rem;">Anomalien — eine klare Aussage je Gerät (geflaggt, nichts verändert)</div>
                 ${anomBlock}
+                <div style="display:flex;justify-content:space-between;gap:0.5rem;padding:0.4rem 0.6rem;border-top:1px solid var(--border-subtle,rgba(255,255,255,0.06));">
+                  <span style="font-size:0.72rem;color:var(--text-secondary);">🚚 Versand-Pipeline: verkauft &amp; noch im Lager, aber erst vor ≤${(r.versandPipeline&&r.versandPipeline.fensterTage)||14} Tagen <span class="vc-info" data-tip="Normale Kommissionierung — KEINE Datenanomalie und nicht in der Konsistenz-Quote. Wird ein Gerät nach Ablauf des Versand-Fensters immer noch als QE geführt, wandert es automatisch in die Anomalie-Zeile darüber.">ⓘ</span> <span style="color:var(--text-muted);font-size:0.62rem;">(Odoo ${fmt((r.versandPipeline||{}).odoo)} · Alt ${fmt((r.versandPipeline||{}).alt)})</span></span>
+                  <span style="font-weight:700;color:var(--accent-cyan);">${fmt((r.versandPipeline||{}).count)}</span>
+                </div>
               </div>
               <div style="background:var(--bg-elevated);border-radius:8px;padding:0.4rem;">
                 <div style="font-size:0.6rem;color:var(--text-muted);text-transform:uppercase;padding:0.3rem 0.6rem;">Verkaufs-Register (kumulativ, getrennt vom Bestand)</div>

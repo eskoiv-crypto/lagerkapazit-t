@@ -144,7 +144,7 @@
     <tr><th>Anomalie</th><th>Bedeutung</th><th>Was tun</th></tr>
     <tr><td>👻 Phantom-Bestand</td><td>Odoo führt das Gerät als verkaufbar, aber es steht physisch nicht (mehr) im AMM-Lager. <b>Odoo bietet Ware an, die nicht da ist.</b></td><td>Wiederfinden oder in Odoo ausbuchen. Verschwindet ein Phantom beim nächsten synchronen Upload von selbst, war es nur Zeitversatz der Exporte.</td></tr>
     <tr><td>❓ Unklassifiziert</td><td>Physisch im Lager (QE), aber in keinem Warenwirtschaftssystem geführt und nicht verkauft.</td><td>In Odoo klassifizieren/migrieren — vorher ist das Gerät unverkäuflich und ohne Wert erfasst.</td></tr>
-    <tr><td>📦 Verkauft, noch im Lager</td><td>Kaufmännisch verkauft, steht aber physisch noch als QE da.</td><td>Kurzfristig normal (Kommissionierung läuft). Dauerhaft = der Ausgang hakt.</td></tr>
+    <tr><td>📦 Verkauft, noch im Lager</td><td>Kaufmännisch verkauft, steht aber <b>länger als 14 Tage</b> nach dem Verkauf noch als QE da (oder ohne bekanntes Verkaufsdatum).</td><td>Prüfen, warum der Ausgang hakt. Frisch Verkauftes in der normalen Kommissionierung (≤ 14 Tage) zählt NICHT als Anomalie — es erscheint als eigene Zeile „🚚 Versand-Pipeline".</td></tr>
 </table>
 <ul>
     <li>Empfehlung: <b>einmal pro Woche</b> den Button „⬇ Anomalien (CSV)" nutzen und die Liste abarbeiten. Idealzustand: alle drei Zähler auf 0.</li>
