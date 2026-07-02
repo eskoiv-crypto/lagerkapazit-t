@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Anleitung — elvinci Vertriebs-Cockpit (PILOT)</title>
+<style>
+    :root {
+        --ink: #1d1d1f;
+        --ink-2: #515154;
+        --ink-3: #86868b;
+        --line: #e5e5ea;
+        --bg: #ffffff;
+        --bg-soft: #f5f5f7;
+        --accent: #0071e3;
+        --green: #1d9e75;
+        --orange: #b45309;
+        --red: #b91c1c;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+        font-family: -apple-system, "Segoe UI", system-ui, Roboto, sans-serif;
+        color: var(--ink);
+        background: var(--bg);
+        line-height: 1.55;
+        font-size: 15px;
+    }
+    .page { max-width: 860px; margin: 0 auto; padding: 2.5rem 1.5rem 4rem; }
+    header { border-bottom: 1px solid var(--line); padding-bottom: 1.25rem; margin-bottom: 2rem; }
+    h1 { font-size: 1.7rem; font-weight: 700; letter-spacing: -0.01em; }
+    .meta { color: var(--ink-3); font-size: 0.85rem; margin-top: 0.35rem; }
+    .pilot-badge { display: inline-block; background: #fdf2f8; color: #a21caf; border: 1px solid #f0abfc; border-radius: 999px; padding: 0.1rem 0.7rem; font-size: 0.75rem; font-weight: 600; margin-left: 0.5rem; vertical-align: middle; }
+    h2 { font-size: 1.2rem; font-weight: 700; margin: 2.4rem 0 0.8rem; padding-top: 1.2rem; border-top: 1px solid var(--line); letter-spacing: -0.01em; }
+    h2:first-of-type { border-top: none; padding-top: 0; }
+    h3 { font-size: 0.98rem; font-weight: 600; margin: 1.3rem 0 0.4rem; }
+    p { margin: 0.5rem 0; color: var(--ink-2); }
+    p b, li b { color: var(--ink); }
+    ul, ol { margin: 0.5rem 0 0.8rem 1.3rem; color: var(--ink-2); }
+    li { margin: 0.25rem 0; }
+    table { width: 100%; border-collapse: collapse; margin: 0.8rem 0 1.2rem; font-size: 0.85rem; }
+    th { text-align: left; font-weight: 600; color: var(--ink-3); text-transform: uppercase; font-size: 0.68rem; letter-spacing: 0.04em; padding: 0.45rem 0.6rem; border-bottom: 1px solid var(--line); }
+    td { padding: 0.5rem 0.6rem; border-bottom: 1px solid var(--line); vertical-align: top; color: var(--ink-2); }
+    td:first-child { color: var(--ink); font-weight: 500; white-space: nowrap; }
+    code { font-family: "SF Mono", Consolas, monospace; font-size: 0.82em; background: var(--bg-soft); border-radius: 4px; padding: 0.1em 0.35em; color: var(--ink); }
+    .card { background: var(--bg-soft); border-radius: 12px; padding: 1rem 1.2rem; margin: 0.9rem 0; }
+    .card h3 { margin-top: 0; }
+    .steps { counter-reset: step; list-style: none; margin-left: 0; }
+    .steps li { counter-increment: step; position: relative; padding: 0.45rem 0 0.45rem 2.4rem; }
+    .steps li::before { content: counter(step); position: absolute; left: 0; top: 0.45rem; width: 1.6rem; height: 1.6rem; border-radius: 50%; background: var(--ink); color: #fff; font-size: 0.8rem; font-weight: 600; display: flex; align-items: center; justify-content: center; }
+    .ok { color: var(--green); font-weight: 600; }
+    .warn { color: var(--orange); font-weight: 600; }
+    .crit { color: var(--red); font-weight: 600; }
+    .hint { font-size: 0.82rem; color: var(--ink-3); border-left: 3px solid var(--line); padding: 0.2rem 0 0.2rem 0.8rem; margin: 0.7rem 0; }
+    footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--line); color: var(--ink-3); font-size: 0.78rem; }
+    @media print {
+        body { font-size: 11pt; }
+        .page { max-width: none; padding: 0; }
+        h2 { break-after: avoid; }
+        table, .card { break-inside: avoid; }
+    }
+</style>
+</head>
+<body>
+<div class="page">
+
+<header>
+    <h1>elvinci Vertriebs-Cockpit <span class="pilot-badge">PILOT</span></h1>
+    <div class="meta">Anleitung · Stand 02.07.2026 · Datei: <code>elvinci_Vertriebs-Cockpit_v2-PILOT.html</code> · läuft komplett im Browser, kein Server, keine Installation</div>
+</header>
+
+<h2>1 · Was das Cockpit ist</h2>
+<p>Das Vertriebs-Cockpit ist eine einzelne HTML-Datei, die im Browser läuft (Doppelklick genügt). Du lädst die täglichen Datei-Exporte hinein, das Cockpit rechnet daraus Lagerwert, Verfügbarkeit, Verkaufs- und Kundenanalysen und prüft die Datenqualität über alle Systeme hinweg. <b>Es verändert nichts an den Quellsystemen</b> — es liest nur.</p>
+
+<div class="card">
+    <h3>Die Systemlandschaft in vier Sätzen</h3>
+    <ul>
+        <li><b>Odoo</b> ist das einzige lebende Warenwirtschaftssystem — alle Zu- und Abgänge laufen seit ~19.06.2026 hier.</li>
+        <li><b>AMM</b> ist das physische Lager (Datei <code>BESTAND134_*.CSV</code>) — es sagt, was wirklich in den Hallen steht.</li>
+        <li><b>Portal und JTL</b> sind abgelöste, eingefrorene Systeme — reine Archive, die sich nie mehr ändern.</li>
+        <li>Die <b>Lager-Nr (900…)</b> ist der universelle Schlüssel: über sie werden alle Systeme verbunden und gegeneinander geprüft.</li>
+    </ul>
+</div>
+
+<h2>2 · Der tägliche Ablauf (2 Minuten)</h2>
+<ol class="steps">
+    <li><b>Cockpit öffnen.</b> Die eingefrorenen Archive (Portal/JTL) lädt es automatisch aus dem lokalen Speicher — dafür musst du nichts tun.</li>
+    <li><b>Zwei frische Exporte in die Ablagezone ziehen:</b> den Odoo-Export (<code>LosSerie stock.lot</code>, XLSX) und den AMM-Bestand (<code>BESTAND134_*.CSV</code>). Möglichst zeitgleich exportiert — sonst entstehen falsche Phantom-Meldungen (siehe Kapitel 6). Optional dazu: <code>AUFTRAG_STATUS</code> für die Pipeline.</li>
+    <li><b>Toast lesen.</b> Nach dem Laden erscheint die Tageszusammenfassung: freiverkäuflicher Warenwert, Bestand im Lager, Anomalien. Details stehen auf der Übersicht und im Reiter Datenqualität.</li>
+</ol>
+<p class="hint">Der Dateityp wird automatisch erkannt — erst am Dateinamen, sonst am Inhalt (Spalten-Überschriften). Du musst nichts zuordnen. Wird eine Datei nicht erkannt, sagt dir ein Hinweis Bescheid; dann hilft „▸ Manuelle Zuordnung" unter der Ablagezone.</p>
+
+<h2>3 · Datenimport im Detail</h2>
+<table>
+    <tr><th>Datei</th><th>Format</th><th>Zweck</th><th>Rhythmus</th></tr>
+    <tr><td>Odoo (stock.lot)</td><td>XLSX</td><td>Lebender Bestand + laufende Verkäufe. <span class="crit">Immer nur die EINE aktuellste Datei laden.</span></td><td>täglich</td></tr>
+    <tr><td>BESTAND134</td><td>CSV</td><td>Physisches Lager (Status QE/VS/AA) + echtes Wareneingangsdatum → Lagerdauer</td><td>täglich</td></tr>
+    <tr><td>AUFTRAG_STATUS</td><td>XLSX</td><td>Offene Aufträge / Ausgangs-Pipeline</td><td>täglich, optional</td></tr>
+    <tr><td>Stock-Analysis</td><td>XLSX</td><td>Eingefrorener Portal-Restbestand (EK/VK-Preise)</td><td>einmalig → Archiv</td></tr>
+    <tr><td>ALL SOLD</td><td>XLSX</td><td>Historisches Verkaufsarchiv (~31.000 Verkäufe)</td><td>einmalig → Archiv</td></tr>
+    <tr><td>JTL Export</td><td>CSV</td><td>Alte Aufträge/Artikel-Lookup</td><td>einmalig → Archiv</td></tr>
+    <tr><td>JTL 4-Jahre</td><td>CSV</td><td>Auftragshistorie ab 2022 — Basis für CLV/Churn/Reaktivierung</td><td>einmalig → Archiv</td></tr>
+    <tr><td>Kunden-Stammdaten</td><td>CSV</td><td>Kontaktdaten für die Reaktivierung</td><td>einmalig → Archiv</td></tr>
+</table>
+
+<h3>Das lokale Archiv</h3>
+<p>Alles mit Rhythmus „einmalig" wird beim ersten Upload <b>automatisch im Browser gespeichert</b> (IndexedDB) und bei jedem Start wiederhergestellt — diese Quellen sind eingefroren und ändern sich nie mehr. Unter der Ablagezone zeigt eine Statuszeile, was im Archiv liegt; „Archiv leeren" wirft alles raus (beim nächsten Upload wird neu gespeichert).</p>
+<ul>
+    <li><span class="warn">Odoo und BESTAND werden bewusst NICHT gespeichert</span> — Tagesdaten müssen frisch sein. Veraltete Bestandszahlen wären gefährlicher als der tägliche Upload.</li>
+    <li>Das Archiv liegt <b>lokal pro Browser und PC</b>. Neuer Rechner oder anderer Browser = Archive einmal neu laden.</li>
+</ul>
+
+<h2>4 · Navigation: sechs Gruppen</h2>
+<table>
+    <tr><th>Gruppe</th><th>Reiter</th><th>Beantwortet</th></tr>
+    <tr><td>📈 Heute</td><td>Übersicht</td><td>Tages-Kennzahlen, Umsatz, Marge, Lageralter — der Startbildschirm</td></tr>
+    <tr><td>📦 Bestand</td><td>Warengruppen · Marken · Lieferanten · Dead Stock · Verkaufsscore · Live View</td><td>Was liegt im Lager, was davon zu lange, was sollte priorisiert raus?</td></tr>
+    <tr><td>💰 Verkauf</td><td>Verkäufer · Kunden · Kunden×WG · Top-Seller</td><td>Wer verkauft was an wen, womit verdienen wir?</td></tr>
+    <tr><td>💎 Kundenbindung</td><td>CLV · Churn-Alert · Reaktivierung</td><td>Welche Kunden sind wertvoll, wer droht wegzubrechen, wen holen wir zurück? (braucht JTL-4-Jahre + Stammdaten)</td></tr>
+    <tr><td>🛠️ Werkzeuge</td><td>Angebote · Angebots-Analyse · Pipeline</td><td>Konvolute bauen, Kundenangebote erzeugen, Angebotsdateien gegen Bestand prüfen, offene Aufträge</td></tr>
+    <tr><td>🔍 Datenqualität</td><td>Datenqualität</td><td>Stimmen die Systeme überein? Anomalien je Gerät</td></tr>
+</table>
+<p class="hint">Die Gruppe merkt sich deinen zuletzt geöffneten Reiter. Springt das Cockpit selbst (z.B. nach Drop einer Angebotsdatei), wandert die Navigation automatisch mit.</p>
+
+<h2>5 · Die zwei Tages-Kennzahlen</h2>
+<p>Oben auf der Übersicht stehen zwei Kacheln, die <b>zwei verschiedene Fragen</b> beantworten:</p>
+<div class="card">
+    <h3>💶 Sofort verkaufbar — Vertriebssicht</h3>
+    <p>Alles, was Vertrieb <b>jetzt anbieten darf</b>: Odoo-Status „Verfügbar" plus freier Portal-Rest — egal, wo es physisch steht. Nicht enthalten: Reserviertes, Angebotenes, Verkauftes. <span class="warn">Achtung:</span> enthält auch Phantom-Geräte (in Odoo verfügbar, physisch nicht auffindbar) — die Kachel weist sie aus.</p>
+</div>
+<div class="card">
+    <h3>🏬 Unverkauft im Lager — gebundenes Kapital</h3>
+    <p>Alles, was <b>physisch in den Hallen steht</b> (AMM-Status QE) und nicht verkauft ist — inklusive Reserviertem und noch Unklassifiziertem. Das ist das gebundene Kapital zum Stichtag. Die Kachel zeigt die Brücke: <code>= frei im Lager + reserviert/angeboten + unklassifiziert</code>.</p>
+</div>
+<p class="hint">VK ist die belastbare Größe. Der EK ist strukturell untererfasst (viele Geräte ohne EK, v.a. AEG-Zwenkau) — EK-Summen sind Untergrenzen. Unklassifizierte Geräte haben gar keine Preisquelle und zählen nur in der Stückzahl.</p>
+
+<h2>6 · Datenqualität: die drei Anomalien</h2>
+<p>Nach jedem Upload gleicht das Cockpit alle Quellen über die Lager-Nr ab und stellt für jedes aktuelle Gerät <b>eine klare Aussage</b> auf: kaufmännischer Status (Odoo hat Vorrang) × physischer Status (AMM). Drei Konflikte werden geflaggt — nie automatisch „repariert":</p>
+<table>
+    <tr><th>Anomalie</th><th>Bedeutung</th><th>Was tun</th></tr>
+    <tr><td>👻 Phantom-Bestand</td><td>Odoo führt das Gerät als verkaufbar, aber es steht physisch nicht (mehr) im AMM-Lager. <b>Odoo bietet Ware an, die nicht da ist.</b></td><td>Wiederfinden oder in Odoo ausbuchen. Verschwindet ein Phantom beim nächsten synchronen Upload von selbst, war es nur Zeitversatz der Exporte.</td></tr>
+    <tr><td>❓ Unklassifiziert</td><td>Physisch im Lager (QE), aber in keinem Warenwirtschaftssystem geführt und nicht verkauft.</td><td>In Odoo klassifizieren/migrieren — vorher ist das Gerät unverkäuflich und ohne Wert erfasst.</td></tr>
+    <tr><td>📦 Verkauft, noch im Lager</td><td>Kaufmännisch verkauft, steht aber physisch noch als QE da.</td><td>Kurzfristig normal (Kommissionierung läuft). Dauerhaft = der Ausgang hakt.</td></tr>
+</table>
+<ul>
+    <li>Empfehlung: <b>einmal pro Woche</b> den Button „⬇ Anomalien (CSV)" nutzen und die Liste abarbeiten. Idealzustand: alle drei Zähler auf 0.</li>
+    <li>Odoo- und BESTAND-Export möglichst <b>zeitgleich ziehen</b> — sonst produziert der Zeitversatz falsche Phantome.</li>
+</ul>
+
+<h2>7 · Regeln, die man kennen muss</h2>
+<ul>
+    <li><b>Odoo-Vorrang:</b> Kennt Odoo eine Lager-Nr, entscheidet Odoo — das Portal liefert nur Geräte, die Odoo nicht kennt. Ein im Portal noch „freies", aber in Odoo verkauftes Gerät ist der normale Umstellungsfall, kein Fehler.</li>
+    <li><b>Nur EINE Odoo-Datei laden</b> (die neueste). Das Spaltenlayout wechselt zwischen Exporten — das Cockpit mappt über Spalten-Namen, das ist abgedeckt; aber zwei Odoo-Dateien nacheinander ersetzen sich gegenseitig.</li>
+    <li><b>Lagerdauer kommt aus dem AMM-Wareneingangsdatum.</b> Der Odoo-„Pool-Eintritt" wird bei der Migration zurückgesetzt und ist für das Gerätealter unbrauchbar. Dead Stock und Verkaufsscore rechnen mit dem echten WE-Datum.</li>
+    <li><b>AMM-Status:</b> QE = im Lager · VS = im Versand · AA = Ausgang/Auslieferung (VS/AA sind praktisch immer Verkaufte).</li>
+    <li><b>Odoo-Verkaufsstatus:</b> Verfügbar · Angeboten · Reserviert · Verkauft.</li>
+    <li><b>Portal-Status:</b> nur ein LEERER Status ist frei; A/M = im Paket reserviert.</li>
+    <li><b>Zeitraum-Filter</b> (oben) wirkt nur auf Verkaufs-Reiter. Bestands-Reiter sind Stichtags-Ansichten, CLV ist bewusst ungefiltert (Lifetime-Wert).</li>
+</ul>
+
+<h2>8 · Wenn etwas klemmt</h2>
+<table>
+    <tr><th>Symptom</th><th>Ursache & Lösung</th></tr>
+    <tr><td>Datei wird nicht erkannt</td><td>Dateiname und Spalten unbekannt. „▸ Manuelle Zuordnung" öffnen und den passenden Slot nutzen.</td></tr>
+    <tr><td>Verfügbar-Zahl ändert sich nicht</td><td>Meist fehlt/heißt die <code>status</code>-Spalte im Export anders — das Cockpit warnt dann per Toast. Browser-Konsole (F12) zeigt die erkannten Status-Werte.</td></tr>
+    <tr><td>Viele Phantome nach Upload</td><td>Odoo- und BESTAND-Export stammen von verschiedenen Zeitpunkten. Beide neu und zeitgleich ziehen — was bleibt, ist echt.</td></tr>
+    <tr><td>Archiv-Daten fehlen nach Start</td><td>Anderer Browser/PC oder Archiv wurde geleert. Die fünf Archiv-Dateien einmal neu in die Ablagezone ziehen.</td></tr>
+    <tr><td>Alles zurücksetzen</td><td>„Archiv leeren" + Seite neu laden. Bei neuem Kalendertag startet die Session ohnehin sauber.</td></tr>
+</table>
+
+<h2>9 · PILOT-Hinweise</h2>
+<ul>
+    <li>Diese Version läuft <b>parallel zur Live-Version</b> (<code>…v2-DEV.html</code>). Der Banner „PILOT — nicht Live" unten links zeigt, welche Datei offen ist.</li>
+    <li>PILOT und Live teilen sich den lokalen Browser-Speicher (gleiche Schlüssel) — gewollt, die Datenmodelle sind kompatibel.</li>
+    <li>Feedback bitte direkt an Dustin Eskofier (Backoffice/Fulfillment).</li>
+</ul>
+
+<footer>
+    elvinci.de GmbH · Vertriebs-Cockpit PILOT · Anleitung Stand 02.07.2026 · Fragen: d.eskofier@elvinci.de<br>
+    Diese Anleitung beschreibt den PILOT-Stand (Odoo-Integration, Auto-Import, lokales Archiv, 6-Gruppen-Navigation). Für die alte Live-Version gilt weiterhin <code>ANLEITUNG_Vertriebs-Cockpit_v2.html</code>.
+</footer>
+
+</div>
+</body>
+</html>

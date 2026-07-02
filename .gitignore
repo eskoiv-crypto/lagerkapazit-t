@@ -32,3 +32,16 @@ blob-report/
 playwright/.cache/
 validation_output.txt
 validation_v2.txt
+
+# Geschaeftsdaten & Auswertungs-Artefakte im Arbeitsordner (nie pushen - DSGVO/Vertraulichkeit)
+*.pdf
+*.csv
+*.xlsx
+*.xls
+*_output.txt
+*_inspect.txt
+cell_check.txt
+cycle_gen.txt
+_commitmsg.txt
+aeg_italien_*.py
+warenbestand_*.py

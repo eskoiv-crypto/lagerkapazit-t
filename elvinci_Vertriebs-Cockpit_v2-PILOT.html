@@ -9002,101 +9002,10 @@ Keine Erklärungen, kein Markdown.`;
             }
         }
         
-        function calculateWarenwert() {
-            // Matching: BESTAND.Palette ↔ Stock-Analysis.lager_number
-            if (!dashboardState.bestandLoaded || !dashboardState.stockAnalysisLoaded) {
-                return;
-            }
-            
-            const stockData = dashboardState.stockAnalysisData;
-            let totalEK = 0, totalVK = 0, matchCount = 0;
-            
-            // Durchlaufe alle Paletten aus BESTAND
-            const bestandPaletten = new Set();
-            
-            // Primär: Nutze direkt gespeicherte Paletten vom BESTAND-Upload
-            if (dashboardState.allePaletten && dashboardState.allePaletten.length > 0) {
-                dashboardState.allePaletten.forEach(p => bestandPaletten.add(String(p)));
-            }
-            
-            // Fallback 1: Sammle aus bestandAuftragMap
-            if (bestandPaletten.size === 0) {
-                Object.values(dashboardState.bestandAuftragMap).forEach(auftrag => {
-                    if (auftrag.geraete) {
-                        auftrag.geraete.forEach(g => {
-                            if (g.palette) bestandPaletten.add(String(g.palette));
-                        });
-                    }
-                });
-            }
-            
-            // Fallback 2: Nutze Stock-Analysis direkt (wenn kein BESTAND)
-            if (bestandPaletten.size === 0) {
-                Object.keys(stockData).forEach(lagerNr => {
-                    bestandPaletten.add(lagerNr);
-                });
-            }
-            
-            // Matching durchführen
-            bestandPaletten.forEach(palette => {
-                const stock = stockData[palette];
-                if (stock) {
-                    totalEK += stock.ek;
-                    totalVK += stock.vk;
-                    matchCount++;
-                }
-            });
-            
-            // Logging für Debug
-            console.log(`Warenwert-Matching: ${matchCount}/${bestandPaletten.size} Paletten gematcht`);
-            
-            dashboardState.warenwertEK = totalEK;
-            dashboardState.warenwertVK = totalVK;
-            dashboardState.warenwertMarge = totalVK - totalEK;
-            dashboardState.warenwertMatchCount = matchCount;
-            
-            updateWarenwertDisplay();
-        }
-        
-        function updateWarenwertDisplay() {
-            const displayEl = document.getElementById('warenwert-display');
-            if (!displayEl) return;
-            
-            if (dashboardState.warenwertMatchCount === 0) {
-                displayEl.style.display = 'none';
-                return;
-            }
-            
-            displayEl.style.display = 'block';
-            
-            const ekEl = document.getElementById('warenwert-ek');
-            const vkEl = document.getElementById('warenwert-vk');
-            const margeEl = document.getElementById('warenwert-marge');
-            const matchCountEl = document.getElementById('warenwert-match-count');
-            const totalCountEl = document.getElementById('warenwert-total-count');
-            
-            // Formatierung: K für Tausend, M für Million
-            const formatCurrency = (val) => {
-                if (val >= 1000000) return (val / 1000000).toFixed(2) + 'M €';
-                if (val >= 1000) return (val / 1000).toFixed(0) + 'K €';
-                return val.toFixed(0) + ' €';
-            };
-            
-            if (ekEl) ekEl.textContent = formatCurrency(dashboardState.warenwertEK);
-            if (vkEl) vkEl.textContent = formatCurrency(dashboardState.warenwertVK);
-            
-            if (margeEl) {
-                const marge = dashboardState.warenwertMarge;
-                const margePercent = dashboardState.warenwertEK > 0 
-                    ? (marge / dashboardState.warenwertEK * 100).toFixed(0) 
-                    : 0;
-                margeEl.textContent = formatCurrency(marge);
-                margeEl.title = `${margePercent}% Markup`;
-            }
-            
-            if (matchCountEl) matchCountEl.textContent = dashboardState.warenwertMatchCount.toLocaleString('de-DE');
-            if (totalCountEl) totalCountEl.textContent = dashboardState.stockAnalysisCount.toLocaleString('de-DE');
-        }
+        // PHASE D (2026-07-02): calculateWarenwert() + updateWarenwertDisplay() entfernt.
+        // Prae-Odoo-Paletten-Matching (BESTAND.Palette x Stock-Analysis) - fachlich ersetzt
+        // durch reconcileAllSources() (Tages-Kennzahlen frei/QE-unverkauft, Odoo-Vorrang).
+        // Die zugehoerige Anzeige (warenwert-display) fiel bereits mit der Analyse-Pro-Box.
         
         function updateProfitDisplay() {
             const displayEl = document.getElementById('profit-display');
@@ -21198,10 +21107,8 @@ Keine Erklärungen, kein Markdown.`;
                     saveDataFreshness();  // Refresh-Warnung Timer zurücksetzen
                     renderHistoricalComparison();  // Historischer Vergleich aktualisieren
                     
-                    // ANALYSE PRO: Warenwert neu berechnen wenn Stock-Analysis geladen
-                    if (dashboardState.stockAnalysisLoaded) {
-                        calculateWarenwert();
-                    }
+                    // PHASE D (2026-07-02): calculateWarenwert()-Aufruf entfernt — Prä-Odoo-
+                    // Paletten-Matching, fachlich ersetzt durch reconcileAllSources()/qeUnsold.
 
                 } else if (type === 'jtl4y') {
                     // === JTL 4-JAHRE — Lange Auftragshistorie für CLV/Churn/Reaktivierung ===
@@ -22667,10 +22574,6 @@ Keine Erklärungen, kein Markdown.`;
                         statusEl.innerHTML = `✓ ${dashboardState.stockAnalysisCount.toLocaleString('de-DE')} | ${dashboardState.stockAvailableCount.toLocaleString('de-DE')} frei | ${dashboardState.stockReservedCount.toLocaleString('de-DE')} reserv.${hasOdoo ? ' · inkl. Odoo' : ''}`;
                         statusEl.style.color = 'var(--accent-green)';
                     }
-                    // Warenwert berechnen wenn BESTAND geladen
-                    if (dashboardState.bestandLoaded) {
-                        calculateWarenwert();
-                    }
                     // NEU: Verkaufsanalyse PRO aktualisieren
                     updateAnalyseProPanel();
 
@@ -22791,7 +22694,6 @@ Keine Erklärungen, kein Markdown.`;
                         statusEl.innerHTML = `✓ Odoo ${Object.keys(odooMap).length.toLocaleString('de-DE')} im Bestand · ${soldSkipped} verkauft${hasPortal ? ' · inkl. Portal' : ''}`;
                         statusEl.style.color = 'var(--accent-green)';
                     }
-                    if (dashboardState.bestandLoaded) calculateWarenwert();
                     updateAnalyseProPanel();
 
                 } else if (type === 'pipeline') {
