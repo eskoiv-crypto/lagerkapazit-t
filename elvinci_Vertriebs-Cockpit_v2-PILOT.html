@@ -14387,28 +14387,33 @@ Keine Erklärungen, kein Markdown.`;
             const fr = r.frei || { count:0, ek:0, vk:0 };
             const qu = r.qeUnsold || { count:0, ek:0, vk:0, frei:0, reserviert:0, unklassifiziert:0, ohnePreis:0 };
             const hasAmm = (r.phys.QE + r.phys.VS + r.phys.AA) > 0;
+            // Geräte, die kaufmännisch frei sind, aber NICHT physisch als QE im Lager stehen
+            // (Phantom bzw. unterwegs) — macht den Unterschied der beiden Kacheln sichtbar.
+            const freiNichtLager = Math.max(0, fr.count - qu.frei);
             // PHASE A: Kacheln als eigener Baustein — landen auf der ÜBERSICHT (Tagesstart)
             // UND im Datenqualität-Reiter (dort mit dem vollen Abstimmungs-Panel darunter).
+            // User-Feedback 2026-07-02: Titel = die FRAGE, die die Zahl beantwortet;
+            // Brücken-Rechnung zeigt, wie die zwei Zahlen zusammenhängen.
             const tilesHtml = `
               <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:0.75rem;margin-bottom:0.75rem;">
               <div style="background:linear-gradient(135deg,rgba(16,185,129,0.16),rgba(59,130,246,0.12));border:1px solid var(--accent-green);border-radius:10px;padding:0.9rem 1.1rem;">
-                <div style="font-size:0.62rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;">💶 Freiverkäuflicher Warenwert <span class="vc-info" data-tip="Gesamter Warenwert alles freiverkäuflichen Lagerbestands = jedes Gerät (alt UND neu), das NICHT reserviert, NICHT verkauft und NICHT in einem Angebot ist (Odoo-Status „Verfügbar" + freier Portal-Restbestand). Reserviert/Angeboten/Verkauft sind ausgeschlossen.">ⓘ</span></div>
+                <div style="font-size:0.62rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;">💶 Sofort verkaufbar — was Vertrieb heute anbieten kann <span class="vc-info" data-tip="VERTRIEBSSICHT (kaufmännisch): jedes Gerät mit Odoo-Status „Verfügbar" + freier Portal-Restbestand — egal, wo es physisch steht. Reserviert, Angeboten und Verkauft sind raus. Achtung: enthält auch Geräte, die laut Odoo verfügbar, aber physisch nicht (mehr) im Lager sind (Phantom).">ⓘ</span></div>
                 <div style="display:flex;align-items:baseline;gap:1.2rem;flex-wrap:wrap;margin-top:0.2rem;">
                   <div style="font-size:1.9rem;font-weight:800;color:var(--accent-green);line-height:1;">${eur(fr.vk)}<span style="font-size:0.8rem;font-weight:600;color:var(--text-secondary);"> VK</span></div>
                   <div style="font-size:1.1rem;font-weight:700;color:var(--text-secondary);">${eur(fr.ek)}<span style="font-size:0.7rem;font-weight:500;"> EK</span></div>
                   <div style="font-size:0.95rem;font-weight:700;">${fmt(fr.count)}<span style="font-size:0.7rem;font-weight:500;color:var(--text-secondary);"> Geräte frei</span></div>
                 </div>
-                <div style="font-size:0.6rem;color:var(--text-muted);margin-top:0.35rem;">frei = nicht reserviert · nicht verkauft · nicht im Angebot${r.comm.unklassifiziert>0?` &nbsp;·&nbsp; ⚠️ zusätzlich ${fmt(r.comm.unklassifiziert)} Geräte physisch im Lager, aber noch nicht in Odoo (Wert erst nach Klassifizierung)`:''}</div>
+                <div style="font-size:0.6rem;color:var(--text-muted);margin-top:0.35rem;">nicht reserviert · nicht im Angebot · nicht verkauft${hasAmm && freiNichtLager>0?` &nbsp;·&nbsp; ⚠️ davon <b>${fmt(freiNichtLager)}</b> NICHT physisch im Lager (Phantom → 🔍 Datenqualität)`:''}</div>
               </div>
               <div style="background:linear-gradient(135deg,rgba(59,130,246,0.16),rgba(168,85,247,0.10));border:1px solid var(--accent-cyan,#22d3ee);border-radius:10px;padding:0.9rem 1.1rem;">
-                <div style="font-size:0.62rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;">🏬 Nicht verkauft · physisch im Lager (QE) <span class="vc-info" data-tip="Tages-Kennzahl: jedes Gerät, das laut AMM physisch im Lager steht (Status QE) und kaufmännisch NICHT verkauft ist — egal ob frei, reserviert/angeboten oder noch unklassifiziert. VK ist die belastbare Größe (EK strukturell untererfasst). Unklassifizierte Geräte haben keine Preisquelle und zählen nur in der Stückzahl, nicht im Wert.">ⓘ</span></div>
+                <div style="font-size:0.62rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;">🏬 Unverkauft im Lager — gebundenes Kapital (physisch) <span class="vc-info" data-tip="LAGERSICHT (physisch): jedes Gerät, das laut AMM im Lager steht (Status QE) und nicht verkauft ist — INKLUSIVE reservierte/angebotene und noch unklassifizierte Geräte. Das ist das zum Stichtag gebundene Kapital. VK ist die belastbare Größe (EK strukturell untererfasst); unklassifizierte Geräte haben keine Preisquelle und zählen nur in der Stückzahl.">ⓘ</span></div>
                 ${hasAmm ? `
                 <div style="display:flex;align-items:baseline;gap:1.2rem;flex-wrap:wrap;margin-top:0.2rem;">
                   <div style="font-size:1.9rem;font-weight:800;color:var(--accent-cyan,#22d3ee);line-height:1;">${eur(qu.vk)}<span style="font-size:0.8rem;font-weight:600;color:var(--text-secondary);"> VK</span></div>
                   <div style="font-size:1.1rem;font-weight:700;color:var(--text-secondary);">${eur(qu.ek)}<span style="font-size:0.7rem;font-weight:500;"> EK</span></div>
                   <div style="font-size:0.95rem;font-weight:700;">${fmt(qu.count)}<span style="font-size:0.7rem;font-weight:500;color:var(--text-secondary);"> Geräte</span></div>
                 </div>
-                <div style="font-size:0.6rem;color:var(--text-muted);margin-top:0.35rem;">frei ${fmt(qu.frei)} · reserviert/angeboten ${fmt(qu.reserviert)} · unklassifiziert ${fmt(qu.unklassifiziert)}${qu.ohnePreis>0?` &nbsp;·&nbsp; ⚠️ ${fmt(qu.ohnePreis)} ohne Preisquelle (nicht im Wert)`:''}</div>`
+                <div style="font-size:0.6rem;color:var(--text-muted);margin-top:0.35rem;">= <b>${fmt(qu.frei)}</b> sofort verkaufbar im Lager &nbsp;+&nbsp; <b>${fmt(qu.reserviert)}</b> reserviert/angeboten &nbsp;+&nbsp; <b>${fmt(qu.unklassifiziert)}</b> unklassifiziert${qu.ohnePreis>0?` <span style="color:var(--accent-orange,#f59e0b);">(ohne Preis → nicht im €-Wert)</span>`:''}</div>`
                 : `<div style="font-size:0.72rem;color:var(--text-muted);margin-top:0.4rem;">BESTAND-Datei (AMM) laden, um die physische Tages-Kennzahl zu berechnen.</div>`}
               </div>
               </div>`;
