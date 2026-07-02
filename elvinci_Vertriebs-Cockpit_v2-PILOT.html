@@ -3663,11 +3663,13 @@
                                         <div style="font-size: 1.4rem; font-weight: 700; color: var(--accent-green);" id="stock-available-count">—</div>
                                         <div style="font-size: 0.65rem; color: var(--text-secondary);">Frei Verfügbar</div>
                                         <div style="font-size: 0.55rem; color: var(--text-muted); margin-top: 0.25rem;" id="stock-available-value">— EK | — VK</div>
+                                        <div style="font-size: 0.5rem; color: var(--text-muted); margin-top: 0.15rem;" id="stock-available-breakdown"></div>
                                     </div>
                                     <div style="text-align: center; background: var(--bg-elevated); padding: 0.75rem; border-radius: 8px; border-left: 4px solid var(--accent-orange);">
                                         <div style="font-size: 1.4rem; font-weight: 700; color: var(--accent-orange);" id="stock-reserved-count">—</div>
-                                        <div style="font-size: 0.65rem; color: var(--text-secondary);">Reserviert (A/M)</div>
+                                        <div style="font-size: 0.65rem; color: var(--text-secondary);">Reserviert / Im Angebot <span class="vc-info" data-tip="Alles was nicht frei verkäuflich ist: Odoo-Status „Angeboten" + „Reserviert" UND alter Portal-Bestand mit Status A/M — über beide Systeme kombiniert.">ⓘ</span></div>
                                         <div style="font-size: 0.55rem; color: var(--text-muted); margin-top: 0.25rem;" id="stock-reserved-value">— EK | — VK</div>
+                                        <div style="font-size: 0.5rem; color: var(--text-muted); margin-top: 0.15rem;" id="stock-reserved-breakdown"></div>
                                     </div>
                                     <div style="text-align: center; background: var(--bg-elevated); padding: 0.75rem; border-radius: 8px; border-left: 4px solid var(--accent-cyan);">
                                         <div style="font-size: 1.4rem; font-weight: 700; color: var(--accent-cyan);" id="stock-sold-count">—</div>
@@ -3705,7 +3707,7 @@
                                             </div>
                                             <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
                                                 <span style="width: 12px; height: 12px; background: #F59E0B; border-radius: 3px;"></span>
-                                                <span style="color: var(--text-secondary);">In Angeboten (A/M)</span>
+                                                <span style="color: var(--text-secondary);">Reserviert / Im Angebot</span>
                                                 <span style="margin-left: auto; font-weight: 700; color: var(--accent-orange);" id="pie-res-ek">—</span>
                                             </div>
                                             <div style="border-top: 1px solid var(--border); padding-top: 0.5rem; margin-top: 0.5rem;">
@@ -14415,11 +14417,18 @@ Keine Erklärungen, kein Markdown.`;
             const availableVK = dashboardState.stockAvailableVK || 0;
             setEl('stock-available-value', `${formatCurr(availableEK)} EK | ${formatCurr(availableVK)} VK`);
             
-            // Reserviert (A/M)
+            // Frei verfügbar — Aufschlüsselung Odoo/Portal (macht die Kombination sichtbar)
+            const ab = dashboardState.stockAvailBreakdown;
+            if (ab && (ab.odoo || ab.portal)) setEl('stock-available-breakdown', `Odoo ${ab.odoo.toLocaleString('de-DE')} · Portal ${ab.portal.toLocaleString('de-DE')}`);
+
+            // Reserviert / Im Angebot (Odoo Angeboten+Reserviert + Portal A/M kombiniert)
             setEl('stock-reserved-count', reservedCount.toLocaleString('de-DE'));
             const reservedEK = dashboardState.stockReservedEK || 0;
             const reservedVK = dashboardState.stockReservedVK || 0;
             setEl('stock-reserved-value', `${formatCurr(reservedEK)} EK | ${formatCurr(reservedVK)} VK`);
+            const rb = dashboardState.stockReservedBreakdown;
+            if (rb) setEl('stock-reserved-breakdown',
+                `Odoo ${rb.odooCount.toLocaleString('de-DE')} (Angeb. ${rb.odooAngeboten} · Res. ${rb.odooReserviert}) · Portal A/M ${rb.portalAM.toLocaleString('de-DE')}`);
             
             // Verkauft
             setEl('stock-sold-count', soldCount.toLocaleString('de-DE'));
@@ -14478,7 +14487,7 @@ Keine Erklärungen, kein Markdown.`;
                 chartVerfuegbarkeitEK = new Chart(ctx1.getContext('2d'), {
                     type: 'doughnut',
                     data: {
-                        labels: ['Frei verkaufbar', 'In Angeboten (A/M)'],
+                        labels: ['Frei verkaufbar', 'Reserviert / Im Angebot'],
                         datasets: [{
                             data: [availableEK, reservedEK],
                             backgroundColor: ['#10B981', '#F59E0B'],
@@ -21656,15 +21665,24 @@ Keine Erklärungen, kein Markdown.`;
             let count=0, totalEK=0, totalVK=0, totalLifeDays=0, lifeDaysCount=0;
             let reservedCount=0, availableCount=0, reservedEK=0, reservedVK=0, availableEK=0, availableVK=0;
             let nPortal=0, nOdoo=0;
+            // Aufschlüsselung „reserviert/im Angebot" nach Welt (Odoo Angeboten/Reserviert + Portal A/M)
+            let resOdooAng=0, resOdooRes=0, resPortalAM=0, resOdooEK=0, resPortalEK=0;
+            let availOdoo=0, availPortal=0;
             const pgStats={}, brandStats={}, lageralterBuckets={d7:0,d14:0,d30:0,d60:0,d90:0,d90plus:0}, vocab={};
             const raw=[];
             for (const lagerNr in merged) {
                 const item = merged[lagerNr];
                 const ek=item.ek||0, vk=item.vk||0, pg=item.pg||'', brand=item.brand||'', lifeDays=item.lifeDays||0;
                 count++;
-                if (item._src === 'Odoo') nOdoo++; else nPortal++;
-                if (item.isReserved) { reservedCount++; reservedEK+=ek; reservedVK+=vk; }
-                else { availableCount++; availableEK+=ek; availableVK+=vk; }
+                const isOdoo = (item._src === 'Odoo');
+                if (isOdoo) nOdoo++; else nPortal++;
+                if (item.isReserved) { reservedCount++; reservedEK+=ek; reservedVK+=vk;
+                    if (isOdoo) { resOdooEK+=ek; if (item.vstatus === 'Reserviert') resOdooRes++; else resOdooAng++; }
+                    else { resPortalAM++; resPortalEK+=ek; }
+                }
+                else { availableCount++; availableEK+=ek; availableVK+=vk;
+                    if (isOdoo) availOdoo++; else availPortal++;
+                }
                 totalEK+=ek; totalVK+=vk;
                 if (lifeDays>0){ totalLifeDays+=lifeDays; lifeDaysCount++;
                     if(lifeDays<=7)lageralterBuckets.d7++; else if(lifeDays<=14)lageralterBuckets.d14++;
@@ -21693,6 +21711,9 @@ Keine Erklärungen, kein Markdown.`;
             dashboardState.stockAnalysisCount = count;
             dashboardState.stockReservedCount=reservedCount; dashboardState.stockAvailableCount=availableCount;
             dashboardState.stockReservedEK=reservedEK; dashboardState.stockReservedVK=reservedVK;
+            dashboardState.stockReservedBreakdown={ odooAngeboten:resOdooAng, odooReserviert:resOdooRes,
+                odooCount:resOdooAng+resOdooRes, portalAM:resPortalAM, odooEK:resOdooEK, portalEK:resPortalEK };
+            dashboardState.stockAvailBreakdown={ odoo:availOdoo, portal:availPortal };
             dashboardState.stockAvailableEK=availableEK; dashboardState.stockAvailableVK=availableVK;
             dashboardState.stockAvgLifeDays = lifeDaysCount>0?Math.round(totalLifeDays/lifeDaysCount):0;
             dashboardState.stockLageralterBuckets=lageralterBuckets;
@@ -22488,6 +22509,7 @@ Keine Erklärungen, kein Markdown.`;
                             pg: _leaf(row[cKat]).toLowerCase(),
                             brand: (row[cBrand] || '').toString().trim().toUpperCase(),
                             status: isAvailable ? '' : 'ANGEBOTEN',
+                            vstatus,                       // roher Odoo-Verkaufsstatus (Verfügbar/Angeboten/Reserviert)
                             isReserved, isAvailable,
                             model, articleNumber: artNr,
                             dateUpload: (dStr || '').toString().slice(0, 10),
