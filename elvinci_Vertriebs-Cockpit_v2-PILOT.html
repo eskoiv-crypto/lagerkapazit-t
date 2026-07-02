@@ -2720,6 +2720,53 @@
             border-bottom-color: var(--accent-cyan);
             background: var(--bg-elevated);
         }
+        /* PHASE C: Zwei-Ebenen-Navigation — Gruppen als ruhige Segmented-Pills,
+           Sub-Reiter darunter im bewährten Unterstrich-Stil (.analyse-tab). */
+        .vc-nav-groups {
+            display: flex;
+            gap: 4px;
+            flex-wrap: wrap;
+            padding: 0.55rem 0.75rem;
+            background: var(--bg-secondary);
+        }
+        .vc-group-btn {
+            padding: 0.42rem 1rem;
+            border: 1px solid transparent;
+            border-radius: 999px;
+            background: transparent;
+            color: var(--text-muted);
+            font-size: 0.76rem;
+            font-weight: 600;
+            letter-spacing: 0.01em;
+            cursor: pointer;
+            transition: color 0.15s, background 0.15s, border-color 0.15s;
+        }
+        .vc-group-btn:hover {
+            color: var(--text-primary);
+            background: var(--bg-elevated);
+        }
+        .vc-group-btn.active {
+            color: var(--text-primary);
+            background: var(--bg-elevated);
+            border-color: var(--border);
+        }
+        .vc-group-btn .vc-group-count {
+            font-weight: 400;
+            font-size: 0.62rem;
+            color: var(--text-muted);
+            margin-left: 0.25rem;
+        }
+        .vc-nav-subs {
+            display: flex;
+            gap: 0;
+            flex-wrap: wrap;
+            padding: 0 0.75rem;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+        }
+        .vc-nav-subs:empty {
+            padding: 0;
+        }
         .analyse-tab-content {
             display: none;
         }
@@ -3528,27 +3575,12 @@
                     </div>
                     
                     <div id="analyse-pro-content" style="padding: 0;">
-                        <!-- TAB-Navigation -->
-                        <div style="display: flex; gap: 0; border-bottom: 1px solid var(--border); background: var(--bg-secondary); flex-wrap: wrap;">
-                            <button class="analyse-tab active" data-tab="uebersicht" onclick="switchAnalyseTab('uebersicht')" title="Gesamtüberblick: Umsatz, Marge, Stückzahlen und die wichtigsten Kennzahlen aller verkauften Geräte auf einen Blick.">📈 Übersicht</button>
-                            <button class="analyse-tab" data-tab="datenqualitaet" onclick="switchAnalyseTab('datenqualitaet')" title="Prüft die Konsistenz der hochgeladenen Dateien: stimmen Lagernummern, Artikelnummern und Bezeichnungen über BESTAND, Stock-Analysis, All-Sold und JTL überein?">🔍 Datenqualität</button>
-                            <button class="analyse-tab" data-tab="verkaeufer" onclick="switchAnalyseTab('verkaeufer')" title="Verkaufsleistung pro Mitarbeiter: Anzahl verkaufter Geräte, erzielter Umsatz und Marge je Verkäufer.">👤 Verkäufer</button>
-                            <button class="analyse-tab" data-tab="kunden" onclick="switchAnalyseTab('kunden')" title="Kunden-Ranking: welche Kunden kaufen am meisten (Stückzahl, Umsatz, Marge). Identifiziert Top- und Schlüsselkunden.">🏢 Kunden</button>
-                            <button class="analyse-tab" data-tab="kundenmatrix" onclick="switchAnalyseTab('kundenmatrix')" title="Kreuztabelle Kunde × Warengruppe: welcher Kunde kauft welche Produktkategorien? Zeigt Cross-Selling-Potenzial.">📊 Kunden×WG</button>
-                            <button class="analyse-tab" data-tab="produktgruppen" onclick="switchAnalyseTab('produktgruppen')" title="Auswertung nach Warengruppen (z. B. Waschmaschinen, Kühlgeräte): Absatz, Umsatz und Marge je Kategorie.">🏷️ Warengruppen</button>
-                            <button class="analyse-tab" data-tab="brands" onclick="switchAnalyseTab('brands')" title="Auswertung nach Hersteller-Marken (Bosch, Samsung, AEG, …): welche Marken verkaufen sich am besten und mit welcher Marge?">🏭 Marken</button>
-                            <button class="analyse-tab" data-tab="lieferanten" onclick="switchAnalyseTab('lieferanten')" title="Auswertung nach Lieferquelle (OTTO_MIX, AEG_Schrott, …): Absatz und Marge je Bezugsquelle. Zeigt, welche Lieferanten sich lohnen.">📦 Lieferanten</button>
-                            <button class="analyse-tab" data-tab="deadstock" onclick="switchAnalyseTab('deadstock')" title="Ladenhüter: Geräte, die ungewöhnlich lange im Lager liegen, ohne verkauft zu werden. Kandidaten für Abverkauf/Rabatt.">💀 Dead Stock</button>
-                            <button class="analyse-tab" data-tab="potenzial" onclick="switchAnalyseTab('potenzial')" title="Verkaufsscore: HOT/WARM/NEUTRAL/COLD-Verteilung + volle priorisierte Geräteliste. Konvolut-Bildung erfolgt im Reiter '🎯 Angebote'.">🎯 Verkaufsscore</button>
-                            <button class="analyse-tab" data-tab="angebote" onclick="switchAnalyseTab('angebote')" id="tab-btn-angebote" style="background: linear-gradient(135deg, #10b981, #0071e3); color: white;" title="Angebots-Generator: 2 Modi — (1) Für Kunde X → maßgeschneidertes Angebot aus seiner 4-Jahres-Kaufhistorie + aktueller Stock. (2) Lager-Räumung → klassische Konvolute mit Top-Kunden-Vorschlag. Beide Modi → gemeinsamer Konvolut-Output mit CSV/PDF-Export.">🎯 Angebote</button>
-                            <button class="analyse-tab" data-tab="topseller" onclick="switchAnalyseTab('topseller')" title="Bestseller: die am häufigsten und schnellsten verkauften Artikel/Warengruppen — ideal für Nachbestellung.">🏆 Top-Seller</button>
-                            <button class="analyse-tab" data-tab="clv" onclick="switchAnalyseTab('clv')" id="tab-btn-clv" style="background: linear-gradient(135deg, #a855f7, #ec4899); color: white;" title="Customer Lifetime Value: Kundenrangliste nach historischem Brutto-Umsatz über 4 Jahre. Segmentiert in aktiv / pre-churn / high-value-churn / churned. Benötigt JTL-4-Jahre + Stammdaten.">💎 CLV</button>
-                            <button class="analyse-tab" data-tab="churn" onclick="switchAnalyseTab('churn')" id="tab-btn-churn" style="background: linear-gradient(135deg, #ef4444, #f97316); color: white;" title="Churn-Alert: Already-Churned-Liste + Pre-Churn-Forecast (welche Kunden reißen in den nächsten 30 Tagen die 180-T-Schwelle?). Status-Spalte zum Abhaken pro Kunde. Benötigt JTL-4-Jahre + Stammdaten.">🚨 Churn-Alert</button>
-                            <button class="analyse-tab" data-tab="reakt" onclick="switchAnalyseTab('reakt')" id="tab-btn-reakt" style="background: linear-gradient(135deg, #10b981, #06b6d4); color: white;" title="Reaktivierung: gezielte Win-Back-Liste mit Konvolut-Vorschlag pro Kunde. Filter nach LTV-Range + Inaktivitäts-Range + Land. Match-Score zeigt wieviel aus seiner Kaufhistorie wir aktuell im Lager haben. Klick auf '🎯 Konvolut bauen' springt zum Konvolut-Generator mit voreingestelltem Kunden-Filter.">🌙 Reaktivierung</button>
-                            <button class="analyse-tab" data-tab="liveview" onclick="switchAnalyseTab('liveview')" id="tab-btn-liveview" style="background: linear-gradient(135deg, #6366f1, #06b6d4); color: white;" title="Live View: Drill-Down nach Lieferant × Warengruppe × Marke. Zeigt aktuellen Bestand und besten Kunden für diese Kombi in Echtzeit beim Filter-Klick.">🔍 Live View</button>
-                            <button class="analyse-tab" data-tab="pipeline" onclick="switchAnalyseTab('pipeline')" id="tab-btn-pipeline" style="background: linear-gradient(135deg, #6366f1, #a855f7); color: white;" title="Pipeline: aktuelle offene Aufträge aus AMM (AUFTRAG_STATUS). Überfällig-Alarm, Forecast 'diese Woche raus', Sync-Wächter JTL ↔ AMM.">📋 Pipeline</button>
-                            <button class="analyse-tab" data-tab="angebotsanalyse" onclick="switchAnalyseTab('angebotsanalyse')" id="tab-btn-angebotsanalyse" style="background: linear-gradient(135deg, #10B981, #06B6D4); color: white;" title="Angebots-Analyse: lädt eine Angebots-/Auftragsdatei und gleicht sie gegen den verfügbaren Bestand ab — was kann sofort geliefert werden, was fehlt?">💼 Angebots-Analyse</button>
-                        </div>
+                        <!-- PHASE C (2026-07-02): Zwei-Ebenen-Navigation — 6 Gruppen statt 18 Tabs
+                             nebeneinander. Buttons werden aus TAB_GROUPS gerendert (eine Quelle
+                             für Gruppierung, Labels und Tooltips). Sub-Zeile nutzt weiterhin
+                             .analyse-tab + data-tab → switchAnalyseTab() bleibt unverändert die Engine. -->
+                        <div class="vc-nav-groups" id="vc-nav-groups"></div>
+                        <div class="vc-nav-subs" id="vc-nav-subs"></div>
 
                         <!-- DATENSTAND-LEISTE: Zeiträume je Quelle + GLOBALER ZEITRAUM-FILTER -->
                         <div id="data-range-bar" style="display:none; padding:0.55rem 1rem; background: var(--bg-secondary); border-bottom:1px solid var(--border); font-size:0.68rem; color:var(--text-secondary); display:flex; flex-wrap:wrap; gap:1.25rem; align-items:center;">
@@ -9102,6 +9134,75 @@ Keine Erklärungen, kein Markdown.`;
             toggle.textContent = isVisible ? '▶' : '▼';
         }
         
+        // ============================================
+        // PHASE C (2026-07-02): ZWEI-EBENEN-NAVIGATION — 6 Gruppen statt 18 Tabs
+        // ============================================
+        // Eine Quelle für Gruppierung, Reihenfolge, Labels UND Tooltips.
+        // switchAnalyseTab() bleibt unverändert die Engine (wird auch programmatisch
+        // aufgerufen, z.B. Drop einer Angebots-Datei, „Konvolut bauen" aus Reaktivierung)
+        // — updateGroupNav() am Ende hält Gruppen-/Sub-Leiste synchron.
+        const TAB_GROUPS = [
+            { key: 'heute', label: '📈 Heute', tabs: [
+                { id: 'uebersicht', label: 'Übersicht', title: 'Gesamtüberblick: Tages-Kennzahlen, Umsatz, Marge, Stückzahlen und die wichtigsten Kennzahlen auf einen Blick.' }
+            ]},
+            { key: 'bestand', label: '📦 Bestand', tabs: [
+                { id: 'produktgruppen', label: 'Warengruppen', title: 'Auswertung nach Warengruppen (z. B. Waschmaschinen, Kühlgeräte): Absatz, Umsatz und Marge je Kategorie.' },
+                { id: 'brands', label: 'Marken', title: 'Auswertung nach Hersteller-Marken (Bosch, Samsung, AEG, …): welche Marken verkaufen sich am besten und mit welcher Marge?' },
+                { id: 'lieferanten', label: 'Lieferanten', title: 'Auswertung nach Lieferquelle (OTTO_MIX, AEG_Schrott, …): Absatz und Marge je Bezugsquelle. Zeigt, welche Lieferanten sich lohnen.' },
+                { id: 'deadstock', label: 'Dead Stock', title: 'Ladenhüter: Geräte, die ungewöhnlich lange im Lager liegen, ohne verkauft zu werden. Kandidaten für Abverkauf/Rabatt.' },
+                { id: 'potenzial', label: 'Verkaufsscore', title: 'Verkaufsscore: HOT/WARM/NEUTRAL/COLD-Verteilung + volle priorisierte Geräteliste. Konvolut-Bildung erfolgt in Werkzeuge → Angebote.' },
+                { id: 'liveview', label: 'Live View', title: 'Live View: Drill-Down nach Lieferant × Warengruppe × Marke. Zeigt aktuellen Bestand und besten Kunden für diese Kombi in Echtzeit beim Filter-Klick.' }
+            ]},
+            { key: 'verkauf', label: '💰 Verkauf', tabs: [
+                { id: 'verkaeufer', label: 'Verkäufer', title: 'Verkaufsleistung pro Mitarbeiter: Anzahl verkaufter Geräte, erzielter Umsatz und Marge je Verkäufer.' },
+                { id: 'kunden', label: 'Kunden', title: 'Kunden-Ranking: welche Kunden kaufen am meisten (Stückzahl, Umsatz, Marge). Identifiziert Top- und Schlüsselkunden.' },
+                { id: 'kundenmatrix', label: 'Kunden×WG', title: 'Kreuztabelle Kunde × Warengruppe: welcher Kunde kauft welche Produktkategorien? Zeigt Cross-Selling-Potenzial.' },
+                { id: 'topseller', label: 'Top-Seller', title: 'Bestseller: die am häufigsten und schnellsten verkauften Artikel/Warengruppen — ideal für Nachbestellung.' }
+            ]},
+            { key: 'kundenbindung', label: '💎 Kundenbindung', tabs: [
+                { id: 'clv', label: 'CLV', title: 'Customer Lifetime Value: Kundenrangliste nach historischem Brutto-Umsatz über 4 Jahre. Segmentiert in aktiv / pre-churn / high-value-churn / churned. Benötigt JTL-4-Jahre + Stammdaten.' },
+                { id: 'churn', label: 'Churn-Alert', title: 'Churn-Alert: Already-Churned-Liste + Pre-Churn-Forecast (welche Kunden reißen in den nächsten 30 Tagen die 180-T-Schwelle?). Status-Spalte zum Abhaken pro Kunde. Benötigt JTL-4-Jahre + Stammdaten.' },
+                { id: 'reakt', label: 'Reaktivierung', title: 'Reaktivierung: gezielte Win-Back-Liste mit Konvolut-Vorschlag pro Kunde. Filter nach LTV-Range + Inaktivitäts-Range + Land. Match-Score zeigt wieviel aus seiner Kaufhistorie wir aktuell im Lager haben.' }
+            ]},
+            { key: 'werkzeuge', label: '🛠️ Werkzeuge', tabs: [
+                { id: 'angebote', label: 'Angebote', title: 'Angebots-Generator: 2 Modi — (1) Für Kunde X → maßgeschneidertes Angebot aus seiner 4-Jahres-Kaufhistorie + aktueller Stock. (2) Lager-Räumung → klassische Konvolute mit Top-Kunden-Vorschlag. Beide Modi → gemeinsamer Konvolut-Output mit CSV/PDF-Export.' },
+                { id: 'angebotsanalyse', label: 'Angebots-Analyse', title: 'Angebots-Analyse: lädt eine Angebots-/Auftragsdatei und gleicht sie gegen den verfügbaren Bestand ab — was kann sofort geliefert werden, was fehlt?' },
+                { id: 'pipeline', label: 'Pipeline', title: 'Pipeline: aktuelle offene Aufträge aus AMM (AUFTRAG_STATUS). Überfällig-Alarm, Forecast „diese Woche raus", Sync-Wächter JTL ↔ AMM.' }
+            ]},
+            { key: 'datenqualitaet', label: '🔍 Datenqualität', tabs: [
+                { id: 'datenqualitaet', label: 'Datenqualität', title: 'Prüft die Konsistenz der hochgeladenen Dateien: Abstimmung AMM ↔ Odoo ↔ Portal über die Lager-Nr, Anomalien (Phantom, Unklassifiziert, Verkauft-im-Lager).' }
+            ]}
+        ];
+        const _lastTabInGroup = {};
+
+        function renderGroupNav() {
+            const gEl = document.getElementById('vc-nav-groups');
+            if (!gEl) return;
+            gEl.innerHTML = TAB_GROUPS.map(g =>
+                `<button type="button" class="vc-group-btn" data-group="${g.key}" onclick="switchTabGroup('${g.key}')">${g.label}${g.tabs.length > 1 ? `<span class="vc-group-count">${g.tabs.length}</span>` : ''}</button>`
+            ).join('');
+        }
+
+        function switchTabGroup(groupKey) {
+            const g = TAB_GROUPS.find(x => x.key === groupKey);
+            if (!g) return;
+            switchAnalyseTab(_lastTabInGroup[groupKey] || g.tabs[0].id);
+        }
+
+        function updateGroupNav(tabName) {
+            const g = TAB_GROUPS.find(gr => gr.tabs.some(t => t.id === tabName));
+            if (!g) return;
+            _lastTabInGroup[g.key] = tabName;
+            document.querySelectorAll('.vc-group-btn').forEach(b =>
+                b.classList.toggle('active', b.dataset.group === g.key));
+            const subs = document.getElementById('vc-nav-subs');
+            if (!subs) return;
+            if (g.tabs.length < 2) { subs.innerHTML = ''; return; }
+            subs.innerHTML = g.tabs.map(t =>
+                `<button type="button" class="analyse-tab${t.id === tabName ? ' active' : ''}" data-tab="${t.id}" onclick="switchAnalyseTab('${t.id}')" title="${t.title}">${t.label}</button>`
+            ).join('');
+        }
+
         function switchAnalyseTab(tabName) {
             // Tabs deaktivieren
             document.querySelectorAll('.analyse-tab').forEach(t => t.classList.remove('active'));
@@ -9148,6 +9249,8 @@ Keine Erklärungen, kein Markdown.`;
             const isFiltered = SALES_TABS.has(tabName);
             if (gfContainer) gfContainer.style.display = isFiltered ? 'flex' : 'none';
             if (gfNotApplicable) gfNotApplicable.style.display = isFiltered ? 'none' : 'inline';
+            // PHASE C: Gruppen-/Sub-Leiste synchron halten — auch bei programmatischen Wechseln
+            try { updateGroupNav(tabName); } catch (e) { console.warn('[Nav] updateGroupNav', e); }
         }
         
         // ====== GLOBAL TIME FILTER (Phase 2) ======
@@ -16254,6 +16357,9 @@ Keine Erklärungen, kein Markdown.`;
             updateLookupDisplay();     // PHASE 2: Artikelnummer-Lookup Anzeige
             loadManualFaktoren();      // PHASE 3: Manuelle Faktoren laden
             updateManualFaktorenCount(); // PHASE 3: Zähler aktualisieren
+
+            // PHASE C (2026-07-02): Zwei-Ebenen-Navigation aufbauen (Start: Heute → Übersicht)
+            try { renderGroupNav(); updateGroupNav('uebersicht'); } catch (e) { console.warn('[Nav] Init fehlgeschlagen', e); }
 
             // PHASE B (2026-07-02): Eingefrorene Quellen (Portal/JTL) aus dem lokalen
             // IndexedDB-Archiv wiederherstellen — Replay durch den normalen Upload-Pfad.
