@@ -3098,6 +3098,28 @@
             font-weight: 600;
             margin: 1.1rem 0 0.6rem;
         }
+        /* PHASE C3: Datenstand-Pills — neutral mit Farbpunkt statt vier bunter Vollflächen */
+        .ds-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+            border-radius: 999px;
+            padding: 0.12rem 0.6rem;
+            font-size: 0.6rem;
+            font-weight: 600;
+            letter-spacing: 0.04em;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+        }
+        .ds-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            display: inline-block;
+            flex-shrink: 0;
+        }
     </style>
 </head>
 <body data-active-dept="sales" data-vertriebs-cockpit="true">
@@ -3110,7 +3132,7 @@
     <header class="header">
         <div class="logo">
             <div class="logo-icon" style="background: linear-gradient(135deg, #10b981 0%, #06b6d4 100%);">VC</div>
-            <div class="logo-text">Vertriebs-Cockpit <span>elvinci.de</span> <span style="background:linear-gradient(135deg,#ef4444,#f97316); color:white; padding:0.2rem 0.55rem; border-radius:6px; font-size:0.65rem; margin-left:0.5rem; font-weight:700; vertical-align:middle;">🧪 DEV v2</span></div>
+            <div class="logo-text">Vertriebs-Cockpit <span>elvinci.de</span> <span style="background:var(--bg-elevated); border:1px solid var(--border); color:var(--text-secondary); padding:0.2rem 0.6rem; border-radius:999px; font-size:0.62rem; margin-left:0.5rem; font-weight:600; letter-spacing:0.03em; vertical-align:middle;">v3 PILOT</span></div>
         </div>
         <div class="header-meta">
             <div class="timestamp">
@@ -3640,7 +3662,7 @@
 
                         <!-- DATENSTAND-LEISTE: Zeiträume je Quelle + GLOBALER ZEITRAUM-FILTER -->
                         <div id="data-range-bar" style="display:none; padding:0.55rem 1rem; background: var(--bg-secondary); border-bottom:1px solid var(--border); font-size:0.68rem; color:var(--text-secondary); display:flex; flex-wrap:wrap; gap:1.25rem; align-items:center;">
-                            <span style="font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em;">🕒 Datenstand</span>
+                            <span style="font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em;">Datenstand</span>
                             <span id="range-bestand" style="display:none;"></span>
                             <span id="range-stock" style="display:none;"></span>
                             <span id="range-sold" style="display:none;"></span>
@@ -3701,25 +3723,26 @@
                             <!-- Verkaufshistorie -->
                             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
                                 <div style="background: var(--bg-elevated); border-radius: 8px; padding: 0.75rem;">
-                                    <h4 style="margin: 0 0 0.5rem 0; font-size: 0.8rem; color: var(--text-secondary);">📊 Verkaufshistorie (All-Sold)</h4>
+                                    <h4 style="margin: 0 0 0.5rem 0; font-size: 0.8rem; color: var(--text-secondary);">Verkaufshistorie (All-Sold)</h4>
+                                    <!-- PHASE C3: Zahlen neutral — Farbe nur für Bedeutung, nicht als Deko -->
                                     <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; text-align: center;">
                                         <div>
-                                            <div style="font-size: 1.1rem; font-weight: 700; color: var(--accent-green);" id="sold-count">—</div>
+                                            <div style="font-size: 1.1rem; font-weight: 700; color: var(--text-primary); font-family: var(--font-mono);" id="sold-count">—</div>
                                             <div style="font-size: 0.6rem; color: var(--text-muted);">Verkauft</div>
                                         </div>
                                         <div>
-                                            <div style="font-size: 1.1rem; font-weight: 700; color: var(--accent-cyan);" id="sold-total-profit">—</div>
+                                            <div style="font-size: 1.1rem; font-weight: 700; color: var(--text-primary); font-family: var(--font-mono);" id="sold-total-profit">—</div>
                                             <div style="font-size: 0.6rem; color: var(--text-muted);">Gesamt-Profit</div>
                                         </div>
                                         <div>
-                                            <div style="font-size: 1.1rem; font-weight: 700; color: var(--accent-orange);" id="sold-avg-profit">—</div>
+                                            <div style="font-size: 1.1rem; font-weight: 700; color: var(--text-primary); font-family: var(--font-mono);" id="sold-avg-profit">—</div>
                                             <div style="font-size: 0.6rem; color: var(--text-muted);">Ø Profit/Stk</div>
                                         </div>
                                     </div>
                                 </div>
                                 
                                 <div style="background: var(--bg-elevated); border-radius: 8px; padding: 0.75rem;">
-                                    <h4 style="margin: 0 0 0.5rem 0; font-size: 0.8rem; color: var(--text-secondary);">🎯 Marge-Verteilung</h4>
+                                    <h4 style="margin: 0 0 0.5rem 0; font-size: 0.8rem; color: var(--text-secondary);">Marge-Verteilung</h4>
                                     <!-- PHASE C2: getönte Flächen + Bedeutungsfarbe im Text statt gesättigter Blöcke mit Weiß -->
                                     <div id="marge-distribution" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.4rem; text-align: center; font-size: 0.65rem;">
                                         <div style="background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.35); padding: 0.35rem; border-radius: 8px;">
@@ -3744,7 +3767,7 @@
                             
                             <!-- Lagerumschlag-Chart -->
                             <div style="margin-top: 1rem; background: var(--bg-elevated); border-radius: 8px; padding: 0.75rem;">
-                                <h4 style="margin: 0 0 0.5rem 0; font-size: 0.8rem; color: var(--text-secondary);">📅 Lageralter-Verteilung</h4>
+                                <h4 style="margin: 0 0 0.5rem 0; font-size: 0.8rem; color: var(--text-secondary);">Lageralter-Verteilung</h4>
                                 <div id="lageralter-chart" style="display: flex; gap: 0.25rem; height: 80px; align-items: flex-end;">
                                     <!-- Wird dynamisch gefüllt -->
                                 </div>
@@ -3844,7 +3867,7 @@
                             </div>
                             
                             <!-- Datenquellen-Status -->
-                            <div class="analytics-section-title">📊 Geladene Datenquellen</div>
+                            <div class="analytics-section-title">Geladene Datenquellen</div>
                             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 0.75rem; margin-bottom: 1.5rem;">
                                 <div id="dq-source-odoo" style="background: var(--bg-elevated); border-radius: 8px; padding: 0.75rem; border-left: 4px solid var(--text-muted);">
                                     <div style="font-size: 0.7rem; font-weight: 600;">🟣 Odoo (stock.lot) <span class="vc-info" data-tip="Das EINZIGE lebende Warenwirtschaftssystem (seit 19.06.2026). Liefert aktuellen Bestand (Verfügbar/Angeboten/Reserviert) und laufende Verkäufe. Hat bei allen Merges Vorrang vor den eingefrorenen Archiven.">ⓘ</span></div>
@@ -3874,7 +3897,7 @@
                             </div>
                             
                             <!-- PHASE 2: Lager-Nr Coverage-Matrix (Zwei-Welten: Portal/JTL + Odoo) -->
-                            <div class="analytics-section-title">🔑 Lager-Nr Coverage (Zwei-Welten-Abgleich)
+                            <div class="analytics-section-title">Lager-Nr Coverage (Zwei-Welten-Abgleich)
                                 <span class="vc-info" data-tip="Die Lager-Nr (900…) ist über alle Systeme eindeutig und der verlässlichste Validierungs-Schlüssel. Diese Matrix zeigt, aus welcher Welt (Portal/JTL = alt, Odoo = neu seit 19.06.2026) Bestand und Verkäufe stammen und deckt Konflikte auf (verkauft & trotzdem frei, Doppel-Verkäufe, Verkäufe ohne Lager-Nr).">ⓘ</span>
                             </div>
                             <div id="dq-lagernr-coverage" style="margin-bottom: 1.5rem;">
@@ -8215,14 +8238,30 @@ Keine Erklärungen, kein Markdown.`;
         function showToast(type, title, message, duration = 5000) {
             const container = document.getElementById('toast-container');
             if (!container) return;
-            
+
+            // LEGACY-SHIM (2026-07-03): ~28 Alt-Aufrufe nutzen die v1-Reihenfolge
+            // (Text, Typ) bzw. (Titel, Text, Typ) statt (Typ, Titel, Text) — Ergebnis
+            // war "ℹ️ success undefined". Statt alle Call-Sites anzufassen, wird hier
+            // defensiv normalisiert: Typ-Keyword wird erkannt, egal an welcher Position.
+            const TOAST_TYPES = ['success', 'error', 'warning', 'info'];
+            if (!TOAST_TYPES.includes(type)) {
+                if (TOAST_TYPES.includes(message)) {          // (Titel, Text, Typ)
+                    const t = message; message = title; title = type; type = t;
+                } else if (TOAST_TYPES.includes(title)) {     // (Text, Typ)
+                    const t = title; title = type; type = t; message = undefined;
+                } else {                                      // gar kein Typ übergeben
+                    message = title; title = type; type = 'info';
+                }
+            }
+            if (message === undefined || message === null) message = '';
+
             const icons = {
                 success: '✅',
                 error: '❌',
                 warning: '⚠️',
                 info: 'ℹ️'
             };
-            
+
             const toast = document.createElement('div');
             toast.className = `toast ${type}`;
             toast.innerHTML = `
@@ -13351,7 +13390,7 @@ Keine Erklärungen, kein Markdown.`;
                 soldRangeTxt = `${fmt(r.mn)} – ${fmt(r.mx)}`;
                 if (elSold) {
                     elSold.style.display = 'inline';
-                    elSold.innerHTML = `<span class="src-pill src-sold" data-tip="All-Sold (Portal-Verkaufshistorie): jede Zeile = ein verkauftes Gerät mit Verkaufsdatum, Preis, Kunde, Verkäufer. DSGVO: enthält Kundennamen (vertraulich).">🟧 ALL-SOLD</span> <b style="color:var(--accent-green);">Verkäufe:</b> ${soldRangeTxt} <span style="color:var(--text-muted);">· ${sold.length.toLocaleString('de-DE')} Verk.</span>`;
+                    elSold.innerHTML = `<span class="ds-pill" data-tip="All-Sold (Portal-Verkaufshistorie): jede Zeile = ein verkauftes Gerät mit Verkaufsdatum, Preis, Kunde, Verkäufer. DSGVO: enthält Kundennamen (vertraulich)."><span class="ds-dot" style="background:var(--accent-orange);"></span>All-Sold</span> <b>Verkäufe:</b> ${soldRangeTxt} <span style="color:var(--text-muted);">· ${sold.length.toLocaleString('de-DE')} Verk.</span>`;
                     shown = true;
                 }
             } else if (elSold) { elSold.style.display = 'none'; }
@@ -13366,7 +13405,7 @@ Keine Erklärungen, kein Markdown.`;
                 if (stock.length) {
                     const r = _rangeOf(stock, 'datetime_upload');
                     elStock.style.display = 'inline';
-                    elStock.innerHTML = `<span class="src-pill src-stock" data-tip="Stock-Analysis (Portal-Snapshot): Portal-Bestand. Frei verkäuflich sind NUR Geräte mit leerem Status — A/M = im Paket reserviert (Kundenpaket/Spezialdeal). Stichtag: Zeitpunkt des Portal-Exports.">🟩 STOCK</span> <b style="color:var(--accent-orange);">Portal-Snapshot:</b> WE ${fmt(r.mn)} – ${fmt(r.mx)} <span style="color:var(--text-muted);">· ${stock.length.toLocaleString('de-DE')} Art.</span>`;
+                    elStock.innerHTML = `<span class="ds-pill" data-tip="Stock-Analysis (Portal-Snapshot): Portal-Bestand. Frei verkäuflich sind NUR Geräte mit leerem Status — A/M = im Paket reserviert (Kundenpaket/Spezialdeal). Stichtag: Zeitpunkt des Portal-Exports."><span class="ds-dot" style="background:var(--accent-green);"></span>Stock</span> <b>Portal-Snapshot:</b> WE ${fmt(r.mn)} – ${fmt(r.mx)} <span style="color:var(--text-muted);">· ${stock.length.toLocaleString('de-DE')} Art.</span>`;
                     shown = true;
                 } else { elStock.style.display = 'none'; }
             }
@@ -13377,7 +13416,7 @@ Keine Erklärungen, kein Markdown.`;
                 if (bestand.length) {
                     const r = _rangeOf(bestand, 'weDatum');
                     elBest.style.display = 'inline';
-                    elBest.innerHTML = `<span class="src-pill src-bestand" data-tip="BESTAND (AMM-Lagerverwaltung): physischer Lagerbestand mit ALLEN Status (QE klassifiziert, VS Versand, AA Sonder, Frischware). Eine Lager-Nr = ein physisches Gerät ODER eine gemischte Sammelpalette.">🟦 BESTAND</span> <b style="color:var(--accent-cyan);">Lager-Snapshot:</b> Stichtag heute <span style="color:var(--text-muted);">· ${bestand.length.toLocaleString('de-DE')} Geräte · WE ${fmt(r.mn)}–${fmt(r.mx)}</span>`;
+                    elBest.innerHTML = `<span class="ds-pill" data-tip="BESTAND (AMM-Lagerverwaltung): physischer Lagerbestand mit ALLEN Status (QE klassifiziert, VS Versand, AA Sonder, Frischware). Eine Lager-Nr = ein physisches Gerät ODER eine gemischte Sammelpalette."><span class="ds-dot" style="background:var(--accent-cyan);"></span>Bestand</span> <b>Lager-Snapshot:</b> Stichtag heute <span style="color:var(--text-muted);">· ${bestand.length.toLocaleString('de-DE')} Geräte · WE ${fmt(r.mn)}–${fmt(r.mx)}</span>`;
                     shown = true;
                 } else { elBest.style.display = 'none'; }
             }
@@ -13387,7 +13426,7 @@ Keine Erklärungen, kein Markdown.`;
             if (elJtl) {
                 if (jtlCount) {
                     elJtl.style.display = 'inline';
-                    elJtl.innerHTML = `<span class="src-pill src-jtl" data-tip="JTL (Warenwirtschaft): Artikelstamm-Export mit Artikelnummern, Marken, Warengruppen. Liefert Rechnungs-/Zahlungs-Stati und Stammdaten zur Verknüpfung mit All-Sold.">🟪 JTL</span> <b style="color:var(--accent-purple);">Artikelstamm:</b> <span style="color:var(--text-muted);">${jtlCount.toLocaleString('de-DE')} Positionen</span>`;
+                    elJtl.innerHTML = `<span class="ds-pill" data-tip="JTL (Warenwirtschaft): Artikelstamm-Export mit Artikelnummern, Marken, Warengruppen. Liefert Rechnungs-/Zahlungs-Stati und Stammdaten zur Verknüpfung mit All-Sold."><span class="ds-dot" style="background:var(--accent-purple);"></span>JTL</span> <b>Artikelstamm:</b> <span style="color:var(--text-muted);">${jtlCount.toLocaleString('de-DE')} Positionen</span>`;
                     shown = true;
                 } else { elJtl.style.display = 'none'; }
             }
@@ -13398,7 +13437,7 @@ Keine Erklärungen, kein Markdown.`;
                 if (pipe.length) {
                     const sumDevices = pipe.reduce((s,p) => s + (p.summe || 0), 0);
                     elPipe.style.display = 'inline';
-                    elPipe.innerHTML = `<span class="src-pill src-bestand" style="background:rgba(99,102,241,0.16); color:#a5b4fc; border-color:rgba(99,102,241,0.35);" data-tip="AMM Pipeline (AUFTRAG_STATUS, täglich): offene Aufträge mit Liefertermin, Kunde, Spediteur. Speist den Pipeline-Reiter (Überfälligkeits-Alarm, Forecast diese Woche, JTL-Sync-Wächter).">📋 PIPELINE</span> <b style="color:#a5b4fc;">offene Aufträge:</b> <span style="color:var(--text-muted);">${pipe.length} Zeilen · ${sumDevices.toLocaleString('de-DE')} Geräte</span>`;
+                    elPipe.innerHTML = `<span class="ds-pill" data-tip="AMM Pipeline (AUFTRAG_STATUS, täglich): offene Aufträge mit Liefertermin, Kunde, Spediteur. Speist den Pipeline-Reiter (Überfälligkeits-Alarm, Forecast diese Woche, JTL-Sync-Wächter)."><span class="ds-dot" style="background:#6366f1;"></span>Pipeline</span> <b>offene Aufträge:</b> <span style="color:var(--text-muted);">${pipe.length} Zeilen · ${sumDevices.toLocaleString('de-DE')} Geräte</span>`;
                     shown = true;
                 } else { elPipe.style.display = 'none'; }
             }
@@ -13410,7 +13449,7 @@ Keine Erklärungen, kein Markdown.`;
         function exportPotenzialList() {
             const items = dashboardState.potenzialTop50 || [];
             if (items.length === 0) {
-                showToast('Keine Daten zum Exportieren', 'warning');
+                showToast('warning', 'Keine Daten zum Exportieren');
                 return;
             }
             
@@ -13448,7 +13487,7 @@ Keine Erklärungen, kein Markdown.`;
             
             const items = dashboardState.potenzialTop50 || [];
             if (items.length === 0) {
-                showToast('Keine Daten zum Exportieren', 'warning');
+                showToast('warning', 'Keine Daten zum Exportieren');
                 return;
             }
             
