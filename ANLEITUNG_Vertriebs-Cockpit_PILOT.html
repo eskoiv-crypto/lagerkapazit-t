@@ -95,15 +95,18 @@
     <tr><td>Odoo (stock.lot)</td><td>XLSX</td><td>Lebender Bestand + laufende Verkäufe. <span class="crit">Immer nur die EINE aktuellste Datei laden.</span></td><td>täglich</td></tr>
     <tr><td>BESTAND134</td><td>CSV</td><td>Physisches Lager (Status QE/VS/AA) + echtes Wareneingangsdatum → Lagerdauer</td><td>täglich</td></tr>
     <tr><td>AUFTRAG_STATUS</td><td>XLSX</td><td>Offene Aufträge / Ausgangs-Pipeline</td><td>täglich, optional</td></tr>
-    <tr><td>Stock-Analysis</td><td>XLSX</td><td>Eingefrorener Portal-Restbestand (EK/VK-Preise)</td><td>einmalig → Archiv</td></tr>
-    <tr><td>ALL SOLD</td><td>XLSX</td><td>Historisches Verkaufsarchiv (~31.000 Verkäufe)</td><td>einmalig → Archiv</td></tr>
-    <tr><td>JTL Export</td><td>CSV</td><td>Alte Aufträge/Artikel-Lookup</td><td>einmalig → Archiv</td></tr>
+    <tr><td>Stock-Analysis</td><td>XLSX</td><td>Portal-Restbestand (EK/VK-Preise) — kein Warenzugang mehr, aber Reservierungen (A/M) ändern sich noch</td><td>bei Bedarf → Archiv</td></tr>
+    <tr><td>ALL SOLD</td><td>XLSX</td><td>Historisches Verkaufsarchiv (~32.000 Verkäufe)</td><td>bei Bedarf → Archiv</td></tr>
+    <tr><td>JTL Export</td><td>CSV</td><td>Alte Aufträge/Artikel-Lookup, Zahlungseingänge ändern sich noch</td><td>bei Bedarf → Archiv</td></tr>
     <tr><td>JTL 4-Jahre</td><td>CSV</td><td>Auftragshistorie ab 2022 — Basis für CLV/Churn/Reaktivierung</td><td>einmalig → Archiv</td></tr>
     <tr><td>Kunden-Stammdaten</td><td>CSV</td><td>Kontaktdaten für die Reaktivierung</td><td>einmalig → Archiv</td></tr>
 </table>
 
+<h3>Wo liegen die Dateien? (Teams/SharePoint)</h3>
+<p>Alle Exporte liegen im Teams-Ordner <b>PlattformenTeams › … › KI-Tools › Lager_Sales Dashboard</b>, sortiert nach Rhythmus: <code>01 TÄGLICH HOCHLADEN</code> (Odoo · BESTAND134 · AUFTRAG_STATUS), <code>02 BEI BEDARF</code> (Portal Stock-Analysis · All-Sold · JTL Export), <code>03 EINMALIG</code> (JTL 4-Jahre · Kundenstammdaten). In jedem Ordner erklärt eine <code>_INFO</code>-Datei, welche Datei dort hingehört und woher der Export stammt — die Übersicht steht in <code>_LIESMICH — ORDNERSTRUKTUR.txt</code>.</p>
+
 <h3>Das lokale Archiv</h3>
-<p>Alles mit Rhythmus „einmalig" wird beim ersten Upload <b>automatisch im Browser gespeichert</b> (IndexedDB) und bei jedem Start wiederhergestellt — diese Quellen sind eingefroren und ändern sich nie mehr. Unter der Ablagezone zeigt eine Statuszeile, was im Archiv liegt; „Archiv leeren" wirft alles raus (beim nächsten Upload wird neu gespeichert).</p>
+<p>Alles mit Rhythmus „bei Bedarf" oder „einmalig" wird beim Upload <b>automatisch im Browser gespeichert</b> (IndexedDB) und bei jedem Start wiederhergestellt — ein erneuter Upload ersetzt die gemerkte Version einfach. Unter der Ablagezone zeigt eine Statuszeile, was im Archiv liegt; „Archiv leeren" wirft alles raus (beim nächsten Upload wird neu gespeichert).</p>
 <ul>
     <li><span class="warn">Odoo und BESTAND werden bewusst NICHT gespeichert</span> — Tagesdaten müssen frisch sein. Veraltete Bestandszahlen wären gefährlicher als der tägliche Upload.</li>
     <li>Das Archiv liegt <b>lokal pro Browser und PC</b>. Neuer Rechner oder anderer Browser = Archive einmal neu laden.</li>
