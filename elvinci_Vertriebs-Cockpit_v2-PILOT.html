@@ -5059,7 +5059,7 @@
                                         <div id="pipeline-overdue-table" style="max-height:340px; overflow-y:auto;"></div>
                                     </div>
                                     <div style="background:var(--bg-card); border:1px solid var(--border); border-left:4px solid var(--accent-green); border-radius:10px; padding:0.9rem;">
-                                        <div style="font-size:0.85rem; font-weight:700; margin-bottom:0.5rem; color:var(--accent-green);">📅 Diese Woche raus <span id="pipeline-week-count" style="color:var(--text-muted); font-weight:400; font-size:0.7rem;"></span></div>
+                                        <div style="font-size:0.85rem; font-weight:700; margin-bottom:0.5rem; color:var(--accent-green);">📅 Nächste 7 Tage raus <span class="vc-info" data-tip="Rollierend: heute + 7 Kalendertage (nicht Kalenderwoche).">ⓘ</span> <span id="pipeline-week-count" style="color:var(--text-muted); font-weight:400; font-size:0.7rem;"></span></div>
                                         <div id="pipeline-week-table" style="max-height:340px; overflow-y:auto;"></div>
                                     </div>
                                 </div>
@@ -5631,6 +5631,9 @@
             if (/^we[_-]/i.test(lower) && isCsv) return 'we-ist';
             if (/^wa[_-]/i.test(lower) && isCsv) return 'wa-ist';
             if (/wareneingang|we.?pipe/i.test(lower)) return 'we-pipe';
+            // WA-PIPELINE-STATUS (Teams-Sheet „20 WA PIPELINE" als CSV) — MUSS vor der
+            // alten wa-pipe-Regel stehen, sonst frisst die den Dateinamen.
+            if (/max[_-]?status|wa[_-]?pipeline/i.test(lower) && isCsv) return 'wa-status';
             if (/fulfilment|fulfillment|wa.?pipe/i.test(lower)) return 'wa-pipe';
             if (/status|auftrag.*status/i.test(lower)) return 'auftrag-status';
             if (/planner|aufgaben/i.test(lower)) return 'planner';
@@ -5669,6 +5672,8 @@
                     if (/Bestell Nr\./.test(first) && /(Netto Gesamt|VK Netto)/.test(first)) return 'jtl-sales';
                     const fl = first.toLowerCase();
                     if (fl.includes('palette') && (fl.includes('lg-platz') || fl.includes('lgplatz') || fl.includes('lagerplatz'))) return 'bestand';
+                    // WA-Pipeline-Status: Header steht erst in Zeile ~4 → im ganzen Head suchen
+                    if (/Auftragsnr/.test(head) && /geplantes Versand/.test(head)) return 'wa-status';
                 }
             } catch (e) { console.warn('[Sniff] Header-Erkennung fehlgeschlagen:', file.name, e); }
             return null;
@@ -6806,6 +6811,7 @@ Keine Erklärungen, kein Markdown.`;
             'wa-ist':         { tier: 'yellow', label: '🟡 Gelb',  desc: 'AMM Tages-WA: Empfänger-Aggregate + Auftragsnummern.' },
             'we-pipe':        { tier: 'green',  label: '🟢 Grün',  desc: 'WE-Pipeline: Liefermengen pro Tag.' },
             'wa-pipe':        { tier: 'yellow', label: '🟡 Gelb',  desc: 'Fulfillment-Pipeline: Auftrags+Versanddaten, teils Kundenbezug.' },
+            'wa-status':      { tier: 'yellow', label: '🟡 Gelb',  desc: 'WA-Pipeline-Status: Auftrags-/Versand-/Zahlungsdaten mit Kundenbezug.' },
             'auftrag-status': { tier: 'yellow', label: '🟡 Gelb',  desc: 'AUFTRAG_STATUS: Kundennamen + Land + Spediteur. Eingeschränkte PII.' },
             'planner':        { tier: 'yellow', label: '🟡 Gelb',  desc: 'Teams-Planner: Aufgaben + Notizen mit Kundenbezug.' },
             'jtl-sales':      { tier: 'red',    label: '🔴 Rot',   desc: 'JTL Sales: vollständige Verkaufsdaten mit Profit + Kundenbezug.' },
@@ -7749,7 +7755,7 @@ Keine Erklärungen, kein Markdown.`;
         // (Replay = Upload → kein Drift-Risiko zwischen Parse-Logik und Persistenz).
         // Tagesaktuelle Quellen (Odoo, BESTAND, Pipeline) werden BEWUSST nicht
         // archiviert — veraltete Bestandszahlen wären gefährlicher als ein Upload.
-        const ARCHIVE_TYPES = ['stock-analysis', 'all-sold', 'jtl-sales', 'jtl4y', 'stamm'];
+        const ARCHIVE_TYPES = ['stock-analysis', 'all-sold', 'jtl-sales', 'jtl4y', 'stamm', 'wa-status'];
 
         async function saveArchiveFile(type, file) {
             if (!ARCHIVE_TYPES.includes(type)) return;
@@ -7767,7 +7773,7 @@ Keine Erklärungen, kein Markdown.`;
             updateArchiveStatusUI(recs);
             if (!recs.length) return;
             // Stabile Reihenfolge: Bestand vor Verkauf vor CLV-Daten
-            const order = { 'stock-analysis': 1, 'all-sold': 2, 'jtl-sales': 3, 'jtl4y': 4, 'stamm': 5 };
+            const order = { 'stock-analysis': 1, 'all-sold': 2, 'jtl-sales': 3, 'jtl4y': 4, 'stamm': 5, 'wa-status': 6 };
             recs.sort((a, b) => (order[a.type] || 9) - (order[b.type] || 9));
             let n = 0;
             for (const rec of recs) {
@@ -8313,6 +8319,7 @@ Keine Erklärungen, kein Markdown.`;
             'all-sold': 'ALL SOLD (Portal)',
             'stock-analysis': 'STOCK-ANALYSIS (Portal)',
             'jtl-sales': 'JTL EXPORT',
+            'wa-status': 'WA-PIPELINE (Versand-Status)',
             'angebot': 'ANGEBOT'
         };
         
@@ -10914,11 +10921,31 @@ Keine Erklärungen, kein Markdown.`;
             document.getElementById('pipeline-kpis').innerHTML = [
                 _kpi('Offene Sendungen', roots.length.toLocaleString('de-DE'), `${sumQU.toLocaleString('de-DE')} QU · ${sumAK} AK · ${sumSU} SU`, '#6366f1'),
                 _kpi('🚨 Überfällig (QU)', overdue.length.toLocaleString('de-DE'), `${overdue.reduce((s,r)=>s+r.openCount,0).toLocaleString('de-DE')} offene Geräte (Status QU)`, 'var(--accent-red)'),
-                _kpi('📅 Diese Woche (QU)', thisWeek.length.toLocaleString('de-DE'), `${thisWeek.reduce((s,r)=>s+r.openCount,0).toLocaleString('de-DE')} offene Geräte`, 'var(--accent-green)'),
+                _kpi('📅 Nächste 7 Tage (QU)', thisWeek.length.toLocaleString('de-DE'), `${thisWeek.reduce((s,r)=>s+r.openCount,0).toLocaleString('de-DE')} offene Geräte`, 'var(--accent-green)'),
                 _kpi('🚛 LKW-Reste (Sub)', subOrders.length.toLocaleString('de-DE'), subSub, subColor),
                 _kpi('Forecast Σ VK 7T', forecastWeekOpen != null ? forecastWeekOpen.toLocaleString('de-DE',{style:'currency',currency:'EUR',maximumFractionDigits:0}) : '— Stock nötig', forecastWeekOpen != null ? `${thisWeek.reduce((s,r)=>s+r.openCount,0)} QU × Ø VK ${avgVK.toFixed(0)}€` : 'Stock-Analysis laden', 'var(--accent-cyan)'),
                 _kpi('Andere Stati', otherStatus.length.toLocaleString('de-DE'), `vergangener Termin · Status AK/SU (mögl. schon raus)`, 'var(--text-muted)'),
             ].join('');
+
+            // WA-PIPELINE-KONTEXT (2026-07-03): erklärt, WARUM etwas überfällig wirkt —
+            // Versand geplant / laut WA versendet / wartet auf Zahlung / Notiz.
+            const _waStatusMap = dashboardState.waStatusMap || null;
+            const _waFor = (r) => _waStatusMap ? _waStatusMap[String(r.auftragRoot).split('.')[0].toUpperCase()] : null;
+            const _waCell = (wa) => {
+                if (!wa) return '<span style="color:var(--text-muted);">—</span>';
+                const tip = _h((wa.status + (wa.notiz ? ' · ' + wa.notiz : '')).trim());
+                if (wa.versendet) {
+                    return `<span style="color:var(--accent-green); font-weight:600; cursor:help;" title="${tip}">✅ laut WA versendet${wa.bezahlt ? ' & bezahlt' : ' · Zahlung offen'}</span>`;
+                }
+                const parts = [];
+                if (wa.geplant) parts.push(`<span style="color:var(--accent-cyan); font-weight:600;">🚚 geplant ${_h(wa.geplant)}</span>`);
+                if (!wa.bezahlt) parts.push(`<span style="color:var(--accent-orange); font-weight:600;">⛔ unbezahlt${wa.zahlungsziel ? ' (' + _h(wa.zahlungsziel) + ')' : ''}</span>`);
+                if (!parts.length && wa.status) parts.push(`<span style="color:var(--text-secondary);">${_h(wa.status)}</span>`);
+                return `<span style="cursor:help;" title="${tip}">${parts.join(' <span style="color:var(--text-muted);">·</span> ') || '—'}</span>`;
+            };
+            const _waHint = _waStatusMap
+                ? `<div style="font-size:0.6rem; color:var(--text-muted); margin-top:0.35rem;">WA-Pipeline-Kontext: ${dashboardState.waStatusCount} Aufträge geladen.</div>`
+                : `<div style="font-size:0.6rem; color:var(--text-muted); margin-top:0.35rem;">💡 WA-Pipeline-CSV (MAX-STATUS) in die Ablagezone ziehen → Spalte „WA-Pipeline sagt" erklärt Überfällige (geplant/versendet/Zahlung).</div>`;
 
             // Überfällig-Tabelle (KILLCRITIC: nur QU-Status, openCount=QU, nicht Summe)
             const overSorted = overdue.slice().sort((a,b) => a.lieferDt - b.lieferDt);
@@ -10926,10 +10953,10 @@ Keine Erklärungen, kein Markdown.`;
             const overdueTable = document.getElementById('pipeline-overdue-table');
             if (overdueTable) {
                 if (!overSorted.length) {
-                    overdueTable.innerHTML = '<div style="padding:1rem; color:var(--text-muted); font-size:0.75rem;">✅ Keine überfälligen QU-Sendungen.</div>';
+                    overdueTable.innerHTML = '<div style="padding:1rem; color:var(--text-muted); font-size:0.75rem;">✅ Keine überfälligen QU-Sendungen.</div>' + _waHint;
                 } else {
                     overdueTable.innerHTML = `<table class="analyse-table" style="font-size:0.66rem; width:100%;">
-                        <thead><tr><th>Auftrag</th><th>Kunde</th><th>Land</th><th>St</th><th>Tage über</th><th title="QU = noch im Lager, offen">QU</th></tr></thead>
+                        <thead><tr><th>Auftrag</th><th>Kunde</th><th>Land</th><th>St</th><th>Tage über</th><th title="QU = noch im Lager, offen">QU</th><th title="Kontext aus dem WA-Pipeline-Sheet (Versand/Zahlung): Warum steht das noch hier?">WA-Pipeline sagt</th></tr></thead>
                         <tbody>${overSorted.map(r => {
                             const tage = Math.floor((now - r.lieferDt) / 86400000);
                             const tageColor = tage > 30 ? 'var(--accent-red)' : tage > 14 ? 'var(--accent-orange)' : 'inherit';
@@ -10941,9 +10968,10 @@ Keine Erklärungen, kein Markdown.`;
                                 <td style="font-size:0.58rem; color:var(--accent-cyan); font-weight:700;">${_h(r.status)}</td>
                                 <td class="mono" style="font-size:0.65rem; font-weight:700; color:${tageColor};">+${tage} T</td>
                                 <td class="mono" style="font-size:0.65rem; text-align:right; font-weight:700;">${r.openCount}</td>
+                                <td style="font-size:0.6rem;">${_waCell(_waFor(r))}</td>
                             </tr>`;
                         }).join('')}</tbody>
-                    </table>`;
+                    </table>` + _waHint;
                 }
             }
 
@@ -10956,7 +10984,7 @@ Keine Erklärungen, kein Markdown.`;
                     weekTable.innerHTML = '<div style="padding:1rem; color:var(--text-muted); font-size:0.75rem;">Keine QU-Sendungen mit Liefertermin in den nächsten 7 Tagen.</div>';
                 } else {
                     weekTable.innerHTML = `<table class="analyse-table" style="font-size:0.66rem; width:100%;">
-                        <thead><tr><th>Liefertag</th><th>Auftrag</th><th>Kunde</th><th>Spediteur</th><th>QU</th></tr></thead>
+                        <thead><tr><th>Liefertag</th><th>Auftrag</th><th>Kunde</th><th>Spediteur</th><th>QU</th><th title="Kontext aus dem WA-Pipeline-Sheet: Zahlung offen? Versand geplant?">WA-Pipeline sagt</th></tr></thead>
                         <tbody>${weekSorted.map(r => {
                             const sub = r.isSubOrder ? '<span style="color:var(--accent-orange); font-size:0.55rem; cursor:help;" title="LKW-Rest: beim ursprünglichen Verladen kein Platz mehr im LKW. Wartet auf nächste Tour mit eigenem Liefertermin.">🚛 LKW-Rest</span>' : '';
                             return `<tr>
@@ -10965,6 +10993,7 @@ Keine Erklärungen, kein Markdown.`;
                             <td style="font-size:0.62rem; max-width:160px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${_h(r.kundenName)}">${_h(r.kundenName)}</td>
                             <td style="font-size:0.6rem; color:var(--text-muted);">${_h(r.spediteur)}</td>
                             <td class="mono" style="font-size:0.65rem; text-align:right; font-weight:700;">${r.openCount}</td>
+                            <td style="font-size:0.6rem;">${_waCell(_waFor(r))}</td>
                         </tr>`;}).join('')}</tbody>
                     </table>`;
                 }
@@ -11012,8 +11041,10 @@ Keine Erklärungen, kein Markdown.`;
                 const byLand = {};
                 const bySped = {};
                 roots.forEach(r => {
-                    byLand[r.land] = (byLand[r.land] || 0) + r.openCount;
-                    bySped[r.spediteur] = (bySped[r.spediteur] || 0) + r.openCount;
+                    const landKey = (r.land || '').trim() || '(ohne Land)';
+                    const spedKey = (r.spediteur || '').trim() || '(ohne Angabe)';
+                    byLand[landKey] = (byLand[landKey] || 0) + r.openCount;
+                    bySped[spedKey] = (bySped[spedKey] || 0) + r.openCount;
                 });
                 function _bar(map, color) {
                     const max = Math.max(...Object.values(map), 1);
@@ -21631,6 +21662,64 @@ Keine Erklärungen, kein Markdown.`;
                     updateChart();
                     autoSaveDailyWorktime();
                     
+                } else if (type === 'wa-status') {
+                    // === WA-PIPELINE-STATUS (Teams-Sheet „20 WA PIPELINE", CSV-Export, 2026-07-03) ===
+                    // Kontext je Auftrag: Status (automatisch), geplantes Versand-/Abholdatum,
+                    // Bezahlt-Flag, Notizen — macht ÜBERFÄLLIGKEIT im Pipeline-Reiter erklärbar.
+                    // Struktur: Zeile 1 Titel, Zeile 2 Legende, Header ~Zeile 4 → Header-Zeile SUCHEN,
+                    // Spalten über NAMEN mappen (Layout ändert sich mit dem Teams-Sheet, v35+).
+                    let waHdrIdx = -1;
+                    for (let i = 0; i < Math.min(rows.length, 10); i++) {
+                        if ((rows[i] || []).join(';').toLowerCase().includes('auftragsnr')) { waHdrIdx = i; break; }
+                    }
+                    if (waHdrIdx < 0) throw new Error('Header-Zeile mit "Auftragsnr." nicht gefunden — falsche Datei?');
+                    const waHdr = rows[waHdrIdx].map(h => String(h || '').trim().toLowerCase());
+                    const waCol = (needle) => waHdr.findIndex(h => h.includes(needle));
+                    const wAuf = waCol('auftragsnr'), wKunde = waCol('kunde'), wGer = waCol('geräte'),
+                          wKomm = waCol('kommissioniertag'), wArt = waCol('versandart'),
+                          wStatus = waCol('status (automatisch)'),
+                          wNotizA = waCol('notizen (amm)'), wNotizE = waCol('notizen (elvinci)'),
+                          wAnm = waCol('anmeldedatum'), wGeplant = waCol('geplantes versand'),
+                          wAnlief = waCol('anlieferdatum'), wRech = waCol('rechnungsdatum'),
+                          wZiel = waCol('zahlungsziel'), wBez = waCol('bezahlt'),
+                          wAbg = waCol('auftrag abgeschlossen');
+                    if (wAuf < 0 || wStatus < 0) throw new Error('Spalten "Auftragsnr."/"Status (automatisch)" fehlen');
+                    const waMap = {};
+                    let waCount = 0;
+                    for (let i = waHdrIdx + 1; i < rows.length; i++) {
+                        const r = rows[i]; if (!r) continue;
+                        const auf = String(r[wAuf] || '').trim();
+                        if (!auf) continue;
+                        const waRoot = auf.split('.')[0].toUpperCase();
+                        // Status-Emoji überlebt den CSV-Export oft nicht → führende ?/� abwerfen
+                        const waStat = String(r[wStatus] || '').replace(/^[\s?�]+/, '').trim();
+                        waMap[waRoot] = {
+                            auftrag: auf,
+                            kunde: wKunde >= 0 ? String(r[wKunde] || '').trim() : '',
+                            geraete: wGer >= 0 ? (parseInt(r[wGer]) || 0) : 0,
+                            kommTag: wKomm >= 0 ? String(r[wKomm] || '').trim() : '',
+                            versandart: wArt >= 0 ? String(r[wArt] || '').trim() : '',
+                            status: waStat,
+                            versendet: /versendet/i.test(waStat),
+                            notiz: ((wNotizA >= 0 ? String(r[wNotizA] || '').trim() : '') || (wNotizE >= 0 ? String(r[wNotizE] || '').trim() : '')).slice(0, 160),
+                            anmeldung: wAnm >= 0 ? String(r[wAnm] || '').trim() : '',
+                            geplant: wGeplant >= 0 ? String(r[wGeplant] || '').trim() : '',
+                            geplantDt: wGeplant >= 0 ? _parseAnyDate(r[wGeplant]) : null,
+                            anlieferung: wAnlief >= 0 ? String(r[wAnlief] || '').trim() : '',
+                            rechnung: wRech >= 0 ? String(r[wRech] || '').trim() : '',
+                            zahlungsziel: wZiel >= 0 ? String(r[wZiel] || '').trim() : '',
+                            bezahlt: wBez >= 0 ? /^ja/i.test(String(r[wBez] || '').trim()) : false,
+                            abgeschlossen: wAbg >= 0 ? String(r[wAbg] || '').trim() : ''
+                        };
+                        waCount++;
+                    }
+                    dashboardState.waStatusMap = waMap;
+                    dashboardState.waStatusLoaded = true;
+                    dashboardState.waStatusCount = waCount;
+                    if (statusEl) { statusEl.textContent = `✓ ${waCount} Aufträge`; statusEl.style.color = 'var(--accent-green)'; }
+                    console.log(`[WA-Status] ${waCount} Aufträge aus WA-Pipeline geladen (Header-Zeile ${waHdrIdx + 1})`);
+                    try { renderPipelineTab(); } catch (e) { console.warn('[WA-Status] Pipeline-Render', e); }
+
                 } else if (type === 'wa-pipe') {
                     // WA TAGES-CSV (AMM Format)
                     // Zeile 1: Zusammenfassung (ignorieren)
@@ -25135,7 +25224,8 @@ location.reload();</pre>
                 ['JTL Export', !!st.jtlSalesLoaded],
                 ['JTL 4-Jahre', !!st.jtl4yLoaded],
                 ['Stammdaten', !!st.stammLoaded],
-                ['Pipeline', !!(st.pipelineData && st.pipelineData.length)]
+                ['Pipeline', !!(st.pipelineData && st.pipelineData.length)],
+                ['WA-Pipeline', !!st.waStatusLoaded]
             ];
             const loaded = SOURCES.filter(s => s[1]).length;
             const el = document.getElementById('import-status-summary');
