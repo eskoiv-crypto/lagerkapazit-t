@@ -3120,6 +3120,15 @@
             display: inline-block;
             flex-shrink: 0;
         }
+        /* ====================================================
+         * PHASE C4 (2026-07-03): APPLE-RUNDE — Struktur statt Politur.
+         * Im Cockpit-Modus ist das Analyse-Panel DIE App: der Panel-Kopf
+         * („VERKAUFSANALYSE PRO" + Status-Pills) doppelte nur App-Header
+         * und Datenstand-Leiste → weg damit (eine Hierarchie-Ebene weniger).
+         * ==================================================== */
+        body[data-vertriebs-cockpit="true"] #analyse-pro-panel > .card-header {
+            display: none !important; /* Inline-Style am Element überstimmen */
+        }
     </style>
 </head>
 <body data-active-dept="sales" data-vertriebs-cockpit="true">
@@ -3144,10 +3153,10 @@
                 <span id="theme-label">Dark</span>
             </button>
             <button class="btn btn-secondary" onclick="openSettingsPanel()" title="Einstellungen (Admin)">
-                ⚙️
+                ⚙
             </button>
-            <button class="btn btn-primary" onclick="exportPDF()">
-                📄 PDF Export
+            <button class="btn btn-secondary" onclick="exportPDF()">
+                PDF-Export
             </button>
         </div>
     </header>
@@ -3777,23 +3786,24 @@
                             </div>
                             
                             <!-- NEU: Verfügbarkeits-Übersicht -->
-                            <div style="margin-top: 1rem; background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(6, 182, 212, 0.1)); border: 1px solid var(--accent-green); border-radius: 10px; padding: 1rem;">
-                                <h4 style="margin: 0 0 0.75rem 0; font-size: 0.85rem; color: var(--text-primary);">📦 Bestands-Verfügbarkeit (Stock-Analysis)</h4>
+                            <!-- PHASE C4: flach statt Gradient — Farbe nur noch als Punkt + Zahl -->
+                            <div style="margin-top: 1rem; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 12px; padding: 1rem;">
+                                <h4 style="margin: 0 0 0.75rem 0; font-size: 0.8rem; font-weight: 600; color: var(--text-primary);">Bestands-Verfügbarkeit (Stock-Analysis)</h4>
                                 <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem;">
-                                    <div style="text-align: center; background: var(--bg-elevated); padding: 0.75rem; border-radius: 8px; border-left: 4px solid var(--accent-green);">
-                                        <div style="font-size: 1.4rem; font-weight: 700; color: var(--accent-green);" id="stock-available-count">—</div>
+                                    <div style="text-align: center; background: var(--bg-card); border: 1px solid var(--border); padding: 0.75rem; border-radius: 8px;">
+                                        <div style="font-size: 1.35rem; font-weight: 700; color: var(--accent-green); font-family: var(--font-mono);" id="stock-available-count">—</div>
                                         <div style="font-size: 0.65rem; color: var(--text-secondary);">Frei Verfügbar</div>
                                         <div style="font-size: 0.55rem; color: var(--text-muted); margin-top: 0.25rem;" id="stock-available-value">— EK | — VK</div>
                                         <div style="font-size: 0.5rem; color: var(--text-muted); margin-top: 0.15rem;" id="stock-available-breakdown"></div>
                                     </div>
-                                    <div style="text-align: center; background: var(--bg-elevated); padding: 0.75rem; border-radius: 8px; border-left: 4px solid var(--accent-orange);">
-                                        <div style="font-size: 1.4rem; font-weight: 700; color: var(--accent-orange);" id="stock-reserved-count">—</div>
+                                    <div style="text-align: center; background: var(--bg-card); border: 1px solid var(--border); padding: 0.75rem; border-radius: 8px;">
+                                        <div style="font-size: 1.35rem; font-weight: 700; color: var(--accent-orange); font-family: var(--font-mono);" id="stock-reserved-count">—</div>
                                         <div style="font-size: 0.65rem; color: var(--text-secondary);">Reserviert / Im Angebot <span class="vc-info" data-tip="Alles was nicht frei verkäuflich ist: Odoo-Status „Angeboten" + „Reserviert" UND alter Portal-Bestand mit Status A/M — über beide Systeme kombiniert.">ⓘ</span></div>
                                         <div style="font-size: 0.55rem; color: var(--text-muted); margin-top: 0.25rem;" id="stock-reserved-value">— EK | — VK</div>
                                         <div style="font-size: 0.5rem; color: var(--text-muted); margin-top: 0.15rem;" id="stock-reserved-breakdown"></div>
                                     </div>
-                                    <div style="text-align: center; background: var(--bg-elevated); padding: 0.75rem; border-radius: 8px; border-left: 4px solid var(--accent-cyan);">
-                                        <div style="font-size: 1.4rem; font-weight: 700; color: var(--accent-cyan);" id="stock-sold-count">—</div>
+                                    <div style="text-align: center; background: var(--bg-card); border: 1px solid var(--border); padding: 0.75rem; border-radius: 8px;">
+                                        <div style="font-size: 1.35rem; font-weight: 700; color: var(--accent-cyan); font-family: var(--font-mono);" id="stock-sold-count">—</div>
                                         <div style="font-size: 0.65rem; color: var(--text-secondary);">Verkauft (All-Sold)</div>
                                         <div style="font-size: 0.55rem; color: var(--text-muted); margin-top: 0.25rem;" id="stock-sold-profit">— Profit</div>
                                     </div>
@@ -3813,8 +3823,8 @@
                                 <!-- Torte 1: Bestandswert nach Verfügbarkeit -->
                                 <div style="background: var(--bg-elevated); border-radius: 10px; padding: 1rem;">
                                     <h4 style="margin: 0 0 0.75rem 0; font-size: 0.8rem; color: var(--text-secondary); display: flex; align-items: center; gap: 0.5rem;">
-                                        💰 Bestandswert nach Verfügbarkeit
-                                        <span style="font-size: 0.6rem; padding: 0.15rem 0.4rem; background: var(--accent-green); color: white; border-radius: 4px;" id="pie-total-ek">— EK</span>
+                                        Bestandswert nach Verfügbarkeit
+                                        <span style="font-size: 0.6rem; padding: 0.15rem 0.45rem; background: rgba(16,185,129,0.14); color: var(--accent-green); border: 1px solid rgba(16,185,129,0.35); border-radius: 999px; font-weight: 600;" id="pie-total-ek">— EK</span>
                                     </h4>
                                     <div style="display: flex; align-items: center; gap: 1rem;">
                                         <div style="width: 140px; height: 140px; position: relative;">
@@ -3842,8 +3852,8 @@
                                 <!-- Torte 2: VK-Potenzial nach Top-Warengruppen -->
                                 <div style="background: var(--bg-elevated); border-radius: 10px; padding: 1rem;">
                                     <h4 style="margin: 0 0 0.75rem 0; font-size: 0.8rem; color: var(--text-secondary); display: flex; align-items: center; gap: 0.5rem;">
-                                        📊 VK-Potenzial nach Warengruppen
-                                        <span style="font-size: 0.6rem; padding: 0.15rem 0.4rem; background: var(--accent-cyan); color: white; border-radius: 4px;" id="pie-total-vk-wg">— VK</span>
+                                        VK-Potenzial nach Warengruppen
+                                        <span style="font-size: 0.6rem; padding: 0.15rem 0.45rem; background: rgba(6,182,212,0.14); color: var(--accent-cyan); border: 1px solid rgba(6,182,212,0.35); border-radius: 999px; font-weight: 600;" id="pie-total-vk-wg">— VK</span>
                                     </h4>
                                     <div style="display: flex; align-items: center; gap: 1rem;">
                                         <div style="width: 140px; height: 140px; position: relative;">
@@ -5054,24 +5064,24 @@
 
                                 <!-- 2 Spalten: Überfällig + Diese Woche -->
                                 <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem; margin-bottom:1rem;">
-                                    <div style="background:var(--bg-card); border:1px solid var(--border); border-left:4px solid var(--accent-red); border-radius:10px; padding:0.9rem;">
-                                        <div style="font-size:0.85rem; font-weight:700; margin-bottom:0.5rem; color:var(--accent-red);">🚨 Überfällige Sendungen <span class="vc-info" data-tip="Filter: Status=QU UND Liefertag liegt in der Vergangenheit (heute 00:00) UND nicht Default-Datum 31.12.2026. Jede Pipeline-Zeile = eine Sendung (Sub-Aufträge .001/.002 zählen einzeln mit eigenem Termin). Geräte-Anzahl = QU-Spalte (= noch im Lager offen), NICHT die Summe-Spalte (= ursprüngliche Auftrags-Gesamtmenge).">ⓘ</span> <span id="pipeline-overdue-count" style="color:var(--text-muted); font-weight:400; font-size:0.7rem;"></span></div>
+                                    <div style="background:var(--bg-card); border:1px solid var(--border); border-radius:12px; padding:0.9rem;">
+                                        <div style="display:flex; align-items:center; gap:0.4rem; font-size:0.8rem; font-weight:600; margin-bottom:0.5rem;"><span class="ds-dot" style="background:var(--accent-red);"></span>Überfällige Sendungen <span class="vc-info" data-tip="Filter: Status=QU UND Liefertag liegt in der Vergangenheit (heute 00:00) UND nicht Default-Datum 31.12.2026. Jede Pipeline-Zeile = eine Sendung (Sub-Aufträge .001/.002 zählen einzeln mit eigenem Termin). Geräte-Anzahl = QU-Spalte (= noch im Lager offen), NICHT die Summe-Spalte (= ursprüngliche Auftrags-Gesamtmenge).">ⓘ</span> <span id="pipeline-overdue-count" style="color:var(--text-muted); font-weight:400; font-size:0.7rem;"></span></div>
                                         <div id="pipeline-overdue-table" style="max-height:340px; overflow-y:auto;"></div>
                                     </div>
-                                    <div style="background:var(--bg-card); border:1px solid var(--border); border-left:4px solid var(--accent-green); border-radius:10px; padding:0.9rem;">
-                                        <div style="font-size:0.85rem; font-weight:700; margin-bottom:0.5rem; color:var(--accent-green);">📅 Nächste 7 Tage raus <span class="vc-info" data-tip="Rollierend: heute + 7 Kalendertage (nicht Kalenderwoche).">ⓘ</span> <span id="pipeline-week-count" style="color:var(--text-muted); font-weight:400; font-size:0.7rem;"></span></div>
+                                    <div style="background:var(--bg-card); border:1px solid var(--border); border-radius:12px; padding:0.9rem;">
+                                        <div style="display:flex; align-items:center; gap:0.4rem; font-size:0.8rem; font-weight:600; margin-bottom:0.5rem;"><span class="ds-dot" style="background:var(--accent-green);"></span>Nächste 7 Tage raus <span class="vc-info" data-tip="Rollierend: heute + 7 Kalendertage (nicht Kalenderwoche).">ⓘ</span> <span id="pipeline-week-count" style="color:var(--text-muted); font-weight:400; font-size:0.7rem;"></span></div>
                                         <div id="pipeline-week-table" style="max-height:340px; overflow-y:auto;"></div>
                                     </div>
                                 </div>
 
                                 <!-- Sync-Wächter + Spediteur/Land -->
                                 <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem;">
-                                    <div style="background:var(--bg-card); border:1px solid var(--border); border-left:4px solid var(--accent-orange); border-radius:10px; padding:0.9rem;">
-                                        <div style="font-size:0.85rem; font-weight:700; margin-bottom:0.5rem; color:var(--accent-orange);">🔄 Sync-Wächter — Pipeline ↔ WaWi <span class="vc-info" data-tip="Aufträge, die in der AMM-Pipeline stehen, aber weder in den Odoo-Verkäufen noch im JTL-Export auftauchen — potenzielle Sync-Lücke (wie der Mail-Fall AU2026060213698). Abgleich auf Auftrags-Root-Ebene; Odoo-Aufträge (S00…) werden gegen Odoo geprüft, Alt-Aufträge (AU…) gegen JTL + Odoo.">ⓘ</span></div>
+                                    <div style="background:var(--bg-card); border:1px solid var(--border); border-radius:12px; padding:0.9rem;">
+                                        <div style="display:flex; align-items:center; gap:0.4rem; font-size:0.8rem; font-weight:600; margin-bottom:0.5rem;"><span class="ds-dot" style="background:var(--accent-orange);"></span>Sync-Wächter — Pipeline ↔ WaWi <span class="vc-info" data-tip="Aufträge, die in der AMM-Pipeline stehen, aber weder in den Odoo-Verkäufen noch im JTL-Export auftauchen — potenzielle Sync-Lücke (wie der Mail-Fall AU2026060213698). Abgleich auf Auftrags-Root-Ebene; Odoo-Aufträge (S00…) werden gegen Odoo geprüft, Alt-Aufträge (AU…) gegen JTL + Odoo.">ⓘ</span></div>
                                         <div id="pipeline-sync-table" style="max-height:280px; overflow-y:auto;"></div>
                                     </div>
-                                    <div style="background:var(--bg-card); border:1px solid var(--border); border-radius:10px; padding:0.9rem;">
-                                        <div style="font-size:0.85rem; font-weight:700; margin-bottom:0.5rem;">🌍 Aufschlüsselung Land × Spediteur</div>
+                                    <div style="background:var(--bg-card); border:1px solid var(--border); border-radius:12px; padding:0.9rem;">
+                                        <div style="font-size:0.8rem; font-weight:600; margin-bottom:0.5rem;">Aufschlüsselung Land × Spediteur</div>
                                         <div id="pipeline-breakdown" style="max-height:280px; overflow-y:auto;"></div>
                                     </div>
                                 </div>
@@ -5310,7 +5320,7 @@
                 <!-- Import Section -->
                 <div class="import-section" data-departments="alle,lager,auftrag,sales,finance">
                     <div class="import-header" onclick="toggleImportSection()">
-                        <h3 class="import-title">📁 Datenimport</h3>
+                        <h3 class="import-title">Datenimport</h3>
                         <span style="display:flex; align-items:center; gap:0.6rem;">
                             <span id="import-status-summary" style="font-size: 0.7rem; color: var(--text-muted)">Dateien ablegen oder klicken</span>
                             <span id="import-toggle-arrow" style="font-size: 0.85rem; color: var(--text-muted);">▾</span>
@@ -5322,7 +5332,7 @@
                     <div id="auto-dropzone" onclick="document.getElementById('file-auto').click()"
                          style="border: 1.5px dashed var(--border-subtle, rgba(255,255,255,0.25)); border-radius: 10px; padding: 1rem; text-align: center; cursor: pointer; margin-bottom: 0.5rem;"
                          onmouseover="this.style.borderColor='var(--accent-cyan)'" onmouseout="this.style.borderColor='var(--border-subtle, rgba(255,255,255,0.25))'">
-                        <div style="font-size: 1.25rem;">⬆️</div>
+                        <div style="width: 28px; height: 28px; margin: 0 auto 0.35rem; border: 1px solid var(--border); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--text-muted); font-size: 0.95rem;">↑</div>
                         <div style="font-size: 0.78rem; font-weight: 600;">Dateien hier ablegen oder klicken — Typ wird automatisch erkannt</div>
                         <div style="font-size: 0.62rem; color: var(--text-muted); margin-top: 0.25rem;">Täglich: <b>Odoo (stock.lot)</b> + <b>BESTAND134</b> · optional AUFTRAG_STATUS · Portal/JTL-Archive merkt sich das Dashboard lokal</div>
                     </div>
@@ -9166,10 +9176,10 @@ Keine Erklärungen, kein Markdown.`;
         // aufgerufen, z.B. Drop einer Angebots-Datei, „Konvolut bauen" aus Reaktivierung)
         // — updateGroupNav() am Ende hält Gruppen-/Sub-Leiste synchron.
         const TAB_GROUPS = [
-            { key: 'heute', label: '📈 Heute', tabs: [
+            { key: 'heute', label: 'Heute', tabs: [
                 { id: 'uebersicht', label: 'Übersicht', title: 'Gesamtüberblick: Tages-Kennzahlen, Umsatz, Marge, Stückzahlen und die wichtigsten Kennzahlen auf einen Blick.' }
             ]},
-            { key: 'bestand', label: '📦 Bestand', tabs: [
+            { key: 'bestand', label: 'Bestand', tabs: [
                 { id: 'produktgruppen', label: 'Warengruppen', title: 'Auswertung nach Warengruppen (z. B. Waschmaschinen, Kühlgeräte): Absatz, Umsatz und Marge je Kategorie.' },
                 { id: 'brands', label: 'Marken', title: 'Auswertung nach Hersteller-Marken (Bosch, Samsung, AEG, …): welche Marken verkaufen sich am besten und mit welcher Marge?' },
                 { id: 'lieferanten', label: 'Lieferanten', title: 'Auswertung nach Lieferquelle (OTTO_MIX, AEG_Schrott, …): Absatz und Marge je Bezugsquelle. Zeigt, welche Lieferanten sich lohnen.' },
@@ -9177,23 +9187,23 @@ Keine Erklärungen, kein Markdown.`;
                 { id: 'potenzial', label: 'Verkaufsscore', title: 'Verkaufsscore: HOT/WARM/NEUTRAL/COLD-Verteilung + volle priorisierte Geräteliste. Konvolut-Bildung erfolgt in Werkzeuge → Angebote.' },
                 { id: 'liveview', label: 'Live View', title: 'Live View: Drill-Down nach Lieferant × Warengruppe × Marke. Zeigt aktuellen Bestand und besten Kunden für diese Kombi in Echtzeit beim Filter-Klick.' }
             ]},
-            { key: 'verkauf', label: '💰 Verkauf', tabs: [
+            { key: 'verkauf', label: 'Verkauf', tabs: [
                 { id: 'verkaeufer', label: 'Verkäufer', title: 'Verkaufsleistung pro Mitarbeiter: Anzahl verkaufter Geräte, erzielter Umsatz und Marge je Verkäufer.' },
                 { id: 'kunden', label: 'Kunden', title: 'Kunden-Ranking: welche Kunden kaufen am meisten (Stückzahl, Umsatz, Marge). Identifiziert Top- und Schlüsselkunden.' },
                 { id: 'kundenmatrix', label: 'Kunden×WG', title: 'Kreuztabelle Kunde × Warengruppe: welcher Kunde kauft welche Produktkategorien? Zeigt Cross-Selling-Potenzial.' },
                 { id: 'topseller', label: 'Top-Seller', title: 'Bestseller: die am häufigsten und schnellsten verkauften Artikel/Warengruppen — ideal für Nachbestellung.' }
             ]},
-            { key: 'kundenbindung', label: '💎 Kundenbindung', tabs: [
+            { key: 'kundenbindung', label: 'Kundenbindung', tabs: [
                 { id: 'clv', label: 'CLV', title: 'Customer Lifetime Value: Kundenrangliste nach historischem Brutto-Umsatz über 4 Jahre. Segmentiert in aktiv / pre-churn / high-value-churn / churned. Benötigt JTL-4-Jahre + Stammdaten.' },
                 { id: 'churn', label: 'Churn-Alert', title: 'Churn-Alert: Already-Churned-Liste + Pre-Churn-Forecast (welche Kunden reißen in den nächsten 30 Tagen die 180-T-Schwelle?). Status-Spalte zum Abhaken pro Kunde. Benötigt JTL-4-Jahre + Stammdaten.' },
                 { id: 'reakt', label: 'Reaktivierung', title: 'Reaktivierung: gezielte Win-Back-Liste mit Konvolut-Vorschlag pro Kunde. Filter nach LTV-Range + Inaktivitäts-Range + Land. Match-Score zeigt wieviel aus seiner Kaufhistorie wir aktuell im Lager haben.' }
             ]},
-            { key: 'werkzeuge', label: '🛠️ Werkzeuge', tabs: [
+            { key: 'werkzeuge', label: 'Werkzeuge', tabs: [
                 { id: 'angebote', label: 'Angebote', title: 'Angebots-Generator: 2 Modi — (1) Für Kunde X → maßgeschneidertes Angebot aus seiner 4-Jahres-Kaufhistorie + aktueller Stock. (2) Lager-Räumung → klassische Konvolute mit Top-Kunden-Vorschlag. Beide Modi → gemeinsamer Konvolut-Output mit CSV/PDF-Export.' },
                 { id: 'angebotsanalyse', label: 'Angebots-Analyse', title: 'Angebots-Analyse: lädt eine Angebots-/Auftragsdatei und gleicht sie gegen den verfügbaren Bestand ab — was kann sofort geliefert werden, was fehlt?' },
                 { id: 'pipeline', label: 'Pipeline', title: 'Pipeline: aktuelle offene Aufträge aus AMM (AUFTRAG_STATUS). Überfällig-Alarm, Forecast „diese Woche raus", Sync-Wächter JTL ↔ AMM.' }
             ]},
-            { key: 'datenqualitaet', label: '🔍 Datenqualität', tabs: [
+            { key: 'datenqualitaet', label: 'Datenqualität', tabs: [
                 { id: 'datenqualitaet', label: 'Datenqualität', title: 'Prüft die Konsistenz der hochgeladenen Dateien: Abstimmung AMM ↔ Odoo ↔ Portal über die Lager-Nr, Anomalien (Phantom, Unklassifiziert, Verkauft-im-Lager).' }
             ]}
         ];
@@ -10396,9 +10406,9 @@ Keine Erklärungen, kein Markdown.`;
             const churnRate = all.length > 0 ? (hvc.length / all.length * 100).toFixed(1) : 0;
             const days1Y = hvc.filter(p => p.tageInaktiv > 365).length;
             function _kpi(label, value, sub, color) {
-                return `<div style="background:var(--bg-card); border:1px solid var(--border); border-left:3px solid ${color}; border-radius:8px; padding:0.7rem 0.9rem;">
-                    <div style="font-size:0.55rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em;">${label}</div>
-                    <div style="font-size:1.4rem; font-weight:700; line-height:1.15;">${value}</div>
+                return `<div style="background:var(--bg-card); border:1px solid var(--border); border-radius:12px; padding:0.7rem 0.9rem;">
+                    <div style="display:flex; align-items:center; gap:0.35rem; font-size:0.55rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em;"><span class="ds-dot" style="background:${color}; width:6px; height:6px;"></span>${label}</div>
+                    <div style="font-size:1.35rem; font-weight:700; line-height:1.15; font-family:var(--font-mono);">${value}</div>
                     <div style="font-size:0.62rem; color:var(--text-muted); margin-top:1px;">${sub}</div>
                 </div>`;
             }
@@ -10661,9 +10671,9 @@ Keine Erklärungen, kein Markdown.`;
             const conversionForecast = σPotenz * 0.25;  // 25% Reaktivierungs-Annahme
             const withMatches = pool.filter(p => p._matchCache.matches > 0);
             function _kpi(label, value, sub, color) {
-                return `<div style="background:var(--bg-card); border:1px solid var(--border); border-left:3px solid ${color}; border-radius:8px; padding:0.7rem 0.9rem;">
-                    <div style="font-size:0.55rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em;">${label}</div>
-                    <div style="font-size:1.4rem; font-weight:700; line-height:1.15;">${value}</div>
+                return `<div style="background:var(--bg-card); border:1px solid var(--border); border-radius:12px; padding:0.7rem 0.9rem;">
+                    <div style="display:flex; align-items:center; gap:0.35rem; font-size:0.55rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em;"><span class="ds-dot" style="background:${color}; width:6px; height:6px;"></span>${label}</div>
+                    <div style="font-size:1.35rem; font-weight:700; line-height:1.15; font-family:var(--font-mono);">${value}</div>
                     <div style="font-size:0.62rem; color:var(--text-muted); margin-top:1px;">${sub}</div>
                 </div>`;
             }
@@ -10922,9 +10932,9 @@ Keine Erklärungen, kein Markdown.`;
             const forecastTotal = (fcRealOrders > 0 || avgVK) ? (fcReal + fcProxy) : null;
 
             function _kpi(label, value, sub, color) {
-                return `<div style="background:var(--bg-card); border:1px solid var(--border); border-left:3px solid ${color}; border-radius:8px; padding:0.7rem 0.9rem;">
-                    <div style="font-size:0.55rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em;">${label}</div>
-                    <div style="font-size:1.4rem; font-weight:700; line-height:1.15;">${value}</div>
+                return `<div style="background:var(--bg-card); border:1px solid var(--border); border-radius:12px; padding:0.7rem 0.9rem;">
+                    <div style="display:flex; align-items:center; gap:0.35rem; font-size:0.55rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em;"><span class="ds-dot" style="background:${color}; width:6px; height:6px;"></span>${label}</div>
+                    <div style="font-size:1.35rem; font-weight:700; line-height:1.15; font-family:var(--font-mono);">${value}</div>
                     <div style="font-size:0.62rem; color:var(--text-muted); margin-top:1px;">${sub}</div>
                 </div>`;
             }
@@ -10940,9 +10950,9 @@ Keine Erklärungen, kein Markdown.`;
 
             document.getElementById('pipeline-kpis').innerHTML = [
                 _kpi('Offene Sendungen', roots.length.toLocaleString('de-DE'), `${sumQU.toLocaleString('de-DE')} QU · ${sumAK} AK · ${sumSU} SU`, '#6366f1'),
-                _kpi('🚨 Überfällig (QU)', overdue.length.toLocaleString('de-DE'), `${overdue.reduce((s,r)=>s+r.openCount,0).toLocaleString('de-DE')} offene Geräte (Status QU)`, 'var(--accent-red)'),
-                _kpi('📅 Nächste 7 Tage (QU)', thisWeek.length.toLocaleString('de-DE'), `${thisWeek.reduce((s,r)=>s+r.openCount,0).toLocaleString('de-DE')} offene Geräte`, 'var(--accent-green)'),
-                _kpi('🚛 LKW-Reste (Sub)', subOrders.length.toLocaleString('de-DE'), subSub, subColor),
+                _kpi('Überfällig (QU)', overdue.length.toLocaleString('de-DE'), `${overdue.reduce((s,r)=>s+r.openCount,0).toLocaleString('de-DE')} offene Geräte (Status QU)`, 'var(--accent-red)'),
+                _kpi('Nächste 7 Tage (QU)', thisWeek.length.toLocaleString('de-DE'), `${thisWeek.reduce((s,r)=>s+r.openCount,0).toLocaleString('de-DE')} offene Geräte`, 'var(--accent-green)'),
+                _kpi('LKW-Reste (Sub)', subOrders.length.toLocaleString('de-DE'), subSub, subColor),
                 _kpi('Forecast Σ VK 7T', forecastTotal != null ? '≈ ' + forecastTotal.toLocaleString('de-DE',{style:'currency',currency:'EUR',maximumFractionDigits:0}) : '—', fcSub, 'var(--accent-cyan)'),
                 _kpi('Andere Stati', otherStatus.length.toLocaleString('de-DE'), `vergangener Termin · Status AK/SU (mögl. schon raus)`, 'var(--text-muted)'),
             ].join('');
@@ -14601,8 +14611,8 @@ Keine Erklärungen, kein Markdown.`;
             // Brücken-Rechnung zeigt, wie die zwei Zahlen zusammenhängen.
             const tilesHtml = `
               <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:0.75rem;margin-bottom:0.75rem;">
-              <div style="background:linear-gradient(135deg,rgba(16,185,129,0.16),rgba(59,130,246,0.12));border:1px solid var(--accent-green);border-radius:10px;padding:0.9rem 1.1rem;">
-                <div style="font-size:0.62rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;">💶 Sofort verkaufbar — was Vertrieb heute anbieten kann <span class="vc-info" data-tip="VERTRIEBSSICHT (kaufmännisch): jedes Gerät mit Odoo-Status „Verfügbar" + freier Portal-Restbestand — egal, wo es physisch steht. Reserviert, Angeboten und Verkauft sind raus. Achtung: enthält auch Geräte, die laut Odoo verfügbar, aber physisch nicht (mehr) im Lager sind (Phantom).">ⓘ</span></div>
+              <div style="background:var(--bg-elevated);border:1px solid var(--border);border-radius:12px;padding:0.9rem 1.1rem;">
+                <div style="display:flex;align-items:center;gap:0.4rem;font-size:0.62rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;"><span class="ds-dot" style="background:var(--accent-green);"></span>Sofort verkaufbar — was Vertrieb heute anbieten kann <span class="vc-info" data-tip="VERTRIEBSSICHT (kaufmännisch): jedes Gerät mit Odoo-Status „Verfügbar" + freier Portal-Restbestand — egal, wo es physisch steht. Reserviert, Angeboten und Verkauft sind raus. Achtung: enthält auch Geräte, die laut Odoo verfügbar, aber physisch nicht (mehr) im Lager sind (Phantom).">ⓘ</span></div>
                 <div style="display:flex;align-items:baseline;gap:1.2rem;flex-wrap:wrap;margin-top:0.2rem;">
                   <div style="font-size:1.9rem;font-weight:800;color:var(--accent-green);line-height:1;">${eur(fr.vk)}<span style="font-size:0.8rem;font-weight:600;color:var(--text-secondary);"> VK</span></div>
                   <div style="font-size:1.1rem;font-weight:700;color:var(--text-secondary);">${eur(fr.ek)}<span style="font-size:0.7rem;font-weight:500;"> EK</span></div>
@@ -14610,8 +14620,8 @@ Keine Erklärungen, kein Markdown.`;
                 </div>
                 <div style="font-size:0.6rem;color:var(--text-muted);margin-top:0.35rem;">nicht reserviert · nicht im Angebot · nicht verkauft${hasAmm && freiNichtLager>0?` &nbsp;·&nbsp; ⚠️ davon <b>${fmt(freiNichtLager)}</b> NICHT physisch im Lager (Phantom → 🔍 Datenqualität)`:''}</div>
               </div>
-              <div style="background:linear-gradient(135deg,rgba(59,130,246,0.16),rgba(168,85,247,0.10));border:1px solid var(--accent-cyan,#22d3ee);border-radius:10px;padding:0.9rem 1.1rem;">
-                <div style="font-size:0.62rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;">🏬 Unverkauft im Lager — gebundenes Kapital (physisch) <span class="vc-info" data-tip="LAGERSICHT (physisch): jedes Gerät, das laut AMM im Lager steht (Status QE) und nicht verkauft ist — INKLUSIVE reservierte/angebotene und noch unklassifizierte Geräte. Das ist das zum Stichtag gebundene Kapital. VK ist die belastbare Größe (EK strukturell untererfasst); unklassifizierte Geräte haben keine Preisquelle und zählen nur in der Stückzahl.">ⓘ</span></div>
+              <div style="background:var(--bg-elevated);border:1px solid var(--border);border-radius:12px;padding:0.9rem 1.1rem;">
+                <div style="display:flex;align-items:center;gap:0.4rem;font-size:0.62rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;"><span class="ds-dot" style="background:var(--accent-cyan);"></span>Unverkauft im Lager — gebundenes Kapital (physisch) <span class="vc-info" data-tip="LAGERSICHT (physisch): jedes Gerät, das laut AMM im Lager steht (Status QE) und nicht verkauft ist — INKLUSIVE reservierte/angebotene und noch unklassifizierte Geräte. Das ist das zum Stichtag gebundene Kapital. VK ist die belastbare Größe (EK strukturell untererfasst); unklassifizierte Geräte haben keine Preisquelle und zählen nur in der Stückzahl.">ⓘ</span></div>
                 ${hasAmm ? `
                 <div style="display:flex;align-items:baseline;gap:1.2rem;flex-wrap:wrap;margin-top:0.2rem;">
                   <div style="font-size:1.9rem;font-weight:800;color:var(--accent-cyan,#22d3ee);line-height:1;">${eur(qu.vk)}<span style="font-size:0.8rem;font-weight:600;color:var(--text-secondary);"> VK</span></div>
@@ -14638,11 +14648,11 @@ Keine Erklärungen, kein Markdown.`;
             if (konsEl) { konsEl.textContent = `${consStr} %`; konsEl.style.color = consCol; }
             if (!el) return;
             el.innerHTML = tilesHtml + `
-              <div style="background:var(--bg-elevated);border:1px solid ${consCol};border-radius:10px;padding:0.9rem 1.1rem;margin-bottom:0.75rem;">
+              <div style="background:var(--bg-elevated);border:1px solid var(--border);border-radius:12px;padding:0.9rem 1.1rem;margin-bottom:0.75rem;">
                 <div style="display:flex;align-items:center;gap:1.5rem;flex-wrap:wrap;">
                   <div style="min-width:170px;">
-                    <div style="font-size:0.62rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;">🎯 Daten-Konsistenz <span class="vc-info" data-tip="Alle Systeme gegeneinander validiert: Anteil der aktuellen Geräte (Universum = AMM ∪ Odoo), deren Aussage über Odoo, AMM und die Archive WIDERSPRUCHSFREI ist. Jedes Gerät mit Anomalie (Phantom, Unklassifiziert, Verkauft-im-Lager nach Ablauf des Versand-Fensters) zählt als inkonsistent. Frisch Verkauftes in der normalen Kommissionierung (≤14 Tage) ist KEINE Anomalie und wird als Versand-Pipeline separat ausgewiesen. Verkaufs-Register-Doppel werden getrennt geprüft.">ⓘ</span></div>
-                    <div style="font-size:2.6rem;font-weight:800;color:${consCol};line-height:1.05;">${consStr}<span style="font-size:1.15rem;font-weight:700;"> %</span></div>
+                    <div style="display:flex;align-items:center;gap:0.4rem;font-size:0.62rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;"><span class="ds-dot" style="background:${consCol};"></span>Daten-Konsistenz <span class="vc-info" data-tip="Alle Systeme gegeneinander validiert: Anteil der aktuellen Geräte (Universum = AMM ∪ Odoo), deren Aussage über Odoo, AMM und die Archive WIDERSPRUCHSFREI ist. Jedes Gerät mit Anomalie (Phantom, Unklassifiziert, Verkauft-im-Lager nach Ablauf des Versand-Fensters) zählt als inkonsistent. Frisch Verkauftes in der normalen Kommissionierung (≤14 Tage) ist KEINE Anomalie und wird als Versand-Pipeline separat ausgewiesen. Verkaufs-Register-Doppel werden getrennt geprüft.">ⓘ</span></div>
+                    <div style="font-size:1.9rem;font-weight:800;color:${consCol};line-height:1.05;">${consStr}<span style="font-size:1rem;font-weight:700;"> %</span></div>
                   </div>
                   <div style="flex:1;min-width:230px;">
                     <div style="height:8px;background:var(--bg-secondary);border-radius:999px;overflow:hidden;margin-bottom:0.45rem;">
@@ -14654,7 +14664,7 @@ Keine Erklärungen, kein Markdown.`;
                     <div style="font-size:0.6rem;color:var(--text-muted);margin-top:0.2rem;">🚚 ${fmt((r.versandPipeline||{}).count)} in Versand-Pipeline (verkauft ≤${(r.versandPipeline&&r.versandPipeline.fensterTage)||14} T, normal — zählt nicht als Anomalie) · Verkaufs-Register (getrennt geprüft): ${fmt(r.sales.total)} kumulativ · Doppel-Erfassungen ${fmt(r.sales.double.length)}${r.sales.noKey>0?` · ohne Lager-Nr ${fmt(r.sales.noKey)}`:''}</div>
                   </div>
                   <div style="display:flex;flex-direction:column;gap:0.35rem;align-items:flex-end;">
-                    <button onclick="exportReconciliationCSV()" style="padding:0.2rem 0.6rem;background:transparent;border:1px solid var(--accent-cyan);color:var(--accent-cyan);border-radius:4px;font-size:0.62rem;cursor:pointer;">⬇ Anomalien (CSV)</button>
+                    <button onclick="exportReconciliationCSV()" style="padding:0.25rem 0.7rem;background:transparent;border:1px solid var(--border);color:var(--text-secondary);border-radius:8px;font-size:0.62rem;cursor:pointer;">Anomalien (CSV)</button>
                     <span style="font-size:0.58rem;color:var(--text-muted);">Stand ${r.when}</span>
                   </div>
                 </div>
