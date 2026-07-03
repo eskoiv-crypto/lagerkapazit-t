@@ -3043,6 +3043,61 @@
             font-weight: 600;
             margin-top: 0.2rem;
         }
+
+        /* ====================================================
+         * PHASE C2 (2026-07-02): DESIGN-PASS — ruhige Typo & einheitliche Karten.
+         * Zentral über die geteilten Klassen, damit ALLE Reiter profitieren,
+         * ohne 1.600 Inline-Styles anzufassen. Prinzipien:
+         *   - Zahlen neutral (text-primary), Farbe NUR für Bedeutung (positive/negative)
+         *   - Labels als kleine Uppercase-Overlines (Apple-Stil)
+         *   - Karten: 12px Radius, feine Border, linksbündig
+         *   - Tabellen-Header: klein, uppercase, muted
+         * ==================================================== */
+        .analyse-kpi {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 0.85rem 1rem;
+            text-align: left;
+        }
+        .analyse-kpi-value {
+            font-size: 1.35rem;
+            font-weight: 700;
+            font-family: var(--font-mono);
+            color: var(--text-primary);
+            letter-spacing: -0.01em;
+            line-height: 1.15;
+        }
+        .analyse-kpi-label {
+            font-size: 0.6rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+            margin-top: 0.35rem;
+        }
+        .analyse-table {
+            font-size: 0.72rem;
+        }
+        .analyse-table th {
+            font-size: 0.6rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+            font-weight: 600;
+            padding: 0.45rem 0.5rem;
+            border-bottom: 1px solid var(--border);
+        }
+        .analyse-table td {
+            padding: 0.45rem 0.5rem;
+        }
+        .analytics-section-title {
+            font-size: 0.66rem;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--text-muted);
+            font-weight: 600;
+            margin: 1.1rem 0 0.6rem;
+        }
     </style>
 </head>
 <body data-active-dept="sales" data-vertriebs-cockpit="true">
@@ -3059,7 +3114,7 @@
         <div class="header-meta">
             <div class="timestamp">
                 <div class="live-dot"></div>
-                <span>Stand: <span id="timestamp" class="mono" style="color: var(--accent-orange)">⏳ Bitte Daten hochladen</span></span>
+                <span style="background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 999px; padding: 0.2rem 0.7rem; font-size: 0.72rem;">Stand: <span id="timestamp" class="mono" style="color: var(--text-secondary);">Daten laden — Dateien einfach ablegen</span></span>
             </div>
             <button class="theme-toggle" onclick="toggleTheme()" title="Dark/Light Mode umschalten">
                 <span id="theme-icon">🌙</span>
@@ -3657,22 +3712,23 @@
                                 
                                 <div style="background: var(--bg-elevated); border-radius: 8px; padding: 0.75rem;">
                                     <h4 style="margin: 0 0 0.5rem 0; font-size: 0.8rem; color: var(--text-secondary);">🎯 Marge-Verteilung</h4>
-                                    <div id="marge-distribution" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.3rem; text-align: center; font-size: 0.65rem;">
-                                        <div style="background: var(--accent-red); color: white; padding: 0.3rem; border-radius: 4px;">
-                                            <div style="font-weight: 700;" id="marge-negativ">—</div>
-                                            <div style="opacity: 0.8;">&lt;0€</div>
+                                    <!-- PHASE C2: getönte Flächen + Bedeutungsfarbe im Text statt gesättigter Blöcke mit Weiß -->
+                                    <div id="marge-distribution" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.4rem; text-align: center; font-size: 0.65rem;">
+                                        <div style="background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.35); padding: 0.35rem; border-radius: 8px;">
+                                            <div style="font-weight: 700; color: var(--accent-red); font-family: var(--font-mono);" id="marge-negativ">—</div>
+                                            <div style="color: var(--text-muted);">&lt;0€</div>
                                         </div>
-                                        <div style="background: var(--accent-orange); color: white; padding: 0.3rem; border-radius: 4px;">
-                                            <div style="font-weight: 700;" id="marge-niedrig">—</div>
-                                            <div style="opacity: 0.8;">0-50€</div>
+                                        <div style="background: rgba(249,115,22,0.12); border: 1px solid rgba(249,115,22,0.35); padding: 0.35rem; border-radius: 8px;">
+                                            <div style="font-weight: 700; color: var(--accent-orange); font-family: var(--font-mono);" id="marge-niedrig">—</div>
+                                            <div style="color: var(--text-muted);">0-50€</div>
                                         </div>
-                                        <div style="background: var(--accent-cyan); color: white; padding: 0.3rem; border-radius: 4px;">
-                                            <div style="font-weight: 700;" id="marge-mittel">—</div>
-                                            <div style="opacity: 0.8;">50-150€</div>
+                                        <div style="background: rgba(6,182,212,0.12); border: 1px solid rgba(6,182,212,0.35); padding: 0.35rem; border-radius: 8px;">
+                                            <div style="font-weight: 700; color: var(--accent-cyan); font-family: var(--font-mono);" id="marge-mittel">—</div>
+                                            <div style="color: var(--text-muted);">50-150€</div>
                                         </div>
-                                        <div style="background: var(--accent-green); color: white; padding: 0.3rem; border-radius: 4px;">
-                                            <div style="font-weight: 700;" id="marge-hoch">—</div>
-                                            <div style="opacity: 0.8;">&gt;150€</div>
+                                        <div style="background: rgba(16,185,129,0.12); border: 1px solid rgba(16,185,129,0.35); padding: 0.35rem; border-radius: 8px;">
+                                            <div style="font-weight: 700; color: var(--accent-green); font-family: var(--font-mono);" id="marge-hoch">—</div>
+                                            <div style="color: var(--text-muted);">&gt;150€</div>
                                         </div>
                                     </div>
                                 </div>
