@@ -3700,7 +3700,7 @@
                             <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.75rem; margin-bottom: 1rem;">
                                 <div class="analyse-kpi">
                                     <div class="analyse-kpi-value" id="kpi-reserviert">—</div>
-                                    <div class="analyse-kpi-label">Reserviert / Angeboten <span class="vc-info" data-tip="Kaufmännisch gebundene Geräte (Odoo Angeboten/Reserviert + Portal A/M) — in der linken Kachel NICHT enthalten, in der rechten (physisch) schon.">ⓘ</span></div>
+                                    <div class="analyse-kpi-label">Reserviert / Angeboten <span class="vc-info" data-tip="ALLE kaufmännisch gebundenen Geräte (Odoo Angeboten/Reserviert + Portal A/M). Die Kachel rechts zählt davon nur die physisch im Lager stehenden (QE) — die Differenz „nicht im Lager" sind Reservierungen ohne auffindbares Gerät: Kundenzusagen ohne Ware → dringend prüfen (Datenqualität → Phantom).">ⓘ</span></div>
                                 </div>
                                 <div class="analyse-kpi">
                                     <div class="analyse-kpi-value" id="kpi-versand-pipeline">—</div>
@@ -14563,7 +14563,14 @@ Keine Erklärungen, kein Markdown.`;
             if (uebEl) uebEl.innerHTML = tilesHtml;
             // Heute-KPI-Zeile (reconcile-getrieben, Wertekreis-Fix 2026-07-03):
             // Reserviert / Versand-Pipeline / Daten-Konsistenz — keine €-Doppelung zu den Kacheln.
-            setEl('kpi-reserviert', fmt(r.comm.reserviert));
+            // SCOPE-FIX (User-Befund 2026-07-03, „461 vs 450"): comm.reserviert zählt ALLE
+            // kaufmännisch gebundenen Geräte, die Kachel-Brücke nur die physisch als QE
+            // stehenden. Die Differenz = reservierte Geräte OHNE auffindbares Lager-Gerät
+            // (= Kundenzusagen ohne Ware → brisanter als freie Phantome) — wird jetzt
+            // explizit ausgewiesen statt still zu widersprechen.
+            const _resTotal = r.comm.reserviert;
+            const _resNichtQE = Math.max(0, _resTotal - ((r.qeUnsold || {}).reserviert || 0));
+            setElHtml('kpi-reserviert', `${fmt(_resTotal)}${_resNichtQE > 0 ? ` <span style="font-size:0.7rem;font-weight:600;color:var(--accent-orange);">⚠ ${fmt(_resNichtQE)} nicht im Lager</span>` : ''}`);
             setEl('kpi-versand-pipeline', fmt((r.versandPipeline || {}).count || 0));
             const konsEl = document.getElementById('kpi-daten-konsistenz');
             if (konsEl) { konsEl.textContent = `${consStr} %`; konsEl.style.color = consCol; }
