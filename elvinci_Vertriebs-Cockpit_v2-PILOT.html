@@ -5067,7 +5067,7 @@
                                 <!-- Sync-Wächter + Spediteur/Land -->
                                 <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem;">
                                     <div style="background:var(--bg-card); border:1px solid var(--border); border-left:4px solid var(--accent-orange); border-radius:10px; padding:0.9rem;">
-                                        <div style="font-size:0.85rem; font-weight:700; margin-bottom:0.5rem; color:var(--accent-orange);">🔄 JTL ↔ AMM-Sync-Wächter <span class="vc-info" data-tip="Aufträge die in AMM-Pipeline stehen, aber NICHT in JTL-Export auftauchen — potenzielle Sync-Lücke (wie der Mail-Fall AU2026060213698). Erfordert JTL-Export geladen.">ⓘ</span></div>
+                                        <div style="font-size:0.85rem; font-weight:700; margin-bottom:0.5rem; color:var(--accent-orange);">🔄 Sync-Wächter — Pipeline ↔ WaWi <span class="vc-info" data-tip="Aufträge, die in der AMM-Pipeline stehen, aber weder in den Odoo-Verkäufen noch im JTL-Export auftauchen — potenzielle Sync-Lücke (wie der Mail-Fall AU2026060213698). Abgleich auf Auftrags-Root-Ebene; Odoo-Aufträge (S00…) werden gegen Odoo geprüft, Alt-Aufträge (AU…) gegen JTL + Odoo.">ⓘ</span></div>
                                         <div id="pipeline-sync-table" style="max-height:280px; overflow-y:auto;"></div>
                                     </div>
                                     <div style="background:var(--bg-card); border:1px solid var(--border); border-radius:10px; padding:0.9rem;">
@@ -10901,7 +10901,25 @@ Keine Erklärungen, kein Markdown.`;
                 });
                 if (vals.length) avgVK = vals.reduce((s,v)=>s+v,0) / vals.length;
             }
-            const forecastWeek = avgVK ? thisWeek.reduce((s,r)=>s+r.summe,0) * avgVK : null;
+            // FORECAST-UPGRADE (2026-07-03): Die Geräte offener Aufträge sind bereits VERKAUFT —
+            // ihre echten Preise stehen im Verkaufsregister (Odoo + All-Sold tragen orderNr).
+            // Je Sendung: Ø-VK des EIGENEN Auftrags × offene Stück; nur ohne Match fällt
+            // sie auf den Lager-Ø-VK zurück (der den Auftragsmix systematisch verzerrt).
+            const _orderVK = {};   // Auftrags-Root → { vk: Σ, count }
+            (dashboardState.allSoldData || []).forEach(s => {
+                const root = String(s.orderNr || '').split('.')[0].trim().toUpperCase();
+                if (!root) return;
+                if (!_orderVK[root]) _orderVK[root] = { vk: 0, count: 0 };
+                _orderVK[root].vk += parseFloat(s.vk) || 0;
+                _orderVK[root].count++;
+            });
+            let fcReal = 0, fcProxy = 0, fcRealOrders = 0, fcProxyOrders = 0;
+            thisWeek.forEach(r => {
+                const m = _orderVK[String(r.auftragRoot).split('.')[0].trim().toUpperCase()];
+                if (m && m.count > 0) { fcReal += (m.vk / m.count) * r.openCount; fcRealOrders++; }
+                else if (avgVK) { fcProxy += r.openCount * avgVK; fcProxyOrders++; }
+            });
+            const forecastTotal = (fcRealOrders > 0 || avgVK) ? (fcReal + fcProxy) : null;
 
             function _kpi(label, value, sub, color) {
                 return `<div style="background:var(--bg-card); border:1px solid var(--border); border-left:3px solid ${color}; border-radius:8px; padding:0.7rem 0.9rem;">
@@ -10910,8 +10928,10 @@ Keine Erklärungen, kein Markdown.`;
                     <div style="font-size:0.62rem; color:var(--text-muted); margin-top:1px;">${sub}</div>
                 </div>`;
             }
-            // Forecast nutzt jetzt openCount (QU, also wirklich noch offene Stück)
-            const forecastWeekOpen = avgVK ? thisWeek.reduce((s,r)=>s+r.openCount,0) * avgVK : null;
+            // Forecast: echte Auftragswerte, Ø-VK nur als Fallback (s. o.)
+            const fcSub = forecastTotal != null
+                ? `${fcRealOrders}/${thisWeek.length} Sendungen mit echten Auftragswerten${fcProxyOrders > 0 ? ` · ${fcProxyOrders}× Ø-VK-Schätzung (${avgVK ? avgVK.toFixed(0) : '—'}€)` : ''}`
+                : 'Verkaufsdaten/Stock laden';
 
             const subColor = subOverdue.length > 0 ? 'var(--accent-red)' : 'var(--accent-orange)';
             const subSub = subOverdue.length > 0
@@ -10923,7 +10943,7 @@ Keine Erklärungen, kein Markdown.`;
                 _kpi('🚨 Überfällig (QU)', overdue.length.toLocaleString('de-DE'), `${overdue.reduce((s,r)=>s+r.openCount,0).toLocaleString('de-DE')} offene Geräte (Status QU)`, 'var(--accent-red)'),
                 _kpi('📅 Nächste 7 Tage (QU)', thisWeek.length.toLocaleString('de-DE'), `${thisWeek.reduce((s,r)=>s+r.openCount,0).toLocaleString('de-DE')} offene Geräte`, 'var(--accent-green)'),
                 _kpi('🚛 LKW-Reste (Sub)', subOrders.length.toLocaleString('de-DE'), subSub, subColor),
-                _kpi('Forecast Σ VK 7T', forecastWeekOpen != null ? forecastWeekOpen.toLocaleString('de-DE',{style:'currency',currency:'EUR',maximumFractionDigits:0}) : '— Stock nötig', forecastWeekOpen != null ? `${thisWeek.reduce((s,r)=>s+r.openCount,0)} QU × Ø VK ${avgVK.toFixed(0)}€` : 'Stock-Analysis laden', 'var(--accent-cyan)'),
+                _kpi('Forecast Σ VK 7T', forecastTotal != null ? '≈ ' + forecastTotal.toLocaleString('de-DE',{style:'currency',currency:'EUR',maximumFractionDigits:0}) : '—', fcSub, 'var(--accent-cyan)'),
                 _kpi('Andere Stati', otherStatus.length.toLocaleString('de-DE'), `vergangener Termin · Status AK/SU (mögl. schon raus)`, 'var(--text-muted)'),
             ].join('');
 
@@ -10999,29 +11019,40 @@ Keine Erklärungen, kein Markdown.`;
                 }
             }
 
-            // JTL-Sync-Wächter
+            // SYNC-WÄCHTER — ODOO-BEWUSST (2026-07-03): Die Pipeline enthält inzwischen
+            // Odoo-Aufträge (S00xxx). Referenz = JTL-Bestellnummern ∪ Odoo-Verkaufsaufträge —
+            // vorher hätte JEDER Odoo-Auftrag als „fehlt in JTL" fehlalarmiert. Außerdem
+            // latenter Bug gefixt: Sub-Sendungen (.001) wurden mit Suffix gegen die
+            // Root-Nummern verglichen → jede Teilsendung wäre „missing" gewesen.
             const syncTable = document.getElementById('pipeline-sync-table');
             if (syncTable) {
-                const jtlOrders = dashboardState.jtlOrderNumbers; // Set falls geladen
-                if (!jtlOrders) {
-                    syncTable.innerHTML = '<div style="padding:0.8rem; color:var(--text-muted); font-size:0.7rem; background:rgba(255,255,255,0.03); border-radius:6px;">💡 JTL-Export laden für Sync-Check.<br>Sonst: Vergleich Pipeline-Aufträge ↔ JTL nicht möglich.</div>';
+                const jtlOrders = dashboardState.jtlOrderNumbers || new Set();
+                const odooOrders = new Set();
+                (dashboardState._soldSrcOdoo || []).forEach(s => {
+                    const rt = String(s.orderNr || '').split('.')[0].trim().toUpperCase();
+                    if (rt) odooOrders.add(rt);
+                });
+                const hasJtl = jtlOrders.size > 0, hasOdoo = odooOrders.size > 0;
+                if (!hasJtl && !hasOdoo) {
+                    syncTable.innerHTML = '<div style="padding:0.8rem; color:var(--text-muted); font-size:0.7rem; background:rgba(255,255,255,0.03); border-radius:6px;">💡 JTL-Export (optional) oder Odoo-Datei laden für den Sync-Check.<br>Sonst: Vergleich Pipeline-Aufträge ↔ WaWi nicht möglich.</div>';
                 } else {
-                    // Vergleich gegen Root-Auftragsnummer (ohne .001 Suffix)
-                    const uniqueRoots = Array.from(new Set(pipeline.map(p => p.auftragRoot))).map(rn => {
-                        const sample = pipeline.find(p => p.auftragRoot === rn);
-                        const allRows = pipeline.filter(p => p.auftragRoot === rn);
-                        return {
-                            auftragRoot: rn,
-                            kundenName: sample.kundenName,
-                            land: sample.land,
-                            openCount: allRows.reduce((s,p) => s + p.qu, 0),
-                        };
+                    const _normRoot = (v) => String(v || '').split('.')[0].trim().toUpperCase();
+                    const known = (root) => jtlOrders.has(root) || odooOrders.has(root);
+                    // Auf ROOT-Ebene gruppieren (Teilsendungen .001 gehören zum Haupt-Auftrag)
+                    const rootMap = {};
+                    pipeline.forEach(p => {
+                        const rn = _normRoot(p.auftragRoot);
+                        if (!rn) return;
+                        if (!rootMap[rn]) rootMap[rn] = { auftragRoot: rn, kundenName: p.kundenName, land: p.land, openCount: 0 };
+                        rootMap[rn].openCount += p.qu;
                     });
-                    const missing = uniqueRoots.filter(r => !jtlOrders.has(r.auftragRoot));
+                    const uniqueRoots = Object.values(rootMap);
+                    const refLabel = [hasJtl ? 'JTL' : null, hasOdoo ? 'Odoo-Verkäufe' : null].filter(Boolean).join(' + ');
+                    const missing = uniqueRoots.filter(r => !known(r.auftragRoot));
                     if (!missing.length) {
-                        syncTable.innerHTML = '<div style="padding:0.8rem; color:var(--accent-green); font-size:0.78rem; font-weight:600;">✅ Alle Pipeline-Aufträge sind auch in JTL — keine Sync-Lücke.</div>';
+                        syncTable.innerHTML = `<div style="padding:0.8rem; color:var(--accent-green); font-size:0.78rem; font-weight:600;">✅ Alle ${uniqueRoots.length} Pipeline-Aufträge im WaWi gefunden (Abgleich: ${refLabel}) — keine Sync-Lücke.</div>`;
                     } else {
-                        syncTable.innerHTML = `<div style="font-size:0.7rem; color:var(--accent-orange); margin-bottom:0.4rem;">${missing.length} Auftrag/Aufträge in Pipeline aber NICHT in JTL → manuell prüfen</div>
+                        syncTable.innerHTML = `<div style="font-size:0.7rem; color:var(--accent-orange); margin-bottom:0.4rem;">${missing.length} Auftrag/Aufträge in Pipeline, aber weder in ${refLabel} → manuell prüfen${!hasJtl ? ' <span style="color:var(--text-muted);">(JTL-Export nicht geladen — AU-Altaufträge ggf. nur dort)</span>' : ''}</div>
                         <table class="analyse-table" style="font-size:0.66rem; width:100%;">
                             <thead><tr><th>Auftrag (Root)</th><th>Kunde</th><th>Land</th><th>QU</th></tr></thead>
                             <tbody>${missing.map(r => `<tr>
