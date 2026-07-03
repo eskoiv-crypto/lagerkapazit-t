@@ -25113,13 +25113,35 @@ location.reload();</pre>
         };
         window.updateImportSummary = function() {
             const st = (typeof dashboardState !== 'undefined') ? dashboardState : {};
-            const sources = [st.allSoldLoaded, st.stockAnalysisLoaded, st.jtlSalesLoaded, st.bestandLoaded];
-            const loaded = sources.filter(Boolean).length;
+            // FIX (User-Befund 2026-07-03): Der alte "x/4"-Zähler zählte hart die vier
+            // Prä-Odoo-Quellen (All-Sold, Stock, JTL, BESTAND) — Odoo, 4Y, Stamm und
+            // Pipeline zählten NICHT. Ergebnis: "3/4" trotz vollständigem Upload.
+            // Neue Logik: Maßstab ist "Tagesdaten komplett?" (Odoo + BESTAND = Pflicht),
+            // alle übrigen Quellen zählen informativ ohne festen Nenner.
+            const odooLoaded = !!(st._stockSrcOdoo && Object.keys(st._stockSrcOdoo).length);
+            const bestandLoaded = !!st.bestandLoaded;
+            const SOURCES = [
+                ['Odoo', odooLoaded],
+                ['BESTAND', bestandLoaded],
+                ['Stock-Analysis', !!(st._stockSrcPortal && Object.keys(st._stockSrcPortal).length)],
+                ['All-Sold', !!(st._soldSrcPortal && st._soldSrcPortal.length)],
+                ['JTL Export', !!st.jtlSalesLoaded],
+                ['JTL 4-Jahre', !!st.jtl4yLoaded],
+                ['Stammdaten', !!st.stammLoaded],
+                ['Pipeline', !!(st.pipelineData && st.pipelineData.length)]
+            ];
+            const loaded = SOURCES.filter(s => s[1]).length;
             const el = document.getElementById('import-status-summary');
             if (el) {
-                el.innerHTML = loaded === 0
-                    ? 'Dateien ablegen oder klicken'
-                    : `<span style="color:var(--accent-green); font-weight:600;">✓ ${loaded}/4 Quellen geladen</span>`;
+                el.title = SOURCES.map(s => `${s[1] ? '✓' : '·'} ${s[0]}`).join('\n');
+                if (loaded === 0) {
+                    el.innerHTML = 'Dateien ablegen oder klicken';
+                } else if (odooLoaded && bestandLoaded) {
+                    el.innerHTML = `<span style="color:var(--accent-green); font-weight:600;">✓ Tagesdaten komplett · ${loaded} Quellen geladen</span>`;
+                } else {
+                    const fehlt = !odooLoaded && !bestandLoaded ? 'Odoo + BESTAND fehlen' : (!odooLoaded ? 'Odoo fehlt' : 'BESTAND fehlt');
+                    el.innerHTML = `<span style="color:var(--accent-orange); font-weight:600;">⚠ ${fehlt}</span> <span style="color:var(--text-muted);">· ${loaded} Quelle(n) geladen</span>`;
+                }
             }
             // Beim ersten erfolgreichen Upload automatisch einklappen (Platz sparen)
             const body = document.getElementById('import-body');
