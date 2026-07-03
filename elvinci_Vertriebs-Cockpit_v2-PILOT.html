@@ -3668,26 +3668,33 @@
                         <div id="tab-uebersicht" class="analyse-tab-content active" style="padding: 1rem;">
                             <!-- PHASE A (2026-07-02): Tages-Kennzahlen gehören auf die Übersicht, nicht in den System-Reiter Datenqualität -->
                             <div id="uebersicht-daily-kpis" style="margin-bottom: 1rem;"></div>
+                            <!-- WERTEKREIS-FIX (User-Befund 2026-07-03): Vorher standen hier „Lagerwert
+                                 EK/VK" + „Marge-Potenzial" = ein DRITTER Wertekreis neben den zwei Kacheln
+                                 (kaufmännischer Gesamtbestand inkl. Phantome, ohne Unklassifizierte) →
+                                 3 verschiedene EK/VK auf einem Bildschirm, unerklärlich. Jetzt: Die zwei
+                                 Kacheln sind die EINZIGEN €-Werte; diese Zeile zeigt nur ergänzende
+                                 Kennzahlen ohne Doppelung. Marge-Potenzial bewusst gestrichen (EK ist
+                                 strukturell untererfasst → VK−EK war systematisch überzeichnet). -->
                             <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.75rem; margin-bottom: 1rem;">
                                 <div class="analyse-kpi">
-                                    <div class="analyse-kpi-value" id="kpi-lagerbestand-wert">—</div>
-                                    <div class="analyse-kpi-label">Lagerwert (EK)</div>
+                                    <div class="analyse-kpi-value" id="kpi-reserviert">—</div>
+                                    <div class="analyse-kpi-label">Reserviert / Angeboten <span class="vc-info" data-tip="Kaufmännisch gebundene Geräte (Odoo Angeboten/Reserviert + Portal A/M) — in der linken Kachel NICHT enthalten, in der rechten (physisch) schon.">ⓘ</span></div>
                                 </div>
                                 <div class="analyse-kpi">
-                                    <div class="analyse-kpi-value" id="kpi-lagerbestand-vk">—</div>
-                                    <div class="analyse-kpi-label">Lagerwert (VK)</div>
-                                </div>
-                                <div class="analyse-kpi">
-                                    <div class="analyse-kpi-value" id="kpi-marge-potenzial">—</div>
-                                    <div class="analyse-kpi-label">Marge-Potenzial</div>
+                                    <div class="analyse-kpi-value" id="kpi-versand-pipeline">—</div>
+                                    <div class="analyse-kpi-label">Versand-Pipeline <span class="vc-info" data-tip="Verkauft innerhalb der letzten 14 Tage und noch im Lager — normale Kommissionierung, läuft raus.">ⓘ</span></div>
                                 </div>
                                 <div class="analyse-kpi">
                                     <div class="analyse-kpi-value" id="kpi-avg-lagertage">—</div>
-                                    <div class="analyse-kpi-label">Ø Lagertage</div>
+                                    <div class="analyse-kpi-label">Ø Lagertage <span class="vc-info" data-tip="Aus dem echten AMM-Wareneingangsdatum berechnet.">ⓘ</span></div>
                                 </div>
                                 <div class="analyse-kpi">
                                     <div class="analyse-kpi-value" id="kpi-slowmover-count">—</div>
                                     <div class="analyse-kpi-label">Slow-Mover (>60d)</div>
+                                </div>
+                                <div class="analyse-kpi" style="cursor: pointer;" onclick="switchAnalyseTab('datenqualitaet')" title="Zum Datenqualität-Reiter">
+                                    <div class="analyse-kpi-value" id="kpi-daten-konsistenz">—</div>
+                                    <div class="analyse-kpi-label">Daten-Konsistenz <span class="vc-info" data-tip="Anteil der aktuellen Geräte mit widerspruchsfreier Aussage über alle Systeme. Klick → Datenqualität mit Anomalie-Liste.">ⓘ</span></div>
                                 </div>
                             </div>
                             
@@ -14515,6 +14522,12 @@ Keine Erklärungen, kein Markdown.`;
               </div>
               </div>`;
             if (uebEl) uebEl.innerHTML = tilesHtml;
+            // Heute-KPI-Zeile (reconcile-getrieben, Wertekreis-Fix 2026-07-03):
+            // Reserviert / Versand-Pipeline / Daten-Konsistenz — keine €-Doppelung zu den Kacheln.
+            setEl('kpi-reserviert', fmt(r.comm.reserviert));
+            setEl('kpi-versand-pipeline', fmt((r.versandPipeline || {}).count || 0));
+            const konsEl = document.getElementById('kpi-daten-konsistenz');
+            if (konsEl) { konsEl.textContent = `${consStr} %`; konsEl.style.color = consCol; }
             if (!el) return;
             el.innerHTML = tilesHtml + `
               <div style="background:var(--bg-elevated);border:1px solid ${consCol};border-radius:10px;padding:0.9rem 1.1rem;margin-bottom:0.75rem;">
@@ -14575,19 +14588,13 @@ Keine Erklärungen, kein Markdown.`;
         
         function updateAnalyseKPIs() {
             const formatCurr = (v) => v.toLocaleString('de-DE', { style: 'currency', currency: 'EUR', minimumFractionDigits: 0, maximumFractionDigits: 0 });
-            
-            // Lagerwert EK
-            const lagerEK = dashboardState.stockTotalEK || 0;
-            setEl('kpi-lagerbestand-wert', formatCurr(lagerEK));
-            
-            // Lagerwert VK
-            const lagerVK = dashboardState.stockTotalVK || 0;
-            setEl('kpi-lagerbestand-vk', formatCurr(lagerVK));
-            
-            // Marge-Potenzial
-            const margePotenzial = lagerVK - lagerEK;
-            setEl('kpi-marge-potenzial', formatCurr(margePotenzial));
-            
+
+            // WERTEKREIS-FIX (2026-07-03): Lagerwert-EK/VK + Marge-Potenzial ENTFERNT —
+            // das war ein dritter €-Wertekreis neben den zwei Kacheln (Gesamtbestand
+            // inkl. Phantome) und machte den Heute-Bildschirm unerklärlich. Die €-Werte
+            // kommen jetzt AUSSCHLIESSLICH aus den zwei Kacheln (reconcileAllSources);
+            // die KPI-Zeile füllt renderLagerNrCoverage (Reserviert/Pipeline/Konsistenz).
+
             // Ø Lagertage
             const avgDays = dashboardState.stockAvgLifeDays || 0;
             setEl('kpi-avg-lagertage', `${avgDays} Tage`);
