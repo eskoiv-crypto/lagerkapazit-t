@@ -3102,7 +3102,8 @@
 </head>
 <body data-active-dept="sales" data-vertriebs-cockpit="true">
     <!-- PILOT-Badge: dauerhaft sichtbar, damit Live- und Pilot-Version nie verwechselt werden -->
-    <div id="pilot-badge" style="position:fixed; bottom:14px; left:14px; z-index:99999; background:linear-gradient(135deg,#a855f7,#ec4899); color:#fff; padding:6px 14px; border-radius:999px; font-size:0.72rem; font-weight:800; letter-spacing:0.06em; box-shadow:0 6px 20px rgba(168,85,247,0.45); pointer-events:none; font-family:'Space Grotesk',sans-serif;">🧪 PILOT-VERSION — nicht Live</div>
+    <!-- PILOT-Badge entfernt (User-Entscheid 2026-07-03) — Version ist im Tagesgebrauch -->
+
     <!-- Toast Notifications Container -->
     <div id="toast-container" class="toast-container"></div>
 
@@ -3933,7 +3934,7 @@
                                     <div id="dq-artikel-checks" style="font-size: 0.7rem;">
                                         <div class="dq-check-item" id="dq-check-5">
                                             <span class="dq-check-icon">⏳</span>
-                                            <span>Artikelnummern-Konsistenz <span class="vc-info tip-left" data-tip="Prüft, ob dieselbe Artikelnummer über verschiedene Dateien hinweg konsistent verwendet wird. Inkonsistenzen erschweren das Matching von Bestand und Verkäufen.">ⓘ</span></span>
+                                            <span>Artikelnummern-Konsistenz <span class="vc-info tip-left" data-tip="Nicht anwendbar: AMM führt die LIEFERANTEN-Artikelnummer, das WaWi (Portal/Odoo) einen EIGENEN Nummernkreis (ELV-…) — zwei verschiedene Systeme, die planmäßig nicht übereinstimmen. Die Brücke zwischen den Systemen ist die Lager-Nr (siehe Daten-Konsistenz oben). Der frühere 8-%-Wert maß dieses Konstruktionsmerkmal, keinen Datenfehler.">ⓘ</span></span>
                                             <span class="dq-check-result" id="dq-result-5">—</span>
                                         </div>
                                         <div class="dq-check-item" id="dq-check-6">
@@ -14013,39 +14014,19 @@ Keine Erklärungen, kein Markdown.`;
             const check4Pct = bestandData.length > 0 ? ((uniqueCount / bestandData.length) * 100).toFixed(1) : 0;
             updateCheckResult(4, duplikate.length === 0 ? '✓' : duplikate.length, uniqueCount, bestandData.length, duplikate.length === 0);
             
-            // === CHECK 5: Artikelnummern-Konsistenz ===
-            let artikelMatchCount = 0;
-            const stockByLagerNr = {};
-            stockData.forEach(s => {
-                stockByLagerNr[String(s.lager_number || '').trim()] = s;
-            });
-            
-            bestandData.forEach(b => {
-                const lagerNr = String(b.lagerNr || b.lagernummer || '').trim();
-                const bestandArtNr = String(b.artikelnummer || '').trim();
-                const stockItem = stockByLagerNr[lagerNr];
-                
-                if (stockItem && bestandArtNr) {
-                    const stockArtNr = String(stockItem.article_number || '').trim();
-                    if (bestandArtNr === stockArtNr || !stockArtNr) {
-                        artikelMatchCount++;
-                    } else {
-                        diskrepanzen.push({
-                            severity: 'warning',
-                            type: 'artikelnr',
-                            lagerNr: lagerNr,
-                            sourceA: 'BESTAND',
-                            valueA: bestandArtNr,
-                            sourceB: 'Stock-Analysis',
-                            valueB: stockArtNr,
-                            description: 'Artikelnummer unterschiedlich'
-                        });
-                    }
-                }
-            });
-            
-            const check5Pct = bestandData.length > 0 ? ((artikelMatchCount / Math.min(bestandData.length, stockData.length || 1)) * 100).toFixed(1) : 0;
-            updateCheckResult(5, check5Pct, artikelMatchCount, bestandData.length);
+            // === CHECK 5: Artikelnummern-Konsistenz — DEAKTIVIERT (User-Befund 2026-07-03) ===
+            // Der Vergleich maß strukturell Unvergleichbares: AMM 'Artikel' ist die
+            // LIEFERANTEN-Artikelnummer, WaWi 'article_number' ein EIGENER Nummernkreis
+            // (Portal-Nr bzw. Odoo 'ELV-…'). String-Gleichheit ergab planmäßig ~8 %
+            // (überwiegend leere Gegenwerte, die als Treffer zählten) und drückte den
+            // Alt-Welt-Score, ohne einen echten Datenfehler anzuzeigen. Die Brücke
+            // zwischen den Systemen ist die Lager-Nr → Daten-Konsistenz-Score oben.
+            {
+                const c5icon = document.querySelector('#dq-check-5 .dq-check-icon');
+                if (c5icon) c5icon.textContent = 'ℹ️';
+                const c5res = document.getElementById('dq-result-5');
+                if (c5res) { c5res.textContent = 'n. a.'; c5res.className = 'dq-check-result'; }
+            }
             
             // === CHECK 6: Bezeichnung Stock ↔ JTL ===
             let bezeichnungMatchCount = 0;
@@ -14084,8 +14065,10 @@ Keine Erklärungen, kein Markdown.`;
             updateCheckResult(8, check8Pct, brandCount, stockData.length);
             
             // === KPIs aktualisieren ===
-            const overallScore = calculateOverallScore([check1Pct, check3Pct, check5Pct, check7Pct, check8Pct]);
-            updateDQKPIs(overallScore, check1Pct, check5Pct, check6Pct);
+            // check5 raus (n. a., s. o.); Bezeichnung-Match-KPI zeigt jetzt korrekt den
+            // Bezeichnungs-Check (check6) statt fälschlich der Artikelnummern-Quote.
+            const overallScore = calculateOverallScore([check1Pct, check3Pct, check7Pct, check8Pct]);
+            updateDQKPIs(overallScore, check1Pct, check6Pct, check6Pct);
             
             // === Diskrepanzen speichern und anzeigen ===
             dashboardState.diskrepanzen = diskrepanzen;
