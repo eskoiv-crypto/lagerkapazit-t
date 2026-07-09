@@ -76,7 +76,7 @@
     <ul>
         <li><b>Odoo</b> ist das einzige lebende Warenwirtschaftssystem — alle Zu- und Abgänge laufen seit ~19.06.2026 hier.</li>
         <li><b>AMM</b> ist das physische Lager (Datei <code>BESTAND134_*.CSV</code>) — es sagt, was wirklich in den Hallen steht.</li>
-        <li><b>Portal und JTL</b> sind abgelöste, eingefrorene Systeme — reine Archive, die sich nie mehr ändern.</li>
+        <li><b>Portal und JTL</b> sind abgelöste Systeme. Das Portal ist seit 03.07.2026 <b>endgültig tot</b> (keine Verkäufe, keine neue Ware — Endstand liegt im Archiv); freier Portal-Rest ist erst nach Odoo-Migration verkaufbar. JTL liefert nur noch Zahlungsdaten.</li>
         <li>Die <b>Lager-Nr (900…)</b> ist der universelle Schlüssel: über sie werden alle Systeme verbunden und gegeneinander geprüft.</li>
     </ul>
 </div>
@@ -95,8 +95,8 @@
     <tr><td>Odoo (stock.lot)</td><td>XLSX</td><td>Lebender Bestand + laufende Verkäufe. <span class="crit">Immer nur die EINE aktuellste Datei laden.</span></td><td>täglich</td></tr>
     <tr><td>BESTAND134</td><td>CSV</td><td>Physisches Lager (Status QE/VS/AA) + echtes Wareneingangsdatum → Lagerdauer</td><td>täglich</td></tr>
     <tr><td>AUFTRAG_STATUS</td><td>XLSX</td><td>Offene Aufträge / Ausgangs-Pipeline</td><td>täglich, optional</td></tr>
-    <tr><td>Stock-Analysis</td><td>XLSX</td><td>Portal-Restbestand (EK/VK-Preise) — kein Warenzugang mehr, aber Reservierungen (A/M) ändern sich noch</td><td>bei Bedarf → Archiv</td></tr>
-    <tr><td>ALL SOLD</td><td>XLSX</td><td>Historisches Verkaufsarchiv (~32.000 Verkäufe)</td><td>bei Bedarf → Archiv</td></tr>
+    <tr><td>Stock-Analysis</td><td>XLSX</td><td>Portal-Restbestand (EK/VK-Preise). <b>Portal ist seit 03.07.2026 endgültig tot</b> (keine Verkäufe, keine neue Ware) — der Export vom 02.07.2026 ist der Endstand</td><td>final → Archiv</td></tr>
+    <tr><td>ALL SOLD</td><td>XLSX</td><td>Historisches Verkaufsarchiv (~32.000 Verkäufe) — Endstand 02.07.2026, alle neuen Verkäufe kommen aus Odoo</td><td>final → Archiv</td></tr>
     <tr><td>JTL Export</td><td>CSV</td><td>Alte Aufträge/Artikel-Lookup, Zahlungseingänge ändern sich noch</td><td>bei Bedarf → Archiv</td></tr>
     <tr><td>WA-Pipeline (MAX-STATUS)</td><td>CSV</td><td>Teams-Sheet „20 WA PIPELINE": erklärt im Pipeline-Reiter, warum Sendungen überfällig wirken (Versand geplant · versendet · wartet auf Zahlung)</td><td>bei Bedarf → Archiv</td></tr>
     <tr><td>JTL 4-Jahre</td><td>CSV</td><td>Auftragshistorie ab 2022 — Basis für CLV/Churn/Reaktivierung</td><td>einmalig → Archiv</td></tr>

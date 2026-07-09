@@ -14469,7 +14469,7 @@ Keine Erklärungen, kein Markdown.`;
             const _nowR = Date.now();
             const versandPipeline = { count: 0, odoo: 0, alt: 0 };
             // FREIVERKÄUFLICHER WARENWERT: Summe EK/VK über alle „frei"-Geräte (nicht reserviert/verkauft/angeboten)
-            let freiEK = 0, freiVK = 0;
+            let freiEK = 0, freiVK = 0, freiPortalRest = 0;
             // TAGES-KENNZAHL (To-do #1, 2026-07-02): „Nicht verkauft & physisch im Lager (AMM QE)".
             // VK ist die belastbare Größe (EK strukturell untererfasst, ~978 Geräte ohne EK);
             // unklassifizierte Geräte haben KEINE Preisquelle → zählen im Stück, nicht im Wert.
@@ -14494,6 +14494,9 @@ Keine Erklärungen, kein Markdown.`;
                 if (c === 'verfuegbar') {   // freiverkäuflicher Warenwert
                     const it = inO ? oStock[ln] : (inP ? pStock[ln] : null);
                     if (it) { freiEK += (+it.ek || 0); freiVK += (+it.vk || 0); }
+                    // PORTAL-TOT (User 2026-07-03): Portal liefert keine Verkäufe/Ware mehr —
+                    // freier Portal-Rest ist erst nach Odoo-Migration transaktionsfähig.
+                    if (!inO && inP) freiPortalRest++;
                 }
                 // Physischer Status (AMM)
                 if (amm === 'QE') phys.QE++; else if (amm === 'VS') phys.VS++; else if (amm === 'AA') phys.AA++; else phys.none++;
@@ -14546,7 +14549,7 @@ Keine Erklärungen, kein Markdown.`;
                 comm, phys, anomalies, anomalyCount,
                 consistency,
                 versandPipeline: { ...versandPipeline, fensterTage: VERSAND_FENSTER_TAGE },
-                frei: { count: comm.verfuegbar, ek: freiEK, vk: freiVK },
+                frei: { count: comm.verfuegbar, ek: freiEK, vk: freiVK, portalRest: freiPortalRest },
                 qeUnsold,
                 sales: { total: salesTotal, portal: portalSoldSet.size, odoo: odooSoldSet.size, noKey: soldNoKey, double: salesDouble },
                 ok: (anomalyCount + salesDouble.length) === 0
@@ -14625,13 +14628,13 @@ Keine Erklärungen, kein Markdown.`;
             const tilesHtml = `
               <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:0.75rem;margin-bottom:0.75rem;">
               <div style="background:var(--bg-elevated);border:1px solid var(--border);border-radius:12px;padding:0.9rem 1.1rem;">
-                <div style="display:flex;align-items:center;gap:0.4rem;font-size:0.62rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;"><span class="ds-dot" style="background:var(--accent-green);"></span>Sofort verkaufbar — was Vertrieb heute anbieten kann <span class="vc-info" data-tip="VERTRIEBSSICHT (kaufmännisch): jedes Gerät mit Odoo-Status „Verfügbar" + freier Portal-Restbestand — egal, wo es physisch steht. Reserviert, Angeboten und Verkauft sind raus. Achtung: enthält auch Geräte, die laut Odoo verfügbar, aber physisch nicht (mehr) im Lager sind (Phantom).">ⓘ</span></div>
+                <div style="display:flex;align-items:center;gap:0.4rem;font-size:0.62rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;"><span class="ds-dot" style="background:var(--accent-green);"></span>Sofort verkaufbar — was Vertrieb heute anbieten kann <span class="vc-info" data-tip="VERTRIEBSSICHT (kaufmännisch): jedes Gerät mit Odoo-Status „Verfügbar" + freier Portal-Restbestand — egal, wo es physisch steht. Reserviert, Angeboten und Verkauft sind raus. Achtung 1: enthält Geräte, die laut Odoo verfügbar, aber physisch nicht (mehr) im Lager sind (Phantom). Achtung 2: Das Portal ist seit 03.07.2026 endgültig tot (keine Verkäufe, keine neue Ware) — der freie Portal-Rest ist erst nach Odoo-Migration transaktionsfähig und wird unten gesondert ausgewiesen.">ⓘ</span></div>
                 <div style="display:flex;align-items:baseline;gap:1.2rem;flex-wrap:wrap;margin-top:0.2rem;">
                   <div style="font-size:1.9rem;font-weight:800;color:var(--accent-green);line-height:1;">${eur(fr.vk)}<span style="font-size:0.8rem;font-weight:600;color:var(--text-secondary);"> VK</span></div>
                   <div style="font-size:1.1rem;font-weight:700;color:var(--text-secondary);">${eur(fr.ek)}<span style="font-size:0.7rem;font-weight:500;"> EK</span></div>
                   <div style="font-size:0.95rem;font-weight:700;">${fmt(fr.count)}<span style="font-size:0.7rem;font-weight:500;color:var(--text-secondary);"> Geräte frei</span></div>
                 </div>
-                <div style="font-size:0.6rem;color:var(--text-muted);margin-top:0.35rem;">nicht reserviert · nicht im Angebot · nicht verkauft${hasAmm && freiNichtLager>0?` &nbsp;·&nbsp; ⚠️ davon <b>${fmt(freiNichtLager)}</b> NICHT physisch im Lager (Phantom → 🔍 Datenqualität)`:''}</div>
+                <div style="font-size:0.6rem;color:var(--text-muted);margin-top:0.35rem;">nicht reserviert · nicht im Angebot · nicht verkauft${hasAmm && freiNichtLager>0?` &nbsp;·&nbsp; ⚠️ davon <b>${fmt(freiNichtLager)}</b> NICHT physisch im Lager (Phantom → 🔍 Datenqualität)`:''}${(fr.portalRest||0)>0?` &nbsp;·&nbsp; <span style="color:var(--accent-orange);">davon <b>${fmt(fr.portalRest)}</b> Portal-Rest — erst nach Odoo-Migration verkaufbar</span>`:''}</div>
               </div>
               <div style="background:var(--bg-elevated);border:1px solid var(--border);border-radius:12px;padding:0.9rem 1.1rem;">
                 <div style="display:flex;align-items:center;gap:0.4rem;font-size:0.62rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;"><span class="ds-dot" style="background:var(--accent-cyan);"></span>Unverkauft im Lager — gebundenes Kapital (physisch) <span class="vc-info" data-tip="LAGERSICHT (physisch): jedes Gerät, das laut AMM im Lager steht (Status QE) und nicht verkauft ist — INKLUSIVE reservierte/angebotene und noch unklassifizierte Geräte. Das ist das zum Stichtag gebundene Kapital. VK ist die belastbare Größe (EK strukturell untererfasst); unklassifizierte Geräte haben keine Preisquelle und zählen nur in der Stückzahl.">ⓘ</span></div>
@@ -14782,7 +14785,7 @@ Keine Erklärungen, kein Markdown.`;
             el.innerHTML = `
               <div style="background:var(--bg-elevated);border:1px solid var(--border);border-radius:12px;padding:0.85rem 1.1rem;">
                 <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap;">
-                  ${seg('var(--accent-orange)', 'Im Angebot', eur(ang.vk), `${fmtN(ang.n)} Geräte · Stichtag heute`, 'Brutto-VK aller weich gebundenen Geräte: Odoo-Status „Angeboten" + Portal-Restbestand A/M. Stichtagswert aus dem aktuellen Upload — der Verlauf wird ab heute täglich im lokalen Archiv aufgezeichnet.')}
+                  ${seg('var(--accent-orange)', 'Im Angebot', eur(ang.vk), `${fmtN(ang.n)} Geräte · Stichtag heute${(ang.portalN||0)>0?` · davon ${fmtN(ang.portalN)} Portal-Alt (eingefroren)`:''}`, 'Brutto-VK aller weich gebundenen Geräte: Odoo-Status „Angeboten" + Portal-Restbestand A/M. Das Portal ist seit 03.07.2026 tot — Portal-A/M sind eingefrorene Alt-Reservierungen und werden gesondert ausgewiesen. Stichtagswert; Verlauf wird ab heute täglich im lokalen Archiv aufgezeichnet.')}
                   <div style="color:var(--text-muted);font-size:1.1rem;">→</div>
                   ${seg('var(--accent-purple)', 'Auftrag bestätigt', eur(best.vk), `${fmtN(best.n)} Geräte · Stichtag heute`, 'Brutto-VK aller fest gebundenen Geräte: Odoo-Status „Reserviert" = bestätigter Auftrag/Proforma, noch nicht als verkauft gebucht. Stichtagswert; Verlauf ab heute aufgezeichnet. Exakter wird die Stufe mit einem Odoo-Auftrags-Export (sale.order).')}
                   <div style="color:var(--text-muted);font-size:1.1rem;">→</div>
@@ -22217,7 +22220,7 @@ Keine Erklärungen, kein Markdown.`;
             dashboardState.stockReservedBreakdown={ odooAngeboten:resOdooAng, odooReserviert:resOdooRes,
                 odooCount:resOdooAng+resOdooRes, portalAM:resPortalAM, odooEK:resOdooEK, portalEK:resPortalEK };
             // FUNNEL-KPIs: Stichtagswerte für die Verkaufs-Funnel-Zeile auf „Heute"
-            dashboardState.funnelAngebot    = { n: resOdooAng + resPortalAM, vk: _funnelAngVK };
+            dashboardState.funnelAngebot    = { n: resOdooAng + resPortalAM, vk: _funnelAngVK, portalN: resPortalAM };
             dashboardState.funnelBestaetigt = { n: resOdooRes, vk: _funnelBestVK };
             dashboardState.stockAvailBreakdown={ odoo:availOdoo, portal:availPortal };
             dashboardState.stockAvailableEK=availableEK; dashboardState.stockAvailableVK=availableVK;
