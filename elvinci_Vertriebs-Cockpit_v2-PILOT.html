@@ -3699,6 +3699,8 @@
                         <div id="tab-uebersicht" class="analyse-tab-content active" style="padding: 1rem;">
                             <!-- PHASE A (2026-07-02): Tages-Kennzahlen gehören auf die Übersicht, nicht in den System-Reiter Datenqualität -->
                             <div id="uebersicht-daily-kpis" style="margin-bottom: 1rem;"></div>
+                            <!-- FUNNEL-KPIs (2026-07-03): Im Angebot → Auftrag bestätigt → Verrechnet (Zeitraum) -->
+                            <div id="uebersicht-funnel" style="margin-bottom: 1rem;"></div>
                             <!-- WERTEKREIS-FIX (User-Befund 2026-07-03): Vorher standen hier „Lagerwert
                                  EK/VK" + „Marge-Potenzial" = ein DRITTER Wertekreis neben den zwei Kacheln
                                  (kaufmännischer Gesamtbestand inkl. Phantome, ohne Unklassifizierte) →
@@ -7884,6 +7886,17 @@ Keine Erklärungen, kein Markdown.`;
                         allSoldCount: state.portal.allSoldCount || 0,
                         brandBreakdown: null,
                         wgBreakdown: null
+                    },
+                    // FUNNEL-VERLAUF (2026-07-03): Stichtagswerte täglich mitschreiben,
+                    // damit „Im Angebot"/„Bestätigt" später als Zeitreihe auswertbar sind
+                    // (Zustandsgrößen haben ohne Historie kein Zeitfenster).
+                    funnel: {
+                        angebotN: (dashboardState.funnelAngebot || {}).n || 0,
+                        angebotVK: Math.round((dashboardState.funnelAngebot || {}).vk || 0),
+                        bestaetigtN: (dashboardState.funnelBestaetigt || {}).n || 0,
+                        bestaetigtVK: Math.round((dashboardState.funnelBestaetigt || {}).vk || 0),
+                        verkauftGesamtVK: Math.round(dashboardState.allSoldTotalVK || 0),
+                        verkauftGesamtN: dashboardState.allSoldCount || 0
                     }
                 };
                 // Brand/WG-Breakdown nur wenn Stock-Analysis geladen (kein PII, nur Aggregate)
@@ -14731,6 +14744,51 @@ Keine Erklärungen, kein Markdown.`;
             
             // NEU: Verfügbarkeits-KPIs aktualisieren
             updateVerfuegbarkeitsAnzeige();
+
+            // FUNNEL-KPIs (2026-07-03): reagiert auf Uploads UND Zeitraum-Filter-Wechsel,
+            // weil updateAnalyseKPIs in beiden Pfaden läuft.
+            try { renderFunnelKPIs(); } catch (e) { console.warn('[Funnel] render', e); }
+        }
+
+        // ============================================
+        // VERKAUFS-FUNNEL (2026-07-03, User-Wunsch): Brutto-VK je Stufe.
+        // Defaults: „Im Angebot" = Odoo Angeboten + Portal A/M (weich, Stichtag) ·
+        // „Auftrag bestätigt (Proforma)" = Odoo Reserviert (fest, Stichtag) ·
+        // „Verrechnet" = Verkaufsregister im globalen Zeitraum-Filter (Fluss).
+        // Brutto = VK-Summe (konsistent mit allen Cockpit-Werten). Verlauf der
+        // Stichtagswerte wird täglich im IDB-Snapshot mitgeschrieben (persistSnapshotToIDB).
+        // ============================================
+        function renderFunnelKPIs() {
+            const el = document.getElementById('uebersicht-funnel');
+            if (!el) return;
+            const ang  = dashboardState.funnelAngebot    || { n: 0, vk: 0 };
+            const best = dashboardState.funnelBestaetigt || { n: 0, vk: 0 };
+            const sold = (typeof getFilteredSold === 'function') ? getFilteredSold() : [];
+            let verrVK = 0;
+            for (const s of sold) verrVK += parseFloat(s.vk) || 0;
+            if (!ang.n && !best.n && !sold.length) { el.innerHTML = ''; return; }
+            const f = dashboardState.globalTimeFilter || { preset: 'all' };
+            const selEl = document.getElementById('global-time-filter');
+            const winLbl = f.preset === 'all' ? 'alle Daten'
+                : ((selEl && selEl.selectedOptions && selEl.selectedOptions[0]) ? selEl.selectedOptions[0].text : f.preset);
+            const eur = v => Number(v || 0).toLocaleString('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
+            const fmtN = n => Number(n || 0).toLocaleString('de-DE');
+            const seg = (dotColor, label, vk, sub, tip) => `
+                <div style="flex:1; min-width:190px;">
+                  <div style="display:flex;align-items:center;gap:0.4rem;font-size:0.6rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;"><span class="ds-dot" style="background:${dotColor};"></span>${label} <span class="vc-info" data-tip="${tip}">ⓘ</span></div>
+                  <div style="font-size:1.35rem;font-weight:700;font-family:var(--font-mono);line-height:1.2;">${vk}</div>
+                  <div style="font-size:0.62rem;color:var(--text-muted);">${sub}</div>
+                </div>`;
+            el.innerHTML = `
+              <div style="background:var(--bg-elevated);border:1px solid var(--border);border-radius:12px;padding:0.85rem 1.1rem;">
+                <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap;">
+                  ${seg('var(--accent-orange)', 'Im Angebot', eur(ang.vk), `${fmtN(ang.n)} Geräte · Stichtag heute`, 'Brutto-VK aller weich gebundenen Geräte: Odoo-Status „Angeboten" + Portal-Restbestand A/M. Stichtagswert aus dem aktuellen Upload — der Verlauf wird ab heute täglich im lokalen Archiv aufgezeichnet.')}
+                  <div style="color:var(--text-muted);font-size:1.1rem;">→</div>
+                  ${seg('var(--accent-purple)', 'Auftrag bestätigt', eur(best.vk), `${fmtN(best.n)} Geräte · Stichtag heute`, 'Brutto-VK aller fest gebundenen Geräte: Odoo-Status „Reserviert" = bestätigter Auftrag/Proforma, noch nicht als verkauft gebucht. Stichtagswert; Verlauf ab heute aufgezeichnet. Exakter wird die Stufe mit einem Odoo-Auftrags-Export (sale.order).')}
+                  <div style="color:var(--text-muted);font-size:1.1rem;">→</div>
+                  ${seg('var(--accent-green)', 'Verrechnet', eur(verrVK), `${fmtN(sold.length)} Verkäufe · Zeitraum: ${winLbl}`, 'Brutto-VK aller als verkauft gebuchten Geräte (Odoo + All-Sold, per Lager-Nr dedupliziert) im oben gewählten Zeitraum-Filter. „Verrechnet" = Verkaufs-/Belegdatum im Zeitraum.')}
+                </div>
+              </div>`;
         }
         
         function updateVerfuegbarkeitsAnzeige() {
@@ -22099,6 +22157,7 @@ Keine Erklärungen, kein Markdown.`;
             let nPortal=0, nOdoo=0;
             // Aufschlüsselung „reserviert/im Angebot" nach Welt (Odoo Angeboten/Reserviert + Portal A/M)
             let resOdooAng=0, resOdooRes=0, resPortalAM=0, resOdooEK=0, resPortalEK=0;
+            let _funnelAngVK=0, _funnelBestVK=0;
             let availOdoo=0, availPortal=0;
             const pgStats={}, brandStats={}, lageralterBuckets={d7:0,d14:0,d30:0,d60:0,d90:0,d90plus:0}, vocab={};
             const raw=[];
@@ -22119,8 +22178,10 @@ Keine Erklärungen, kein Markdown.`;
                 const isOdoo = (item._src === 'Odoo');
                 if (isOdoo) nOdoo++; else nPortal++;
                 if (item.isReserved) { reservedCount++; reservedEK+=ek; reservedVK+=vk;
-                    if (isOdoo) { resOdooEK+=ek; if (item.vstatus === 'Reserviert') resOdooRes++; else resOdooAng++; }
-                    else { resPortalAM++; resPortalEK+=ek; }
+                    // FUNNEL-KPIs (2026-07-03): „Im Angebot" (weich: Odoo Angeboten + Portal A/M)
+                    // vs. „Auftrag bestätigt" (fest: Odoo Reserviert) — getrennte VK-Summen.
+                    if (isOdoo) { resOdooEK+=ek; if (item.vstatus === 'Reserviert') { resOdooRes++; _funnelBestVK+=vk; } else { resOdooAng++; _funnelAngVK+=vk; } }
+                    else { resPortalAM++; resPortalEK+=ek; _funnelAngVK+=vk; }
                 }
                 else { availableCount++; availableEK+=ek; availableVK+=vk;
                     if (isOdoo) availOdoo++; else availPortal++;
@@ -22155,6 +22216,9 @@ Keine Erklärungen, kein Markdown.`;
             dashboardState.stockReservedEK=reservedEK; dashboardState.stockReservedVK=reservedVK;
             dashboardState.stockReservedBreakdown={ odooAngeboten:resOdooAng, odooReserviert:resOdooRes,
                 odooCount:resOdooAng+resOdooRes, portalAM:resPortalAM, odooEK:resOdooEK, portalEK:resPortalEK };
+            // FUNNEL-KPIs: Stichtagswerte für die Verkaufs-Funnel-Zeile auf „Heute"
+            dashboardState.funnelAngebot    = { n: resOdooAng + resPortalAM, vk: _funnelAngVK };
+            dashboardState.funnelBestaetigt = { n: resOdooRes, vk: _funnelBestVK };
             dashboardState.stockAvailBreakdown={ odoo:availOdoo, portal:availPortal };
             dashboardState.stockAvailableEK=availableEK; dashboardState.stockAvailableVK=availableVK;
             dashboardState.stockAvgLifeDays = lifeDaysCount>0?Math.round(totalLifeDays/lifeDaysCount):0;
