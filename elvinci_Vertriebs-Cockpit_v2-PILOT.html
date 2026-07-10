@@ -14831,16 +14831,21 @@ Keine Erklärungen, kein Markdown.`;
             if (!orders && !waMap) { el.innerHTML = ''; return; }
             const eur = v => Number(v || 0).toLocaleString('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
             const fmtN = n => Number(n || 0).toLocaleString('de-DE');
-            // 1) + 3) aus sale.order
+            // DOPPEL-CHECK-FIX (2026-07-10): Ein bestätigter Auftrag, der laut WA bereits
+            // VERSENDET (aber unbezahlt) ist, darf NICHT zusätzlich als „Vorkasse ausstehend"
+            // zählen — sonst Doppelzählung in der Headline. Deshalb: erst offene Beträge je
+            // Referenz sammeln, dann Segment 2 (versendet) mit Vorrang, Segment 1 = Rest.
             let ausst = 0, ausstN = 0, eing = 0, eingN = 0;
+            const offenByRef = {};
             if (orders) orders.forEach(o => {
                 if (!/^verkaufsauftrag/i.test(o.status)) return;
-                const offen = Math.max(0, o.gesamt - o.zahlungsbetrag);
-                if (offen > 0.01) { ausst += offen; ausstN++; }
+                offenByRef[o.ref] = Math.max(0, o.gesamt - o.zahlungsbetrag);
                 if (o.zahlungsbetrag > 0.01) { eing += o.zahlungsbetrag; eingN++; }
             });
-            // 2) aus WA-Pipeline, € über Verkaufsregister-Order-Match
+            // 2) Versendet & Zahlung offen (WA) — € bevorzugt aus sale.order (exakter,
+            //    inkl. MwSt & abzügl. Teilzahlungen), sonst Verkaufsregister-Match
             let sentN = 0, sentVK = 0, sentMatched = 0;
+            const sentRoots = new Set();
             if (waMap) {
                 const ov = {};
                 (dashboardState.allSoldData || []).forEach(s => {
@@ -14851,10 +14856,16 @@ Keine Erklärungen, kein Markdown.`;
                     const w = waMap[root];
                     if (w.versendet && !w.bezahlt) {
                         sentN++;
-                        if (ov[root]) { sentVK += ov[root]; sentMatched++; }
+                        sentRoots.add(root);
+                        if (offenByRef[root] !== undefined) { sentVK += offenByRef[root]; sentMatched++; }
+                        else if (ov[root]) { sentVK += ov[root]; sentMatched++; }
                     }
                 });
             }
+            // 1) Vorkasse ausstehend = bestätigt & offen & NOCH NICHT versendet
+            Object.keys(offenByRef).forEach(ref => {
+                if (offenByRef[ref] > 0.01 && !sentRoots.has(ref)) { ausst += offenByRef[ref]; ausstN++; }
+            });
             const gesamtOffen = ausst + sentVK;
             if (!ausstN && !sentN && !eingN) { el.innerHTML = ''; return; }
             const seg = (dotColor, label, value, sub, tip) => `
@@ -14873,8 +14884,8 @@ Keine Erklärungen, kein Markdown.`;
                     <div style="font-size:0.62rem;color:var(--text-muted);">offen gesamt · Stichtag heute</div>
                   </div>
                   ${seg('var(--accent-orange)', 'Vorkasse ausstehend', orders ? eur(ausst) : '—',
-                      orders ? `${fmtN(ausstN)} bestätigte Aufträge · vor Verladung fällig` : 'sale.order-Export laden',
-                      'Bestätigte Odoo-Aufträge (Status „Verkaufsauftrag"): Gesamt (Brutto) minus bereits eingegangener Zahlungen. Muss laut Vorkasse-Regel VOR der Verladung eingehen — kurzfristig erwartbar.')}
+                      orders ? `${fmtN(ausstN)} bestätigte Aufträge · noch nicht versendet · vor Verladung fällig` : 'sale.order-Export laden',
+                      'Bestätigte Odoo-Aufträge (Status „Verkaufsauftrag"), die laut WA-Pipeline NOCH NICHT versendet sind: Gesamt (Brutto) minus bereits eingegangener Zahlungen. Muss laut Vorkasse-Regel VOR der Verladung eingehen — kurzfristig erwartbar. Bereits versendete Aufträge zählen ausschließlich rechts unter „Versendet · Zahlung offen" (keine Doppelzählung).')}
                   ${seg('var(--accent-red)', 'Versendet · Zahlung offen', waMap ? (sentVK > 0 ? eur(sentVK) : `${fmtN(sentN)} Aufträge`) : '—',
                       waMap ? `${fmtN(sentN)} Aufträge${sentN > 0 ? ` · €-Wert für ${fmtN(sentMatched)}/${fmtN(sentN)} ermittelbar` : ''}` : 'WA-Pipeline-CSV laden',
                       'Aufträge mit WA-Status „Versendet — Zahlung offen": Ware ist raus, Geld noch nicht da (echte Forderung). €-Wert über Auftrags-Match im Verkaufsregister — nur für gematchte Aufträge summierbar, Abdeckung wird angezeigt.')}
@@ -14882,7 +14893,7 @@ Keine Erklärungen, kein Markdown.`;
                       orders ? `${fmtN(eingN)} offene Aufträge · Lieferpflicht offen` : 'sale.order-Export laden',
                       'Bereits eingegangene Zahlungen auf noch offene bestätigte Aufträge: Geld ist da, die Ware muss noch raus (Verlade-Freigabe erteilt).')}
                 </div>
-                <div style="font-size:0.58rem;color:var(--text-muted);margin-top:0.5rem;">Quellen: ${quellen} · Stichtagswerte, kein Zeitraum-Filter · offene Angebote zählen bewusst nicht (keine Zusage)</div>
+                <div style="font-size:0.58rem;color:var(--text-muted);margin-top:0.5rem;">Quellen: ${quellen} · Stichtagswerte, kein Zeitraum-Filter · versendete Aufträge zählen nur einmal (unter „Versendet") · offene Angebote zählen bewusst nicht (keine Zusage)</div>
               </div>`;
         }
 
@@ -21978,6 +21989,9 @@ Keine Erklärungen, kein Markdown.`;
                     if (statusEl) { statusEl.textContent = `✓ ${waCount} Aufträge`; statusEl.style.color = 'var(--accent-green)'; }
                     console.log(`[WA-Status] ${waCount} Aufträge aus WA-Pipeline geladen (Header-Zeile ${waHdrIdx + 1})`);
                     try { renderPipelineTab(); } catch (e) { console.warn('[WA-Status] Pipeline-Render', e); }
+                    // DOPPEL-CHECK-FIX (2026-07-10): Zahlungs-Radar konsumiert waStatusMap —
+                    // muss auch bei alleinigem WA-Upload neu rechnen (nicht nur der Pipeline-Reiter).
+                    try { updateAnalyseKPIs(); } catch (e) { console.warn('[WA-Status] KPI-Render', e); }
 
                 } else if (type === 'wa-pipe') {
                     // WA TAGES-CSV (AMM Format)
