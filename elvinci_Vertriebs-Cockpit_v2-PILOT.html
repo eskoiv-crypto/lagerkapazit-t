@@ -3682,14 +3682,27 @@
                                 <span class="gf-label" id="gf-label-text">Zeitraum-Filter</span>
                                 <select id="global-time-filter" class="gf-select" onchange="onGlobalTimeFilterChange()">
                                     <option value="all">Alle Daten</option>
-                                    <option value="last-30d">Letzte 30 Tage</option>
-                                    <option value="last-90d">Letzte 90 Tage</option>
-                                    <option value="q1-2026">Q1 2026 (Jan–Mär)</option>
-                                    <option value="2026-ytd">2026 YTD</option>
-                                    <option value="last-12m">Letzte 12 Monate</option>
-                                    <option value="2025">Gesamt 2025</option>
+                                    <optgroup label="Kalender — feste Grenzen">
+                                        <option value="heute">Heute</option>
+                                        <option value="gestern">Gestern</option>
+                                        <option value="woche">Diese Woche (ab Mo)</option>
+                                        <option value="letzte-woche">Letzte Woche (Mo–So)</option>
+                                        <option value="monat">Dieser Monat</option>
+                                        <option value="letzter-monat">Letzter Monat</option>
+                                        <option value="quartal">Dieses Quartal</option>
+                                        <option value="letztes-quartal">Letztes Quartal</option>
+                                        <option value="jahr">Dieses Jahr</option>
+                                        <option value="letztes-jahr">Letztes Jahr</option>
+                                    </optgroup>
+                                    <optgroup label="Rollierend — inkl. heute">
+                                        <option value="last-7d">Letzte 7 Tage</option>
+                                        <option value="last-14d">Letzte 14 Tage</option>
+                                        <option value="last-30d">Letzte 30 Tage</option>
+                                        <option value="last-90d">Letzte 90 Tage</option>
+                                        <option value="last-365d">Letzte 365 Tage</option>
+                                    </optgroup>
                                 </select>
-                                <span class="vc-info tip-left" id="gf-info-tip" data-tip="Filter wirkt auf alle Verkaufsdaten-basierten Reiter (Übersicht, Verkäufer, Kunden, Kunden×WG, Warengruppen, Marken, Lieferanten, Top-Seller) — sie re-aggregieren live aus All-Sold. Bestand-/Snapshot-Reiter (Datenqualität, Dead Stock, Verkaufspriorität, Live View, Pipeline) sind stichtagsbezogen und vom Filter NICHT betroffen — dort wird der Filter ausgeblendet.">ⓘ</span>
+                                <span class="vc-info tip-left" id="gf-info-tip" data-tip="Zwei Familien: KALENDER = feste Grenzen (Tag 00:00–23:59:59 · Woche Mo–So nach ISO · Monat/Quartal/Jahr kalendarisch; „Diese(r) …" läuft bis jetzt). ROLLIEREND = exakt N Kalendertage inklusive heute, ab 00:00 des Starttags. Wirkt auf alle Verkaufsdaten-Reiter und den Funnel-Wert „Verrechnet" — sie re-aggregieren live. Bestand-/Stichtags-Reiter (Datenqualität, Dead Stock, Verkaufspriorität, Live View, Pipeline) sind vom Filter NICHT betroffen.">ⓘ</span>
                                 <span id="global-time-filter-window" style="font-size:0.62rem; color:var(--text-muted); font-style:italic;"></span>
                             </span>
                             <span id="gf-not-applicable" style="display:none; font-size:0.65rem; color:var(--text-muted); font-style:italic;">⏱ Stichtag-Reiter · Zeitraum-Filter wirkt hier nicht</span>
@@ -9317,17 +9330,47 @@ Keine Erklärungen, kein Markdown.`;
         // Sales-orientierte Tabs (Übersicht/Verkäufer/Kunden/Warengruppen/Marken/Lieferanten/Top-Seller)
         // konsumieren All-Sold via getFilteredSold() statt direkt dashboardState.allSoldData.
         // Bestand-Tabs (Dead Stock, Verkaufspriorität, Datenqualität, Konvolut) bleiben Stichtag-bezogen.
+        // ZEITRAUM-LOGIK v2 (2026-07-10, User-Wunsch „1000% logische Filtermethode"):
+        // Zwei Familien mit EXAKTEN Grenzen —
+        //   KALENDER:   Tag = 00:00:00.000–23:59:59.999 · Woche = ISO (Mo–So) ·
+        //               Monat/Quartal/Jahr = kalendarisch. „Diese(r) …" endet JETZT.
+        //   ROLLIEREND: „Letzte N Tage" = (heute − (N−1)) 00:00 bis JETZT
+        //               → exakt N Kalendertage INKLUSIVE heute (vorher: Timestamp-Minus,
+        //               d. h. der älteste Tag zählte nur anteilig ab Uhrzeit — unlogisch).
+        // Keine hartkodierten Jahre mehr (q1-2026/2025 rotteten) — alles dynamisch;
+        // Alt-Werte bleiben als Kompatibilitäts-Aliase erhalten.
         function _gfWindow(preset) {
-            const now = new Date(); const t = now.getTime();
-            const day = 86400000;
+            const now = new Date();
+            const startOfDay = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+            const endOfDay   = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999);
+            const addDays    = (d, n) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
+            const isoMonday  = (d) => { const x = startOfDay(d); return addDays(x, -((x.getDay() + 6) % 7)); };
+            const today0 = startOfDay(now);
+            const q = Math.floor(now.getMonth() / 3);
             switch (preset) {
-                case 'last-30d':  return { from: new Date(t - 30*day),  to: now };
-                case 'last-90d':  return { from: new Date(t - 90*day),  to: now };
-                case 'q1-2026':   return { from: new Date(2026,0,1),    to: new Date(2026,2,31,23,59,59) };
-                case '2026-ytd':  return { from: new Date(2026,0,1),    to: now };
-                case 'last-12m':  return { from: new Date(t - 365*day), to: now };
-                case '2025':      return { from: new Date(2025,0,1),    to: new Date(2025,11,31,23,59,59) };
-                default:          return null; // 'all'
+                // — Kalender (feste Grenzen) —
+                case 'heute':           return { from: today0, to: now };
+                case 'gestern':         return { from: addDays(today0, -1), to: endOfDay(addDays(today0, -1)) };
+                case 'woche':           return { from: isoMonday(now), to: now };
+                case 'letzte-woche':    { const mo = addDays(isoMonday(now), -7); return { from: mo, to: endOfDay(addDays(mo, 6)) }; }
+                case 'monat':           return { from: new Date(now.getFullYear(), now.getMonth(), 1), to: now };
+                case 'letzter-monat':   return { from: new Date(now.getFullYear(), now.getMonth() - 1, 1), to: endOfDay(new Date(now.getFullYear(), now.getMonth(), 0)) };
+                case 'quartal':         return { from: new Date(now.getFullYear(), q * 3, 1), to: now };
+                case 'letztes-quartal': { const s = new Date(now.getFullYear(), q * 3 - 3, 1); return { from: s, to: endOfDay(new Date(s.getFullYear(), s.getMonth() + 3, 0)) }; }
+                case 'jahr':            return { from: new Date(now.getFullYear(), 0, 1), to: now };
+                case 'letztes-jahr':    return { from: new Date(now.getFullYear() - 1, 0, 1), to: endOfDay(new Date(now.getFullYear() - 1, 11, 31)) };
+                // — Rollierend (bis jetzt, inkl. heute) —
+                case 'last-7d':         return { from: addDays(today0, -6),   to: now };
+                case 'last-14d':        return { from: addDays(today0, -13),  to: now };
+                case 'last-30d':        return { from: addDays(today0, -29),  to: now };
+                case 'last-90d':        return { from: addDays(today0, -89),  to: now };
+                case 'last-365d':
+                case 'last-12m':        return { from: addDays(today0, -364), to: now };
+                // — Alt-Werte (Kompatibilität, nicht mehr im Dropdown) —
+                case 'q1-2026':         return { from: new Date(2026, 0, 1), to: new Date(2026, 2, 31, 23, 59, 59) };
+                case '2026-ytd':        return { from: new Date(now.getFullYear(), 0, 1), to: now };
+                case '2025':            return { from: new Date(2025, 0, 1), to: new Date(2025, 11, 31, 23, 59, 59) };
+                default:                return null; // 'all'
             }
         }
         function _gfFormat(d) {
