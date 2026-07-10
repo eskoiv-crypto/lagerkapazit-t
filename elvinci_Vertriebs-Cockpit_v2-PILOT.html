@@ -5632,6 +5632,7 @@
             // PHASE A (2026-07-02): Neue Welt zuerst — Odoo, Portal-Archive, CLV-Daten.
             // Vorher kannte die Erkennung nur die AMM-Alt-Welt; Odoo/Portal-Drops
             // wurden stillschweigend verworfen.
+            if (/verkaufsauftrag|sale[._-]?order/i.test(lower)) return 'odoo-orders';
             if (/losserie|stock[._-]?lot|odoo/i.test(lower)) return 'odoo-stock';
             if (/all[_-]?sold/i.test(lower)) return 'all-sold';
             if (/stock[_-]?analysis/i.test(lower)) return 'stock-analysis';
@@ -5670,6 +5671,7 @@
                     const sheet = wb.Sheets[wb.SheetNames[0]];
                     const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: false, defval: '' });
                     const H = new Set((rows[0] || []).map(h => String(h || '').trim()));
+                    if (H.has('Auftragsreferenz') && H.has('Rechnungsstatus')) return 'odoo-orders';
                     if (H.has('Lager-Code') && H.has('Verkaufsstatus')) return 'odoo-stock';
                     if (H.has('lager_number') && H.has('Buying_Price')) return 'stock-analysis';
                     if (H.has('Portal Buying Price') || (H.has('Lager Nr.') && H.has('Sold By'))) return 'all-sold';
@@ -6824,6 +6826,7 @@ Keine Erklärungen, kein Markdown.`;
             'we-pipe':        { tier: 'green',  label: '🟢 Grün',  desc: 'WE-Pipeline: Liefermengen pro Tag.' },
             'wa-pipe':        { tier: 'yellow', label: '🟡 Gelb',  desc: 'Fulfillment-Pipeline: Auftrags+Versanddaten, teils Kundenbezug.' },
             'wa-status':      { tier: 'yellow', label: '🟡 Gelb',  desc: 'WA-Pipeline-Status: Auftrags-/Versand-/Zahlungsdaten mit Kundenbezug.' },
+            'odoo-orders':    { tier: 'yellow', label: '🟡 Gelb',  desc: 'Odoo-Verkaufsaufträge: Auftrags-/Zahlungsdaten mit Kundenbezug.' },
             'auftrag-status': { tier: 'yellow', label: '🟡 Gelb',  desc: 'AUFTRAG_STATUS: Kundennamen + Land + Spediteur. Eingeschränkte PII.' },
             'planner':        { tier: 'yellow', label: '🟡 Gelb',  desc: 'Teams-Planner: Aufgaben + Notizen mit Kundenbezug.' },
             'jtl-sales':      { tier: 'red',    label: '🔴 Rot',   desc: 'JTL Sales: vollständige Verkaufsdaten mit Profit + Kundenbezug.' },
@@ -7890,14 +7893,23 @@ Keine Erklärungen, kein Markdown.`;
                     // FUNNEL-VERLAUF (2026-07-03): Stichtagswerte täglich mitschreiben,
                     // damit „Im Angebot"/„Bestätigt" später als Zeitreihe auswertbar sind
                     // (Zustandsgrößen haben ohne Historie kein Zeitfenster).
-                    funnel: {
-                        angebotN: (dashboardState.funnelAngebot || {}).n || 0,
-                        angebotVK: Math.round((dashboardState.funnelAngebot || {}).vk || 0),
-                        bestaetigtN: (dashboardState.funnelBestaetigt || {}).n || 0,
-                        bestaetigtVK: Math.round((dashboardState.funnelBestaetigt || {}).vk || 0),
-                        verkauftGesamtVK: Math.round(dashboardState.allSoldTotalVK || 0),
-                        verkauftGesamtN: dashboardState.allSoldCount || 0
-                    }
+                    funnel: (function () {
+                        // Auftragsebene (sale.order) bevorzugt, Geräte-Näherung als Fallback
+                        const fo = dashboardState.funnelOrders || null;
+                        const fa = fo ? fo.angebot    : (dashboardState.funnelAngebot    || {});
+                        const fb = fo ? fo.bestaetigt : (dashboardState.funnelBestaetigt || {});
+                        return {
+                            quelle: fo ? 'sale.order' : 'geraetestatus',
+                            angebotN: fa.n || 0,
+                            angebotVK: Math.round(fa.vk || 0),
+                            bestaetigtN: fb.n || 0,
+                            bestaetigtVK: Math.round(fb.vk || 0),
+                            storniertN: fo ? fo.storniert.n : null,
+                            storniertVK: fo ? Math.round(fo.storniert.vk) : null,
+                            verkauftGesamtVK: Math.round(dashboardState.allSoldTotalVK || 0),
+                            verkauftGesamtN: dashboardState.allSoldCount || 0
+                        };
+                    })()
                 };
                 // Brand/WG-Breakdown nur wenn Stock-Analysis geladen (kein PII, nur Aggregate)
                 if (state.portal.stockAnalysisLoaded && Array.isArray(state.inventory.allePaletten)) {
@@ -8339,6 +8351,7 @@ Keine Erklärungen, kein Markdown.`;
             'stamm': 'KUNDEN-STAMMDATEN',
             'planner': 'PLANNER',
             'odoo-stock': 'ODOO (stock.lot)',
+            'odoo-orders': 'ODOO AUFTRÄGE (sale.order)',
             'all-sold': 'ALL SOLD (Portal)',
             'stock-analysis': 'STOCK-ANALYSIS (Portal)',
             'jtl-sales': 'JTL EXPORT',
@@ -14766,10 +14779,14 @@ Keine Erklärungen, kein Markdown.`;
             if (!el) return;
             const ang  = dashboardState.funnelAngebot    || { n: 0, vk: 0 };
             const best = dashboardState.funnelBestaetigt || { n: 0, vk: 0 };
+            // STUFE 2 (2026-07-10): Liegt der Odoo-Auftrags-Export (sale.order) vor,
+            // rechnet der Funnel auf ECHTER Auftragsebene (Brutto inkl. MwSt, Status
+            // Angebot/Verkaufsauftrag, Storno raus) statt der Geräte-Näherung.
+            const ord = dashboardState.funnelOrders || null;
             const sold = (typeof getFilteredSold === 'function') ? getFilteredSold() : [];
             let verrVK = 0;
             for (const s of sold) verrVK += parseFloat(s.vk) || 0;
-            if (!ang.n && !best.n && !sold.length) { el.innerHTML = ''; return; }
+            if (!ord && !ang.n && !best.n && !sold.length) { el.innerHTML = ''; return; }
             const f = dashboardState.globalTimeFilter || { preset: 'all' };
             const selEl = document.getElementById('global-time-filter');
             const winLbl = f.preset === 'all' ? 'alle Daten'
@@ -14782,15 +14799,35 @@ Keine Erklärungen, kein Markdown.`;
                   <div style="font-size:1.35rem;font-weight:700;font-family:var(--font-mono);line-height:1.2;">${vk}</div>
                   <div style="font-size:0.62rem;color:var(--text-muted);">${sub}</div>
                 </div>`;
+            // Anzeige-Werte je Quelle (Auftragsebene bevorzugt, Geräte-Näherung als Fallback)
+            let angSeg, bestSeg, fussnote;
+            if (ord) {
+                angSeg = seg('var(--accent-orange)', 'Im Angebot', eur(ord.angebot.vk),
+                    `${fmtN(ord.angebot.n)} Aufträge · Stichtag heute`,
+                    'ECHTE Auftragsebene (Odoo sale.order): Summe „Gesamt" (Brutto inkl. MwSt) aller Aufträge im Status „Angebot" / „Angebot gesendet". Stornierte sind ausgeschlossen und unten ausgewiesen. Stichtagswert; Verlauf wird täglich im lokalen Archiv aufgezeichnet.');
+                bestSeg = seg('var(--accent-purple)', 'Auftrag bestätigt', eur(ord.bestaetigt.vk),
+                    `${fmtN(ord.bestaetigt.n)} Aufträge · Stichtag heute${ord.bestaetigt.proformaN > 0 ? ` · ${fmtN(ord.bestaetigt.proformaN)}× Proforma` : ''}${ord.bestaetigt.vorkasse > 0 ? ` · Vorkasse ${eur(ord.bestaetigt.vorkasse)}` : ''}`,
+                    'ECHTE Auftragsebene (Odoo sale.order): Status „Verkaufsauftrag" = bestätigt. „Gesamt" = Brutto inkl. MwSt. Proforma aus Spalte „Proformas", Vorkasse = Summe der Zahlungstransaktionen (euer Verlade-Gate).');
+                fussnote = `Quelle: Odoo-Aufträge (sale.order)${ord.storniert.n > 0 ? ` &nbsp;·&nbsp; Storniert (nicht im Funnel): ${fmtN(ord.storniert.n)} Aufträge · ${eur(ord.storniert.vk)}` : ''}${ord.sonstige.n > 0 ? ` · ${fmtN(ord.sonstige.n)} sonstige` : ''}`;
+            } else {
+                angSeg = seg('var(--accent-orange)', 'Im Angebot', eur(ang.vk),
+                    `${fmtN(ang.n)} Geräte · Stichtag heute${(ang.portalN||0)>0?` · davon ${fmtN(ang.portalN)} Portal-Alt (eingefroren)`:''}`,
+                    'NÄHERUNG aus dem Gerätestatus: Odoo „Angeboten" + Portal-Restbestand A/M (Portal seit 03.07.2026 tot — Alt-Reservierungen gesondert ausgewiesen). Für echte Auftragswerte den Odoo-Export „Verkaufsauftrag (sale.order)" laden.');
+                bestSeg = seg('var(--accent-purple)', 'Auftrag bestätigt', eur(best.vk),
+                    `${fmtN(best.n)} Geräte · Stichtag heute`,
+                    'NÄHERUNG aus dem Gerätestatus: Odoo „Reserviert" = fest gebunden. Für echte Auftragswerte (inkl. Proforma/Vorkasse) den Odoo-Export „Verkaufsauftrag (sale.order)" laden.');
+                fussnote = 'Näherung aus Gerätestatus — Odoo-Export „Verkaufsauftrag (sale.order)" laden für echte Auftragswerte';
+            }
             el.innerHTML = `
               <div style="background:var(--bg-elevated);border:1px solid var(--border);border-radius:12px;padding:0.85rem 1.1rem;">
                 <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap;">
-                  ${seg('var(--accent-orange)', 'Im Angebot', eur(ang.vk), `${fmtN(ang.n)} Geräte · Stichtag heute${(ang.portalN||0)>0?` · davon ${fmtN(ang.portalN)} Portal-Alt (eingefroren)`:''}`, 'Brutto-VK aller weich gebundenen Geräte: Odoo-Status „Angeboten" + Portal-Restbestand A/M. Das Portal ist seit 03.07.2026 tot — Portal-A/M sind eingefrorene Alt-Reservierungen und werden gesondert ausgewiesen. Stichtagswert; Verlauf wird ab heute täglich im lokalen Archiv aufgezeichnet.')}
+                  ${angSeg}
                   <div style="color:var(--text-muted);font-size:1.1rem;">→</div>
-                  ${seg('var(--accent-purple)', 'Auftrag bestätigt', eur(best.vk), `${fmtN(best.n)} Geräte · Stichtag heute`, 'Brutto-VK aller fest gebundenen Geräte: Odoo-Status „Reserviert" = bestätigter Auftrag/Proforma, noch nicht als verkauft gebucht. Stichtagswert; Verlauf ab heute aufgezeichnet. Exakter wird die Stufe mit einem Odoo-Auftrags-Export (sale.order).')}
+                  ${bestSeg}
                   <div style="color:var(--text-muted);font-size:1.1rem;">→</div>
-                  ${seg('var(--accent-green)', 'Verrechnet', eur(verrVK), `${fmtN(sold.length)} Verkäufe · Zeitraum: ${winLbl}`, 'Brutto-VK aller als verkauft gebuchten Geräte (Odoo + All-Sold, per Lager-Nr dedupliziert) im oben gewählten Zeitraum-Filter. „Verrechnet" = Verkaufs-/Belegdatum im Zeitraum.')}
+                  ${seg('var(--accent-green)', 'Verrechnet', eur(verrVK), `${fmtN(sold.length)} Verkäufe · Zeitraum: ${winLbl}`, 'Brutto-VK aller als verkauft gebuchten Geräte (Odoo + All-Sold, per Lager-Nr dedupliziert) im oben gewählten Zeitraum-Filter. „Verrechnet" = Verkaufs-/Belegdatum im Zeitraum — der Odoo-Rechnungsstatus wird übernommen, sobald Rechnungen in Odoo geschrieben werden.')}
                 </div>
+                <div style="font-size:0.58rem;color:var(--text-muted);margin-top:0.5rem;">${fussnote}</div>
               </div>`;
         }
         
@@ -20852,7 +20889,7 @@ Keine Erklärungen, kein Markdown.`;
             // Excel-Dateien (inkl. Analyse-Typen) - ABER: JTL-Sales kann auch CSV sein!
             // stock-analysis und all-sold sind immer Excel
             // jtl-sales: abhängig von Dateiendung
-            const forceExcel = type === 'auftrag-status' || type === 'planner' || type === 'stock-analysis' || type === 'all-sold' || type === 'odoo-stock';
+            const forceExcel = type === 'auftrag-status' || type === 'planner' || type === 'stock-analysis' || type === 'all-sold' || type === 'odoo-stock' || type === 'odoo-orders';
             
             // P1-2: Enqueue — serielle Abarbeitung gegen Race-Conditions
             // P2-19/22: File-Size für Progress-Bar mitgeben
@@ -23046,6 +23083,92 @@ Keine Erklärungen, kein Markdown.`;
                         statusEl.style.color = 'var(--accent-green)';
                     }
                     updateAnalyseProPanel();
+
+                } else if (type === 'odoo-orders') {
+                    // ====== ODOO VERKAUFSAUFTRÄGE (sale.order, 2026-07-10) ======
+                    // Auftragsebene für den Verkaufs-Funnel: echte Angebots-/Auftragswerte
+                    // („Gesamt" = Brutto inkl. MwSt), Status Angebot/Angebot gesendet/
+                    // Verkaufsauftrag/Storniert, Proforma-/Zahlungs-/Paletten-Daten.
+                    // Master-Detail-Export: Auftragsfelder stehen NUR auf der ersten Zeile
+                    // je Auftrag (Folgezeilen = Positionen) → nur Zeilen mit Auftragsreferenz.
+                    // WICHTIG: Export in Odoo UNGEFILTERT ziehen (alle Aufträge)!
+                    const ooSheet = workbook.Sheets[workbook.SheetNames[0]];
+                    // raw:true — Beträge als ECHTE Zahlen (raw:false lieferte formatierte
+                    // Strings mit Tausendertrennern → "25,935.5" wurde zu 25.935 zerlegt);
+                    // Datumszellen kommen dank cellDates:true als Date-Objekte.
+                    const ooData = XLSX.utils.sheet_to_json(ooSheet, { header: 1, raw: true, defval: '' });
+                    const ooHdr = (ooData[0] || []).map(h => (h || '').toString().trim());
+                    const HO = {}; ooHdr.forEach((h, i) => { HO[h] = i; });
+                    const oRef = HO['Auftragsreferenz'], oStat = HO['Status'], oGesamt = HO['Gesamt'];
+                    if (oRef === undefined || oStat === undefined || oGesamt === undefined) {
+                        throw new Error('Spalten "Auftragsreferenz"/"Status"/"Gesamt" nicht gefunden — ist das der sale.order-Export?');
+                    }
+                    const oDat = HO['Erstellungsdatum'], oKunde = HO['Kunde'], oVerk = HO['Vertriebsmitarbeiter'],
+                          oNetto = HO['Nettobetrag'], oPal = HO['Palettenanzahl'], oMenge = HO['Gesamtmenge'],
+                          oLief = HO['Lieferart'], oProf = HO['Proformas'], oRechSt = HO['Rechnungsstatus'],
+                          oAbger = HO['Bereits abgerechnet'], oZahlB = HO['Betrag der Zahlungstransaktionen'],
+                          oZahlSt = HO['Zahlungsstatus'], oAkt = HO['Aktivitäten'], oUeberm = HO['Auftragsübermittlung Status'];
+                    const _num = (v) => {
+                        if (typeof v === 'number') return v;
+                        let s = String(v == null ? '' : v).trim();
+                        if (!s) return 0;
+                        // DE-Format "25.935,50" vs. EN-Format "25,935.50" robust trennen
+                        if (/,\d{1,2}$/.test(s)) s = s.replace(/\./g, '').replace(',', '.');
+                        else s = s.replace(/,/g, '');
+                        return parseFloat(s) || 0;
+                    };
+                    const _str = (idx, row) => idx !== undefined ? (row[idx] || '').toString().trim() : '';
+                    const ooOrders = [];
+                    for (let i = 1; i < ooData.length; i++) {
+                        const row = ooData[i]; if (!row) continue;
+                        const ref = (row[oRef] || '').toString().trim();
+                        if (!ref) continue;   // Positionszeile
+                        ooOrders.push({
+                            ref: ref.toUpperCase(),
+                            status: _str(oStat, row),
+                            gesamt: _num(row[oGesamt]),
+                            netto: oNetto !== undefined ? _num(row[oNetto]) : 0,
+                            erstellt: oDat !== undefined ? _parseAnyDate(row[oDat]) : null,
+                            kunde: _str(oKunde, row),
+                            verkaeufer: _str(oVerk, row),
+                            paletten: oPal !== undefined ? _num(row[oPal]) : 0,
+                            menge: oMenge !== undefined ? _num(row[oMenge]) : 0,
+                            lieferart: _str(oLief, row),
+                            proforma: !!_str(oProf, row),
+                            rechnungsstatus: _str(oRechSt, row),
+                            bereitsAbgerechnet: oAbger !== undefined ? _num(row[oAbger]) : 0,
+                            zahlungsbetrag: oZahlB !== undefined ? _num(row[oZahlB]) : 0,
+                            zahlungsstatus: _str(oZahlSt, row),
+                            aktivitaet: _str(oAkt, row),
+                            uebermittlung: _str(oUeberm, row)
+                        });
+                    }
+                    // Funnel-Aggregate auf Auftragsebene — ersetzt die Geräte-Näherung
+                    const fo = {
+                        angebot: { n: 0, vk: 0 },
+                        bestaetigt: { n: 0, vk: 0, proformaN: 0, vorkasse: 0 },
+                        storniert: { n: 0, vk: 0 },
+                        sonstige: { n: 0, vk: 0 }
+                    };
+                    ooOrders.forEach(o => {
+                        if (/^storniert/i.test(o.status)) { fo.storniert.n++; fo.storniert.vk += o.gesamt; }
+                        else if (/^angebot/i.test(o.status)) { fo.angebot.n++; fo.angebot.vk += o.gesamt; }
+                        else if (/^verkaufsauftrag/i.test(o.status)) {
+                            fo.bestaetigt.n++; fo.bestaetigt.vk += o.gesamt;
+                            if (o.proforma) fo.bestaetigt.proformaN++;
+                            fo.bestaetigt.vorkasse += o.zahlungsbetrag;
+                        }
+                        else { fo.sonstige.n++; fo.sonstige.vk += o.gesamt; }
+                    });
+                    dashboardState.odooOrders = ooOrders;
+                    dashboardState.odooOrdersLoaded = true;
+                    dashboardState.funnelOrders = fo;
+                    if (statusEl) {
+                        statusEl.textContent = `✓ ${ooOrders.length} Aufträge (${fo.angebot.n} Angebot · ${fo.bestaetigt.n} bestätigt · ${fo.storniert.n} storniert)`;
+                        statusEl.style.color = 'var(--accent-green)';
+                    }
+                    console.info(`[Odoo-Orders] ${ooOrders.length} Aufträge · Angebot ${fo.angebot.n}/${Math.round(fo.angebot.vk)}€ · Bestätigt ${fo.bestaetigt.n}/${Math.round(fo.bestaetigt.vk)}€ (Proforma ${fo.bestaetigt.proformaN}, Vorkasse ${Math.round(fo.bestaetigt.vorkasse)}€) · Storniert ${fo.storniert.n}/${Math.round(fo.storniert.vk)}€ · Sonstige ${fo.sonstige.n}`);
+                    try { updateAnalyseKPIs(); } catch (e) { console.warn('[Odoo-Orders] KPI-Render', e); }
 
                 } else if (type === 'pipeline') {
                     // ====== AUFTRAG_STATUS (AMM-Pipeline-Datei, täglich) ======
@@ -25333,7 +25456,8 @@ location.reload();</pre>
                 ['JTL 4-Jahre', !!st.jtl4yLoaded],
                 ['Stammdaten', !!st.stammLoaded],
                 ['Pipeline', !!(st.pipelineData && st.pipelineData.length)],
-                ['WA-Pipeline', !!st.waStatusLoaded]
+                ['WA-Pipeline', !!st.waStatusLoaded],
+                ['Odoo-Aufträge', !!st.odooOrdersLoaded]
             ];
             const loaded = SOURCES.filter(s => s[1]).length;
             const el = document.getElementById('import-status-summary');

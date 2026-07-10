@@ -95,6 +95,7 @@
     <tr><td>Odoo (stock.lot)</td><td>XLSX</td><td>Lebender Bestand + laufende Verkäufe. <span class="crit">Immer nur die EINE aktuellste Datei laden.</span></td><td>täglich</td></tr>
     <tr><td>BESTAND134</td><td>CSV</td><td>Physisches Lager (Status QE/VS/AA) + echtes Wareneingangsdatum → Lagerdauer</td><td>täglich</td></tr>
     <tr><td>AUFTRAG_STATUS</td><td>XLSX</td><td>Offene Aufträge / Ausgangs-Pipeline</td><td>täglich, optional</td></tr>
+    <tr><td>Odoo Verkaufsaufträge (sale.order)</td><td>XLSX</td><td>Echte Auftragsebene für den Verkaufs-Funnel: Angebot → bestätigt (Proforma/Vorkasse) → verrechnet, plus Storno-Quote. <b>Ungefiltert exportieren!</b> Ohne die Datei rechnet der Funnel als Näherung aus dem Gerätestatus</td><td>täglich, optional</td></tr>
     <tr><td>Stock-Analysis</td><td>XLSX</td><td>Portal-Restbestand (EK/VK-Preise). <b>Portal ist seit 03.07.2026 endgültig tot</b> (keine Verkäufe, keine neue Ware) — der Export vom 02.07.2026 ist der Endstand</td><td>final → Archiv</td></tr>
     <tr><td>ALL SOLD</td><td>XLSX</td><td>Historisches Verkaufsarchiv (~32.000 Verkäufe) — Endstand 02.07.2026, alle neuen Verkäufe kommen aus Odoo</td><td>final → Archiv</td></tr>
     <tr><td>JTL Export</td><td>CSV</td><td>Alte Aufträge/Artikel-Lookup, Zahlungseingänge ändern sich noch</td><td>bei Bedarf → Archiv</td></tr>
