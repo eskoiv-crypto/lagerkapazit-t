@@ -3749,7 +3749,7 @@
                             <!-- Verkaufshistorie -->
                             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
                                 <div style="background: var(--bg-elevated); border-radius: 8px; padding: 0.75rem;">
-                                    <h4 style="margin: 0 0 0.5rem 0; font-size: 0.8rem; color: var(--text-secondary);">Verkaufshistorie <span id="sold-quellen-label" style="font-weight: 400; color: var(--text-muted);"></span></h4>
+                                    <h4 style="margin: 0 0 0.5rem 0; font-size: 0.8rem; color: var(--text-secondary);">Verkaufshistorie <span id="sold-quellen-label" style="font-weight: 400; color: var(--text-muted);"></span> <span id="sold-zeitraum-label" style="font-weight: 400; font-size: 0.68rem; color: var(--accent-cyan);"></span></h4>
                                     <!-- VALIDIERUNGS-FIX (2026-07-14): Ohne Alt-Archiv zeigte die Karte kommentarlos
                                          nur die Odoo-Ära (2.167 statt ~32.000 Verkäufe) — jetzt lauter Hinweis. -->
                                     <div id="sold-archiv-hinweis" style="display: none; font-size: 0.62rem; color: var(--accent-orange); margin-bottom: 0.4rem;"></div>
@@ -3757,21 +3757,23 @@
                                     <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; text-align: center;">
                                         <div>
                                             <div style="font-size: 1.1rem; font-weight: 700; color: var(--text-primary); font-family: var(--font-mono);" id="sold-count">—</div>
-                                            <div style="font-size: 0.6rem; color: var(--text-muted);">Verkauft</div>
+                                            <div style="font-size: 0.6rem; color: var(--text-muted);">Verkauft <span class="vc-info" data-tip="Anzahl verkaufter Geräte im oben gewählten Zeitraum (Verkaufs-/Belegdatum). Quellen stehen in der Kopfzeile der Karte.">ⓘ</span></div>
                                         </div>
                                         <div>
                                             <div style="font-size: 1.1rem; font-weight: 700; color: var(--text-primary); font-family: var(--font-mono);" id="sold-total-profit">—</div>
-                                            <div style="font-size: 0.6rem; color: var(--text-muted);">Gesamt-Profit</div>
+                                            <div style="font-size: 0.6rem; color: var(--text-muted);">Gesamt-Profit <span class="vc-info" data-tip="Summe (VK − EK) je verkauftem Gerät im Zeitraum. Achtung: EK ist strukturell untererfasst (Geräte ohne EK zählen mit vollem VK als Profit) — der Wert ist eher eine OBERgrenze.">ⓘ</span></div>
                                         </div>
                                         <div>
                                             <div style="font-size: 1.1rem; font-weight: 700; color: var(--text-primary); font-family: var(--font-mono);" id="sold-avg-profit">—</div>
-                                            <div style="font-size: 0.6rem; color: var(--text-muted);">Ø Profit/Stk</div>
+                                            <div style="font-size: 0.6rem; color: var(--text-muted);">Ø Profit/Stk <span class="vc-info" data-tip="Gesamt-Profit geteilt durch Anzahl verkaufter Geräte im Zeitraum.">ⓘ</span></div>
                                         </div>
                                     </div>
                                 </div>
                                 
                                 <div style="background: var(--bg-elevated); border-radius: 8px; padding: 0.75rem;">
-                                    <h4 style="margin: 0 0 0.5rem 0; font-size: 0.8rem; color: var(--text-secondary);">Marge-Verteilung</h4>
+                                    <!-- VERSTÄNDLICHKEIT (2026-07-14): Misnomer behoben — das sind €-Profit-Bänder
+                                         je Gerät, keine Marge in %. Zeitraum-Label macht den Filter-Bezug sichtbar. -->
+                                    <h4 style="margin: 0 0 0.5rem 0; font-size: 0.8rem; color: var(--text-secondary);">Profit je Gerät — Verteilung <span class="vc-info" data-tip="Verkaufte Geräte des gewählten Zeitraums, einsortiert nach absolutem Profit in € (VK − EK) je Stück. Keine Prozent-Marge. Geräte ohne erfassten EK erscheinen mit vollem VK als Profit.">ⓘ</span> <span id="marge-zeitraum-label" style="font-weight: 400; font-size: 0.68rem; color: var(--accent-cyan);"></span></h4>
                                     <!-- PHASE C2: getönte Flächen + Bedeutungsfarbe im Text statt gesättigter Blöcke mit Weiß -->
                                     <div id="marge-distribution" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.4rem; text-align: center; font-size: 0.65rem;">
                                         <div style="background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.35); padding: 0.35rem; border-radius: 8px;">
@@ -3796,7 +3798,7 @@
                             
                             <!-- Lagerumschlag-Chart -->
                             <div style="margin-top: 1rem; background: var(--bg-elevated); border-radius: 8px; padding: 0.75rem;">
-                                <h4 style="margin: 0 0 0.5rem 0; font-size: 0.8rem; color: var(--text-secondary);">Lageralter-Verteilung</h4>
+                                <h4 style="margin: 0 0 0.5rem 0; font-size: 0.8rem; color: var(--text-secondary);">Lageralter-Verteilung <span style="font-weight: 400; font-size: 0.68rem; color: var(--text-muted);">· Bestand-Stichtag heute, Alter aus AMM-WE-Datum — Zeitraum-Filter wirkt hier nicht</span></h4>
                                 <div id="lageralter-chart" style="display: flex; gap: 0.25rem; height: 80px; align-items: flex-end;">
                                     <!-- Wird dynamisch gefüllt -->
                                 </div>
@@ -13536,7 +13538,10 @@ Keine Erklärungen, kein Markdown.`;
                 soldRangeTxt = `${fmt(r.mn)} – ${fmt(r.mx)}`;
                 if (elSold) {
                     elSold.style.display = 'inline';
-                    elSold.innerHTML = `<span class="ds-pill" data-tip="All-Sold (Portal-Verkaufshistorie): jede Zeile = ein verkauftes Gerät mit Verkaufsdatum, Preis, Kunde, Verkäufer. DSGVO: enthält Kundennamen (vertraulich)."><span class="ds-dot" style="background:var(--accent-orange);"></span>All-Sold</span> <b>Verkäufe:</b> ${soldRangeTxt} <span style="color:var(--text-muted);">· ${sold.length.toLocaleString('de-DE')} Verk.</span>`;
+                    const _srcTxt = (dashboardState._soldSrcPortal && dashboardState._soldSrcPortal.length)
+                        ? ((dashboardState._soldSrcOdoo && dashboardState._soldSrcOdoo.length) ? 'All-Sold-Archiv + Odoo' : 'nur All-Sold-Archiv')
+                        : 'nur Odoo — Alt-Archiv fehlt!';
+                    elSold.innerHTML = `<span class="ds-pill" data-tip="Verkaufsregister = Portal-All-Sold-Archiv (bis 02.07.2026) + laufende Odoo-Verkäufe, per Lager-Nr dedupliziert. Jede Zeile = ein verkauftes Gerät mit Verkaufsdatum, Preis, Kunde, Verkäufer. DSGVO: enthält Kundennamen (vertraulich)."><span class="ds-dot" style="background:var(--accent-orange);"></span>Verkäufe</span> <b>Verkaufsregister:</b> ${soldRangeTxt} <span style="color:var(--text-muted);">· ${sold.length.toLocaleString('de-DE')} Verk. · Quellen: ${_srcTxt}</span>`;
                     shown = true;
                 }
             } else if (elSold) { elSold.style.display = 'none'; }
@@ -14695,7 +14700,7 @@ Keine Erklärungen, kein Markdown.`;
                   <div style="font-size:1.1rem;font-weight:700;color:var(--text-secondary);">${eur(fr.ek)}<span style="font-size:0.7rem;font-weight:500;"> EK</span></div>
                   <div style="font-size:0.95rem;font-weight:700;">${fmt(fr.count)}<span style="font-size:0.7rem;font-weight:500;color:var(--text-secondary);"> Geräte frei</span></div>
                 </div>
-                <div style="font-size:0.6rem;color:var(--text-muted);margin-top:0.35rem;">nicht reserviert · nicht im Angebot · nicht verkauft${hasAmm && freiNichtLager>0?` &nbsp;·&nbsp; ⚠️ davon <b>${fmt(freiNichtLager)}</b> NICHT physisch im Lager (Phantom → 🔍 Datenqualität)`:''}${(fr.portalRest||0)>0?` &nbsp;·&nbsp; <span style="color:var(--accent-orange);">davon <b>${fmt(fr.portalRest)}</b> Portal-Rest — erst nach Odoo-Migration verkaufbar</span>`:''}</div>
+                <div style="font-size:0.6rem;color:var(--text-muted);margin-top:0.35rem;"><b>Stichtag heute</b> · nicht reserviert · nicht im Angebot · nicht verkauft${hasAmm && freiNichtLager>0?` &nbsp;·&nbsp; ⚠️ davon <b>${fmt(freiNichtLager)}</b> NICHT physisch im Lager (Phantom → 🔍 Datenqualität)`:''}${(fr.portalRest||0)>0?` &nbsp;·&nbsp; <span style="color:var(--accent-orange);">davon <b>${fmt(fr.portalRest)}</b> Portal-Rest — erst nach Odoo-Migration verkaufbar</span>`:''}</div>
               </div>
               <div style="background:var(--bg-elevated);border:1px solid var(--border);border-radius:12px;padding:0.9rem 1.1rem;">
                 <div style="display:flex;align-items:center;gap:0.4rem;font-size:0.62rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;"><span class="ds-dot" style="background:var(--accent-cyan);"></span>Unverkauft im Lager — gebundenes Kapital (physisch) <span class="vc-info" data-tip="LAGERSICHT (physisch): jedes Gerät, das laut AMM im Lager steht (Status QE) und nicht verkauft ist — INKLUSIVE reservierte/angebotene und noch unklassifizierte Geräte. Das ist das zum Stichtag gebundene Kapital. VK ist die belastbare Größe (EK strukturell untererfasst); unklassifizierte Geräte haben keine Preisquelle und zählen nur in der Stückzahl.">ⓘ</span></div>
@@ -14705,7 +14710,7 @@ Keine Erklärungen, kein Markdown.`;
                   <div style="font-size:1.1rem;font-weight:700;color:var(--text-secondary);">${eur(qu.ek)}<span style="font-size:0.7rem;font-weight:500;"> EK</span></div>
                   <div style="font-size:0.95rem;font-weight:700;">${fmt(qu.count)}<span style="font-size:0.7rem;font-weight:500;color:var(--text-secondary);"> Geräte</span></div>
                 </div>
-                <div style="font-size:0.6rem;color:var(--text-muted);margin-top:0.35rem;">= <b>${fmt(qu.frei)}</b> sofort verkaufbar im Lager &nbsp;+&nbsp; <b>${fmt(qu.reserviert)}</b> reserviert/angeboten &nbsp;+&nbsp; <b>${fmt(qu.unklassifiziert)}</b> unklassifiziert${qu.ohnePreis>0?` <span style="color:var(--accent-orange,#f59e0b);">(ohne Preis → nicht im €-Wert)</span>`:''}</div>`
+                <div style="font-size:0.6rem;color:var(--text-muted);margin-top:0.35rem;"><b>Stichtag heute</b> · = <b>${fmt(qu.frei)}</b> sofort verkaufbar im Lager &nbsp;+&nbsp; <b>${fmt(qu.reserviert)}</b> reserviert/angeboten &nbsp;+&nbsp; <b>${fmt(qu.unklassifiziert)}</b> unklassifiziert${qu.ohnePreis>0?` <span style="color:var(--accent-orange,#f59e0b);">(ohne Preis → nicht im €-Wert)</span>`:''}</div>`
                 : `<div style="font-size:0.72rem;color:var(--text-muted);margin-top:0.4rem;">BESTAND-Datei (AMM) laden, um die physische Tages-Kennzahl zu berechnen.</div>`}
               </div>
               </div>`;
@@ -14820,6 +14825,17 @@ Keine Erklärungen, kein Markdown.`;
                         hinweisEl.style.display = 'none';
                     }
                 }
+                // ZEITRAUM-TRANSPARENZ (2026-07-14): Verkaufshistorie + Profit-Verteilung
+                // re-aggregieren mit dem globalen Zeitraum-Filter — das MUSS am Etikett
+                // stehen (vorher zeigte „Verkauft 726" kommentarlos den Monatsausschnitt).
+                const _win = (typeof getActiveTimeWindow === 'function') ? getActiveTimeWindow() : null;
+                const _gfSel = document.getElementById('global-time-filter');
+                const _gfTxt = (_gfSel && _gfSel.selectedOptions && _gfSel.selectedOptions[0]) ? _gfSel.selectedOptions[0].text : '';
+                const _zrLabel = _win
+                    ? `Zeitraum: ${_gfTxt} (${_gfFormat(_win.from)} – ${_gfFormat(_win.to)})`
+                    : 'Zeitraum: alle Daten';
+                setEl('sold-zeitraum-label', '· ' + _zrLabel);
+                setEl('marge-zeitraum-label', '· ' + _zrLabel);
             }
             
             // NEU: Verfügbarkeits-KPIs aktualisieren
@@ -14939,8 +14955,12 @@ Keine Erklärungen, kein Markdown.`;
             if (!ord && !ang.n && !best.n && !sold.length) { el.innerHTML = ''; return; }
             const f = dashboardState.globalTimeFilter || { preset: 'all' };
             const selEl = document.getElementById('global-time-filter');
+            // ZEITRAUM-TRANSPARENZ (2026-07-14): exakte Von-Bis-Daten direkt am Wert,
+            // nicht nur der Preset-Name („Dieser Monat" allein ist interpretierbar).
+            const _fw = _gfWindow(f.preset);
             const winLbl = f.preset === 'all' ? 'alle Daten'
-                : ((selEl && selEl.selectedOptions && selEl.selectedOptions[0]) ? selEl.selectedOptions[0].text : f.preset);
+                : (((selEl && selEl.selectedOptions && selEl.selectedOptions[0]) ? selEl.selectedOptions[0].text : f.preset)
+                   + (_fw ? ` (${_gfFormat(_fw.from)} – ${_gfFormat(_fw.to)})` : ''));
             const eur = v => Number(v || 0).toLocaleString('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
             const fmtN = n => Number(n || 0).toLocaleString('de-DE');
             const seg = (dotColor, label, vk, sub, tip) => `
