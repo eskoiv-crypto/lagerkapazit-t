@@ -3749,7 +3749,10 @@
                             <!-- Verkaufshistorie -->
                             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
                                 <div style="background: var(--bg-elevated); border-radius: 8px; padding: 0.75rem;">
-                                    <h4 style="margin: 0 0 0.5rem 0; font-size: 0.8rem; color: var(--text-secondary);">Verkaufshistorie (All-Sold)</h4>
+                                    <h4 style="margin: 0 0 0.5rem 0; font-size: 0.8rem; color: var(--text-secondary);">Verkaufshistorie <span id="sold-quellen-label" style="font-weight: 400; color: var(--text-muted);"></span></h4>
+                                    <!-- VALIDIERUNGS-FIX (2026-07-14): Ohne Alt-Archiv zeigte die Karte kommentarlos
+                                         nur die Odoo-Ära (2.167 statt ~32.000 Verkäufe) — jetzt lauter Hinweis. -->
+                                    <div id="sold-archiv-hinweis" style="display: none; font-size: 0.62rem; color: var(--accent-orange); margin-bottom: 0.4rem;"></div>
                                     <!-- PHASE C3: Zahlen neutral — Farbe nur für Bedeutung, nicht als Deko -->
                                     <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; text-align: center;">
                                         <div>
@@ -14801,6 +14804,22 @@ Keine Erklärungen, kein Markdown.`;
                 setEl('sold-count', dashboardState.allSoldCount.toLocaleString('de-DE'));
                 setEl('sold-total-profit', formatCurr(dashboardState.allSoldProfit));
                 setEl('sold-avg-profit', formatCurr(dashboardState.allSoldAvgProfit));
+                // VALIDIERUNGS-FIX (2026-07-14): Quellen-Transparenz. Fehlt das Alt-Archiv
+                // (Portal All-Sold, ~32k Verkäufe), umfassen alle Historien-Zahlen NUR die
+                // Odoo-Ära seit 22.06.2026 — das muss LAUT dastehen, sonst liest der GF
+                // 208k Profit als Gesamthistorie (real: 2,16 Mio inkl. Alt-Archiv).
+                const _altDa = !!(dashboardState._soldSrcPortal && dashboardState._soldSrcPortal.length);
+                const _odooDa = !!(dashboardState._soldSrcOdoo && dashboardState._soldSrcOdoo.length);
+                setEl('sold-quellen-label', _altDa && _odooDa ? '(All-Sold + Odoo)' : _altDa ? '(nur All-Sold-Archiv)' : '(nur Odoo)');
+                const hinweisEl = document.getElementById('sold-archiv-hinweis');
+                if (hinweisEl) {
+                    if (!_altDa) {
+                        hinweisEl.style.display = 'block';
+                        hinweisEl.innerHTML = '⚠ <b>Alt-Archiv (Portal All-Sold) nicht geladen</b> — Zahlen umfassen nur Odoo-Verkäufe seit 22.06.2026. Endstand-Datei aus „02 BEI BEDARF › 02 Portal All-Sold" einmal in die Ablagezone ziehen.';
+                    } else {
+                        hinweisEl.style.display = 'none';
+                    }
+                }
             }
             
             // NEU: Verfügbarkeits-KPIs aktualisieren
@@ -14879,7 +14898,7 @@ Keine Erklärungen, kein Markdown.`;
               <div style="background:var(--bg-elevated);border:1px solid var(--border);border-radius:12px;padding:0.85rem 1.1rem;">
                 <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap;">
                   <div style="flex:1; min-width:210px;">
-                    <div style="display:flex;align-items:center;gap:0.4rem;font-size:0.6rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;"><span class="ds-dot" style="background:var(--accent-green);"></span>Voraussichtliche Zahlungseingänge <span class="vc-info" data-tip="Summe der offenen, belastbar erwartbaren Eingänge: ausstehende Vorkasse auf bestätigte Aufträge + offene Zahlungen bereits versendeter Aufträge. Stichtag heute. Keine Spekulation: offene Angebote und ungewisse Conversion zählen NICHT.">ⓘ</span></div>
+                    <div style="display:flex;align-items:center;gap:0.4rem;font-size:0.6rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;"><span class="ds-dot" style="background:var(--accent-green);"></span>Voraussichtliche Zahlungseingänge <span class="vc-info" data-tip="Summe der offenen, belastbar erwartbaren Eingänge: ausstehende Vorkasse auf bestätigte Aufträge + offene Zahlungen bereits versendeter Aufträge. Stichtag heute. Keine Spekulation: offene Angebote zählen NICHT. Brücke zur Funnel-Stufe „Bestätigt": Bestätigt gesamt − eingegangene Zahlungen ≈ ausstehend; kleine Abweichungen entstehen, wenn ein Auftrag ÜBERzahlt ist (negativer Rest wird auf 0 gekappt, nie als Guthaben verrechnet).">ⓘ</span></div>
                     <div style="font-size:1.9rem;font-weight:800;font-family:var(--font-mono);line-height:1.1;color:var(--accent-green);">${eur(gesamtOffen)}</div>
                     <div style="font-size:0.62rem;color:var(--text-muted);">offen gesamt · Stichtag heute</div>
                   </div>
@@ -14890,8 +14909,8 @@ Keine Erklärungen, kein Markdown.`;
                       waMap ? `${fmtN(sentN)} Aufträge${sentN > 0 ? ` · €-Wert für ${fmtN(sentMatched)}/${fmtN(sentN)} ermittelbar` : ''}` : 'WA-Pipeline-CSV laden',
                       'Aufträge mit WA-Status „Versendet — Zahlung offen": Ware ist raus, Geld noch nicht da (echte Forderung). €-Wert über Auftrags-Match im Verkaufsregister — nur für gematchte Aufträge summierbar, Abdeckung wird angezeigt.')}
                   ${seg('var(--accent-cyan)', 'Vorkasse eingegangen', orders ? eur(eing) : '—',
-                      orders ? `${fmtN(eingN)} offene Aufträge · Lieferpflicht offen` : 'sale.order-Export laden',
-                      'Bereits eingegangene Zahlungen auf noch offene bestätigte Aufträge: Geld ist da, die Ware muss noch raus (Verlade-Freigabe erteilt).')}
+                      orders ? `${fmtN(eingN)} (teil)bezahlte offene Aufträge · Lieferpflicht offen` : 'sale.order-Export laden',
+                      'Bereits eingegangene Zahlungen auf noch offene bestätigte Aufträge: Geld ist da, die Ware muss noch raus (Verlade-Freigabe erteilt). Ein teilbezahlter Auftrag zählt hier mit seiner Zahlung UND links mit seinem Restbetrag — die Stückzahlen beider Segmente dürfen sich deshalb überschneiden, die €-Beträge nicht.')}
                 </div>
                 <div style="font-size:0.58rem;color:var(--text-muted);margin-top:0.5rem;">Quellen: ${quellen} · Stichtagswerte, kein Zeitraum-Filter · versendete Aufträge zählen nur einmal (unter „Versendet") · offene Angebote zählen bewusst nicht (keine Zusage)</div>
               </div>`;
@@ -14956,7 +14975,7 @@ Keine Erklärungen, kein Markdown.`;
                   <div style="color:var(--text-muted);font-size:1.1rem;">→</div>
                   ${bestSeg}
                   <div style="color:var(--text-muted);font-size:1.1rem;">→</div>
-                  ${seg('var(--accent-green)', 'Verrechnet', eur(verrVK), `${fmtN(sold.length)} Verkäufe · Zeitraum: ${winLbl}`, 'Brutto-VK aller als verkauft gebuchten Geräte (Odoo + All-Sold, per Lager-Nr dedupliziert) im oben gewählten Zeitraum-Filter. „Verrechnet" = Verkaufs-/Belegdatum im Zeitraum — der Odoo-Rechnungsstatus wird übernommen, sobald Rechnungen in Odoo geschrieben werden.')}
+                  ${seg('var(--accent-green)', 'Verrechnet', eur(verrVK), `${fmtN(sold.length)} Verkäufe · Zeitraum: ${winLbl}${(dashboardState._soldSrcPortal && dashboardState._soldSrcPortal.length) ? '' : ' · <span style="color:var(--accent-orange);">⚠ nur Odoo-Ära (Alt-Archiv fehlt)</span>'}`, 'Brutto-VK aller als verkauft gebuchten Geräte (Odoo + All-Sold, per Lager-Nr dedupliziert) im oben gewählten Zeitraum-Filter. „Verrechnet" = Verkaufs-/Belegdatum im Zeitraum. Fehlt das Alt-Archiv (Portal All-Sold), umfasst die Zahl NUR die Odoo-Ära seit 22.06.2026 — dann steht hier eine Warnung.')}
                 </div>
                 <div style="font-size:0.58rem;color:var(--text-muted);margin-top:0.5rem;">${fussnote}</div>
               </div>`;
