@@ -14977,10 +14977,11 @@ Keine Erklärungen, kein Markdown.`;
                             if (vs) { due = new Date(vs); due.setDate(due.getDate() + ZZ_ANNAHME_TAGE); typ = 'annahme'; }
                         }
                         if (betrag > 0.01) strahl.push({ root, betrag, due, typ });
-                    } else if (w.versendet && w.bezahlt) {
-                        // AUDIT-FIX 16.07.: versendet & laut WA bezahlt — auch wenn Odoos
-                        // „Zahlungstransaktionen" die Banküberweisung nicht kennt (offen>0),
-                        // darf der Auftrag NICHT als „Vorkasse ausstehend" hängen bleiben.
+                    } else if ((w.versendet && w.bezahlt) || /^ja/i.test(String(w.abgeschlossen || ''))) {
+                        // AUDIT-FIX 16.07.: versendet & laut WA bezahlt ODER als abgeschlossen
+                        // markiert — auch wenn Odoos „Zahlungstransaktionen" die Bank-
+                        // überweisung nicht kennt (offen>0), darf der Auftrag NICHT als
+                        // „Vorkasse ausstehend" hängen bleiben (User 16.07.: Vermischung).
                         sentRoots.add(root);
                     }
                 });
@@ -15140,55 +15141,98 @@ Keine Erklärungen, kein Markdown.`;
                   <div style="font-size:0.62rem;color:var(--text-muted);">${sub}</div>
                 </div>`;
             // Anzeige-Werte je Quelle (Auftragsebene bevorzugt, Geräte-Näherung als Fallback)
-            let angSeg, bestSeg, fussnote;
+            let segsHtml, fussnote;
             if (ord) {
-                // FUNNEL-ZEITFILTER (User 16.07.): Bei aktivem Zeitraum-Fenster werden
-                // „Im Angebot" und „Auftrag bestätigt" zu FLOW-Werten — Aufträge, die
-                // IM FENSTER ERSTELLT wurden (Erstellungsdatum; Odoo-Export hat kein
-                // Bestätigungsdatum — Wunsch „Auftragsdatum" bleibt offen). „Alle Daten"
-                // = Stichtag-Bestand wie bisher. „Verrechnet" filtert weiterhin nach
-                // Verkaufsdatum — alle drei Stufen gehorchen demselben Dropdown.
+                // LEBENSPHASEN-DIFFERENZIERUNG (User 16.07.: „Stornierte und korrigierte
+                // Werte wurden vermischt — es muss GANZ klar ersichtlich sein"):
+                // Jeder bestätigte Auftrag wird seiner Phase zugeordnet —
+                //   PROFORMA-STADIUM  = bestätigt, vor Versand/Faktura („Bestätigte Angebote")
+                //   RECHNUNG GESTELLT = Rechnungsstatus „Komplett abgerechnet" bzw.
+                //                       „Bereits abgerechnet" > 0; ohne diese Spalten
+                //                       Näherung: laut WA versendet & Zahlung offen
+                //   ERLEDIGT          = laut WA abgeschlossen / versendet & bezahlt bzw.
+                //                       fakturiert & voll bezahlt → RAUS aus dem Funnel
+                // Storno/Korrekturen waren nie im Funnel, stehen aber jetzt beziffert in
+                // der Fußnote. ZEITFILTER: Fenster = im Fenster ERSTELLTE Aufträge
+                // (Erstellungsdatum — Odoo liefert kein Bestätigungsdatum).
                 const oo = dashboardState.odooOrders || [];
+                const waM = dashboardState.waStatusMap || null;
+                const hasRS = dashboardState.odooOrdersHasRechnungsstatus === true;
                 const flow = !!_fw;
-                let fAng = ord.angebot, fBest = ord.bestaetigt, fStor = ord.storniert;
-                if (flow && oo.length) {
-                    fAng = { n: 0, vk: 0 }; fBest = { n: 0, vk: 0, proformaN: 0, vorkasse: 0 }; fStor = { n: 0, vk: 0 };
-                    oo.forEach(o => {
-                        if (!o.erstellt || o.erstellt < _fw.from || o.erstellt > _fw.to) return;
-                        if (/^storniert/i.test(o.status)) { fStor.n++; fStor.vk += o.gesamt; }
-                        else if (/^angebot/i.test(o.status)) { fAng.n++; fAng.vk += o.gesamt; }
-                        else if (/^verkaufsauftrag/i.test(o.status)) {
-                            fBest.n++; fBest.vk += o.gesamt;
-                            if (o.proforma) fBest.proformaN++;
-                            fBest.vorkasse += o.zahlungsbetrag;
-                        }
-                    });
-                }
+                const _root = s => String(s || '').trim().toUpperCase().split('.')[0];
+                const B = {
+                    ang:  { n: 0, vk: 0, entwurf: 0, gesendet: 0 },
+                    prof: { n: 0, vk: 0, proformaN: 0, vorkasse: 0 },
+                    rech: { n: 0, vk: 0, offen: 0 },
+                    fertig: { n: 0, vk: 0 },
+                    storno: { n: 0, vk: 0 }
+                };
+                oo.forEach(o => {
+                    if (flow && (!o.erstellt || o.erstellt < _fw.from || o.erstellt > _fw.to)) return;
+                    if (/^storniert/i.test(o.status)) { B.storno.n++; B.storno.vk += o.gesamt; return; }
+                    if (/^angebot/i.test(o.status)) {
+                        B.ang.n++; B.ang.vk += o.gesamt;
+                        if (/gesendet/i.test(o.status)) B.ang.gesendet++; else B.ang.entwurf++;
+                        return;
+                    }
+                    if (!/^verkaufsauftrag/i.test(o.status)) return;
+                    const w = waM ? waM[_root(o.ref)] : null;
+                    const waFertig = w && (/^ja/i.test(String(w.abgeschlossen || '')) || (w.versendet && w.bezahlt));
+                    const fakturiert = hasRS && (/komplett abgerechnet/i.test(o.rechnungsstatus || '') || (o.bereitsAbgerechnet || 0) > 0.01);
+                    const vollBezahlt = (o.zahlungsbetrag || 0) > 0.01 && o.zahlungsbetrag >= o.gesamt - 0.01;
+                    if (waFertig || (fakturiert && vollBezahlt)) { B.fertig.n++; B.fertig.vk += o.gesamt; return; }
+                    if (fakturiert || (!hasRS && w && w.versendet && !w.bezahlt)) {
+                        B.rech.n++; B.rech.vk += o.gesamt; B.rech.offen += Math.max(0, o.gesamt - (o.zahlungsbetrag || 0));
+                        return;
+                    }
+                    B.prof.n++; B.prof.vk += o.gesamt;
+                    if (o.proforma) B.prof.proformaN++;
+                    B.prof.vorkasse += o.zahlungsbetrag || 0;
+                });
                 const modLbl = flow ? `erstellt ${_gfFormat(_fw.from)} – ${_gfFormat(_fw.to)}` : 'Stichtag heute';
-                angSeg = seg('var(--accent-orange)', 'Im Angebot', eur(fAng.vk),
-                    `${fmtN(fAng.n)} Aufträge · ${modLbl}`,
-                    'ECHTE Auftragsebene (Odoo sale.order): Summe „Gesamt" (Brutto inkl. MwSt) aller Aufträge im Status „Angebot" / „Angebot gesendet". Stornierte sind ausgeschlossen und unten ausgewiesen. Zeitraum-Filter aktiv: gezählt werden Aufträge, die IM FENSTER ERSTELLT wurden und HEUTE noch diesen Status haben (Flow-Sicht). „Alle Daten" = kompletter offener Bestand (Stichtag).');
-                bestSeg = seg('var(--accent-purple)', 'Auftrag bestätigt', eur(fBest.vk),
-                    `${fmtN(fBest.n)} Aufträge · ${modLbl}${fBest.proformaN > 0 ? ` · ${fmtN(fBest.proformaN)}× Proforma` : ''}${fBest.vorkasse > 0 ? ` · Vorkasse ${eur(fBest.vorkasse)}` : ''}`,
-                    'ECHTE Auftragsebene (Odoo sale.order): Status „Verkaufsauftrag" = bestätigt. „Gesamt" = Brutto inkl. MwSt. Zeitraum-Filter aktiv: Aufträge, die IM FENSTER ERSTELLT wurden (Odoo liefert kein Bestätigungsdatum — Erstellung als Näherung). Proforma aus Spalte „Proformas", Vorkasse = Summe der Zahlungstransaktionen (euer Verlade-Gate).');
-                fussnote = `Quelle: Odoo-Aufträge (sale.order)${flow ? ` · Fenster: ${modLbl}` : ''}${fStor.n > 0 ? ` &nbsp;·&nbsp; Storniert (nicht im Funnel${flow ? ', im Fenster' : ''}): ${fmtN(fStor.n)} Aufträge · ${eur(fStor.vk)}` : ''}${!flow && ord.sonstige.n > 0 ? ` · ${fmtN(ord.sonstige.n)} sonstige` : ''}`;
+                const kannDiff = hasRS || !!waM;   // ohne Rechnungsstatus UND ohne WA keine Phasen-Trennung
+                const segs = [];
+                segs.push(seg('var(--accent-orange)', 'Unbestätigte Angebote', eur(B.ang.vk),
+                    `${fmtN(B.ang.n)} Aufträge (${fmtN(B.ang.entwurf)} Entwurf · ${fmtN(B.ang.gesendet)} gesendet) · ${modLbl}`,
+                    'Odoo-Status „Angebot" (Entwurf) + „Angebot gesendet" — noch KEINE Kundenzusage. Summe „Gesamt" (Brutto inkl. MwSt). Stornierte/korrigierte Aufträge sind ausgeschlossen (beziffert in der Fußnote). Zeitfenster = im Fenster erstellte Aufträge, „Alle Daten" = kompletter offener Bestand.'));
+                segs.push(seg('var(--accent-purple)', 'Bestätigte Angebote · Proforma', eur(B.prof.vk),
+                    `${fmtN(B.prof.n)} Aufträge · ${modLbl}${B.prof.proformaN > 0 ? ` · ${fmtN(B.prof.proformaN)}× Proforma` : ''}${B.prof.vorkasse > 0 ? ` · Vorkasse ${eur(B.prof.vorkasse)}` : ''}`,
+                    'Bestätigte Aufträge im PROFORMA-Stadium: Kunde hat zugesagt (Status „Verkaufsauftrag"), Proforma-Rechnung/Vorkasse-Phase — noch keine echte Rechnung gestellt, Ware noch nicht raus. Erledigte (versendet & bezahlt) und fakturierte Aufträge sind hier RAUS und stehen rechts bzw. in der Fußnote.'));
+                if (kannDiff) segs.push(seg('var(--accent-cyan)', 'Rechnung gestellt · Ziel läuft', eur(B.rech.vk),
+                    `${fmtN(B.rech.n)} Aufträge${B.rech.offen > 0.01 ? ` · davon offen ${eur(B.rech.offen)}` : ''}${hasRS ? '' : ' · ≈ Näherung über WA-Versand'} · ${modLbl}`,
+                    hasRS
+                        ? 'ECHTE Rechnung existiert: Odoo-Rechnungsstatus = Komplett abgerechnet, oder es wurde bereits ein Betrag fakturiert — das Zahlungsziel läuft. Davon offen = Gesamt minus eingegangener Zahlungen.'
+                        : 'NÄHERUNG (Export ohne Spalte Rechnungsstatus): laut WA-Pipeline versendet und Zahlung offen = Forderung läuft. Für die exakte Rechnungs-Stufe die Spalten Rechnungsstatus / Bereits abgerechnet in den Odoo-Export aufnehmen.'));
+                segs.push(seg('var(--accent-green)', 'Verrechnet', eur(verrVK),
+                    `${fmtN(sold.length)} Verkäufe · Zeitraum: ${winLbl}${(dashboardState._soldSrcPortal && dashboardState._soldSrcPortal.length) ? '' : ' · <span style="color:var(--accent-orange);">⚠ nur Odoo-Ära (Alt-Archiv fehlt)</span>'}`,
+                    'Brutto-VK aller als verkauft gebuchten Geräte (Odoo + All-Sold, per Lager-Nr dedupliziert) im gewählten Zeitraum — Verkaufs-/Belegdatum im Fenster. Fehlt das Alt-Archiv (Portal All-Sold), umfasst die Zahl NUR die Odoo-Ära seit 22.06.2026.'));
+                segsHtml = segs.join('<div style="color:var(--text-muted);font-size:1.1rem;">→</div>');
+                const hinweise = [];
+                if (B.fertig.n > 0) hinweise.push(`<b>Erledigt</b> (versendet & bezahlt${hasRS ? ' / fakturiert & bezahlt' : ''}) — nicht mehr im Funnel: ${fmtN(B.fertig.n)} Aufträge · ${eur(B.fertig.vk)}`);
+                if (B.storno.n > 0) hinweise.push(`<b>Storniert/korrigiert</b> — nie im Funnel: ${fmtN(B.storno.n)} Aufträge · ${eur(B.storno.vk)}`);
+                if (!kannDiff) hinweise.push('<span style="color:var(--accent-orange);">⚠ Phasen-Trennung (Proforma vs. Rechnung vs. erledigt) braucht die Export-Spalten „Rechnungsstatus"/„Bereits abgerechnet" ODER die WA-Pipeline-CSV</span>');
+                else if (!hasRS) hinweise.push('<span style="color:var(--accent-orange);">⚠ Export ohne „Rechnungsstatus" — Rechnungs-Stufe & Erledigt-Erkennung näherungsweise über WA-Pipeline</span>');
+                if (kannDiff && !waM) hinweise.push('WA-Pipeline-CSV laden, um auch versendete-unbezahlte & erledigte Aufträge zu erkennen');
+                fussnote = `Quelle: Odoo-Aufträge (sale.order)${waM ? ' + WA-Pipeline' : ''}${flow ? ` · Fenster: ${modLbl}` : ''} &nbsp;·&nbsp; ${hinweise.join(' &nbsp;·&nbsp; ')}`;
             } else {
-                angSeg = seg('var(--accent-orange)', 'Im Angebot', eur(ang.vk),
-                    `${fmtN(ang.n)} Geräte · Stichtag heute${(ang.portalN||0)>0?` · davon ${fmtN(ang.portalN)} Portal-Alt (eingefroren)`:''}`,
-                    'NÄHERUNG aus dem Gerätestatus: Odoo „Angeboten" + Portal-Restbestand A/M (Portal seit 03.07.2026 tot — Alt-Reservierungen gesondert ausgewiesen). Für echte Auftragswerte den Odoo-Export „Verkaufsauftrag (sale.order)" laden.');
-                bestSeg = seg('var(--accent-purple)', 'Auftrag bestätigt', eur(best.vk),
-                    `${fmtN(best.n)} Geräte · Stichtag heute`,
-                    'NÄHERUNG aus dem Gerätestatus: Odoo „Reserviert" = fest gebunden. Für echte Auftragswerte (inkl. Proforma/Vorkasse) den Odoo-Export „Verkaufsauftrag (sale.order)" laden.');
-                fussnote = 'Näherung aus Gerätestatus — Odoo-Export „Verkaufsauftrag (sale.order)" laden für echte Auftragswerte und den Zeitraum-Filter auf „Im Angebot"/„Bestätigt"';
+                const segsFb = [
+                    seg('var(--accent-orange)', 'Im Angebot', eur(ang.vk),
+                        `${fmtN(ang.n)} Geräte · Stichtag heute${(ang.portalN||0)>0?` · davon ${fmtN(ang.portalN)} Portal-Alt (eingefroren)`:''}`,
+                        'NÄHERUNG aus dem Gerätestatus: Odoo „Angeboten" + Portal-Restbestand A/M (Portal seit 03.07.2026 tot — Alt-Reservierungen gesondert ausgewiesen). Für echte Auftragswerte den Odoo-Export „Verkaufsauftrag (sale.order)" laden.'),
+                    seg('var(--accent-purple)', 'Auftrag bestätigt', eur(best.vk),
+                        `${fmtN(best.n)} Geräte · Stichtag heute`,
+                        'NÄHERUNG aus dem Gerätestatus: Odoo „Reserviert" = fest gebunden. Für echte Auftragswerte (inkl. Proforma-/Rechnungs-Differenzierung) den Odoo-Export „Verkaufsauftrag (sale.order)" laden.'),
+                    seg('var(--accent-green)', 'Verrechnet', eur(verrVK),
+                        `${fmtN(sold.length)} Verkäufe · Zeitraum: ${winLbl}${(dashboardState._soldSrcPortal && dashboardState._soldSrcPortal.length) ? '' : ' · <span style="color:var(--accent-orange);">⚠ nur Odoo-Ära (Alt-Archiv fehlt)</span>'}`,
+                        'Brutto-VK aller als verkauft gebuchten Geräte (Odoo + All-Sold, per Lager-Nr dedupliziert) im oben gewählten Zeitraum-Filter. Fehlt das Alt-Archiv (Portal All-Sold), umfasst die Zahl NUR die Odoo-Ära seit 22.06.2026.')
+                ];
+                segsHtml = segsFb.join('<div style="color:var(--text-muted);font-size:1.1rem;">→</div>');
+                fussnote = 'Näherung aus Gerätestatus — Odoo-Export „Verkaufsauftrag (sale.order)" laden für echte Auftragswerte, Phasen-Trennung (Proforma/Rechnung/erledigt) und den Zeitraum-Filter';
             }
             el.innerHTML = `
               <div style="background:var(--bg-elevated);border:1px solid var(--border);border-radius:12px;padding:0.85rem 1.1rem;">
                 <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap;">
-                  ${angSeg}
-                  <div style="color:var(--text-muted);font-size:1.1rem;">→</div>
-                  ${bestSeg}
-                  <div style="color:var(--text-muted);font-size:1.1rem;">→</div>
-                  ${seg('var(--accent-green)', 'Verrechnet', eur(verrVK), `${fmtN(sold.length)} Verkäufe · Zeitraum: ${winLbl}${(dashboardState._soldSrcPortal && dashboardState._soldSrcPortal.length) ? '' : ' · <span style="color:var(--accent-orange);">⚠ nur Odoo-Ära (Alt-Archiv fehlt)</span>'}`, 'Brutto-VK aller als verkauft gebuchten Geräte (Odoo + All-Sold, per Lager-Nr dedupliziert) im oben gewählten Zeitraum-Filter. „Verrechnet" = Verkaufs-/Belegdatum im Zeitraum. Fehlt das Alt-Archiv (Portal All-Sold), umfasst die Zahl NUR die Odoo-Ära seit 22.06.2026 — dann steht hier eine Warnung.')}
+                  ${segsHtml}
                 </div>
                 <div style="font-size:0.58rem;color:var(--text-muted);margin-top:0.5rem;">${fussnote}</div>
               </div>`;
@@ -23623,6 +23667,7 @@ Keine Erklärungen, kein Markdown.`;
                     // Ungefilterter Export (16.07.) hat weniger Spalten — fehlende
                     // Zahlungs-Spalte ehrlich ausweisen statt still „0 € eingegangen"
                     dashboardState.odooOrdersHasZahlung = (oZahlB !== undefined);
+                    dashboardState.odooOrdersHasRechnungsstatus = (oRechSt !== undefined);
                     // AUDIT-FIX K2: Verkaufsdaten der bereits geladenen Odoo-Verkäufe auf
                     // Auftragsdatum umstellen + abhängige Aggregate neu rechnen
                     if (enrichOdooSaleDates()) {
