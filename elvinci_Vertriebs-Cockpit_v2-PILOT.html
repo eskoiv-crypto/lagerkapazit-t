@@ -3760,7 +3760,7 @@
                                 </div>
                                 <div class="analyse-kpi">
                                     <div class="analyse-kpi-value" id="kpi-storno-quote">—</div>
-                                    <div class="analyse-kpi-label">Storno-Quote (30 T) <span class="vc-info" data-tip="Anteil stornierter/korrigierter an allen entschiedenen Aufträgen (storniert + bestätigt) der letzten 30 Tage — rollierend, aus dem sale.order-Export. Die Sub-Zeile zeigt den Wochen-Trend. Eine hohe Quote macht die Vorkasse-Erwartung im Zahlungs-Strahl WEICH: bestätigt heißt nicht bezahlt.">ⓘ</span></div>
+                                    <div class="analyse-kpi-label">Storno-Quote (30 T) <span class="vc-info" data-tip="Anteil stornierter/korrigierter an allen entschiedenen Aufträgen (storniert + bestätigt) der letzten 30 Tage — rollierend, aus dem sale.order-Export. Die Sub-Zeile zeigt den Wochen-Trend. Enthält auch Korrektur-Stornos (Auftrag storniert + neu angelegt) — die Quote misst v. a. Prozess-Hygiene und Angebots-Treffsicherheit. Aufträge mit verschickter Proforma gelten davon unabhängig als fest erwarteter Zahlungseingang (Vorkasse-Regel).">ⓘ</span></div>
                                 </div>
                                 <div class="analyse-kpi" style="cursor: pointer;" onclick="switchAnalyseTab('datenqualitaet')" title="Zum Datenqualität-Reiter">
                                     <div class="analyse-kpi-value" id="kpi-daten-konsistenz">—</div>
@@ -14963,7 +14963,9 @@ Keine Erklärungen, kein Markdown.`;
             const invOffenSum = invOffen.reduce((a, v) => a + v.faellig, 0);
             if (!orders && !waMap && !hasInv) { el.innerHTML = ''; _renderZahlungsStrahl([]); return; }
             const hasRS = dashboardState.odooOrdersHasRechnungsstatus === true;
+            const hasProf = dashboardState.odooOrdersHasProforma === true;
             const fakturiertRefs = new Set();
+            const proformaRefs = new Set();
             const ZZ_VORKASSE_TAGE = 3;    // Vorkasse-Regel: Eingang binnen 3 Tagen erwartet
             const ZZ_ANNAHME_TAGE = 14;    // Standard-Zahlungsziel als Annahme, wenn Rechnungsdatum fehlt
             const strahl = [];             // { root, betrag, due: Date|null, typ: vorkasse|rechnung|annahme|unbekannt }
@@ -14982,6 +14984,7 @@ Keine Erklärungen, kein Markdown.`;
                 refErstellt[o.ref] = o.erstellt || null;
                 if (hasRS && (/komplett abgerechnet/i.test(o.rechnungsstatus || '') || (o.bereitsAbgerechnet || 0) > 0.01))
                     fakturiertRefs.add(o.ref);   // fakturiert = Rechnungs-Welt, KEINE Vorkasse
+                if (o.proforma) proformaRefs.add(o.ref);   // Proforma raus = Eingang wird fest erwartet
                 if (o.zahlungsbetrag > 0.01) { eing += o.zahlungsbetrag; eingN++; }
             });
             // 2) Versendet & Zahlung offen (WA) — € bevorzugt aus sale.order (exakter,
@@ -15028,15 +15031,22 @@ Keine Erklärungen, kein Markdown.`;
                 });
             }
             // 1) Vorkasse ausstehend = bestätigt & offen & NOCH NICHT versendet & NICHT
-            //    fakturiert (fakturierte Aufträge gehören zur Rechnungs-Welt, Segment 2)
+            //    fakturiert (fakturierte Aufträge gehören zur Rechnungs-Welt, Segment 2).
+            //    GESCHÄFTSREGEL (User 16.07.): Proforma verschickt = Eingang wird FEST
+            //    erwartet (Vorkasse-Regel vor Verladung) — der Betrag ist vorläufig
+            //    (Δ Proforma↔Rechnung bei nicht verladener Ware möglich). Ohne Proforma
+            //    fehlt der Zahlungs-Trigger noch → eigene Kategorie.
+            let ausstProfN = 0;
             Object.keys(offenByRef).forEach(ref => {
                 if (offenByRef[ref] > 0.01 && !sentRoots.has(ref) && !fakturiertRefs.has(ref)) {
                     ausst += offenByRef[ref]; ausstN++;
+                    const mitProf = proformaRefs.has(ref);
+                    if (mitProf) ausstProfN++;
                     // STRAHL: Vorkasse-Regel = Eingang binnen 3 Tagen ab Bestätigung
                     // (Export liefert nur das Erstellungsdatum → als Näherung verwendet)
                     let due = null;
                     if (refErstellt[ref]) { due = new Date(refErstellt[ref]); due.setDate(due.getDate() + ZZ_VORKASSE_TAGE); due.setHours(0, 0, 0, 0); }
-                    strahl.push({ root: ref, betrag: offenByRef[ref], due, typ: 'vorkasse' });
+                    strahl.push({ root: ref, betrag: offenByRef[ref], due, typ: (hasProf && !mitProf) ? 'vorkasseOffen' : 'vorkasse' });
                 }
             });
             // 2b) ECHTE RECHNUNGEN (account.move): exakte Fälligkeiten in den Strahl
@@ -15084,8 +15094,8 @@ Keine Erklärungen, kein Markdown.`;
                     <div style="font-size:0.62rem;color:var(--text-muted);">offen gesamt · Stichtag heute</div>
                   </div>
                   ${seg('var(--accent-orange)', 'Vorkasse ausstehend', orders ? eur(ausst) : '—',
-                      orders ? `${fmtN(ausstN)} bestätigte Aufträge · noch nicht versendet · vor Verladung fällig` : 'sale.order-Export laden',
-                      'Bestätigte Odoo-Aufträge (Status „Verkaufsauftrag"), die laut WA-Pipeline NOCH NICHT versendet sind: Gesamt (Brutto) minus bereits eingegangener Zahlungen. Muss laut Vorkasse-Regel VOR der Verladung eingehen — kurzfristig erwartbar. Bereits versendete Aufträge zählen ausschließlich rechts unter „Versendet · Zahlung offen" (keine Doppelzählung).')}
+                      orders ? `${fmtN(ausstN)} bestätigte Aufträge${hasProf ? ` · <b>${fmtN(ausstProfN)} mit Proforma verschickt</b> (fest erwartet)` : ''} · noch nicht versendet · vor Verladung fällig` : 'sale.order-Export laden',
+                      'Bestätigte Odoo-Aufträge (Status „Verkaufsauftrag"), die laut WA-Pipeline NOCH NICHT versendet sind: Gesamt (Brutto) minus bereits eingegangener Zahlungen. Vorkasse-Regel: muss VOR der Verladung eingehen. Ist die PROFORMA verschickt, wird der Eingang FEST erwartet — der Betrag ist bis zur Verladung vorläufig (nicht verladene Ware → echte Rechnung kann abweichen). Ohne Proforma fehlt der Zahlungs-Trigger noch. Bereits versendete Aufträge zählen ausschließlich rechts (keine Doppelzählung).')}
                   ${hasInv
                     ? seg('var(--accent-red)', 'Rechnung offen · fällig', eur(invOffenSum),
                         `${fmtN(invOffen.length)} offene Rechnungen · exakt lt. Buchhaltung (account.move)${waMap && sentN > invOffen.length ? ` · <span style="color:var(--accent-orange);">⚠ WA meldet ${fmtN(sentN)} versendet-unbezahlt — Rechnungen prüfen</span>` : ''}`,
@@ -15131,14 +15141,19 @@ Keine Erklärungen, kein Markdown.`;
                 if (off < 7) sum7 += e.betrag; if (off < 14) sum14 += e.betrag; sum28 += e.betrag;
             });
             const maxSum = Math.max(...days.map(d => d.sum), 1);
-            // AUDIT V1 (16.07.): HART vs. WEICH — Rechnungen/gelieferte Ware sind
-            // rechtlich existente Forderungen; Vorkasse vor Lieferung ist UNVERBINDLICH
-            // (kein Anspruch, Kunde kann stornieren — siehe Storno-Quote-KPI).
-            let hartSum = 0, weichSum = 0;
-            entries.forEach(e => { if (e.typ === 'vorkasse') weichSum += e.betrag; else hartSum += e.betrag; });
-            const sq = dashboardState._stornoQuote30;
-            const typFarbe = { vorkasse: 'var(--accent-orange)', rechnung: 'var(--accent-green)', annahme: 'var(--accent-cyan)', unbekannt: 'var(--text-muted)' };
-            const typName = { vorkasse: 'Vorkasse +3T', rechnung: 'Rechnung+Ziel', annahme: 'Annahme Versand+14T', unbekannt: '?' };
+            // GESCHÄFTSREGEL (User 16.07., ersetzt „hart/weich"): DREI Verbindlichkeits-
+            // Stufen — (1) Rechnung/geliefert = exakte Forderung, (2) Vorkasse nach
+            // PROFORMA = Eingang wird FEST erwartet, Betrag bis Verladung vorläufig
+            // (Δ Proforma↔Rechnung bei nicht verladener Ware), (3) bestätigt OHNE
+            // Proforma = Zahlungs-Trigger noch nicht raus.
+            let rechSumV = 0, profSumV = 0, ohneProfSumV = 0;
+            entries.forEach(e => {
+                if (e.typ === 'vorkasse') profSumV += e.betrag;
+                else if (e.typ === 'vorkasseOffen') ohneProfSumV += e.betrag;
+                else rechSumV += e.betrag;
+            });
+            const typFarbe = { vorkasse: 'var(--accent-orange)', vorkasseOffen: 'var(--text-muted)', rechnung: 'var(--accent-green)', annahme: 'var(--accent-cyan)', unbekannt: 'var(--text-muted)' };
+            const typName = { vorkasse: 'Vorkasse n. Proforma +3T', vorkasseOffen: 'Proforma ausstehend', rechnung: 'Rechnung+Ziel', annahme: 'Annahme Versand+14T', unbekannt: '?' };
             const bars = days.map((d, i) => {
                 const dt = new Date(heute0); dt.setDate(dt.getDate() + i);
                 const lbl = i === 0 ? 'Heute' : (dt.getDate() === 1 || i % 7 === 0 ? `${dt.getDate()}.${dt.getMonth() + 1}.` : '');
@@ -15161,7 +15176,7 @@ Keine Erklärungen, kein Markdown.`;
                 <div style="display:flex;align-items:baseline;gap:1rem;flex-wrap:wrap;margin-bottom:0.6rem;">
                   <div style="font-size:0.6rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;">Zahlungs-Strahl — geplante Eingänge <span class="tb-chip">Stichtag → 28 T</span> <span class="vc-info" data-tip="Jeder offene Betrag aus dem Zahlungs-Radar bekommt einen erwarteten Eingangs-Termin: Vorkasse = Auftrags-Erstellung + 3 Tage (Bestätigungsdatum liefert der Export nicht). Rechnungskunden = Rechnungsdatum + Zahlungsziel-Tage, WENN beides im WA-Sheet gepflegt ist — sonst Annahme: Versand-/Anlieferdatum + 14 Tage Standard-Ziel (farblich getrennt). Ohne jedes Datum → „ohne Termin". Termine vor heute → Überfällig-Topf.">ⓘ</span></div>
                   <div style="font-size:0.72rem;font-family:var(--font-mono);color:var(--text-secondary);">7 Tage: <b>${eur(sum7)}</b> · 14 Tage: <b>${eur(sum14)}</b> · 28 Tage: <b>${eur(sum28)}</b></div>
-                  <div style="font-size:0.62rem;color:var(--text-secondary);">davon <span style="color:var(--accent-green);font-weight:700;">hart ${eur(hartSum)}</span> (Forderung existiert) · <span style="color:var(--accent-orange);font-weight:700;">weich ${eur(weichSum)}</span> (Vorkasse, unverbindlich${sq !== null && sq !== undefined ? ` — Storno-Quote 30 T: ${sq} %` : ''}) <span class="vc-info" data-tip="HART = versendete Ware bzw. gestellte Rechnung — die Forderung existiert rechtlich, der Eingang ist eine Termin-, keine Ob-Frage. WEICH = Vorkasse auf bestätigte, noch nicht versendete Aufträge — vor Lieferung besteht KEIN Zahlungsanspruch, der Kunde kann folgenlos abspringen. Für die Liquiditätsplanung nur den harten Anteil fest einplanen.">ⓘ</span></div>
+                  <div style="font-size:0.62rem;color:var(--text-secondary);"><span style="color:var(--accent-green);font-weight:700;">Rechnung/geliefert ${eur(rechSumV)}</span> (exakt) · <span style="color:var(--accent-orange);font-weight:700;">Vorkasse n. Proforma ${eur(profSumV)}</span> (fest erwartet, Betrag vorläufig)${ohneProfSumV > 0.01 ? ` · <span style="color:var(--text-muted);font-weight:700;">Proforma ausstehend ${eur(ohneProfSumV)}</span>` : ''} <span class="vc-info" data-tip="Drei Verbindlichkeits-Stufen: (1) RECHNUNG/GELIEFERT — Forderung existiert, Betrag und Termin exakt. (2) VORKASSE NACH PROFORMA — Zahlungsaufforderung ist raus, der Eingang wird laut Vorkasse-Regel FEST erwartet; der Betrag ist bis zur Verladung vorläufig, weil nicht verladene Ware die echte Rechnung noch verändern kann (Δ Proforma↔Rechnung). (3) PROFORMA AUSSTEHEND — Auftrag bestätigt, aber die Zahlungsaufforderung ist noch nicht verschickt. Fehlt die Spalte Proformas im Export, zählt alle Vorkasse als Stufe 2.">ⓘ</span></div>
                 </div>
                 <div style="display:flex;align-items:stretch;gap:0.8rem;">
                   ${topf.ueberfaellig.n ? `<div style="display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:2px;padding-right:0.8rem;border-right:1px dashed var(--border);" title="Termin lag vor heute — Eingang überfällig, nachfassen!">
@@ -15176,7 +15191,8 @@ Keine Erklärungen, kein Markdown.`;
                   </div>` : ''}
                 </div>
                 <div style="display:flex;gap:1.2rem;flex-wrap:wrap;font-size:0.55rem;color:var(--text-muted);margin-top:0.55rem;">
-                  ${chip('var(--accent-orange)', 'Vorkasse (+3 Tage ab Bestätigung)', 'Bestätigte, noch nicht versendete Aufträge — Vorkasse-Regel: Eingang binnen 3 Tagen erwartet. Termin ab Auftrags-Erstellungsdatum gerechnet (Bestätigungsdatum fehlt im Odoo-Export).')}
+                  ${chip('var(--accent-orange)', 'Vorkasse n. Proforma (+3 Tage)', 'Bestätigte, noch nicht versendete Aufträge MIT verschickter Proforma — Eingang wird fest erwartet (Vorkasse-Regel), Betrag bis Verladung vorläufig. Termin ab Auftrags-Erstellungsdatum gerechnet (Proforma-/Bestätigungsdatum fehlt im Export).')}
+                  ${chip('var(--text-muted)', 'Proforma ausstehend', 'Bestätigte Aufträge, für die noch KEINE Proforma verschickt ist — der Zahlungs-Trigger fehlt noch. To-do fürs Backoffice: Proforma raus, dann wandert der Betrag in die feste Erwartung.')}
                   ${chip('var(--accent-green)', 'Rechnung + Zahlungsziel', 'EXAKTE Termine: offene Rechnungen aus dem Odoo-Export account.move (fälliger Restbetrag am Fälligkeitsdatum) — bzw. ohne diesen Export: versendete Aufträge mit gepflegtem Rechnungsdatum + Zahlungsziel im WA-Sheet.')}
                   ${chip('var(--accent-cyan)', 'Annahme: Versand + 14 Tage', 'Versendete Aufträge OHNE Rechnungsdaten: Standard-Zahlungsziel 14 Tage ab Versand-/Anlieferdatum als Annahme — wird exakt, sobald Rechnungsdatum + Ziel im WA-Sheet stehen.')}
                   <span>Stichtagswerte · kein Zeitraum-Filter</span>
@@ -23817,6 +23833,7 @@ Keine Erklärungen, kein Markdown.`;
                     // Zahlungs-Spalte ehrlich ausweisen statt still „0 € eingegangen"
                     dashboardState.odooOrdersHasZahlung = (oZahlB !== undefined);
                     dashboardState.odooOrdersHasRechnungsstatus = (oRechSt !== undefined);
+                    dashboardState.odooOrdersHasProforma = (oProf !== undefined);
                     // AUDIT-FIX K2: Verkaufsdaten der bereits geladenen Odoo-Verkäufe auf
                     // Auftragsdatum umstellen + abhängige Aggregate neu rechnen
                     if (enrichOdooSaleDates()) {
