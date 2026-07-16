@@ -3716,6 +3716,9 @@
                             <div id="uebersicht-funnel" style="margin-bottom: 1rem;"></div>
                             <!-- ZAHLUNGS-RADAR (2026-07-10): voraussichtliche Zahlungseingänge -->
                             <div id="uebersicht-zahlungsradar" style="margin-bottom: 1rem;"></div>
+                            <!-- ZAHLUNGS-STRAHL (2026-07-16): geplante Eingänge auf der Zeitachse
+                                 (Vorkasse +3 Tage · Rechnungsdatum+Zahlungsziel · Annahme ab Versand) -->
+                            <div id="uebersicht-zahlungsstrahl" style="margin-bottom: 1rem;"></div>
                             <!-- WERTEKREIS-FIX (User-Befund 2026-07-03): Vorher standen hier „Lagerwert
                                  EK/VK" + „Marge-Potenzial" = ein DRITTER Wertekreis neben den zwei Kacheln
                                  (kaufmännischer Gesamtbestand inkl. Phantome, ohne Unklassifizierte) →
@@ -14900,15 +14903,23 @@ Keine Erklärungen, kein Markdown.`;
         //   2) VERSENDET, Zahlung offen: WA-Pipeline-Status; €-Wert über Auftrags-Match
         //      im Verkaufsregister (nur wo Match existiert — Coverage wird ausgewiesen)
         //   3) Vorkasse EINGEGANGEN auf offene Aufträge (Geld da, Lieferpflicht offen)
-        // Bewusst NICHT drin: gewichtete Angebots-Pipeline (keine Conversion-Datenbasis),
-        // Zahlungsziel-Terminrechnung (Spalte enthält Kürzel wie „ZZ", keine Daten).
+        // Bewusst NICHT drin: gewichtete Angebots-Pipeline (keine Conversion-Datenbasis).
+        // ZAHLUNGS-STRAHL (User 16.07.): Termin-Projektion je offenem Betrag —
+        //   Vorkasse: Auftrags-Erstellung + 3 Tage (Bestätigungsdatum fehlt im Export)
+        //   Rechnung: Rechnungsdatum + Zahlungsziel-Tage (WENN im WA-Sheet gepflegt —
+        //             Stand 07/2026 sind beide Spalten leer/Kürzel „ZZ")
+        //   Annahme:  Versand-/Anlieferdatum + 14 Tage Standard-Ziel (gekennzeichnet)
         // ============================================
         function renderZahlungsRadar() {
             const el = document.getElementById('uebersicht-zahlungsradar');
             if (!el) return;
             const orders = dashboardState.odooOrders || null;
             const waMap = dashboardState.waStatusMap || null;
-            if (!orders && !waMap) { el.innerHTML = ''; return; }
+            if (!orders && !waMap) { el.innerHTML = ''; _renderZahlungsStrahl([]); return; }
+            const ZZ_VORKASSE_TAGE = 3;    // Vorkasse-Regel: Eingang binnen 3 Tagen erwartet
+            const ZZ_ANNAHME_TAGE = 14;    // Standard-Zahlungsziel als Annahme, wenn Rechnungsdatum fehlt
+            const strahl = [];             // { root, betrag, due: Date|null, typ: vorkasse|rechnung|annahme|unbekannt }
+            const refErstellt = {};
             const eur = v => Number(v || 0).toLocaleString('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
             const fmtN = n => Number(n || 0).toLocaleString('de-DE');
             // DOPPEL-CHECK-FIX (2026-07-10): Ein bestätigter Auftrag, der laut WA bereits
@@ -14920,6 +14931,7 @@ Keine Erklärungen, kein Markdown.`;
             if (orders) orders.forEach(o => {
                 if (!/^verkaufsauftrag/i.test(o.status)) return;
                 offenByRef[o.ref] = Math.max(0, o.gesamt - o.zahlungsbetrag);
+                refErstellt[o.ref] = o.erstellt || null;
                 if (o.zahlungsbetrag > 0.01) { eing += o.zahlungsbetrag; eingN++; }
             });
             // 2) Versendet & Zahlung offen (WA) — € bevorzugt aus sale.order (exakter,
@@ -14937,8 +14949,21 @@ Keine Erklärungen, kein Markdown.`;
                     if (w.versendet && !w.bezahlt) {
                         sentN++;
                         sentRoots.add(root);
-                        if (offenByRef[root] !== undefined) { sentVK += offenByRef[root]; sentMatched++; }
-                        else if (ov[root]) { sentVK += ov[root]; sentMatched++; }
+                        let betrag = 0;
+                        if (offenByRef[root] !== undefined) { betrag = offenByRef[root]; sentVK += betrag; sentMatched++; }
+                        else if (ov[root]) { betrag = ov[root]; sentVK += betrag; sentMatched++; }
+                        // STRAHL: Termin — exakt (Rechnung+Ziel) › Annahme (Versand+14T) › offen
+                        const zielM = String(w.zahlungsziel || '').match(/(\d{1,3})/);
+                        const zielTage = zielM && +zielM[1] > 0 ? +zielM[1] : null;
+                        const rechDt = _parseAnyDate(w.rechnung);
+                        let due = null, typ = 'unbekannt';
+                        if (rechDt && zielTage !== null) {
+                            due = new Date(rechDt); due.setDate(due.getDate() + zielTage); typ = 'rechnung';
+                        } else {
+                            const vs = w.geplantDt || _parseAnyDate(w.anlieferung) || _parseAnyDate(w.kommTag);
+                            if (vs) { due = new Date(vs); due.setDate(due.getDate() + ZZ_ANNAHME_TAGE); typ = 'annahme'; }
+                        }
+                        if (betrag > 0.01) strahl.push({ root, betrag, due, typ });
                     } else if (w.versendet && w.bezahlt) {
                         // AUDIT-FIX 16.07.: versendet & laut WA bezahlt — auch wenn Odoos
                         // „Zahlungstransaktionen" die Banküberweisung nicht kennt (offen>0),
@@ -14949,10 +14974,17 @@ Keine Erklärungen, kein Markdown.`;
             }
             // 1) Vorkasse ausstehend = bestätigt & offen & NOCH NICHT versendet
             Object.keys(offenByRef).forEach(ref => {
-                if (offenByRef[ref] > 0.01 && !sentRoots.has(ref)) { ausst += offenByRef[ref]; ausstN++; }
+                if (offenByRef[ref] > 0.01 && !sentRoots.has(ref)) {
+                    ausst += offenByRef[ref]; ausstN++;
+                    // STRAHL: Vorkasse-Regel = Eingang binnen 3 Tagen ab Bestätigung
+                    // (Export liefert nur das Erstellungsdatum → als Näherung verwendet)
+                    let due = null;
+                    if (refErstellt[ref]) { due = new Date(refErstellt[ref]); due.setDate(due.getDate() + ZZ_VORKASSE_TAGE); due.setHours(0, 0, 0, 0); }
+                    strahl.push({ root: ref, betrag: offenByRef[ref], due, typ: 'vorkasse' });
+                }
             });
             const gesamtOffen = ausst + sentVK;
-            if (!ausstN && !sentN && !eingN) { el.innerHTML = ''; return; }
+            if (!ausstN && !sentN && !eingN) { el.innerHTML = ''; _renderZahlungsStrahl([]); return; }
             const seg = (dotColor, label, value, sub, tip) => `
                 <div style="flex:1; min-width:190px;">
                   <div style="display:flex;align-items:center;gap:0.4rem;font-size:0.6rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;"><span class="ds-dot" style="background:${dotColor};"></span>${label} <span class="vc-info" data-tip="${tip}">ⓘ</span></div>
@@ -14978,7 +15010,82 @@ Keine Erklärungen, kein Markdown.`;
                       orders ? `${fmtN(eingN)} (teil)bezahlte offene Aufträge · Lieferpflicht offen` : 'sale.order-Export laden',
                       'Bereits eingegangene Zahlungen auf noch offene bestätigte Aufträge: Geld ist da, die Ware muss noch raus (Verlade-Freigabe erteilt). Ein teilbezahlter Auftrag zählt hier mit seiner Zahlung UND links mit seinem Restbetrag — die Stückzahlen beider Segmente dürfen sich deshalb überschneiden, die €-Beträge nicht.')}
                 </div>
-                <div style="font-size:0.58rem;color:var(--text-muted);margin-top:0.5rem;">Quellen: ${quellen} · Stichtagswerte, kein Zeitraum-Filter · versendete Aufträge zählen nur einmal (unter „Versendet") · offene Angebote zählen bewusst nicht (keine Zusage)</div>
+                <div style="font-size:0.58rem;color:var(--text-muted);margin-top:0.5rem;">Quellen: ${quellen} · Stichtagswerte, kein Zeitraum-Filter · versendete Aufträge zählen nur einmal (unter „Versendet") · offene Angebote zählen bewusst nicht (keine Zusage)${orders && dashboardState.odooOrdersHasZahlung === false ? ' · <span style="color:var(--accent-orange);">⚠ Export ohne Spalte „Betrag der Zahlungstransaktionen" — Teilzahlungen unbekannt, „ausstehend" = volle Beträge, „eingegangen" = 0</span>' : ''}</div>
+              </div>`;
+            _renderZahlungsStrahl(strahl);
+        }
+
+        // ============================================
+        // ZAHLUNGS-STRAHL (2026-07-16, User-Wunsch): geplante Zahlungseingänge auf der
+        // Zeitachse — Überfällig-Topf · Tages-Balken 4 Wochen · Später · Ohne Termin.
+        // Termin-Güte je Auftrag farblich getrennt: Vorkasse (+3T ab Bestätigung≈Erstellung),
+        // Rechnung (Rechnungsdatum + Zahlungsziel, wenn im WA-Sheet gepflegt),
+        // Annahme (Versand-/Anlieferdatum + 14 Tage Standard-Ziel).
+        // ============================================
+        function _renderZahlungsStrahl(entries) {
+            const el = document.getElementById('uebersicht-zahlungsstrahl');
+            if (!el) return;
+            if (!entries || !entries.length) { el.innerHTML = ''; return; }
+            const eur = v => Number(v || 0).toLocaleString('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
+            const TAGE = 28;
+            const heute0 = new Date(); heute0.setHours(0, 0, 0, 0);
+            const days = Array.from({ length: TAGE }, () => ({ sum: 0, n: 0, typen: {} }));
+            const topf = { ueberfaellig: { sum: 0, n: 0 }, spaeter: { sum: 0, n: 0 }, offen: { sum: 0, n: 0 } };
+            let sum7 = 0, sum14 = 0, sum28 = 0, sumUeb = 0;
+            entries.forEach(e => {
+                if (!e.due) { topf.offen.sum += e.betrag; topf.offen.n++; return; }
+                const d0 = new Date(e.due); d0.setHours(0, 0, 0, 0);
+                const off = Math.round((d0 - heute0) / 86400000);
+                if (off < 0) { topf.ueberfaellig.sum += e.betrag; topf.ueberfaellig.n++; sumUeb += e.betrag; return; }
+                if (off >= TAGE) { topf.spaeter.sum += e.betrag; topf.spaeter.n++; return; }
+                days[off].sum += e.betrag; days[off].n++;
+                days[off].typen[e.typ] = (days[off].typen[e.typ] || 0) + e.betrag;
+                if (off < 7) sum7 += e.betrag; if (off < 14) sum14 += e.betrag; sum28 += e.betrag;
+            });
+            const maxSum = Math.max(...days.map(d => d.sum), 1);
+            const typFarbe = { vorkasse: 'var(--accent-orange)', rechnung: 'var(--accent-green)', annahme: 'var(--accent-cyan)', unbekannt: 'var(--text-muted)' };
+            const typName = { vorkasse: 'Vorkasse +3T', rechnung: 'Rechnung+Ziel', annahme: 'Annahme Versand+14T', unbekannt: '?' };
+            const bars = days.map((d, i) => {
+                const dt = new Date(heute0); dt.setDate(dt.getDate() + i);
+                const lbl = i === 0 ? 'Heute' : (dt.getDate() === 1 || i % 7 === 0 ? `${dt.getDate()}.${dt.getMonth() + 1}.` : '');
+                const isMon = dt.getDay() === 1;
+                const domTyp = Object.entries(d.typen).sort((a, b) => b[1] - a[1])[0];
+                const farbe = d.sum > 0 ? typFarbe[domTyp[0]] : 'var(--border)';
+                const h = d.sum > 0 ? Math.max(8, Math.round((d.sum / maxSum) * 52)) : 2;
+                const tip = d.sum > 0
+                    ? `${dt.toLocaleDateString('de-DE')}: ${eur(d.sum)} · ${d.n} Auftr. (${Object.entries(d.typen).map(([t, v]) => `${typName[t]} ${eur(v)}`).join(' · ')})`
+                    : dt.toLocaleDateString('de-DE');
+                return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;min-width:0;" title="${tip}">
+                    <div style="font-size:0.52rem;color:var(--text-muted);font-family:var(--font-mono);height:0.8rem;">${d.sum > 0 ? eur(d.sum).replace(/ €/, '') : ''}</div>
+                    <div style="width:70%;height:${h}px;background:${farbe};border-radius:2px;${isMon ? 'outline:1px solid var(--border);' : ''}"></div>
+                    <div style="font-size:0.5rem;color:var(--text-muted);height:0.7rem;white-space:nowrap;">${lbl}</div>
+                  </div>`;
+            }).join('');
+            const chip = (farbe, lbl, t) => `<span style="display:inline-flex;align-items:center;gap:0.3rem;"><span class="ds-dot" style="background:${farbe};"></span>${lbl}${t ? ` <span class="vc-info" data-tip="${t}">ⓘ</span>` : ''}</span>`;
+            el.innerHTML = `
+              <div style="background:var(--bg-elevated);border:1px solid var(--border);border-radius:12px;padding:0.85rem 1.1rem;">
+                <div style="display:flex;align-items:baseline;gap:1rem;flex-wrap:wrap;margin-bottom:0.6rem;">
+                  <div style="font-size:0.6rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;">Zahlungs-Strahl — geplante Eingänge <span class="vc-info" data-tip="Jeder offene Betrag aus dem Zahlungs-Radar bekommt einen erwarteten Eingangs-Termin: Vorkasse = Auftrags-Erstellung + 3 Tage (Bestätigungsdatum liefert der Export nicht). Rechnungskunden = Rechnungsdatum + Zahlungsziel-Tage, WENN beides im WA-Sheet gepflegt ist — sonst Annahme: Versand-/Anlieferdatum + 14 Tage Standard-Ziel (farblich getrennt). Ohne jedes Datum → „ohne Termin". Termine vor heute → Überfällig-Topf.">ⓘ</span></div>
+                  <div style="font-size:0.72rem;font-family:var(--font-mono);color:var(--text-secondary);">7 Tage: <b>${eur(sum7)}</b> · 14 Tage: <b>${eur(sum14)}</b> · 28 Tage: <b>${eur(sum28)}</b></div>
+                </div>
+                <div style="display:flex;align-items:stretch;gap:0.8rem;">
+                  ${topf.ueberfaellig.n ? `<div style="display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:2px;padding-right:0.8rem;border-right:1px dashed var(--border);" title="Termin lag vor heute — Eingang überfällig, nachfassen!">
+                    <div style="font-size:0.72rem;font-weight:700;font-family:var(--font-mono);color:var(--accent-red);">${eur(topf.ueberfaellig.sum)}</div>
+                    <div style="width:26px;height:40px;background:var(--accent-red);border-radius:2px;opacity:0.85;"></div>
+                    <div style="font-size:0.5rem;color:var(--accent-red);">ÜBERFÄLLIG (${topf.ueberfaellig.n})</div>
+                  </div>` : ''}
+                  <div style="flex:1;display:flex;align-items:flex-end;gap:1px;">${bars}</div>
+                  ${(topf.spaeter.n || topf.offen.n) ? `<div style="display:flex;flex-direction:column;justify-content:flex-end;gap:0.3rem;padding-left:0.8rem;border-left:1px dashed var(--border);font-size:0.55rem;color:var(--text-muted);white-space:nowrap;">
+                    ${topf.spaeter.n ? `<div title="Termin liegt mehr als 4 Wochen in der Zukunft">später: <b style="font-family:var(--font-mono);">${eur(topf.spaeter.sum)}</b> (${topf.spaeter.n})</div>` : ''}
+                    ${topf.offen.n ? `<div title="Kein Rechnungs-, Versand- oder Anlieferdatum vorhanden — Termin nicht bestimmbar. Rechnungsdatum + Zahlungsziel im WA-Sheet pflegen!">ohne Termin: <b style="font-family:var(--font-mono);">${eur(topf.offen.sum)}</b> (${topf.offen.n})</div>` : ''}
+                  </div>` : ''}
+                </div>
+                <div style="display:flex;gap:1.2rem;flex-wrap:wrap;font-size:0.55rem;color:var(--text-muted);margin-top:0.55rem;">
+                  ${chip('var(--accent-orange)', 'Vorkasse (+3 Tage ab Bestätigung)', 'Bestätigte, noch nicht versendete Aufträge — Vorkasse-Regel: Eingang binnen 3 Tagen erwartet. Termin ab Auftrags-Erstellungsdatum gerechnet (Bestätigungsdatum fehlt im Odoo-Export).')}
+                  ${chip('var(--accent-green)', 'Rechnung + Zahlungsziel', 'Versendete Aufträge mit gepflegtem Rechnungsdatum UND Zahlungsziel in Tagen (WA-Sheet) — exakter Termin.')}
+                  ${chip('var(--accent-cyan)', 'Annahme: Versand + 14 Tage', 'Versendete Aufträge OHNE Rechnungsdaten: Standard-Zahlungsziel 14 Tage ab Versand-/Anlieferdatum als Annahme — wird exakt, sobald Rechnungsdatum + Ziel im WA-Sheet stehen.')}
+                  <span>Stichtagswerte · kein Zeitraum-Filter</span>
+                </div>
               </div>`;
         }
 
@@ -15022,13 +15129,36 @@ Keine Erklärungen, kein Markdown.`;
             // Anzeige-Werte je Quelle (Auftragsebene bevorzugt, Geräte-Näherung als Fallback)
             let angSeg, bestSeg, fussnote;
             if (ord) {
-                angSeg = seg('var(--accent-orange)', 'Im Angebot', eur(ord.angebot.vk),
-                    `${fmtN(ord.angebot.n)} Aufträge · Stichtag heute`,
-                    'ECHTE Auftragsebene (Odoo sale.order): Summe „Gesamt" (Brutto inkl. MwSt) aller Aufträge im Status „Angebot" / „Angebot gesendet". Stornierte sind ausgeschlossen und unten ausgewiesen. Stichtagswert; Verlauf wird täglich im lokalen Archiv aufgezeichnet.');
-                bestSeg = seg('var(--accent-purple)', 'Auftrag bestätigt', eur(ord.bestaetigt.vk),
-                    `${fmtN(ord.bestaetigt.n)} Aufträge · Stichtag heute${ord.bestaetigt.proformaN > 0 ? ` · ${fmtN(ord.bestaetigt.proformaN)}× Proforma` : ''}${ord.bestaetigt.vorkasse > 0 ? ` · Vorkasse ${eur(ord.bestaetigt.vorkasse)}` : ''}`,
-                    'ECHTE Auftragsebene (Odoo sale.order): Status „Verkaufsauftrag" = bestätigt. „Gesamt" = Brutto inkl. MwSt. Proforma aus Spalte „Proformas", Vorkasse = Summe der Zahlungstransaktionen (euer Verlade-Gate).');
-                fussnote = `Quelle: Odoo-Aufträge (sale.order)${ord.storniert.n > 0 ? ` &nbsp;·&nbsp; Storniert (nicht im Funnel): ${fmtN(ord.storniert.n)} Aufträge · ${eur(ord.storniert.vk)}` : ''}${ord.sonstige.n > 0 ? ` · ${fmtN(ord.sonstige.n)} sonstige` : ''}`;
+                // FUNNEL-ZEITFILTER (User 16.07.): Bei aktivem Zeitraum-Fenster werden
+                // „Im Angebot" und „Auftrag bestätigt" zu FLOW-Werten — Aufträge, die
+                // IM FENSTER ERSTELLT wurden (Erstellungsdatum; Odoo-Export hat kein
+                // Bestätigungsdatum — Wunsch „Auftragsdatum" bleibt offen). „Alle Daten"
+                // = Stichtag-Bestand wie bisher. „Verrechnet" filtert weiterhin nach
+                // Verkaufsdatum — alle drei Stufen gehorchen demselben Dropdown.
+                const oo = dashboardState.odooOrders || [];
+                const flow = !!_fw;
+                let fAng = ord.angebot, fBest = ord.bestaetigt, fStor = ord.storniert;
+                if (flow && oo.length) {
+                    fAng = { n: 0, vk: 0 }; fBest = { n: 0, vk: 0, proformaN: 0, vorkasse: 0 }; fStor = { n: 0, vk: 0 };
+                    oo.forEach(o => {
+                        if (!o.erstellt || o.erstellt < _fw.from || o.erstellt > _fw.to) return;
+                        if (/^storniert/i.test(o.status)) { fStor.n++; fStor.vk += o.gesamt; }
+                        else if (/^angebot/i.test(o.status)) { fAng.n++; fAng.vk += o.gesamt; }
+                        else if (/^verkaufsauftrag/i.test(o.status)) {
+                            fBest.n++; fBest.vk += o.gesamt;
+                            if (o.proforma) fBest.proformaN++;
+                            fBest.vorkasse += o.zahlungsbetrag;
+                        }
+                    });
+                }
+                const modLbl = flow ? `erstellt ${_gfFormat(_fw.from)} – ${_gfFormat(_fw.to)}` : 'Stichtag heute';
+                angSeg = seg('var(--accent-orange)', 'Im Angebot', eur(fAng.vk),
+                    `${fmtN(fAng.n)} Aufträge · ${modLbl}`,
+                    'ECHTE Auftragsebene (Odoo sale.order): Summe „Gesamt" (Brutto inkl. MwSt) aller Aufträge im Status „Angebot" / „Angebot gesendet". Stornierte sind ausgeschlossen und unten ausgewiesen. Zeitraum-Filter aktiv: gezählt werden Aufträge, die IM FENSTER ERSTELLT wurden und HEUTE noch diesen Status haben (Flow-Sicht). „Alle Daten" = kompletter offener Bestand (Stichtag).');
+                bestSeg = seg('var(--accent-purple)', 'Auftrag bestätigt', eur(fBest.vk),
+                    `${fmtN(fBest.n)} Aufträge · ${modLbl}${fBest.proformaN > 0 ? ` · ${fmtN(fBest.proformaN)}× Proforma` : ''}${fBest.vorkasse > 0 ? ` · Vorkasse ${eur(fBest.vorkasse)}` : ''}`,
+                    'ECHTE Auftragsebene (Odoo sale.order): Status „Verkaufsauftrag" = bestätigt. „Gesamt" = Brutto inkl. MwSt. Zeitraum-Filter aktiv: Aufträge, die IM FENSTER ERSTELLT wurden (Odoo liefert kein Bestätigungsdatum — Erstellung als Näherung). Proforma aus Spalte „Proformas", Vorkasse = Summe der Zahlungstransaktionen (euer Verlade-Gate).');
+                fussnote = `Quelle: Odoo-Aufträge (sale.order)${flow ? ` · Fenster: ${modLbl}` : ''}${fStor.n > 0 ? ` &nbsp;·&nbsp; Storniert (nicht im Funnel${flow ? ', im Fenster' : ''}): ${fmtN(fStor.n)} Aufträge · ${eur(fStor.vk)}` : ''}${!flow && ord.sonstige.n > 0 ? ` · ${fmtN(ord.sonstige.n)} sonstige` : ''}`;
             } else {
                 angSeg = seg('var(--accent-orange)', 'Im Angebot', eur(ang.vk),
                     `${fmtN(ang.n)} Geräte · Stichtag heute${(ang.portalN||0)>0?` · davon ${fmtN(ang.portalN)} Portal-Alt (eingefroren)`:''}`,
@@ -15036,7 +15166,7 @@ Keine Erklärungen, kein Markdown.`;
                 bestSeg = seg('var(--accent-purple)', 'Auftrag bestätigt', eur(best.vk),
                     `${fmtN(best.n)} Geräte · Stichtag heute`,
                     'NÄHERUNG aus dem Gerätestatus: Odoo „Reserviert" = fest gebunden. Für echte Auftragswerte (inkl. Proforma/Vorkasse) den Odoo-Export „Verkaufsauftrag (sale.order)" laden.');
-                fussnote = 'Näherung aus Gerätestatus — Odoo-Export „Verkaufsauftrag (sale.order)" laden für echte Auftragswerte';
+                fussnote = 'Näherung aus Gerätestatus — Odoo-Export „Verkaufsauftrag (sale.order)" laden für echte Auftragswerte und den Zeitraum-Filter auf „Im Angebot"/„Bestätigt"';
             }
             el.innerHTML = `
               <div style="background:var(--bg-elevated);border:1px solid var(--border);border-radius:12px;padding:0.85rem 1.1rem;">
@@ -23477,6 +23607,9 @@ Keine Erklärungen, kein Markdown.`;
                     dashboardState.odooOrders = ooOrders;
                     dashboardState.odooOrdersLoaded = true;
                     dashboardState.funnelOrders = fo;
+                    // Ungefilterter Export (16.07.) hat weniger Spalten — fehlende
+                    // Zahlungs-Spalte ehrlich ausweisen statt still „0 € eingegangen"
+                    dashboardState.odooOrdersHasZahlung = (oZahlB !== undefined);
                     // AUDIT-FIX K2: Verkaufsdaten der bereits geladenen Odoo-Verkäufe auf
                     // Auftragsdatum umstellen + abhängige Aggregate neu rechnen
                     if (enrichOdooSaleDates()) {
