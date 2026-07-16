@@ -5655,6 +5655,7 @@
             // PHASE A (2026-07-02): Neue Welt zuerst — Odoo, Portal-Archive, CLV-Daten.
             // Vorher kannte die Erkennung nur die AMM-Alt-Welt; Odoo/Portal-Drops
             // wurden stillschweigend verworfen.
+            if (/journalbuchung|account[\s._-]?move/i.test(lower)) return 'odoo-invoices';
             if (/verkaufsauftrag|sale[\s._-]?order/i.test(lower)) return 'odoo-orders';
             // „odoo" allein reicht nicht (AUDIT 16.07.: „Odoo Sale Order.xlsx" wäre
             // sonst fälschlich odoo-stock geworden) — nur in Kombination mit lot/los/stock
@@ -5699,6 +5700,7 @@
                     const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: false, defval: '' });
                     const H = new Set((rows[0] || []).map(h => String(h || '').trim()));
                     if (H.has('Auftragsreferenz') && H.has('Rechnungsstatus')) return 'odoo-orders';
+                    if (H.has('Nummer') && H.has('Fälligkeitsdatum')) return 'odoo-invoices';
                     if (H.has('Lager-Code') && H.has('Verkaufsstatus')) return 'odoo-stock';
                     if (H.has('lager_number') && H.has('Buying_Price')) return 'stock-analysis';
                     if (H.has('Portal Buying Price') || (H.has('Lager Nr.') && H.has('Sold By'))) return 'all-sold';
@@ -6854,6 +6856,7 @@ Keine Erklärungen, kein Markdown.`;
             'wa-pipe':        { tier: 'yellow', label: '🟡 Gelb',  desc: 'Fulfillment-Pipeline: Auftrags+Versanddaten, teils Kundenbezug.' },
             'wa-status':      { tier: 'yellow', label: '🟡 Gelb',  desc: 'WA-Pipeline-Status: Auftrags-/Versand-/Zahlungsdaten mit Kundenbezug.' },
             'odoo-orders':    { tier: 'yellow', label: '🟡 Gelb',  desc: 'Odoo-Verkaufsaufträge: Auftrags-/Zahlungsdaten mit Kundenbezug.' },
+            'odoo-invoices':  { tier: 'yellow', label: '🟡 Gelb',  desc: 'Odoo-Rechnungen (account.move): Beträge, Fälligkeiten, Zahlungsstatus mit Kundenbezug.' },
             'auftrag-status': { tier: 'yellow', label: '🟡 Gelb',  desc: 'AUFTRAG_STATUS: Kundennamen + Land + Spediteur. Eingeschränkte PII.' },
             'planner':        { tier: 'yellow', label: '🟡 Gelb',  desc: 'Teams-Planner: Aufgaben + Notizen mit Kundenbezug.' },
             'jtl-sales':      { tier: 'red',    label: '🔴 Rot',   desc: 'JTL Sales: vollständige Verkaufsdaten mit Profit + Kundenbezug.' },
@@ -8379,6 +8382,7 @@ Keine Erklärungen, kein Markdown.`;
             'planner': 'PLANNER',
             'odoo-stock': 'ODOO (stock.lot)',
             'odoo-orders': 'ODOO AUFTRÄGE (sale.order)',
+            'odoo-invoices': 'ODOO RECHNUNGEN (account.move)',
             'all-sold': 'ALL SOLD (Portal)',
             'stock-analysis': 'STOCK-ANALYSIS (Portal)',
             'jtl-sales': 'JTL EXPORT',
@@ -14928,7 +14932,17 @@ Keine Erklärungen, kein Markdown.`;
             if (!el) return;
             const orders = dashboardState.odooOrders || null;
             const waMap = dashboardState.waStatusMap || null;
-            if (!orders && !waMap) { el.innerHTML = ''; _renderZahlungsStrahl([]); return; }
+            // ACCOUNT.MOVE (16.07.): Liegen echte Rechnungen vor, ist die Buchhaltung die
+            // AUTORITATIVE Forderungs-Quelle — Segment 2 + Rechnungs-Schiene im Strahl
+            // kommen dann exakt daher (fälliger Betrag, Fälligkeitsdatum) statt aus
+            // WA-Näherungen.
+            const invs = dashboardState.odooInvoices || null;
+            const invOffen = invs ? invs.filter(v => v.status !== 'Storniert' && v.faellig > 0.01) : [];
+            const hasInv = !!(invs && invs.length);
+            const invOffenSum = invOffen.reduce((a, v) => a + v.faellig, 0);
+            if (!orders && !waMap && !hasInv) { el.innerHTML = ''; _renderZahlungsStrahl([]); return; }
+            const hasRS = dashboardState.odooOrdersHasRechnungsstatus === true;
+            const fakturiertRefs = new Set();
             const ZZ_VORKASSE_TAGE = 3;    // Vorkasse-Regel: Eingang binnen 3 Tagen erwartet
             const ZZ_ANNAHME_TAGE = 14;    // Standard-Zahlungsziel als Annahme, wenn Rechnungsdatum fehlt
             const strahl = [];             // { root, betrag, due: Date|null, typ: vorkasse|rechnung|annahme|unbekannt }
@@ -14945,6 +14959,8 @@ Keine Erklärungen, kein Markdown.`;
                 if (!/^verkaufsauftrag/i.test(o.status)) return;
                 offenByRef[o.ref] = Math.max(0, o.gesamt - o.zahlungsbetrag);
                 refErstellt[o.ref] = o.erstellt || null;
+                if (hasRS && (/komplett abgerechnet/i.test(o.rechnungsstatus || '') || (o.bereitsAbgerechnet || 0) > 0.01))
+                    fakturiertRefs.add(o.ref);   // fakturiert = Rechnungs-Welt, KEINE Vorkasse
                 if (o.zahlungsbetrag > 0.01) { eing += o.zahlungsbetrag; eingN++; }
             });
             // 2) Versendet & Zahlung offen (WA) — € bevorzugt aus sale.order (exakter,
@@ -14965,18 +14981,22 @@ Keine Erklärungen, kein Markdown.`;
                         let betrag = 0;
                         if (offenByRef[root] !== undefined) { betrag = offenByRef[root]; sentVK += betrag; sentMatched++; }
                         else if (ov[root]) { betrag = ov[root]; sentVK += betrag; sentMatched++; }
-                        // STRAHL: Termin — exakt (Rechnung+Ziel) › Annahme (Versand+14T) › offen
-                        const zielM = String(w.zahlungsziel || '').match(/(\d{1,3})/);
-                        const zielTage = zielM && +zielM[1] > 0 ? +zielM[1] : null;
-                        const rechDt = _parseAnyDate(w.rechnung);
-                        let due = null, typ = 'unbekannt';
-                        if (rechDt && zielTage !== null) {
-                            due = new Date(rechDt); due.setDate(due.getDate() + zielTage); typ = 'rechnung';
-                        } else {
-                            const vs = w.geplantDt || _parseAnyDate(w.anlieferung) || _parseAnyDate(w.kommTag);
-                            if (vs) { due = new Date(vs); due.setDate(due.getDate() + ZZ_ANNAHME_TAGE); typ = 'annahme'; }
+                        // STRAHL: NUR ohne account.move-Rechnungen (sonst kommt die
+                        // Forderungs-Schiene EXAKT aus der Buchhaltung — keine Doppelzählung).
+                        // Termin — exakt (Rechnung+Ziel aus WA) › Annahme (Versand+14T) › offen
+                        if (!hasInv) {
+                            const zielM = String(w.zahlungsziel || '').match(/(\d{1,3})/);
+                            const zielTage = zielM && +zielM[1] > 0 ? +zielM[1] : null;
+                            const rechDt = _parseAnyDate(w.rechnung);
+                            let due = null, typ = 'unbekannt';
+                            if (rechDt && zielTage !== null) {
+                                due = new Date(rechDt); due.setDate(due.getDate() + zielTage); typ = 'rechnung';
+                            } else {
+                                const vs = w.geplantDt || _parseAnyDate(w.anlieferung) || _parseAnyDate(w.kommTag);
+                                if (vs) { due = new Date(vs); due.setDate(due.getDate() + ZZ_ANNAHME_TAGE); typ = 'annahme'; }
+                            }
+                            if (betrag > 0.01) strahl.push({ root, betrag, due, typ });
                         }
-                        if (betrag > 0.01) strahl.push({ root, betrag, due, typ });
                     } else if ((w.versendet && w.bezahlt) || /^ja/i.test(String(w.abgeschlossen || ''))) {
                         // AUDIT-FIX 16.07.: versendet & laut WA bezahlt ODER als abgeschlossen
                         // markiert — auch wenn Odoos „Zahlungstransaktionen" die Bank-
@@ -14986,9 +15006,10 @@ Keine Erklärungen, kein Markdown.`;
                     }
                 });
             }
-            // 1) Vorkasse ausstehend = bestätigt & offen & NOCH NICHT versendet
+            // 1) Vorkasse ausstehend = bestätigt & offen & NOCH NICHT versendet & NICHT
+            //    fakturiert (fakturierte Aufträge gehören zur Rechnungs-Welt, Segment 2)
             Object.keys(offenByRef).forEach(ref => {
-                if (offenByRef[ref] > 0.01 && !sentRoots.has(ref)) {
+                if (offenByRef[ref] > 0.01 && !sentRoots.has(ref) && !fakturiertRefs.has(ref)) {
                     ausst += offenByRef[ref]; ausstN++;
                     // STRAHL: Vorkasse-Regel = Eingang binnen 3 Tagen ab Bestätigung
                     // (Export liefert nur das Erstellungsdatum → als Näherung verwendet)
@@ -14997,15 +15018,17 @@ Keine Erklärungen, kein Markdown.`;
                     strahl.push({ root: ref, betrag: offenByRef[ref], due, typ: 'vorkasse' });
                 }
             });
-            const gesamtOffen = ausst + sentVK;
-            if (!ausstN && !sentN && !eingN) { el.innerHTML = ''; _renderZahlungsStrahl([]); return; }
+            // 2b) ECHTE RECHNUNGEN (account.move): exakte Fälligkeiten in den Strahl
+            if (hasInv) invOffen.forEach(v => strahl.push({ root: v.nummer, betrag: v.faellig, due: v.faelligkeit, typ: 'rechnung' }));
+            const gesamtOffen = ausst + (hasInv ? invOffenSum : sentVK);
+            if (!ausstN && !sentN && !eingN && !invOffen.length) { el.innerHTML = ''; _renderZahlungsStrahl([]); return; }
             const seg = (dotColor, label, value, sub, tip) => `
                 <div style="flex:1; min-width:190px;">
                   <div style="display:flex;align-items:center;gap:0.4rem;font-size:0.6rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;"><span class="ds-dot" style="background:${dotColor};"></span>${label} <span class="vc-info" data-tip="${tip}">ⓘ</span></div>
                   <div style="font-size:1.35rem;font-weight:700;font-family:var(--font-mono);line-height:1.2;">${value}</div>
                   <div style="font-size:0.62rem;color:var(--text-muted);">${sub}</div>
                 </div>`;
-            const quellen = [orders ? 'Odoo-Aufträge' : null, waMap ? 'WA-Pipeline' : null].filter(Boolean).join(' + ');
+            const quellen = [orders ? 'Odoo-Aufträge' : null, hasInv ? 'Rechnungen (account.move)' : null, waMap ? 'WA-Pipeline' : null].filter(Boolean).join(' + ');
             el.innerHTML = `
               <div style="background:var(--bg-elevated);border:1px solid var(--border);border-radius:12px;padding:0.85rem 1.1rem;">
                 <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap;">
@@ -15017,9 +15040,13 @@ Keine Erklärungen, kein Markdown.`;
                   ${seg('var(--accent-orange)', 'Vorkasse ausstehend', orders ? eur(ausst) : '—',
                       orders ? `${fmtN(ausstN)} bestätigte Aufträge · noch nicht versendet · vor Verladung fällig` : 'sale.order-Export laden',
                       'Bestätigte Odoo-Aufträge (Status „Verkaufsauftrag"), die laut WA-Pipeline NOCH NICHT versendet sind: Gesamt (Brutto) minus bereits eingegangener Zahlungen. Muss laut Vorkasse-Regel VOR der Verladung eingehen — kurzfristig erwartbar. Bereits versendete Aufträge zählen ausschließlich rechts unter „Versendet · Zahlung offen" (keine Doppelzählung).')}
-                  ${seg('var(--accent-red)', 'Versendet · Zahlung offen', waMap ? (sentVK > 0 ? eur(sentVK) : `${fmtN(sentN)} Aufträge`) : '—',
-                      waMap ? `${fmtN(sentN)} Aufträge${sentN > 0 ? ` · €-Wert für ${fmtN(sentMatched)}/${fmtN(sentN)} ermittelbar` : ''}` : 'WA-Pipeline-CSV laden',
-                      'Aufträge mit WA-Status „Versendet — Zahlung offen": Ware ist raus, Geld noch nicht da (echte Forderung). €-Wert über Auftrags-Match im Verkaufsregister — nur für gematchte Aufträge summierbar, Abdeckung wird angezeigt.')}
+                  ${hasInv
+                    ? seg('var(--accent-red)', 'Rechnung offen · fällig', eur(invOffenSum),
+                        `${fmtN(invOffen.length)} offene Rechnungen · exakt lt. Buchhaltung (account.move)${waMap && sentN > invOffen.length ? ` · <span style="color:var(--accent-orange);">⚠ WA meldet ${fmtN(sentN)} versendet-unbezahlt — Rechnungen prüfen</span>` : ''}`,
+                        'EXAKT aus den Odoo-Rechnungen (account.move): Summe der fälligen Restbeträge aller offenen, nicht stornierten Rechnungen. Fälligkeitstermine stehen im Zahlungs-Strahl darunter. Meldet die WA-Pipeline MEHR versendete unbezahlte Aufträge als offene Rechnungen existieren, wurde für Sendungen evtl. noch keine Rechnung gestellt — Hinweis erscheint.')
+                    : seg('var(--accent-red)', 'Versendet · Zahlung offen', waMap ? (sentVK > 0 ? eur(sentVK) : `${fmtN(sentN)} Aufträge`) : '—',
+                        waMap ? `${fmtN(sentN)} Aufträge${sentN > 0 ? ` · €-Wert für ${fmtN(sentMatched)}/${fmtN(sentN)} ermittelbar` : ''}` : 'WA-Pipeline-CSV laden',
+                        'Aufträge mit WA-Status „Versendet — Zahlung offen": Ware ist raus, Geld noch nicht da (echte Forderung). €-Wert über Auftrags-Match im Verkaufsregister — nur für gematchte Aufträge summierbar, Abdeckung wird angezeigt. Exakter wird es mit dem Rechnungs-Export (account.move).')}
                   ${seg('var(--accent-cyan)', 'Vorkasse eingegangen', orders ? eur(eing) : '—',
                       orders ? `${fmtN(eingN)} (teil)bezahlte offene Aufträge · Lieferpflicht offen` : 'sale.order-Export laden',
                       'Bereits eingegangene Zahlungen auf noch offene bestätigte Aufträge: Geld ist da, die Ware muss noch raus (Verlade-Freigabe erteilt). Ein teilbezahlter Auftrag zählt hier mit seiner Zahlung UND links mit seinem Restbetrag — die Stückzahlen beider Segmente dürfen sich deshalb überschneiden, die €-Beträge nicht.')}
@@ -15096,7 +15123,7 @@ Keine Erklärungen, kein Markdown.`;
                 </div>
                 <div style="display:flex;gap:1.2rem;flex-wrap:wrap;font-size:0.55rem;color:var(--text-muted);margin-top:0.55rem;">
                   ${chip('var(--accent-orange)', 'Vorkasse (+3 Tage ab Bestätigung)', 'Bestätigte, noch nicht versendete Aufträge — Vorkasse-Regel: Eingang binnen 3 Tagen erwartet. Termin ab Auftrags-Erstellungsdatum gerechnet (Bestätigungsdatum fehlt im Odoo-Export).')}
-                  ${chip('var(--accent-green)', 'Rechnung + Zahlungsziel', 'Versendete Aufträge mit gepflegtem Rechnungsdatum UND Zahlungsziel in Tagen (WA-Sheet) — exakter Termin.')}
+                  ${chip('var(--accent-green)', 'Rechnung + Zahlungsziel', 'EXAKTE Termine: offene Rechnungen aus dem Odoo-Export account.move (fälliger Restbetrag am Fälligkeitsdatum) — bzw. ohne diesen Export: versendete Aufträge mit gepflegtem Rechnungsdatum + Zahlungsziel im WA-Sheet.')}
                   ${chip('var(--accent-cyan)', 'Annahme: Versand + 14 Tage', 'Versendete Aufträge OHNE Rechnungsdaten: Standard-Zahlungsziel 14 Tage ab Versand-/Anlieferdatum als Annahme — wird exakt, sobald Rechnungsdatum + Ziel im WA-Sheet stehen.')}
                   <span>Stichtagswerte · kein Zeitraum-Filter</span>
                 </div>
@@ -23681,6 +23708,52 @@ Keine Erklärungen, kein Markdown.`;
                     console.info(`[Odoo-Orders] ${ooOrders.length} Aufträge · Angebot ${fo.angebot.n}/${Math.round(fo.angebot.vk)}€ · Bestätigt ${fo.bestaetigt.n}/${Math.round(fo.bestaetigt.vk)}€ (Proforma ${fo.bestaetigt.proformaN}, Vorkasse ${Math.round(fo.bestaetigt.vorkasse)}€) · Storniert ${fo.storniert.n}/${Math.round(fo.storniert.vk)}€ · Sonstige ${fo.sonstige.n}`);
                     if (ooDupes) { console.warn(`[Odoo-Orders] ${ooDupes} doppelte Auftragsreferenzen übersprungen (Export prüfen!)`); showToast('warning', 'Doppelte Aufträge im Export', `${ooDupes} doppelte Auftragsreferenzen übersprungen — zusammenkopierte Dateien?`, 6000); }
                     try { updateAnalyseKPIs(); } catch (e) { console.warn('[Odoo-Orders] KPI-Render', e); }
+
+                } else if (type === 'odoo-invoices') {
+                    // ====== ODOO RECHNUNGEN (account.move, 2026-07-16) ======
+                    // Die ECHTE Forderungs-Welt: Rechnungsnummer, Fälligkeitsdatum,
+                    // fälliger Restbetrag, Zahlungsstatus (Gesendet/Bezahlt/Storniert).
+                    // Autoritative Quelle für Zahlungs-Radar Segment „Rechnung offen"
+                    // und die grüne Rechnungs-Schiene im Zahlungs-Strahl (exakte Termine
+                    // statt 14-Tage-Annahme). Tagesdatei — nicht archiviert.
+                    const invSheet = workbook.Sheets[workbook.SheetNames[0]];
+                    const invData = XLSX.utils.sheet_to_json(invSheet, { header: 1, raw: true, defval: '' });
+                    const invHdr = (invData[0] || []).map(h => (h || '').toString().trim());
+                    const HI = {}; invHdr.forEach((h, i) => { HI[h] = i; });
+                    const _hFind = (needle) => { const k = invHdr.find(h => h.toLowerCase().includes(needle)); return k !== undefined ? HI[k] : undefined; };
+                    const iNum = HI['Nummer'], iPart = _hFind('rechnungspartner'),
+                          iRechDat = _hFind('rechnungsdatum'), iFaellDat = HI['Fälligkeitsdatum'],
+                          iTotal = _hFind('insgesamt'), iFaellig = _hFind('fälliger betrag'),
+                          iStatus = _hFind('in zahlung'), iGesendet = HI['Gesendet'];
+                    if (iNum === undefined || iFaellDat === undefined || iFaellig === undefined) {
+                        throw new Error('Spalten "Nummer"/"Fälligkeitsdatum"/"Fälliger Betrag" nicht gefunden — ist das der account.move-Export?');
+                    }
+                    const invoices = [];
+                    for (let i = 1; i < invData.length; i++) {
+                        const row = invData[i]; if (!row) continue;
+                        const num = (row[iNum] || '').toString().trim();
+                        if (!num) continue;
+                        invoices.push({
+                            nummer: num,
+                            partner: iPart !== undefined ? (row[iPart] || '').toString().trim() : '',
+                            rechnungsdatum: iRechDat !== undefined ? _parseAnyDate(row[iRechDat]) : null,
+                            faelligkeit: _parseAnyDate(row[iFaellDat]),
+                            gesamt: iTotal !== undefined ? (parseFloat(row[iTotal]) || 0) : 0,
+                            faellig: parseFloat(row[iFaellig]) || 0,
+                            status: iStatus !== undefined ? (row[iStatus] || '').toString().trim() : '',
+                            gesendet: iGesendet !== undefined ? (row[iGesendet] || '').toString().trim() : ''
+                        });
+                    }
+                    const invOffen = invoices.filter(v => v.status !== 'Storniert' && v.faellig > 0.01);
+                    const invOffenSum = invOffen.reduce((a, v) => a + v.faellig, 0);
+                    dashboardState.odooInvoices = invoices;
+                    dashboardState.odooInvoicesLoaded = true;
+                    console.info(`[Odoo-Rechnungen] ${invoices.length} Rechnungen · ${invOffen.length} offen (${Math.round(invOffenSum)} € fällig) · ${invoices.filter(v => v.status === 'Bezahlt').length} bezahlt · ${invoices.filter(v => v.status === 'Storniert').length} storniert`);
+                    if (statusEl) {
+                        statusEl.textContent = `✓ ${invoices.length} Rechnungen · ${invOffen.length} offen (${invOffenSum.toLocaleString('de-DE', { maximumFractionDigits: 0 })} €)`;
+                        statusEl.style.color = 'var(--accent-green)';
+                    }
+                    try { updateAnalyseKPIs(); } catch (e) { console.warn('[Odoo-Rechnungen] KPI-Render', e); }
 
                 } else if (type === 'pipeline') {
                     // ====== AUFTRAG_STATUS (AMM-Pipeline-Datei, täglich) ======
