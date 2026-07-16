@@ -14165,7 +14165,8 @@ Keine Erklärungen, kein Markdown.`;
             
             allLagerNrs.forEach(lnr => {
                 const lagerNr = String(lnr || '').trim();
-                if (/^9\d{8}$/.test(lagerNr)) {
+                // Sub-Keys 9XXXXXXXX.001 = eigene Sammel-Nr-Konvention (Herdsets) → gültig
+                if (/^9\d{8}(\.\d{3})?$/.test(lagerNr)) {
                     validFormatCount++;
                 } else if (lagerNr && lagerNr.length > 0) {
                     diskrepanzen.push({
@@ -14542,7 +14543,11 @@ Keine Erklärungen, kein Markdown.`;
             const qeUnsold = { count:0, ek:0, vk:0, frei:0, reserviert:0, unklassifiziert:0, ohnePreis:0 };
 
             for (const ln of uni) {
-                const amm = ammStatus.get(ln) || null;
+                // SAMMEL-LAGER-NRN (Herdsets, 2026-07-14): Odoo-Komponenten tragen Sub-Keys
+                // (900248737.001 …), AMM führt nur die physische Basis-Nr (1 Palette).
+                // Root-Fallback: Komponenten erben den AMM-Status der Sammel-Palette,
+                // sonst würden sie fälschlich als Phantom-Bestand gemeldet.
+                const amm = ammStatus.get(ln) || (ln.includes('.') ? ammStatus.get(ln.split('.')[0]) : null) || null;
                 const inO = odooStockSet.has(ln);
                 const oAvail = inO && oStock[ln] && oStock[ln].isAvailable;
                 const pAvail = portalStockSet.has(ln) && pStock[ln] && pStock[ln].isAvailable;
@@ -22376,7 +22381,9 @@ Keine Erklärungen, kein Markdown.`;
             const raw=[];
             for (const lagerNr in merged) {
                 const item = merged[lagerNr];
-                const _we = _weMap.get(String(lagerNr).trim());
+                const _ln = String(lagerNr).trim();
+                // Sammel-Sub-Keys (900248737.001 …) erben das WE-Datum der Basis-Palette
+                const _we = _weMap.get(_ln) || (_ln.includes('.') ? _weMap.get(_ln.split('.')[0]) : undefined);
                 if (_we) {
                     item.lifeDays = Math.max(0, Math.floor((_nowTs - _we.getTime()) / 86400000));
                     item.weDatum = _we.toLocaleDateString('de-DE');
@@ -23162,7 +23169,7 @@ Keine Erklärungen, kein Markdown.`;
                     const _leaf = s => (s || '').toString().split('/').pop().trim();
                     const odooMap = {};
                     const odooKnown = new Set();   // ALLE Odoo-Lager-Nrn inkl. Verkauft → Odoo entscheidet darüber
-                    let soldSkipped = 0, rows = 0; const statusSeen = {};
+                    let soldSkipped = 0, rows = 0, sammelCount = 0; const statusSeen = {};
                     for (let i = 1; i < data.length; i++) {
                         const row = data[i];
                         if (!row || row.length < 3) continue;
@@ -23219,7 +23226,20 @@ Keine Erklärungen, kein Markdown.`;
                         const dStr = (cPool !== undefined && row[cPool]) ? row[cPool] : (cErst !== undefined ? row[cErst] : '');
                         const d = _parseAnyDate(dStr);
                         const lifeDays = d ? Math.max(0, Math.floor((_now - d) / 86400000)) : 0;
-                        odooMap[lagerNr] = {
+                        // SAMMEL-LAGER-NUMMERN (User-Befund „Herdsets fehlen", 2026-07-14):
+                        // Odoo führt Set-/Mehrfachware unter EINEM Lager-Code mit mehreren
+                        // Los-Nummern (z. B. 900248737 = 12 Herdset-Komponenten). Der Map-Key
+                        // hätte alle bis auf die letzte Zeile ÜBERSCHRIEBEN → Geräte
+                        // verschwanden aus Bestand/Kacheln/Warengruppen. Fix: erste Zeile
+                        // behält den Basis-Key, weitere bekommen Sub-Keys .001/.002 …
+                        let mapKey = lagerNr;
+                        if (odooMap[mapKey] !== undefined) {
+                            let sfx = 1;
+                            while (odooMap[`${lagerNr}.${String(sfx).padStart(3, '0')}`] !== undefined) sfx++;
+                            mapKey = `${lagerNr}.${String(sfx).padStart(3, '0')}`;
+                            sammelCount++;
+                        }
+                        odooMap[mapKey] = {
                             ek: parseFloat(row[cEK]) || 0,
                             vk: parseFloat(row[cVK]) || 0,
                             pg: _leaf(row[cKat]).toLowerCase(),
@@ -23234,10 +23254,13 @@ Keine Erklärungen, kein Markdown.`;
                             supplyType: lief,
                             onlinePrice: cVKrab !== undefined ? (parseFloat(row[cVKrab]) || 0) : 0,
                             usage,
-                            _src: 'Odoo'
+                            _src: 'Odoo',
+                            _lagerBasis: lagerNr,          // physische Sammel-Nr (= AMM-Palette)
+                            _sammel: mapKey !== lagerNr    // true = Komponente einer Sammel-Nr
                         };
                     }
                     console.info('[Odoo] Verkaufsstatus:', Object.entries(statusSeen).map(([k, v]) => `${k}:${v}`).join(' · '), `· ${soldSkipped} Verkauft ausgeschlossen`);
+                    if (sammelCount > 0) console.info(`[Odoo] ${sammelCount} Geräte unter Sammel-Lager-Nrn (Sets/Mehrfachware) → Sub-Keys .001/.002 … vergeben, nichts geht verloren.`);
                     dashboardState._stockSrcOdoo = odooMap;
                     dashboardState._stockSrcOdooKnown = odooKnown;
                     dashboardState._stockOdooRows = rows;

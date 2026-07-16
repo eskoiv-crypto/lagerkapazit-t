@@ -104,6 +104,9 @@
     <tr><td>Kunden-Stammdaten</td><td>CSV</td><td>Kontaktdaten für die Reaktivierung</td><td>einmalig → Archiv</td></tr>
 </table>
 
+<h3>Sammel-Lager-Nummern (Herd-Sets &amp; Mehrfachware)</h3>
+<p>Odoo führt Set-Ware (z.&nbsp;B. Herd-Sets) teils unter <b>einer</b> Lager-Nummer mit mehreren Los-Nummern — eine physische Palette, mehrere verkaufbare Geräte. Das Cockpit vergibt dafür automatisch Unter-Nummern: <code>900248737</code>, <code>900248737.001</code>, <code>900248737.002</code>&nbsp;… So zählt <b>jedes Gerät einzeln</b> in Bestand, Warenwert und Warengruppen — nichts wird verschluckt. Die Unter-Nummern erben Lagerstatus (QE) und Wareneingangsdatum der Basis-Palette aus dem AMM; im AMM selbst existiert weiterhin nur die Basis-Nummer. Die Konsole meldet beim Laden, wie viele Geräte so aufgelöst wurden.</p>
+
 <h3>Wo liegen die Dateien? (Teams/SharePoint)</h3>
 <p>Alle Exporte liegen im Teams-Ordner <b>PlattformenTeams › … › KI-Tools › Lager_Sales Dashboard</b>, sortiert nach Rhythmus: <code>01 TÄGLICH HOCHLADEN</code> (Odoo · BESTAND134 · AUFTRAG_STATUS), <code>02 BEI BEDARF</code> (Portal Stock-Analysis · All-Sold · JTL Export), <code>03 EINMALIG</code> (JTL 4-Jahre · Kundenstammdaten). In jedem Ordner erklärt eine <code>_INFO</code>-Datei, welche Datei dort hingehört und woher der Export stammt — die Übersicht steht in <code>_LIESMICH — ORDNERSTRUKTUR.txt</code>.</p>
 
