@@ -5652,21 +5652,25 @@
             // PHASE A (2026-07-02): Neue Welt zuerst — Odoo, Portal-Archive, CLV-Daten.
             // Vorher kannte die Erkennung nur die AMM-Alt-Welt; Odoo/Portal-Drops
             // wurden stillschweigend verworfen.
-            if (/verkaufsauftrag|sale[._-]?order/i.test(lower)) return 'odoo-orders';
-            if (/losserie|stock[._-]?lot|odoo/i.test(lower)) return 'odoo-stock';
+            if (/verkaufsauftrag|sale[\s._-]?order/i.test(lower)) return 'odoo-orders';
+            // „odoo" allein reicht nicht (AUDIT 16.07.: „Odoo Sale Order.xlsx" wäre
+            // sonst fälschlich odoo-stock geworden) — nur in Kombination mit lot/los/stock
+            if (/losserie|stock[._-]?lot|odoo.*(lot|los|stock)|(lot|los|stock).*odoo/i.test(lower)) return 'odoo-stock';
             if (/all[_-]?sold/i.test(lower)) return 'all-sold';
             if (/stock[_-]?analysis/i.test(lower)) return 'stock-analysis';
             if (/kundenstamm|stammdaten/i.test(lower) && isCsv) return 'stamm';
             if (/ab[_-]?2022|4[_-]?jahre|jtl[_-]?4y/i.test(lower) && isCsv) return 'jtl4y';
             if (/auftrag[_-]?status/i.test(lower)) return 'pipeline';
 
+            // WA-PIPELINE-STATUS (Teams-Sheet „20 WA PIPELINE" als CSV) — MUSS vor
+            // ALLEN wa-Regeln stehen (AUDIT 16.07.: /^wa[_-]/ hätte „WA_PIPELINE.csv"
+            // als wa-ist gefressen → Müll-Stückzahlen in der Effizienz-Historie).
+            // Auch Leerzeichen-Varianten („20 WA PIPELINE.csv") abdecken.
+            if (/max[\s_-]?status|wa[\s_-]?pipeline/i.test(lower) && isCsv) return 'wa-status';
             if (/bestand/i.test(lower)) return 'bestand';
             if (/^we[_-]/i.test(lower) && isCsv) return 'we-ist';
             if (/^wa[_-]/i.test(lower) && isCsv) return 'wa-ist';
             if (/wareneingang|we.?pipe/i.test(lower)) return 'we-pipe';
-            // WA-PIPELINE-STATUS (Teams-Sheet „20 WA PIPELINE" als CSV) — MUSS vor der
-            // alten wa-pipe-Regel stehen, sonst frisst die den Dateinamen.
-            if (/max[_-]?status|wa[_-]?pipeline/i.test(lower) && isCsv) return 'wa-status';
             if (/fulfilment|fulfillment|wa.?pipe/i.test(lower)) return 'wa-pipe';
             if (/status|auftrag.*status/i.test(lower)) return 'auftrag-status';
             if (/planner|aufgaben/i.test(lower)) return 'planner';
@@ -5766,7 +5770,7 @@
             container.style.display = 'block';
             
             const today = new Date();
-            const todayStr = today.toISOString().split('T')[0];
+            const todayStr = _localYMD(today);
             
             // Finde nächsten verfügbaren Snapshot zu "heute"
             const latestSnapshot = snapshots[dates[0]];
@@ -5836,7 +5840,7 @@
         }
         
         function findClosestSnapshot(snapshots, targetDate) {
-            const targetStr = targetDate.toISOString().split('T')[0];
+            const targetStr = _localYMD(targetDate);
             const dates = Object.keys(snapshots).sort();
             
             // Exakter Match
@@ -5846,12 +5850,12 @@
             for (let i = 1; i <= 3; i++) {
                 const before = new Date(targetDate);
                 before.setDate(before.getDate() - i);
-                const beforeStr = before.toISOString().split('T')[0];
+                const beforeStr = _localYMD(before);
                 if (snapshots[beforeStr]) return snapshots[beforeStr];
                 
                 const after = new Date(targetDate);
                 after.setDate(after.getDate() + i);
-                const afterStr = after.toISOString().split('T')[0];
+                const afterStr = _localYMD(after);
                 if (snapshots[afterStr]) return snapshots[afterStr];
             }
             
@@ -7115,7 +7119,7 @@ Keine Erklärungen, kein Markdown.`;
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = `audit_log_${new Date().toISOString().split('T')[0]}.csv`;
+                a.download = `audit_log_${_localTodayYMD()}.csv`;
                 a.click();
                 setTimeout(() => URL.revokeObjectURL(url), 1000);
                 if (typeof showToast === 'function') showToast('success', 'Audit-Log', `${events.length} Events exportiert`);
@@ -7533,7 +7537,7 @@ Keine Erklärungen, kein Markdown.`;
                 const token = await sharepointAuth();
                 const snap = {
                     exportedAt: new Date().toISOString(),
-                    date: new Date().toISOString().split('T')[0],
+                    date: _localTodayYMD(),
                     inventory: {
                         bestandLoaded: state.inventory.bestandLoaded,
                         bestandGesamtStueck: state.inventory.bestandGesamtStueck,
@@ -7891,7 +7895,7 @@ Keine Erklärungen, kein Markdown.`;
         /** Persistiert Snapshot in IDB. Lauscht auf data:bestand-loaded via Bus. */
         async function persistSnapshotToIDB() {
             try {
-                const today = new Date().toISOString().split('T')[0];
+                const today = _localTodayYMD();
                 const snap = {
                     date: today,
                     timestamp: new Date().toISOString(),
@@ -8811,7 +8815,7 @@ Keine Erklärungen, kein Markdown.`;
         // Update Effizienz-Tracker Display
         function updateEffizienzTracker() {
             const historie = loadEffizienzHistorie();
-            const heute = new Date().toISOString().split('T')[0];
+            const heute = _localTodayYMD();
             
             // Sortierte Daten (neueste zuerst)
             const sortedDates = Object.keys(historie).sort().reverse();
@@ -9394,8 +9398,11 @@ Keine Erklärungen, kein Markdown.`;
             return all.filter(row => {
                 const ds = row.saleDate || row.date || '';
                 if (!ds) return false;
-                const d = new Date(ds);
-                return !isNaN(d.getTime()) && d >= win.from && d <= win.to;
+                // AUDIT-FIX 16.07.: _parseAnyDate statt new Date() — parst auch DD.MM.YYYY
+                // und liefert LOKALE Mitternacht (new Date("2026-07-02") wäre UTC = 02:00
+                // lokal; DE-Strings fielen still aus allen Zeitraum-Ansichten).
+                const d = _parseAnyDate(ds);
+                return d !== null && d >= win.from && d <= win.to;
             });
         }
         // === REBUILD-HELPER: Aggregationen aus gefilterter All-Sold ===
@@ -10428,7 +10435,7 @@ Keine Erklärungen, kein Markdown.`;
             const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
             const a = document.createElement('a');
             a.href = URL.createObjectURL(blob);
-            const dateStr = new Date().toISOString().split('T')[0];
+            const dateStr = _localTodayYMD();
             a.download = `CLV-Ranking_${filtered.length}-Kunden_sort-${sortBy}_${dateStr}.csv`;
             a.click();
             showToast('success', '📥 CSV exportiert', `${filtered.length} Kunden`);
@@ -10633,7 +10640,7 @@ Keine Erklärungen, kein Markdown.`;
             const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
             const a = document.createElement('a');
             a.href = URL.createObjectURL(blob);
-            a.download = `Churn-Alert_${hvc.length}HVC_${pre.length}Pre_${new Date().toISOString().split('T')[0]}.csv`;
+            a.download = `Churn-Alert_${hvc.length}HVC_${pre.length}Pre_${_localTodayYMD()}.csv`;
             a.click();
             showToast('success', '📥 CSV exportiert', `${hvc.length + pre.length} Kunden (inkl. Status-Spalte)`);
         }
@@ -10912,7 +10919,7 @@ Keine Erklärungen, kein Markdown.`;
             const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
             const a = document.createElement('a');
             a.href = URL.createObjectURL(blob);
-            a.download = `Reaktivierungs-Pool_${pool.length}-Kunden_${new Date().toISOString().split('T')[0]}.csv`;
+            a.download = `Reaktivierungs-Pool_${pool.length}-Kunden_${_localTodayYMD()}.csv`;
             a.click();
             showToast('success', '📥 CSV exportiert', `${pool.length} Reaktivierungs-Kandidaten mit Match-Score + Kontakt`);
         }
@@ -11558,7 +11565,7 @@ Keine Erklärungen, kein Markdown.`;
             const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
             const a = document.createElement('a');
             a.href = URL.createObjectURL(blob);
-            const dateStr = new Date().toISOString().split('T')[0];
+            const dateStr = _localTodayYMD();
             a.download = `LiveView_${filterNote.replace(/[^a-zA-Z0-9_-]/g, '_').substring(0,40)}_${dateStr}.csv`;
             a.click();
             showToast('success', '📥 CSV exportiert', `${items.length} Geräte${sel.size > 0 ? ' (aus Auswahl)' : ' (aktuelle Filter)'}`);
@@ -11681,7 +11688,7 @@ Keine Erklärungen, kein Markdown.`;
             XLSX.utils.book_append_sheet(wb, wsNote, 'Hinweis');
 
             // Download
-            const dateStr = new Date().toISOString().split('T')[0];
+            const dateStr = _localTodayYMD();
             const fname = `LiveView_${filterNote.replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 40)}_${dateStr}.xlsx`;
             XLSX.writeFile(wb, fname);
             showToast('success', '📊 Excel mit Formeln exportiert',
@@ -11775,7 +11782,7 @@ Keine Erklärungen, kein Markdown.`;
                     '', 'Spalten I, J, L sind FORMELN — nicht überschreiben.',
                     '', 'Stand: ' + new Date().toLocaleDateString('de-DE'), 'Geräte: ' + items.length,
                 ],
-                filename: `Verkaufsscore_${new Date().toISOString().split('T')[0]}.xlsx`,
+                filename: `Verkaufsscore_${_localTodayYMD()}.xlsx`,
             });
             if (ok) showToast('success', '📊 Excel mit Formeln exportiert', `${items.length} Geräte`);
         }
@@ -11820,7 +11827,7 @@ Keine Erklärungen, kein Markdown.`;
                     '', 'Spalten H, I, K sind FORMELN.',
                     '', 'Stand: ' + new Date().toLocaleDateString('de-DE'), 'Geräte: ' + items.length,
                 ],
-                filename: `Slow-Mover_ab${threshold}d_${new Date().toISOString().split('T')[0]}.xlsx`,
+                filename: `Slow-Mover_ab${threshold}d_${_localTodayYMD()}.xlsx`,
             });
             if (ok) showToast('success', '📊 Slow-Mover-Excel exportiert', `${items.length} Geräte`);
         }
@@ -11871,7 +11878,7 @@ Keine Erklärungen, kein Markdown.`;
             const k = (dashboardState.konvolute || [])[idx];
             if (!k) return;
             const rows = _konvolutToExcelRows(k);
-            const fname = `Konvolut_${(k.gruppe || '').replace(/[^a-zA-Z0-9]/g, '_')}${k.teilNr ? '_T' + k.teilNr : ''}_${new Date().toISOString().split('T')[0]}.xlsx`;
+            const fname = `Konvolut_${(k.gruppe || '').replace(/[^a-zA-Z0-9]/g, '_')}${k.teilNr ? '_T' + k.teilNr : ''}_${_localTodayYMD()}.xlsx`;
             const ok = _writeLiveExcel(_konvolutXLSXConfig(rows, fname, 'Konvolut', [`Konvolut-Gruppe: ${k.gruppe}`]));
             if (ok) showToast('success', '📊 Konvolut-Excel exportiert', `${k.anzahl} Geräte`);
         }
@@ -11879,7 +11886,7 @@ Keine Erklärungen, kein Markdown.`;
             const konvolute = dashboardState.konvolute || [];
             if (!konvolute.length) return;
             const allRows = konvolute.flatMap(_konvolutToExcelRows);
-            const fname = `Alle_Konvolute_${new Date().toISOString().split('T')[0]}.xlsx`;
+            const fname = `Alle_Konvolute_${_localTodayYMD()}.xlsx`;
             const ok = _writeLiveExcel(_konvolutXLSXConfig(allRows, fname, 'Alle Konvolute',
                 [`${konvolute.length} Konvolute zusammengefasst`]));
             if (ok) showToast('success', '📊 Alle Konvolute', `${konvolute.length} Konvolute · ${allRows.length} Geräte`);
@@ -12032,7 +12039,7 @@ Keine Erklärungen, kein Markdown.`;
                     'Tipp: Globalen Rabatt ändern → Spalte J markieren (J2:J' + (matches.length + 1) + '), Wert eingeben, Strg+Enter.',
                     '', 'Spalten K, L, M sind FORMELN — nicht überschreiben.',
                 ],
-                filename: `Angebot_${(p.firma || p.kundenNr).replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 40)}_${new Date().toISOString().split('T')[0]}.xlsx`,
+                filename: `Angebot_${(p.firma || p.kundenNr).replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 40)}_${_localTodayYMD()}.xlsx`,
             });
             if (ok) showToast('success', '📊 Kunden-Angebot als Excel', `${matches.length} Positionen`);
         }
@@ -12111,7 +12118,7 @@ Keine Erklärungen, kein Markdown.`;
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, 'Angebot');
 
-            const fname = `Angebot_${(p.firma || p.kundenNr).replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 40)}_Kundenversion_${new Date().toISOString().split('T')[0]}.xlsx`;
+            const fname = `Angebot_${(p.firma || p.kundenNr).replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 40)}_Kundenversion_${_localTodayYMD()}.xlsx`;
             XLSX.writeFile(wb, fname);
             showToast('success', '📨 Kunden-Version exportiert',
                 `${matches.length} Positionen · Σ ${Math.round(sumPreis).toLocaleString('de-DE')} € · sicher zum Versenden (kein EK / Marge / LTV)`);
@@ -12432,7 +12439,7 @@ Keine Erklärungen, kein Markdown.`;
                 if (items.length) ws['!autofilter'] = { ref: `A5:L${items.length + 5}` };
                 XLSX.utils.book_append_sheet(wb, ws, sheetName(p.firma || ('Kunde ' + p.kundenNr)));
             });
-            const fname = `Gruppen-Angebot_${profiles.length}Kunden_${new Date().toISOString().split('T')[0]}.xlsx`;
+            const fname = `Gruppen-Angebot_${profiles.length}Kunden_${_localTodayYMD()}.xlsx`;
             XLSX.writeFile(wb, fname);
             showToast('success', `📨 Gruppen-Angebot · ${profiles.length} Kunden`, `1 Datei · Übersicht + ${profiles.length} Kunden-Sheets (nur eigene Treffer, je Segment-Rabatt). ⚠ Exklusiv: nur 1× verkaufbar.`, 9000);
         }
@@ -12898,7 +12905,7 @@ Keine Erklärungen, kein Markdown.`;
             const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
             const a = document.createElement('a');
             a.href = URL.createObjectURL(blob);
-            const dateStr = new Date().toISOString().split('T')[0];
+            const dateStr = _localTodayYMD();
             a.download = `Angebot_${(p.firma||p.kundenNr).replace(/[^a-zA-Z0-9_-]/g,'_').substring(0,40)}_${dateStr}.csv`;
             a.click();
             showToast('success', '📥 Angebot exportiert', `${matches.length} Positionen für ${p.firma||p.kundenNr}`);
@@ -13309,7 +13316,7 @@ Keine Erklärungen, kein Markdown.`;
                 XLSX.utils.book_append_sheet(wb, ws, sheetName(firma));
             });
 
-            const fname = `Konvolut_${String(titel).replace(/[^a-zA-Z0-9]/g, '_').substring(0, 30)}_${firmas.length}Kunden_${new Date().toISOString().split('T')[0]}.xlsx`;
+            const fname = `Konvolut_${String(titel).replace(/[^a-zA-Z0-9]/g, '_').substring(0, 30)}_${firmas.length}Kunden_${_localTodayYMD()}.xlsx`;
             XLSX.writeFile(wb, fname);
             showToast('success', `📨 Angebot an ${firmas.length} Kunden`, `1 Datei · Übersicht + ${firmas.length} Kunden-Sheets (je Segment-Rabatt). ⚠ Exklusiv: nur 1× verkaufbar — wer zuerst zusagt, bekommt das Konvolut.`, 9000);
         }
@@ -13455,7 +13462,7 @@ Keine Erklärungen, kein Markdown.`;
             const csv = '﻿' + header + '\n' + _konvolutToCsvRows(k).join('\n');
             const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
             const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
-            a.download = `Konvolut_${(k.gruppe||'').replace(/[^a-zA-Z0-9]/g,'_')}${k.teilNr?'_T'+k.teilNr:''}_${new Date().toISOString().split('T')[0]}.csv`;
+            a.download = `Konvolut_${(k.gruppe||'').replace(/[^a-zA-Z0-9]/g,'_')}${k.teilNr?'_T'+k.teilNr:''}_${_localTodayYMD()}.csv`;
             a.click();
             showToast('success', 'Konvolut exportiert', `${k.anzahl} Geräte als CSV.`);
         }
@@ -13468,7 +13475,7 @@ Keine Erklärungen, kein Markdown.`;
             const csv = '﻿' + header + '\n' + allRows.join('\n');
             const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
             const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
-            a.download = `Alle_Konvolute_${new Date().toISOString().split('T')[0]}.csv`;
+            a.download = `Alle_Konvolute_${_localTodayYMD()}.csv`;
             a.click();
             showToast('success', 'Export fertig', `${konvolute.length} Konvolute als CSV.`);
         }
@@ -13499,11 +13506,19 @@ Keine Erklärungen, kein Markdown.`;
                 head: [['Konvolut','Geräte','Ø Score','Ø Tage','Grade-Mix','Σ EK','Σ VK','Marge']],
                 body, styles: { fontSize: 8 }, headStyles: { fillColor: [16,185,129] }
             });
-            doc.save(`Konvolute_${new Date().toISOString().split('T')[0]}.pdf`);
+            doc.save(`Konvolute_${_localTodayYMD()}.pdf`);
             showToast('success', 'PDF erstellt', `${konvolute.length} Konvolute.`);
         }
 
         // ====== DATENSTAND-LEISTE: Zeiträume je Quelle ======
+        // AUDIT 16.07.2026: LOKALE Tages-Strings statt toISOString (= UTC). toISOString
+        // auf lokal-Mitternacht-Dates verschiebt den Tag zurück (CEST: 00:00 → Vortag
+        // 22:00Z) und „heute" kippte zwischen 00:00 und 02:00 auf gestern. Diese zwei
+        // Helfer sind die EINZIGE erlaubte Quelle für JJJJ-MM-TT-Tages-Keys.
+        function _localYMD(d) {
+            return d ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` : '';
+        }
+        function _localTodayYMD() { return _localYMD(new Date()); }
         function _parseAnyDate(v) {
             if (!v) return null;
             if (v instanceof Date) return isNaN(v.getTime()) ? null : v;
@@ -13625,7 +13640,7 @@ Keine Erklärungen, kein Markdown.`;
             const blob = new Blob([csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
             const link = document.createElement('a');
             link.href = URL.createObjectURL(blob);
-            link.download = `Verkaufspriorität_Top50_${new Date().toISOString().split('T')[0]}.csv`;
+            link.download = `Verkaufspriorität_Top50_${_localTodayYMD()}.csv`;
             link.click();
             showToast('CSV exportiert!', 'success');
         }
@@ -13670,7 +13685,7 @@ Keine Erklärungen, kein Markdown.`;
                 headStyles: { fillColor: [6, 182, 212] }
             });
             
-            doc.save(`Verkaufspriorität_Top50_${new Date().toISOString().split('T')[0]}.pdf`);
+            doc.save(`Verkaufspriorität_Top50_${_localTodayYMD()}.pdf`);
             showToast('PDF exportiert!', 'success');
         }
         
@@ -13827,7 +13842,7 @@ Keine Erklärungen, kein Markdown.`;
             const blob = new Blob([csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
             const link = document.createElement('a');
             link.href = URL.createObjectURL(blob);
-            link.download = `Kunden_Ranking_${new Date().toISOString().split('T')[0]}.csv`;
+            link.download = `Kunden_Ranking_${_localTodayYMD()}.csv`;
             link.click();
             showToast('Kunden-Export erstellt!', 'success');
         }
@@ -14022,7 +14037,7 @@ Keine Erklärungen, kein Markdown.`;
             const blob = new Blob([csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
             const link = document.createElement('a');
             link.href = URL.createObjectURL(blob);
-            link.download = `Kunden_Matrix_${view}_${metric}_${new Date().toISOString().split('T')[0]}.csv`;
+            link.download = `Kunden_Matrix_${view}_${metric}_${_localTodayYMD()}.csv`;
             link.click();
             showToast('Matrix exportiert!', 'success');
         }
@@ -14476,7 +14491,7 @@ Keine Erklärungen, kein Markdown.`;
             const blob = new Blob([csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
             const link = document.createElement('a');
             link.href = URL.createObjectURL(blob);
-            link.download = `Datenqualität_Diskrepanzen_${new Date().toISOString().split('T')[0]}.csv`;
+            link.download = `Datenqualität_Diskrepanzen_${_localTodayYMD()}.csv`;
             link.click();
             showToast('Diskrepanzen exportiert!', 'success');
         }
@@ -14517,7 +14532,7 @@ Keine Erklärungen, kein Markdown.`;
             let soldNoKey = 0;
             // Verkaufsdatum + Quelle je Lager-Nr — nötig fürs Versand-Fenster (Odoo-Vorrang: zuerst gesetzt gewinnt)
             const soldInfo = new Map();
-            oSold.forEach(s => { const ln = norm(s.lagerNr); if (ln) { odooSoldSet.add(ln); if (!soldInfo.has(ln)) soldInfo.set(ln, { src: 'Odoo', d: _parseAnyDate(s.saleDate) }); } else soldNoKey++; });
+            oSold.forEach(s => { const ln = norm(s.lagerNr); if (ln) { odooSoldSet.add(ln); if (!soldInfo.has(ln)) soldInfo.set(ln, { src: 'Odoo', d: _parseAnyDate(s.saleDate), approx: s._saleDateSrc !== 'order' }); } else soldNoKey++; });
             pSold.forEach(s => { const ln = norm(s.lagerNr); if (ln) { portalSoldSet.add(ln); if (!soldInfo.has(ln)) soldInfo.set(ln, { src: 'Alt (Portal/JTL)', d: _parseAnyDate(s.saleDate) }); } else soldNoKey++; });
             const ammStatus = new Map();   // Lager-Nr → QE/VS/AA
             // Alt-Ware-Fall (User-Befund 16.07.2026): bei ~2023er Beständen ist „Palette"
@@ -14526,9 +14541,11 @@ Keine Erklärungen, kein Markdown.`;
             bestand.forEach(b => {
                 const st = norm(b.status).toUpperCase();
                 const ln = norm(b.lagerNr || b.lager_number || b['Lager-Nr']);
-                if (/^900/.test(ln)) ammStatus.set(ln, st);
+                if (/^900/.test(ln)) { ammStatus.set(ln, st); return; }
+                // Charge NUR als Fallback wenn Palette keine 900er ist (Alt-Ware: Palette=NVE) —
+                // sonst würden Palette+Charge dasselbe Gerät doppelt ins Universum legen (Audit 16.07.)
                 const ch = norm(b.charge);
-                if (ch && ch !== ln && /^900/.test(ch) && !ammStatus.has(ch)) ammStatus.set(ch, st);
+                if (ch && /^900/.test(ch) && !ammStatus.has(ch)) ammStatus.set(ch, st);
             });
 
             const uni = new Set([...ammStatus.keys(), ...odooStockSet, ...odooSoldSet, ...portalStockSet]);
@@ -14567,9 +14584,12 @@ Keine Erklärungen, kein Markdown.`;
                 const oSoldF = odooSoldSet.has(ln);
                 const inP = portalStockSet.has(ln);
                 const oldSold = portalSoldSet.has(ln);
-                // Kaufmännischer Status — Odoo (lebendes WaWi) hat Vorrang
+                // Kaufmännischer Status — Odoo (lebendes WaWi) hat Vorrang.
+                // `!inO`-Guard (Audit 16.07.): gemischte Sammel-Nr (z. B. 1× Verkauft +
+                // 1× Verfügbar unter derselben Lager-Nr) — der Bestands-Key darf nicht
+                // vom Verkauft-Root überstimmt werden; der Verkauf zählt im Register.
                 let c;
-                if (oSoldF)       c = 'verkauft';
+                if (oSoldF && !inO) c = 'verkauft';
                 else if (inO)     c = oAvail ? 'verfuegbar' : 'reserviert';
                 else if (oldSold) c = 'verkauft';
                 else if (inP)     c = pAvail ? 'verfuegbar' : 'reserviert';   // alter Portal-Restbestand zählt mit
@@ -14608,7 +14628,7 @@ Keine Erklärungen, kein Markdown.`;
                         versandPipeline.count++;
                         if (si.src === 'Odoo') versandPipeline.odoo++; else versandPipeline.alt++;
                     } else {
-                        anomalies.VERKAUFT_IM_LAGER.push({ ln, detail: `verkauft (${si.src || 'Quelle unbekannt'}${si.d ? ' am ' + si.d.toLocaleDateString('de-DE') + ', vor ' + days + ' Tagen' : ', Datum unbekannt'}), steht aber immer noch als QE im Lager` });
+                        anomalies.VERKAUFT_IM_LAGER.push({ ln, detail: `verkauft (${si.src || 'Quelle unbekannt'}${si.d ? ' am ' + si.d.toLocaleDateString('de-DE') + (si.approx ? ' [Datum = Lot-Anlage, Näherung — sale.order-Export laden für echtes Auftragsdatum]' : '') + ', vor ' + days + ' Tagen' : ', Datum unbekannt'}), steht aber immer noch als QE im Lager` });
                     }
                 }
             }
@@ -14654,7 +14674,7 @@ Keine Erklärungen, kein Markdown.`;
             const csv = rows.map(row => row.map(c => `"${String(c).replace(/"/g, '""')}"`).join(';')).join('\r\n');
             const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
             const link = document.createElement('a'); link.href = URL.createObjectURL(blob);
-            link.download = `Abstimmung_Lager-Nr_${new Date().toISOString().split('T')[0]}.csv`;
+            link.download = `Abstimmung_Lager-Nr_${_localTodayYMD()}.csv`;
             document.body.appendChild(link); link.click(); document.body.removeChild(link);
         }
 
@@ -14919,6 +14939,11 @@ Keine Erklärungen, kein Markdown.`;
                         sentRoots.add(root);
                         if (offenByRef[root] !== undefined) { sentVK += offenByRef[root]; sentMatched++; }
                         else if (ov[root]) { sentVK += ov[root]; sentMatched++; }
+                    } else if (w.versendet && w.bezahlt) {
+                        // AUDIT-FIX 16.07.: versendet & laut WA bezahlt — auch wenn Odoos
+                        // „Zahlungstransaktionen" die Banküberweisung nicht kennt (offen>0),
+                        // darf der Auftrag NICHT als „Vorkasse ausstehend" hängen bleiben.
+                        sentRoots.add(root);
                     }
                 });
             }
@@ -15600,7 +15625,7 @@ Keine Erklärungen, kein Markdown.`;
             const blob = new Blob([csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
             const link = document.createElement('a');
             link.href = URL.createObjectURL(blob);
-            link.download = `Lieferanten_Analyse_${new Date().toISOString().split('T')[0]}.csv`;
+            link.download = `Lieferanten_Analyse_${_localTodayYMD()}.csv`;
             link.click();
             showToast('Lieferanten exportiert!', 'success');
         }
@@ -15684,7 +15709,7 @@ Keine Erklärungen, kein Markdown.`;
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `Slow-Mover_ab${threshold}d_${new Date().toISOString().slice(0, 10)}.csv`;
+            a.download = `Slow-Mover_ab${threshold}d_${_localTodayYMD()}.csv`;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
@@ -16212,7 +16237,7 @@ Keine Erklärungen, kein Markdown.`;
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, 'Angebots-Analyse');
             
-            const fileName = `Angebots_Analyse_${new Date().toISOString().slice(0, 10)}.xlsx`;
+            const fileName = `Angebots_Analyse_${_localTodayYMD()}.xlsx`;
             XLSX.writeFile(wb, fileName);
             
             showToast('success', `Export: ${fileName}`);
@@ -16888,7 +16913,7 @@ Keine Erklärungen, kein Markdown.`;
 
         function clearDailyDataIfNewDay() {
             const LAST_SESSION_KEY = 'elvinci_last_session_date';
-            const today = new Date().toISOString().split('T')[0];
+            const today = _localTodayYMD();
             const lastSession = localStorage.getItem(LAST_SESSION_KEY);
 
             if (lastSession !== today) {
@@ -17441,7 +17466,7 @@ Keine Erklärungen, kein Markdown.`;
             
             // Heutiges Datum
             const heute = new Date();
-            const heuteStr = heute.toISOString().split('T')[0];
+            const heuteStr = _localYMD(heute);
             
             // Geräte für heute aus Pipelines
             const weHeute = dashboardState.pipelineWE[heuteStr] || 0;
@@ -17582,7 +17607,7 @@ Keine Erklärungen, kein Markdown.`;
         function saveBestandSnapshot() {
             if (!dashboardState.bestandLoaded) return;
             
-            const heute = new Date().toISOString().split('T')[0];
+            const heute = _localTodayYMD();
             let snapshots = JSON.parse(localStorage.getItem(BESTAND_SNAPSHOT_KEY) || '{}');
             
             // Snapshot für heute speichern
@@ -17685,7 +17710,7 @@ Keine Erklärungen, kein Markdown.`;
         
         // Automatisch SOLL-Daten speichern wenn Pipelines geladen
         function autoSaveDailyWorktime() {
-            const heute = new Date().toISOString().split('T')[0];
+            const heute = _localTodayYMD();
             
             // Nur speichern wenn Pipeline-Daten vorhanden
             if (!dashboardState.weLoaded && !dashboardState.waLoaded) return;
@@ -17774,7 +17799,7 @@ Keine Erklärungen, kein Markdown.`;
         
         // BESTAND-Verifizierung speichern
         function updateBestandVerification() {
-            const heute = new Date().toISOString().split('T')[0];
+            const heute = _localTodayYMD();
             
             // Zähle VS und AA Geräte aus BESTAND
             let vsCount = 0;
@@ -17837,7 +17862,7 @@ Keine Erklärungen, kein Markdown.`;
         // Täglichen BESTAND-Snapshot speichern (mit Datum aus Dateiname)
         function saveBestandSnapshot(dateOverride = null) {
             // Verwende Datum aus Dateiname, Override, oder heute
-            const snapshotDate = dateOverride || currentBestandDate || new Date().toISOString().split('T')[0];
+            const snapshotDate = dateOverride || currentBestandDate || _localTodayYMD();
             
             let snapshots = JSON.parse(localStorage.getItem(BESTAND_SNAPSHOT_KEY) || '{}');
             
@@ -18175,7 +18200,7 @@ Keine Erklärungen, kein Markdown.`;
             const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
             const link = document.createElement('a');
             link.href = URL.createObjectURL(blob);
-            link.download = `elvinci_bestand_snapshots_${new Date().toISOString().split('T')[0]}.csv`;
+            link.download = `elvinci_bestand_snapshots_${_localTodayYMD()}.csv`;
             link.click();
             
             showToast('success', 'Snapshots exportiert', `${dates.length} Einträge`);
@@ -18183,8 +18208,8 @@ Keine Erklärungen, kein Markdown.`;
         
         // Tägliche Effizienz berechnen (Output vs. Input)
         function calculateDailyEfficiency() {
-            const heute = new Date().toISOString().split('T')[0];
-            const gestern = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+            const heute = _localTodayYMD();
+            const gestern = _localYMD(new Date(Date.now() - 86400000));
             
             const snapshots = JSON.parse(localStorage.getItem(BESTAND_SNAPSHOT_KEY) || '{}');
             const history = JSON.parse(localStorage.getItem(WORKTIME_STORAGE_KEY) || '[]');
@@ -18298,7 +18323,7 @@ Keine Erklärungen, kein Markdown.`;
         // HISTORIE EXPORT / IMPORT
         // ============================================
         function exportHistorie() {
-            const heute = new Date().toISOString().split('T')[0];
+            const heute = _localTodayYMD();
             
             // Sammle alle relevanten Daten
             const exportData = {
@@ -18350,7 +18375,7 @@ Keine Erklärungen, kein Markdown.`;
         }
         
         function exportHistorieCSV(data) {
-            const heute = new Date().toISOString().split('T')[0];
+            const heute = _localTodayYMD();
             
             // Kombiniere alle Historien-Daten
             const rows = [];
@@ -18596,7 +18621,7 @@ Keine Erklärungen, kein Markdown.`;
             const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
             const link = document.createElement('a');
             link.href = URL.createObjectURL(blob);
-            link.download = `elvinci_effizienz_${new Date().toISOString().split('T')[0]}.csv`;
+            link.download = `elvinci_effizienz_${_localTodayYMD()}.csv`;
             link.click();
             
             showToast('success', 'Effizienz-Daten exportiert', `${datenMitGeraeten.length} Einträge`);
@@ -18604,7 +18629,7 @@ Keine Erklärungen, kein Markdown.`;
         
         // IST-Daten manuell speichern
         function saveWorktimeIST() {
-            const heute = new Date().toISOString().split('T')[0];
+            const heute = _localTodayYMD();
             
             const istWE = parseInt(document.getElementById('ist-we-geraete').value) || null;
             const istWA = parseInt(document.getElementById('ist-wa-geraete').value) || null;
@@ -18654,7 +18679,7 @@ Keine Erklärungen, kein Markdown.`;
         
         // Historie-Anzeige aktualisieren
         function updateHistorieDisplay() {
-            const heute = new Date().toISOString().split('T')[0];
+            const heute = _localTodayYMD();
             const history = JSON.parse(localStorage.getItem(WORKTIME_STORAGE_KEY) || '[]');
             const todayEntry = history.find(h => h.datum === heute);
             
@@ -18754,7 +18779,7 @@ Keine Erklärungen, kein Markdown.`;
                                     const d = new Date(entry.datum);
                                     const dayName = weekdays[d.getDay()];
                                     const dateStr = `${dayName} ${entry.datum.split('-').slice(1).reverse().join('.')}`;
-                                    const isToday = entry.datum === new Date().toISOString().split('T')[0];
+                                    const isToday = entry.datum === _localTodayYMD();
                                     
                                     // Auslastungs-Farbe
                                     let auslColor = 'var(--text-muted)';
@@ -18816,7 +18841,7 @@ Keine Erklärungen, kein Markdown.`;
             const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
             const link = document.createElement('a');
             link.href = URL.createObjectURL(blob);
-            link.download = `elvinci_arbeitszeit_historie_${new Date().toISOString().split('T')[0]}.csv`;
+            link.download = `elvinci_arbeitszeit_historie_${_localTodayYMD()}.csv`;
             link.click();
             
             showToast('success', 'CSV exportiert', `${history.length} Einträge`);
@@ -20383,7 +20408,7 @@ Keine Erklärungen, kein Markdown.`;
                 
                 days.push({
                     date: date,
-                    dateStr: date.toISOString().split('T')[0],
+                    dateStr: _localYMD(date),
                     label: `${weekdays[dayOfWeek]} ${date.getDate().toString().padStart(2, '0')}.${(date.getMonth() + 1).toString().padStart(2, '0')}`,
                     isWeekend: isWeekend,
                     werktag: !isWeekend ? werktageCount : null
@@ -20749,7 +20774,7 @@ Keine Erklärungen, kein Markdown.`;
             });
             
             // Datum aus Dateiname extrahieren
-            const datum = extractDateFromFilename(filename) || new Date().toISOString().split('T')[0];
+            const datum = extractDateFromFilename(filename) || _localTodayYMD();
             
             // Header-Zeile finden (Zeile 2) und Menge-Spalte identifizieren
             const headerRow = rows[1] || [];
@@ -21759,7 +21784,7 @@ Keine Erklärungen, kein Markdown.`;
                     let totalGewichtet = 0;
                     const artikelTypenCount = {};
                     const lieferungenMap = {}; // Bestell-Nr → {stueck, artikeltypen}
-                    const datumStr = extractDateFromFilename(filename) || new Date().toISOString().split('T')[0];
+                    const datumStr = extractDateFromFilename(filename) || _localTodayYMD();
                     
                     for (let i = 2; i < rows.length; i++) {
                         const cols = rows[i];
@@ -21822,7 +21847,7 @@ Keine Erklärungen, kein Markdown.`;
                     let totalGewichtet = 0;
                     const artikelTypenCount = {};
                     const auftraegeMap = {}; // AU-Nr → {kunde, stueck, artikeltypen}
-                    const datumStr = extractDateFromFilename(filename) || new Date().toISOString().split('T')[0];
+                    const datumStr = extractDateFromFilename(filename) || _localTodayYMD();
                     
                     for (let i = 2; i < rows.length; i++) {
                         const cols = rows[i];
@@ -21896,7 +21921,7 @@ Keine Erklärungen, kein Markdown.`;
                         let totalStueck = 0;
                         let totalGewichtet = 0;
                         const artikelTypenCount = {};
-                        const datumStr = extractDateFromFilename(filename) || new Date().toISOString().split('T')[0];
+                        const datumStr = extractDateFromFilename(filename) || _localTodayYMD();
                         
                         for (let i = 2; i < rows.length; i++) {
                             const cols = rows[i];
@@ -21976,7 +22001,7 @@ Keine Erklärungen, kein Markdown.`;
                             if (!dateObj || isNaN(dateObj.getTime())) continue;
                             if (dateObj < heute) continue;
                             
-                            const dateStr = dateObj.toISOString().split('T')[0];
+                            const dateStr = _localYMD(dateObj);
                             pipelineWE[dateStr] = (pipelineWE[dateStr] || 0) + geraete;
                             pipelineWEKlassif[dateStr] = (pipelineWEKlassif[dateStr] || 0) + zuKlassif;
                             pipelineWEOhneKlassif[dateStr] = (pipelineWEOhneKlassif[dateStr] || 0) + ohneKlassif;
@@ -22033,7 +22058,7 @@ Keine Erklärungen, kein Markdown.`;
                         const waRoot = auf.split('.')[0].toUpperCase();
                         // Status-Emoji überlebt den CSV-Export oft nicht → führende ?/� abwerfen
                         const waStat = String(r[wStatus] || '').replace(/^[\s?�]+/, '').trim();
-                        waMap[waRoot] = {
+                        const waRow = {
                             auftrag: auf,
                             kunde: wKunde >= 0 ? String(r[wKunde] || '').trim() : '',
                             geraete: wGer >= 0 ? (parseInt(r[wGer]) || 0) : 0,
@@ -22051,6 +22076,30 @@ Keine Erklärungen, kein Markdown.`;
                             bezahlt: wBez >= 0 ? /^ja/i.test(String(r[wBez] || '').trim()) : false,
                             abgeschlossen: wAbg >= 0 ? String(r[wAbg] || '').trim() : ''
                         };
+                        // AUDIT-FIX 16.07.: Mehrzeilen-Aufträge (Haupt + .001-Teilsendungen)
+                        // MERGEN statt last-wins — sonst kippt eine leere Sub-Zeile den
+                        // Hauptstatus und der Auftrag wandert im Zahlungs-Radar ins falsche
+                        // Segment. Regeln: Hauptauftrag (ohne .NNN) liefert die Stammfelder;
+                        // versendet/bezahlt = ODER über alle Zeilen; Geräte summieren;
+                        // geplantes Datum = frühestes.
+                        const prev = waMap[waRoot];
+                        if (!prev) {
+                            waMap[waRoot] = waRow;
+                        } else {
+                            const isMain = !auf.includes('.');
+                            const base = isMain ? waRow : prev;
+                            const other = isMain ? prev : waRow;
+                            base.versendet = base.versendet || other.versendet;
+                            base.bezahlt = base.bezahlt || other.bezahlt;
+                            base.geraete = (base.geraete || 0) + (other.geraete || 0);
+                            if (!base.geplantDt || (other.geplantDt && other.geplantDt < base.geplantDt)) {
+                                base.geplantDt = other.geplantDt || base.geplantDt;
+                                base.geplant = base.geplantDt === other.geplantDt ? other.geplant : base.geplant;
+                            }
+                            if (!base.status && other.status) base.status = other.status;
+                            if (!base.notiz && other.notiz) base.notiz = other.notiz;
+                            waMap[waRoot] = base;
+                        }
                         waCount++;
                     }
                     dashboardState.waStatusMap = waMap;
@@ -22073,7 +22122,7 @@ Keine Erklärungen, kein Markdown.`;
                     let totalGewichtet = 0;
                     const artikelTypenCount = {};
                     const auftraegeMap = {}; // AU-Nr → {kunde, stueck, artikeltypen}
-                    const datumStr = extractDateFromFilename(filename) || new Date().toISOString().split('T')[0];
+                    const datumStr = extractDateFromFilename(filename) || _localTodayYMD();
                     
                     // Starte ab Zeile 3 (Index 2)
                     for (let i = 2; i < rows.length; i++) {
@@ -22435,7 +22484,10 @@ Keine Erklärungen, kein Markdown.`;
                     if (isOdoo) availOdoo++; else availPortal++;
                 }
                 totalEK+=ek; totalVK+=vk;
-                if (lifeDays>0){ totalLifeDays+=lifeDays; lifeDaysCount++;
+                // AUDIT-FIX 16.07.: lifeDays===0 mit bekanntem WE-Datum = HEUTE eingegangen —
+                // zählt in „0-7d" (vorher fehlten 0-Tage-Geräte komplett in der Verteilung).
+                // lifeDays===0 OHNE Datum bleibt draußen (unbekannt ≠ frisch).
+                if (lifeDays>0 || _we){ totalLifeDays+=lifeDays; lifeDaysCount++;
                     if(lifeDays<=7)lageralterBuckets.d7++; else if(lifeDays<=14)lageralterBuckets.d14++;
                     else if(lifeDays<=30)lageralterBuckets.d30++; else if(lifeDays<=60)lageralterBuckets.d60++;
                     else if(lifeDays<=90)lageralterBuckets.d90++; else lageralterBuckets.d90plus++;
@@ -22494,6 +22546,29 @@ Keine Erklärungen, kein Markdown.`;
         // Zeilen OHNE Lager-Nr (alte Portal-Verkäufe ohne sauberen Key) werden NIE dedupliziert.
         // Recompute aller Verkaufs-Aggregate erfolgt hier zentral → Verkäufer/Kunden/CLV/Top-Seller
         // und der globale Zeitfilter (getFilteredSold/_rebuildFilteredSalesStats) sehen beide Welten.
+        // AUDIT-FIX K2 (16.07.2026): Das Odoo-„saleDate" stammt aus „Erstellt am" der
+        // Los-Nr (= Lot-Anlage bei Migration/Wareneingang), NICHT vom Verkaufszeitpunkt.
+        // Sobald der sale.order-Export geladen ist, übernimmt jeder Verkauf das
+        // Auftrags-Erstellungsdatum (Root-Match über die Auftragsreferenz). Ohne
+        // Treffer bleibt das Lot-Datum als gekennzeichnete Näherung (_saleDateSrc='lot').
+        function enrichOdooSaleDates() {
+            const sold = dashboardState._soldSrcOdoo || [];
+            const orders = dashboardState.odooOrders || [];
+            if (!sold.length) return 0;
+            const ymd = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+            const root = s => String(s || '').trim().toUpperCase().split('.')[0];
+            const byRef = new Map();
+            orders.forEach(o => { if (o.erstellt && !byRef.has(root(o.ref))) byRef.set(root(o.ref), o.erstellt); });
+            let hits = 0;
+            sold.forEach(s => {
+                const d = byRef.get(root(s.orderNr));
+                if (d) { s.saleDate = ymd(d); s._saleDateSrc = 'order'; hits++; }
+                else if (!s._saleDateSrc) s._saleDateSrc = 'lot';
+            });
+            if (hits) console.info(`[Sale-Datum] ${hits}/${sold.length} Odoo-Verkäufe auf Auftragsdatum (sale.order) umgestellt — Rest = Lot-Anlage (Näherung).`);
+            return hits;
+        }
+
         function rebuildMergedSold() {
             const portal = dashboardState._soldSrcPortal || [];
             const odoo   = dashboardState._soldSrcOdoo   || [];
@@ -22635,7 +22710,7 @@ Keine Erklärungen, kein Markdown.`;
                         if (!dateObj || isNaN(dateObj.getTime())) continue;
                         if (dateObj < heute) continue;
                         
-                        const dateStr = dateObj.toISOString().split('T')[0];
+                        const dateStr = _localYMD(dateObj);
                         pipelineWE[dateStr] = (pipelineWE[dateStr] || 0) + geraete;
                         totalGeplant += geraete;
                     }
@@ -22789,7 +22864,7 @@ Keine Erklärungen, kein Markdown.`;
                         }
                         
                         // Zukünftiges Datum → geplanter Ausgang
-                        const dateStr = versandDatum.toISOString().split('T')[0];
+                        const dateStr = _localYMD(versandDatum);
                         pipelineWA[dateStr] = (pipelineWA[dateStr] || 0) + artikel;
                         totalGeplant += artikel;
                     }
@@ -23179,7 +23254,15 @@ Keine Erklärungen, kein Markdown.`;
                     // Angeboten=reserviert, Verkauft=KEIN Bestand (= Verkauf, hier ausgeschlossen).
                     const sheetName = workbook.SheetNames[0];
                     const sheet = workbook.Sheets[sheetName];
-                    const data = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: false, defval: '' });
+                    // AUDIT-FIX (16.07.2026, KRITISCH): raw:false lieferte FORMATIERTE Strings —
+                    // parseFloat("3,284") = 3 → jeder Preis ≥ 1.000 € wurde auf die Tausender-
+                    // Ziffer gestutzt (Summen 1–3 % zu niedrig), und Datumsstrings + toISOString
+                    // (UTC) verschoben Verkaufsdaten um −1 Tag (43 Verkäufe fielen fälschlich
+                    // aus dem 14-Tage-Versand-Fenster). raw:true = echte Zahlen, Datumszellen
+                    // dank cellDates:true als Date-Objekte (_parseAnyDate kann beides).
+                    const data = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true, defval: '' });
+                    // Lokales JJJJ-MM-TT ohne UTC-Verschiebung (toISOString wäre −1 Tag bei Mitternachts-Dates)
+                    const _ymd = d => d ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` : '';
                     const headers = (data[0] || []).map(h => (h || '').toString().trim());
                     const HX = {}; headers.forEach((h, i) => { HX[h] = i; });
                     const cLager = HX['Lager-Code'], cStatus = HX['Verkaufsstatus'], cProd = HX['Produkt'],
@@ -23227,7 +23310,7 @@ Keine Erklärungen, kein Markdown.`;
                                 profit: sVK - sEK,
                                 pg: _leaf(row[cKat]).toLowerCase(),
                                 brand: (row[cBrand] || '').toString().trim().toUpperCase(),
-                                saleDate: sd ? sd.toISOString().slice(0, 10) : (sdRaw || '').toString().slice(0, 10),
+                                saleDate: sd ? _ymd(sd) : (sdRaw || '').toString().slice(0, 10),
                                 company: cKunde !== undefined ? (row[cKunde] || '').toString().trim() : '',
                                 customerNumber: cKdNr !== undefined ? (row[cKdNr] || '').toString().trim() : '',
                                 soldBy: cVerk !== undefined ? (row[cVerk] || '').toString().trim() : '',
@@ -23276,7 +23359,7 @@ Keine Erklärungen, kein Markdown.`;
                             vstatus,                       // roher Odoo-Verkaufsstatus (Verfügbar/Angeboten/Reserviert)
                             isReserved, isAvailable,
                             model, articleNumber: artNr,
-                            dateUpload: (dStr || '').toString().slice(0, 10),
+                            dateUpload: d ? _ymd(d) : (dStr || '').toString().slice(0, 10),
                             lifeDays,
                             grade,
                             supplyType: lief,
@@ -23295,6 +23378,7 @@ Keine Erklärungen, kein Markdown.`;
                     rebuildMergedStock();
                     // PHASE 2: Odoo-Verkäufe in die Verkaufsanalyse mergen (Lager-Nr-Dedup, Odoo-Vorrang)
                     dashboardState._soldSrcOdoo = odooSold;
+                    enrichOdooSaleDates();   // Auftragsdatum statt Lot-Anlage, falls sale.order schon geladen
                     if (odooSold.length || (dashboardState._soldSrcPortal && dashboardState._soldSrcPortal.length)) {
                         rebuildMergedSold();
                         try { updateAnalyseProPanel(); } catch(e) {}
@@ -23343,10 +23427,16 @@ Keine Erklärungen, kein Markdown.`;
                     };
                     const _str = (idx, row) => idx !== undefined ? (row[idx] || '').toString().trim() : '';
                     const ooOrders = [];
+                    // AUDIT-FIX 16.07.: Referenz-Dedup — taucht dieselbe Auftragsreferenz auf
+                    // mehreren Master-Zeilen auf (zusammenkopierte Exporte, geänderte Export-
+                    // Feldauswahl), würde der Auftrag doppelt in Funnel + Zahlungs-Radar zählen.
+                    const ooSeen = new Set(); let ooDupes = 0;
                     for (let i = 1; i < ooData.length; i++) {
                         const row = ooData[i]; if (!row) continue;
                         const ref = (row[oRef] || '').toString().trim();
                         if (!ref) continue;   // Positionszeile
+                        if (ooSeen.has(ref.toUpperCase())) { ooDupes++; continue; }
+                        ooSeen.add(ref.toUpperCase());
                         ooOrders.push({
                             ref: ref.toUpperCase(),
                             status: _str(oStat, row),
@@ -23387,11 +23477,18 @@ Keine Erklärungen, kein Markdown.`;
                     dashboardState.odooOrders = ooOrders;
                     dashboardState.odooOrdersLoaded = true;
                     dashboardState.funnelOrders = fo;
+                    // AUDIT-FIX K2: Verkaufsdaten der bereits geladenen Odoo-Verkäufe auf
+                    // Auftragsdatum umstellen + abhängige Aggregate neu rechnen
+                    if (enrichOdooSaleDates()) {
+                        try { rebuildMergedSold(); } catch (e) { console.warn('[Sale-Datum] rebuild', e); }
+                        try { reconcileAllSources(); } catch (e) { console.warn('[Sale-Datum] reconcile', e); }
+                    }
                     if (statusEl) {
                         statusEl.textContent = `✓ ${ooOrders.length} Aufträge (${fo.angebot.n} Angebot · ${fo.bestaetigt.n} bestätigt · ${fo.storniert.n} storniert)`;
                         statusEl.style.color = 'var(--accent-green)';
                     }
                     console.info(`[Odoo-Orders] ${ooOrders.length} Aufträge · Angebot ${fo.angebot.n}/${Math.round(fo.angebot.vk)}€ · Bestätigt ${fo.bestaetigt.n}/${Math.round(fo.bestaetigt.vk)}€ (Proforma ${fo.bestaetigt.proformaN}, Vorkasse ${Math.round(fo.bestaetigt.vorkasse)}€) · Storniert ${fo.storniert.n}/${Math.round(fo.storniert.vk)}€ · Sonstige ${fo.sonstige.n}`);
+                    if (ooDupes) { console.warn(`[Odoo-Orders] ${ooDupes} doppelte Auftragsreferenzen übersprungen (Export prüfen!)`); showToast('warning', 'Doppelte Aufträge im Export', `${ooDupes} doppelte Auftragsreferenzen übersprungen — zusammenkopierte Dateien?`, 6000); }
                     try { updateAnalyseKPIs(); } catch (e) { console.warn('[Odoo-Orders] KPI-Render', e); }
 
                 } else if (type === 'pipeline') {
@@ -24354,7 +24451,7 @@ Keine Erklärungen, kein Markdown.`;
             // ============================================
             // DOWNLOAD
             // ============================================
-            const dateStr = new Date().toISOString().split('T')[0];
+            const dateStr = _localTodayYMD();
             doc.save(`Lagerkapazitaet_Report_${dateStr}.pdf`);
         }
 
