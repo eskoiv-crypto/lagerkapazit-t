@@ -3726,7 +3726,7 @@
                             <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.75rem; margin-bottom: 1rem;">
                                 <div class="analyse-kpi">
                                     <div class="analyse-kpi-value" id="kpi-reserviert">—</div>
-                                    <div class="analyse-kpi-label">Reserviert / Angeboten <span class="vc-info" data-tip="ALLE kaufmännisch gebundenen Geräte (Odoo Angeboten/Reserviert + Portal A/M). Die Kachel rechts zählt davon nur die physisch im Lager stehenden (QE) — die Differenz „nicht im Lager" sind Reservierungen ohne auffindbares Gerät: Kundenzusagen ohne Ware → dringend prüfen (Datenqualität → Phantom).">ⓘ</span></div>
+                                    <div class="analyse-kpi-label">Reserviert / Angeboten <span class="vc-info" data-tip="ALLE kaufmännisch gebundenen Geräte (Odoo Angeboten/Reserviert + Portal A/M) — Stichtag heute. Die „davon"-Zeile zeigt den physischen Verbleib laut AMM: im Lager (QE) · im Versand (VS/AA, normal) · Ware nicht auffindbar (kein AMM-Nachweis = Kundenzusage ohne Ware → prüfen, Details unter Datenqualität → Phantom).">ⓘ</span></div>
                                 </div>
                                 <div class="analyse-kpi">
                                     <div class="analyse-kpi-value" id="kpi-versand-pipeline">—</div>
@@ -14520,12 +14520,25 @@ Keine Erklärungen, kein Markdown.`;
             oSold.forEach(s => { const ln = norm(s.lagerNr); if (ln) { odooSoldSet.add(ln); if (!soldInfo.has(ln)) soldInfo.set(ln, { src: 'Odoo', d: _parseAnyDate(s.saleDate) }); } else soldNoKey++; });
             pSold.forEach(s => { const ln = norm(s.lagerNr); if (ln) { portalSoldSet.add(ln); if (!soldInfo.has(ln)) soldInfo.set(ln, { src: 'Alt (Portal/JTL)', d: _parseAnyDate(s.saleDate) }); } else soldNoKey++; });
             const ammStatus = new Map();   // Lager-Nr → QE/VS/AA
-            bestand.forEach(b => { const ln = norm(b.lagerNr || b.lager_number || b['Lager-Nr']); if (/^900/.test(ln)) ammStatus.set(ln, norm(b.status).toUpperCase()); });
+            // Alt-Ware-Fall (User-Befund 16.07.2026): bei ~2023er Beständen ist „Palette"
+            // eine 18-stellige NVE und die 900er-Lager-Nr steht nur in „Charge" —
+            // beide Kandidaten indexieren, sonst falsche Phantom-Meldungen.
+            bestand.forEach(b => {
+                const st = norm(b.status).toUpperCase();
+                const ln = norm(b.lagerNr || b.lager_number || b['Lager-Nr']);
+                if (/^900/.test(ln)) ammStatus.set(ln, st);
+                const ch = norm(b.charge);
+                if (ch && ch !== ln && /^900/.test(ch) && !ammStatus.has(ch)) ammStatus.set(ch, st);
+            });
 
             const uni = new Set([...ammStatus.keys(), ...odooStockSet, ...odooSoldSet, ...portalStockSet]);
 
             const comm = { verfuegbar:0, reserviert:0, verkauft:0, unklassifiziert:0, altRest:0 };
             const phys = { QE:0, VS:0, AA:0, none:0 };
+            // Reserviert/Angeboten nach PHYSISCHEM Verbleib (User 2026-07-16: „⚠ N nicht
+            // im Lager" war verwirrend — es mischte „im Versand" (normal) mit „Ware
+            // nicht auffindbar" (brisant) in einer stummen Differenz):
+            const resPhys = { QE:0, unterwegs:0, ohne:0 };   // QE = im Lager · VS/AA = Versand/Ausgang · ohne = kein AMM-Nachweis
             const anomalies = { PHANTOM_STOCK:[], UNKLASSIFIZIERT:[], VERKAUFT_IM_LAGER:[] };
             // VERSAND-FENSTER (User-Befund 2026-07-02): „Verkauft & noch QE" ist bei FRISCHEN
             // Verkäufen normale Kommissionierung, keine Datenanomalie — Odoo-Verkäufe gibt es
@@ -14562,6 +14575,8 @@ Keine Erklärungen, kein Markdown.`;
                 else if (inP)     c = pAvail ? 'verfuegbar' : 'reserviert';   // alter Portal-Restbestand zählt mit
                 else              c = 'unklassifiziert';
                 comm[c]++;
+                if (c === 'reserviert')
+                    resPhys[amm === 'QE' ? 'QE' : (amm === 'VS' || amm === 'AA') ? 'unterwegs' : 'ohne']++;
                 if (c === 'verfuegbar') {   // freiverkäuflicher Warenwert
                     const it = inO ? oStock[ln] : (inP ? pStock[ln] : null);
                     if (it) { freiEK += (+it.ek || 0); freiVK += (+it.vk || 0); }
@@ -14621,6 +14636,7 @@ Keine Erklärungen, kein Markdown.`;
                 consistency,
                 versandPipeline: { ...versandPipeline, fensterTage: VERSAND_FENSTER_TAGE },
                 frei: { count: comm.verfuegbar, ek: freiEK, vk: freiVK, portalRest: freiPortalRest },
+                resPhys,
                 qeUnsold,
                 sales: { total: salesTotal, portal: portalSoldSet.size, odoo: odooSoldSet.size, noKey: soldNoKey, double: salesDouble },
                 ok: (anomalyCount + salesDouble.length) === 0
@@ -14722,14 +14738,18 @@ Keine Erklärungen, kein Markdown.`;
             if (uebEl) uebEl.innerHTML = tilesHtml;
             // Heute-KPI-Zeile (reconcile-getrieben, Wertekreis-Fix 2026-07-03):
             // Reserviert / Versand-Pipeline / Daten-Konsistenz — keine €-Doppelung zu den Kacheln.
-            // SCOPE-FIX (User-Befund 2026-07-03, „461 vs 450"): comm.reserviert zählt ALLE
-            // kaufmännisch gebundenen Geräte, die Kachel-Brücke nur die physisch als QE
-            // stehenden. Die Differenz = reservierte Geräte OHNE auffindbares Lager-Gerät
-            // (= Kundenzusagen ohne Ware → brisanter als freie Phantome) — wird jetzt
-            // explizit ausgewiesen statt still zu widersprechen.
+            // SCOPE-FIX (User-Befund 2026-07-03, „461 vs 450") + KLARTEXT (User 2026-07-16:
+            // „⚠ N nicht im Lager" war verwirrend): comm.reserviert zählt ALLE kaufmännisch
+            // gebundenen Geräte. Der physische Verbleib wird jetzt als „davon"-Zeile
+            // aufgeschlüsselt — im Versand (VS/AA) ist NORMAL, „Ware nicht auffindbar"
+            // (kein AMM-Nachweis = Kundenzusage ohne Ware) ist der brisante Fall.
             const _resTotal = r.comm.reserviert;
-            const _resNichtQE = Math.max(0, _resTotal - ((r.qeUnsold || {}).reserviert || 0));
-            setElHtml('kpi-reserviert', `${fmt(_resTotal)}${_resNichtQE > 0 ? ` <span style="font-size:0.7rem;font-weight:600;color:var(--accent-orange);">⚠ ${fmt(_resNichtQE)} nicht im Lager</span>` : ''}`);
+            const _rp = r.resPhys || { QE: _resTotal, unterwegs: 0, ohne: 0 };
+            const _rpParts = [];
+            if (_rp.QE) _rpParts.push(`${fmt(_rp.QE)} im Lager`);
+            if (_rp.unterwegs) _rpParts.push(`${fmt(_rp.unterwegs)} im Versand`);
+            if (_rp.ohne) _rpParts.push(`<span style="color:var(--accent-orange);font-weight:600;">⚠ ${fmt(_rp.ohne)} Ware nicht auffindbar</span>`);
+            setElHtml('kpi-reserviert', `${fmt(_resTotal)}<div style="font-size:0.68rem;font-weight:500;color:var(--text-secondary);margin-top:2px;line-height:1.35;">davon ${_rpParts.join(' · ') || '—'}</div>`);
             setEl('kpi-versand-pipeline', fmt((r.versandPipeline || {}).count || 0));
             const konsEl = document.getElementById('kpi-daten-konsistenz');
             if (konsEl) { konsEl.textContent = `${consStr} %`; konsEl.style.color = consCol; }
@@ -21343,7 +21363,10 @@ Keine Erklärungen, kein Markdown.`;
                     // P0-8 FIX (2026-04-20): Header-basiertes Column-Mapping mit Fallback auf feste Indizes.
                     // Wenn AMM das CSV-Layout ändert, wird über Header-Namen automatisch remapped.
                     // Bei unbekannten Headern bleibt das alte Verhalten (feste Indizes) erhalten.
-                    const DEFAULT_COLS = { palette: 0, artikel: 1, bezeichner: 2, lgPlatz: 4, menge: 6, weDatum: 7, status: 9, auftrag: 10 };
+                    // charge (Spalte 3): bei Alt-Ware (~2023) ist „Palette" eine 18-stellige
+                    // NVE/SSCC und die 900er-Lager-Nr steht NUR in „Charge" — ohne sie
+                    // meldet der Abgleich falsche Phantome (User-Befund 16.07.2026).
+                    const DEFAULT_COLS = { palette: 0, artikel: 1, bezeichner: 2, charge: 3, lgPlatz: 4, menge: 6, weDatum: 7, status: 9, auftrag: 10 };
                     const colMap = { ...DEFAULT_COLS };
                     let headerDetected = false;
                     if (rows.length > 0 && Array.isArray(rows[0])) {
@@ -21360,6 +21383,7 @@ Keine Erklärungen, kein Markdown.`;
                             palette:    ['palette', 'lager', 'lgnr'],
                             artikel:    ['artikel', 'artnr', 'sku'],
                             bezeichner: ['bezeichner', 'bezeichnung', 'artikelname'],
+                            charge:     ['charge'],
                             lgPlatz:    ['lgplatz', 'lagerplatz', 'platz'],
                             menge:      ['menge', 'anzahl', 'stück', 'stueck', 'qty'],
                             weDatum:    ['we-datum', 'wedatum', 'wareneingang'],
@@ -21425,6 +21449,7 @@ Keine Erklärungen, kein Markdown.`;
                         parsedRows++;
 
                         const palette = (cols[colMap.palette] || '').toString().trim();
+                        const charge = colMap.charge !== undefined ? (cols[colMap.charge] || '').toString().trim() : '';
                         const artikel = (cols[colMap.artikel] || '').toString().trim();
                         const bezeichner = (cols[colMap.bezeichner] || '').toString().trim();
                         const lgPlatz = (cols[colMap.lgPlatz] || '').toString().trim();
@@ -21488,6 +21513,7 @@ Keine Erklärungen, kein Markdown.`;
                         // NEU: Rohdaten für Datenqualitäts-Validierung sammeln
                         bestandRawItems.push({
                             lagerNr: palette,
+                            charge: charge,
                             artikelnummer: artikel,
                             bezeichnung: bezeichner,
                             lagerplatz: lgPlatz,
@@ -22360,12 +22386,14 @@ Keine Erklärungen, kein Markdown.`;
             // überschreibt es item.lifeDays — sonst bleibt der Upload-Wert als Fallback stehen.
             const _weMap = new Map();
             for (const b of (dashboardState.bestandRaw || [])) {
-                const ln = String(b.lagerNr || '').trim();
-                if (!/^900/.test(ln)) continue;
                 const d = _parseAnyDate(b.weDatum);
                 if (!d) continue;
-                const prev = _weMap.get(ln);
-                if (!prev || d < prev) _weMap.set(ln, d);   // Mehrfachzeilen: frühestes WE = Einlagerung
+                // Palette UND Charge indexieren — Alt-Ware trägt die 900er-Nr nur in Charge
+                for (const cand of [String(b.lagerNr || '').trim(), String(b.charge || '').trim()]) {
+                    if (!/^900/.test(cand)) continue;
+                    const prev = _weMap.get(cand);
+                    if (!prev || d < prev) _weMap.set(cand, d);   // Mehrfachzeilen: frühestes WE = Einlagerung
+                }
             }
             const _nowTs = Date.now();
             let lifeFromWE = 0, lifeFallback = 0;
