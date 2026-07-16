@@ -14570,10 +14570,13 @@ Keine Erklärungen, kein Markdown.`;
             const versandPipeline = { count: 0, odoo: 0, alt: 0 };
             // FREIVERKÄUFLICHER WARENWERT: Summe EK/VK über alle „frei"-Geräte (nicht reserviert/verkauft/angeboten)
             let freiEK = 0, freiVK = 0, freiPortalRest = 0;
+            // KACHEL-BRÜCKE (User 2026-07-16, „unlogisch zueinander"): freie Geräte nach
+            // physischem Verbleib MIT €-Wert — dieselbe Zahl erscheint in BEIDEN Kacheln.
+            const freiPhys = { QE: { n: 0, vk: 0 }, unterwegs: { n: 0, vk: 0 }, ohne: { n: 0, vk: 0 } };
             // TAGES-KENNZAHL (To-do #1, 2026-07-02): „Nicht verkauft & physisch im Lager (AMM QE)".
             // VK ist die belastbare Größe (EK strukturell untererfasst, ~978 Geräte ohne EK);
             // unklassifizierte Geräte haben KEINE Preisquelle → zählen im Stück, nicht im Wert.
-            const qeUnsold = { count:0, ek:0, vk:0, frei:0, reserviert:0, unklassifiziert:0, ohnePreis:0 };
+            const qeUnsold = { count:0, ek:0, vk:0, frei:0, reserviert:0, unklassifiziert:0, ohnePreis:0, resVk:0 };
 
             for (const ln of uni) {
                 // SAMMEL-LAGER-NRN (Herdsets, 2026-07-14): Odoo-Komponenten tragen Sub-Keys
@@ -14602,7 +14605,11 @@ Keine Erklärungen, kein Markdown.`;
                     resPhys[amm === 'QE' ? 'QE' : (amm === 'VS' || amm === 'AA') ? 'unterwegs' : 'ohne']++;
                 if (c === 'verfuegbar') {   // freiverkäuflicher Warenwert
                     const it = inO ? oStock[ln] : (inP ? pStock[ln] : null);
-                    if (it) { freiEK += (+it.ek || 0); freiVK += (+it.vk || 0); }
+                    const _fVK = it ? (+it.vk || 0) : 0;
+                    if (it) { freiEK += (+it.ek || 0); freiVK += _fVK; }
+                    // Kachel-Brücke: freie Geräte nach physischem Verbleib (QE/Versand/ohne Nachweis)
+                    const _fb = amm === 'QE' ? 'QE' : (amm === 'VS' || amm === 'AA') ? 'unterwegs' : 'ohne';
+                    freiPhys[_fb].n++; freiPhys[_fb].vk += _fVK;
                     // PORTAL-TOT (User 2026-07-03): Portal liefert keine Verkäufe/Ware mehr —
                     // freier Portal-Rest ist erst nach Odoo-Migration transaktionsfähig.
                     if (!inO && inP) freiPortalRest++;
@@ -14616,7 +14623,10 @@ Keine Erklärungen, kein Markdown.`;
                     else if (c === 'reserviert') qeUnsold.reserviert++;
                     else qeUnsold.unklassifiziert++;
                     const qit = inO ? oStock[ln] : (inP ? pStock[ln] : null);
-                    if (qit) { qeUnsold.ek += (+qit.ek || 0); qeUnsold.vk += (+qit.vk || 0); }
+                    if (qit) {
+                        qeUnsold.ek += (+qit.ek || 0); qeUnsold.vk += (+qit.vk || 0);
+                        if (c === 'reserviert') qeUnsold.resVk += (+qit.vk || 0);   // Kachel-Brücke
+                    }
                     else qeUnsold.ohnePreis++;
                 }
                 // Anomalien — die echten „stimmt nicht"-Fälle
@@ -14659,6 +14669,7 @@ Keine Erklärungen, kein Markdown.`;
                 consistency,
                 versandPipeline: { ...versandPipeline, fensterTage: VERSAND_FENSTER_TAGE },
                 frei: { count: comm.verfuegbar, ek: freiEK, vk: freiVK, portalRest: freiPortalRest },
+                freiPhys,
                 resPhys,
                 qeUnsold,
                 sales: { total: salesTotal, portal: portalSoldSet.size, odoo: odooSoldSet.size, noKey: soldNoKey, double: salesDouble },
@@ -14726,11 +14737,12 @@ Keine Erklärungen, kein Markdown.`;
             const consStr = cons.pct.toLocaleString('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
             const eur = v => Number(v||0).toLocaleString('de-DE', { style:'currency', currency:'EUR', minimumFractionDigits:0, maximumFractionDigits:0 });
             const fr = r.frei || { count:0, ek:0, vk:0 };
-            const qu = r.qeUnsold || { count:0, ek:0, vk:0, frei:0, reserviert:0, unklassifiziert:0, ohnePreis:0 };
+            const qu = r.qeUnsold || { count:0, ek:0, vk:0, frei:0, reserviert:0, unklassifiziert:0, ohnePreis:0, resVk:0 };
             const hasAmm = (r.phys.QE + r.phys.VS + r.phys.AA) > 0;
-            // Geräte, die kaufmännisch frei sind, aber NICHT physisch als QE im Lager stehen
-            // (Phantom bzw. unterwegs) — macht den Unterschied der beiden Kacheln sichtbar.
-            const freiNichtLager = Math.max(0, fr.count - qu.frei);
+            // KACHEL-BRÜCKE (User 2026-07-16): Die GEMEINSAME Menge beider Kacheln ist
+            // „frei UND physisch im Lager" — sie erscheint mit identischer Stückzahl und
+            // identischem €-Wert links („davon im Lager") und rechts (erster Summand).
+            const fp = r.freiPhys || { QE: { n: qu.frei, vk: 0 }, unterwegs: { n: 0, vk: 0 }, ohne: { n: 0, vk: 0 } };
             // PHASE A: Kacheln als eigener Baustein — landen auf der ÜBERSICHT (Tagesstart)
             // UND im Datenqualität-Reiter (dort mit dem vollen Abstimmungs-Panel darunter).
             // User-Feedback 2026-07-02: Titel = die FRAGE, die die Zahl beantwortet;
@@ -14738,23 +14750,24 @@ Keine Erklärungen, kein Markdown.`;
             const tilesHtml = `
               <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:0.75rem;margin-bottom:0.75rem;">
               <div style="background:var(--bg-elevated);border:1px solid var(--border);border-radius:12px;padding:0.9rem 1.1rem;">
-                <div style="display:flex;align-items:center;gap:0.4rem;font-size:0.62rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;"><span class="ds-dot" style="background:var(--accent-green);"></span>Sofort verkaufbar — was Vertrieb heute anbieten kann <span class="vc-info" data-tip="VERTRIEBSSICHT (kaufmännisch): jedes Gerät mit Odoo-Status „Verfügbar" + freier Portal-Restbestand — egal, wo es physisch steht. Reserviert, Angeboten und Verkauft sind raus. Achtung 1: enthält Geräte, die laut Odoo verfügbar, aber physisch nicht (mehr) im Lager sind (Phantom). Achtung 2: Das Portal ist seit 03.07.2026 endgültig tot (keine Verkäufe, keine neue Ware) — der freie Portal-Rest ist erst nach Odoo-Migration transaktionsfähig und wird unten gesondert ausgewiesen.">ⓘ</span></div>
+                <div style="display:flex;align-items:center;gap:0.4rem;font-size:0.62rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;"><span class="ds-dot" style="background:var(--accent-green);"></span>Sofort verkaufbar — was Vertrieb heute anbieten kann <span class="vc-info" data-tip="VERTRIEBSSICHT (kaufmännisch): jedes Gerät mit Odoo-Status „Verfügbar" + freier Portal-Restbestand — egal, wo es physisch steht. Reserviert, Angeboten und Verkauft sind raus. Achtung 1: enthält Geräte, die laut Odoo verfügbar, aber physisch nicht (mehr) im Lager sind (Phantom). Achtung 2: Das Portal ist seit 03.07.2026 endgültig tot (keine Verkäufe, keine neue Ware) — der freie Portal-Rest ist erst nach Odoo-Migration transaktionsfähig und wird unten gesondert ausgewiesen. BRÜCKE zur rechten Kachel: die Zeile „davon im Lager (QE)" ist die Schnittmenge beider Kacheln — dieselbe Stückzahl und derselbe €-Wert stehen rechts als erster Summand.">ⓘ</span></div>
                 <div style="display:flex;align-items:baseline;gap:1.2rem;flex-wrap:wrap;margin-top:0.2rem;">
                   <div style="font-size:1.9rem;font-weight:800;color:var(--accent-green);line-height:1;">${eur(fr.vk)}<span style="font-size:0.8rem;font-weight:600;color:var(--text-secondary);"> VK</span></div>
                   <div style="font-size:1.1rem;font-weight:700;color:var(--text-secondary);">${eur(fr.ek)}<span style="font-size:0.7rem;font-weight:500;"> EK</span></div>
                   <div style="font-size:0.95rem;font-weight:700;">${fmt(fr.count)}<span style="font-size:0.7rem;font-weight:500;color:var(--text-secondary);"> Geräte frei</span></div>
                 </div>
-                <div style="font-size:0.6rem;color:var(--text-muted);margin-top:0.35rem;"><b>Stichtag heute</b> · nicht reserviert · nicht im Angebot · nicht verkauft${hasAmm && freiNichtLager>0?` &nbsp;·&nbsp; ⚠️ davon <b>${fmt(freiNichtLager)}</b> NICHT physisch im Lager (Phantom → 🔍 Datenqualität)`:''}${(fr.portalRest||0)>0?` &nbsp;·&nbsp; <span style="color:var(--accent-orange);">davon <b>${fmt(fr.portalRest)}</b> Portal-Rest — erst nach Odoo-Migration verkaufbar</span>`:''}</div>
+                <div style="font-size:0.6rem;color:var(--text-muted);margin-top:0.35rem;"><b>Stichtag heute</b> · nicht reserviert · nicht im Angebot · nicht verkauft${(fr.portalRest||0)>0?` &nbsp;·&nbsp; <span style="color:var(--accent-orange);">davon <b>${fmt(fr.portalRest)}</b> Portal-Rest — erst nach Odoo-Migration verkaufbar</span>`:''}</div>
+                ${hasAmm ? `<div style="font-size:0.6rem;color:var(--text-muted);margin-top:0.25rem;border-top:1px solid var(--border);padding-top:0.3rem;">davon <b>im Lager (QE): ${fmt(fp.QE.n)} Geräte · ${eur(fp.QE.vk)} VK</b> <span style="color:var(--accent-cyan);">→ erster Baustein der rechten Kachel</span>${fp.unterwegs.n>0?` &nbsp;·&nbsp; ${fmt(fp.unterwegs.n)} im Versand/Ausgang (${eur(fp.unterwegs.vk)})`:''}${fp.ohne.n>0?` &nbsp;·&nbsp; <span style="color:var(--accent-orange);">⚠ ${fmt(fp.ohne.n)} Phantome (${eur(fp.ohne.vk)}) — Ware nicht auffindbar → 🔍 Datenqualität</span>`:''}</div>`:''}
               </div>
               <div style="background:var(--bg-elevated);border:1px solid var(--border);border-radius:12px;padding:0.9rem 1.1rem;">
-                <div style="display:flex;align-items:center;gap:0.4rem;font-size:0.62rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;"><span class="ds-dot" style="background:var(--accent-cyan);"></span>Unverkauft im Lager — gebundenes Kapital (physisch) <span class="vc-info" data-tip="LAGERSICHT (physisch): jedes Gerät, das laut AMM im Lager steht (Status QE) und nicht verkauft ist — INKLUSIVE reservierte/angebotene und noch unklassifizierte Geräte. Das ist das zum Stichtag gebundene Kapital. VK ist die belastbare Größe (EK strukturell untererfasst); unklassifizierte Geräte haben keine Preisquelle und zählen nur in der Stückzahl.">ⓘ</span></div>
+                <div style="display:flex;align-items:center;gap:0.4rem;font-size:0.62rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;"><span class="ds-dot" style="background:var(--accent-cyan);"></span>Unverkauft im Lager — gebundenes Kapital (physisch) <span class="vc-info" data-tip="LAGERSICHT (physisch): jedes Gerät, das laut AMM im Lager steht (Status QE) und nicht verkauft ist — INKLUSIVE reservierte/angebotene und noch unklassifizierte Geräte. Das ist das zum Stichtag gebundene Kapital. VK ist die belastbare Größe (EK strukturell untererfasst); unklassifizierte Geräte haben keine Preisquelle und zählen nur in der Stückzahl. BRÜCKE zur linken Kachel: der erste Summand („sofort verkaufbar im Lager") ist exakt die Zeile „davon im Lager" links — gleiche Stückzahl, gleicher €-Wert. Links darüber hinaus: Phantome/im Versand (nicht QE). Rechts darüber hinaus: reservierte + unklassifizierte Ware.">ⓘ</span></div>
                 ${hasAmm ? `
                 <div style="display:flex;align-items:baseline;gap:1.2rem;flex-wrap:wrap;margin-top:0.2rem;">
                   <div style="font-size:1.9rem;font-weight:800;color:var(--accent-cyan,#22d3ee);line-height:1;">${eur(qu.vk)}<span style="font-size:0.8rem;font-weight:600;color:var(--text-secondary);"> VK</span></div>
                   <div style="font-size:1.1rem;font-weight:700;color:var(--text-secondary);">${eur(qu.ek)}<span style="font-size:0.7rem;font-weight:500;"> EK</span></div>
                   <div style="font-size:0.95rem;font-weight:700;">${fmt(qu.count)}<span style="font-size:0.7rem;font-weight:500;color:var(--text-secondary);"> Geräte</span></div>
                 </div>
-                <div style="font-size:0.6rem;color:var(--text-muted);margin-top:0.35rem;"><b>Stichtag heute</b> · = <b>${fmt(qu.frei)}</b> sofort verkaufbar im Lager &nbsp;+&nbsp; <b>${fmt(qu.reserviert)}</b> reserviert/angeboten &nbsp;+&nbsp; <b>${fmt(qu.unklassifiziert)}</b> unklassifiziert${qu.ohnePreis>0?` <span style="color:var(--accent-orange,#f59e0b);">(ohne Preis → nicht im €-Wert)</span>`:''}</div>`
+                <div style="font-size:0.6rem;color:var(--text-muted);margin-top:0.35rem;"><b>Stichtag heute</b> · = <b>${fmt(fp.QE.n)} sofort verkaufbar im Lager · ${eur(fp.QE.vk)} VK</b> <span style="color:var(--accent-green);">(← aus der linken Kachel)</span> &nbsp;+&nbsp; <b>${fmt(qu.reserviert)}</b> reserviert/angeboten (${eur(qu.resVk||0)}) &nbsp;+&nbsp; <b>${fmt(qu.unklassifiziert)}</b> unklassifiziert${qu.ohnePreis>0?` <span style="color:var(--accent-orange,#f59e0b);">(ohne Preis → nicht im €-Wert)</span>`:''}</div>`
                 : `<div style="font-size:0.72rem;color:var(--text-muted);margin-top:0.4rem;">BESTAND-Datei (AMM) laden, um die physische Tages-Kennzahl zu berechnen.</div>`}
               </div>
               </div>`;
