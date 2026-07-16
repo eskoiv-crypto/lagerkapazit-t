@@ -3129,6 +3129,21 @@
         body[data-vertriebs-cockpit="true"] #analyse-pro-panel > .card-header {
             display: none !important; /* Inline-Style am Element überstimmen */
         }
+        /* EXPERTEN-AUDIT 16.07. (Datenanalyst D1): „Bestands-Verfügbarkeit (Stock-
+         * Analysis)" wiederholte die Hero-Kacheln + Reserviert-KPI (dieselbe Info
+         * bis zu 4× auf der Heute-Seite) → im Cockpit ausgeblendet, Markup bleibt
+         * (reversibel; IDs werden weiter befüllt, kein Code-Rückbau nötig). */
+        body[data-vertriebs-cockpit="true"] #bestand-verfuegbarkeit-karte {
+            display: none !important;
+        }
+        /* Zeitbezugs-Chip (Datenanalyst D3): einheitliche Kennzeichnung
+         * STICHTAG / ZEITRAUM / ROLLIEREND statt Fließtext-Subzeilen */
+        .tb-chip {
+            display: inline-block; font-size: 0.52rem; font-weight: 700;
+            letter-spacing: 0.06em; padding: 0.1rem 0.4rem; border-radius: 999px;
+            border: 1px solid var(--border); color: var(--text-muted);
+            vertical-align: middle; text-transform: uppercase;
+        }
     </style>
 </head>
 <body data-active-dept="sales" data-vertriebs-cockpit="true">
@@ -3726,7 +3741,7 @@
                                  Kacheln sind die EINZIGEN €-Werte; diese Zeile zeigt nur ergänzende
                                  Kennzahlen ohne Doppelung. Marge-Potenzial bewusst gestrichen (EK ist
                                  strukturell untererfasst → VK−EK war systematisch überzeichnet). -->
-                            <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.75rem; margin-bottom: 1rem;">
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0.75rem; margin-bottom: 1rem;">
                                 <div class="analyse-kpi">
                                     <div class="analyse-kpi-value" id="kpi-reserviert">—</div>
                                     <div class="analyse-kpi-label">Reserviert / Angeboten <span class="vc-info" data-tip="ALLE kaufmännisch gebundenen Geräte (Odoo Angeboten/Reserviert + Portal A/M) — Stichtag heute. Die „davon"-Zeile zeigt den physischen Verbleib laut AMM: im Lager (QE) · im Versand (VS/AA, normal) · Ware nicht auffindbar (kein AMM-Nachweis = Kundenzusage ohne Ware → prüfen, Details unter Datenqualität → Phantom).">ⓘ</span></div>
@@ -3742,6 +3757,10 @@
                                 <div class="analyse-kpi">
                                     <div class="analyse-kpi-value" id="kpi-slowmover-count">—</div>
                                     <div class="analyse-kpi-label">Slow-Mover (>60d)</div>
+                                </div>
+                                <div class="analyse-kpi">
+                                    <div class="analyse-kpi-value" id="kpi-storno-quote">—</div>
+                                    <div class="analyse-kpi-label">Storno-Quote (30 T) <span class="vc-info" data-tip="Anteil stornierter/korrigierter an allen entschiedenen Aufträgen (storniert + bestätigt) der letzten 30 Tage — rollierend, aus dem sale.order-Export. Die Sub-Zeile zeigt den Wochen-Trend. Eine hohe Quote macht die Vorkasse-Erwartung im Zahlungs-Strahl WEICH: bestätigt heißt nicht bezahlt.">ⓘ</span></div>
                                 </div>
                                 <div class="analyse-kpi" style="cursor: pointer;" onclick="switchAnalyseTab('datenqualitaet')" title="Zum Datenqualität-Reiter">
                                     <div class="analyse-kpi-value" id="kpi-daten-konsistenz">—</div>
@@ -3812,7 +3831,8 @@
                             
                             <!-- NEU: Verfügbarkeits-Übersicht -->
                             <!-- PHASE C4: flach statt Gradient — Farbe nur noch als Punkt + Zahl -->
-                            <div style="margin-top: 1rem; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 12px; padding: 1rem;">
+                            <!-- AUDIT D1 16.07.: im Cockpit per CSS ausgeblendet (Redundanz zu Hero-Kacheln) -->
+                            <div id="bestand-verfuegbarkeit-karte" style="margin-top: 1rem; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 12px; padding: 1rem;">
                                 <h4 style="margin: 0 0 0.75rem 0; font-size: 0.8rem; font-weight: 600; color: var(--text-primary);">Bestands-Verfügbarkeit (Stock-Analysis)</h4>
                                 <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem;">
                                     <div style="text-align: center; background: var(--bg-card); border: 1px solid var(--border); padding: 0.75rem; border-radius: 8px;">
@@ -4465,6 +4485,7 @@
                                             <th>% Profit</th>
                                             <th>Marge %</th>
                                             <th>Ø Tage</th>
+                                            <th>Reichweite <span class="vc-info" data-tip="Bestand ÷ Verkaufsgeschwindigkeit der letzten 30 Tage = in wie vielen Tagen der aktuelle Bestand dieser Warengruppe beim jetzigen Tempo abverkauft wäre. ∞ = seit 30 Tagen kein Verkauf. Grün < 45 T · Orange 45–120 T · Rot > 120 T — die PRÄDIKTIVE Sicht auf Ladenhüter (Dead Stock erkennt sie erst hinterher).">ⓘ</span></th>
                                         </tr>
                                     </thead>
                                     <tbody id="produktgruppen-tbody">
@@ -14764,7 +14785,7 @@ Keine Erklärungen, kein Markdown.`;
                 ${hasAmm ? `<div style="font-size:0.6rem;color:var(--text-muted);margin-top:0.25rem;border-top:1px solid var(--border);padding-top:0.3rem;">davon <b>im Lager (QE): ${fmt(fp.QE.n)} Geräte · ${eur(fp.QE.vk)} VK</b> <span style="color:var(--accent-cyan);">→ erster Baustein der rechten Kachel</span>${fp.unterwegs.n>0?` &nbsp;·&nbsp; ${fmt(fp.unterwegs.n)} im Versand/Ausgang (${eur(fp.unterwegs.vk)})`:''}${fp.ohne.n>0?` &nbsp;·&nbsp; <span style="color:var(--accent-orange);">⚠ ${fmt(fp.ohne.n)} Phantome (${eur(fp.ohne.vk)}) — Ware nicht auffindbar → 🔍 Datenqualität</span>`:''}</div>`:''}
               </div>
               <div style="background:var(--bg-elevated);border:1px solid var(--border);border-radius:12px;padding:0.9rem 1.1rem;">
-                <div style="display:flex;align-items:center;gap:0.4rem;font-size:0.62rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;"><span class="ds-dot" style="background:var(--accent-cyan);"></span>Unverkauft im Lager — gebundenes Kapital (physisch) <span class="vc-info" data-tip="LAGERSICHT (physisch): jedes Gerät, das laut AMM im Lager steht (Status QE) und nicht verkauft ist — INKLUSIVE reservierte/angebotene und noch unklassifizierte Geräte. Das ist das zum Stichtag gebundene Kapital. VK ist die belastbare Größe (EK strukturell untererfasst); unklassifizierte Geräte haben keine Preisquelle und zählen nur in der Stückzahl. BRÜCKE zur linken Kachel: der erste Summand („sofort verkaufbar im Lager") ist exakt die Zeile „davon im Lager" links — gleiche Stückzahl, gleicher €-Wert. Links darüber hinaus: Phantome/im Versand (nicht QE). Rechts darüber hinaus: reservierte + unklassifizierte Ware.">ⓘ</span></div>
+                <div style="display:flex;align-items:center;gap:0.4rem;font-size:0.62rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;"><span class="ds-dot" style="background:var(--accent-cyan);"></span>Unverkauft im Lager — Warenwert (VK-Potenzial, physisch) <span class="vc-info" data-tip="LAGERSICHT (physisch): jedes Gerät, das laut AMM im Lager steht (Status QE) und nicht verkauft ist — INKLUSIVE reservierte/angebotene und noch unklassifizierte Geräte. Die große Zahl ist das VK-POTENZIAL (möglicher Verkaufserlös), NICHT die Kapitalbindung — die misst der EK daneben (Anschaffungskosten, strukturell untererfasst = Untergrenze). Unklassifizierte Geräte haben keine Preisquelle und zählen nur in der Stückzahl. BRÜCKE zur linken Kachel: der erste Summand („sofort verkaufbar im Lager") ist exakt die Zeile „davon im Lager" links — gleiche Stückzahl, gleicher €-Wert. Links darüber hinaus: Phantome/im Versand (nicht QE). Rechts darüber hinaus: reservierte + unklassifizierte Ware.">ⓘ</span></div>
                 ${hasAmm ? `
                 <div style="display:flex;align-items:baseline;gap:1.2rem;flex-wrap:wrap;margin-top:0.2rem;">
                   <div style="font-size:1.9rem;font-weight:800;color:var(--accent-cyan,#22d3ee);line-height:1;">${eur(qu.vk)}<span style="font-size:0.8rem;font-weight:600;color:var(--text-secondary);"> VK</span></div>
@@ -15029,11 +15050,36 @@ Keine Erklärungen, kein Markdown.`;
                   <div style="font-size:0.62rem;color:var(--text-muted);">${sub}</div>
                 </div>`;
             const quellen = [orders ? 'Odoo-Aufträge' : null, hasInv ? 'Rechnungen (account.move)' : null, waMap ? 'WA-Pipeline' : null].filter(Boolean).join(' + ');
+            // AUDIT V2/V3 (16.07., Bankvorstand): Forderungen brauchen SCHULDNER + ALTER —
+            // Klumpenrisiko (wenige große Rechnungen) und Überfälligkeits-Aging sichtbar machen.
+            let schuldnerHtml = '';
+            if (hasInv && invOffen.length) {
+                const _heute0 = new Date(); _heute0.setHours(0, 0, 0, 0);
+                const _rows = [...invOffen].sort((a, b) => (a.faelligkeit || 0) - (b.faelligkeit || 0)).slice(0, 8).map(v => {
+                    const ueberT = v.faelligkeit ? Math.floor((_heute0 - v.faelligkeit) / 86400000) : null;
+                    const faelligTxt = v.faelligkeit ? v.faelligkeit.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' }) : '—';
+                    const status = ueberT !== null && ueberT > 0
+                        ? `<span style="color:var(--accent-red,#ef4444);font-weight:700;">überfällig +${ueberT} T${ueberT > 30 ? ' ⚠⚠' : ueberT > 7 ? ' ⚠' : ''}</span>`
+                        : `fällig ${faelligTxt}`;
+                    const anteil = invOffenSum > 0 ? Math.round((v.faellig / invOffenSum) * 100) : 0;
+                    return `<div style="display:flex;gap:0.7rem;align-items:baseline;font-size:0.62rem;padding:0.12rem 0;">
+                        <span style="font-family:var(--font-mono);color:var(--text-muted);min-width:105px;">${v.nummer}</span>
+                        <span style="flex:1;color:var(--text-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${(v.partner || '—').slice(0, 34)}</span>
+                        <span style="font-family:var(--font-mono);font-weight:700;">${eur(v.faellig)}</span>
+                        <span style="color:var(--text-muted);min-width:34px;text-align:right;" title="Anteil an den offenen Forderungen (Klumpenrisiko)">${anteil} %</span>
+                        <span style="min-width:110px;text-align:right;">${status}</span>
+                      </div>`;
+                }).join('');
+                schuldnerHtml = `<div style="margin-top:0.55rem;border-top:1px solid var(--border);padding-top:0.45rem;">
+                    <div style="font-size:0.55rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.2rem;">Offene Rechnungen — Schuldner & Fälligkeit <span class="vc-info" data-tip="Jede offene Rechnung mit Schuldner, fälligem Restbetrag, Anteil an der Forderungssumme (Klumpenrisiko) und Fälligkeit bzw. Überfälligkeits-Alter. Sortiert nach Fälligkeit — was oben steht, gehört zuerst gemahnt.">ⓘ</span></div>
+                    ${_rows}${invOffen.length > 8 ? `<div style="font-size:0.55rem;color:var(--text-muted);">… +${invOffen.length - 8} weitere</div>` : ''}
+                  </div>`;
+            }
             el.innerHTML = `
               <div style="background:var(--bg-elevated);border:1px solid var(--border);border-radius:12px;padding:0.85rem 1.1rem;">
                 <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap;">
                   <div style="flex:1; min-width:210px;">
-                    <div style="display:flex;align-items:center;gap:0.4rem;font-size:0.6rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;"><span class="ds-dot" style="background:var(--accent-green);"></span>Voraussichtliche Zahlungseingänge <span class="vc-info" data-tip="Summe der offenen, belastbar erwartbaren Eingänge: ausstehende Vorkasse auf bestätigte Aufträge + offene Zahlungen bereits versendeter Aufträge. Stichtag heute. Keine Spekulation: offene Angebote zählen NICHT. Brücke zur Funnel-Stufe „Bestätigt": Bestätigt gesamt − eingegangene Zahlungen ≈ ausstehend; kleine Abweichungen entstehen, wenn ein Auftrag ÜBERzahlt ist (negativer Rest wird auf 0 gekappt, nie als Guthaben verrechnet).">ⓘ</span></div>
+                    <div style="display:flex;align-items:center;gap:0.4rem;font-size:0.6rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;"><span class="ds-dot" style="background:var(--accent-green);"></span>Voraussichtliche Zahlungseingänge <span class="tb-chip">Stichtag</span> <span class="vc-info" data-tip="Summe der offenen, belastbar erwartbaren Eingänge: ausstehende Vorkasse auf bestätigte Aufträge + offene Zahlungen bereits versendeter Aufträge. Stichtag heute. Keine Spekulation: offene Angebote zählen NICHT. Brücke zur Funnel-Stufe „Bestätigt": Bestätigt gesamt − eingegangene Zahlungen ≈ ausstehend; kleine Abweichungen entstehen, wenn ein Auftrag ÜBERzahlt ist (negativer Rest wird auf 0 gekappt, nie als Guthaben verrechnet).">ⓘ</span></div>
                     <div style="font-size:1.9rem;font-weight:800;font-family:var(--font-mono);line-height:1.1;color:var(--accent-green);">${eur(gesamtOffen)}</div>
                     <div style="font-size:0.62rem;color:var(--text-muted);">offen gesamt · Stichtag heute</div>
                   </div>
@@ -15051,6 +15097,7 @@ Keine Erklärungen, kein Markdown.`;
                       orders ? `${fmtN(eingN)} (teil)bezahlte offene Aufträge · Lieferpflicht offen` : 'sale.order-Export laden',
                       'Bereits eingegangene Zahlungen auf noch offene bestätigte Aufträge: Geld ist da, die Ware muss noch raus (Verlade-Freigabe erteilt). Ein teilbezahlter Auftrag zählt hier mit seiner Zahlung UND links mit seinem Restbetrag — die Stückzahlen beider Segmente dürfen sich deshalb überschneiden, die €-Beträge nicht.')}
                 </div>
+                ${schuldnerHtml}
                 <div style="font-size:0.58rem;color:var(--text-muted);margin-top:0.5rem;">Quellen: ${quellen} · Stichtagswerte, kein Zeitraum-Filter · versendete Aufträge zählen nur einmal (unter „Versendet") · offene Angebote zählen bewusst nicht (keine Zusage)${orders && dashboardState.odooOrdersHasZahlung === false ? ' · <span style="color:var(--accent-orange);">⚠ Export ohne Spalte „Betrag der Zahlungstransaktionen" — Teilzahlungen unbekannt, „ausstehend" = volle Beträge, „eingegangen" = 0</span>' : ''}</div>
               </div>`;
             _renderZahlungsStrahl(strahl);
@@ -15084,6 +15131,12 @@ Keine Erklärungen, kein Markdown.`;
                 if (off < 7) sum7 += e.betrag; if (off < 14) sum14 += e.betrag; sum28 += e.betrag;
             });
             const maxSum = Math.max(...days.map(d => d.sum), 1);
+            // AUDIT V1 (16.07.): HART vs. WEICH — Rechnungen/gelieferte Ware sind
+            // rechtlich existente Forderungen; Vorkasse vor Lieferung ist UNVERBINDLICH
+            // (kein Anspruch, Kunde kann stornieren — siehe Storno-Quote-KPI).
+            let hartSum = 0, weichSum = 0;
+            entries.forEach(e => { if (e.typ === 'vorkasse') weichSum += e.betrag; else hartSum += e.betrag; });
+            const sq = dashboardState._stornoQuote30;
             const typFarbe = { vorkasse: 'var(--accent-orange)', rechnung: 'var(--accent-green)', annahme: 'var(--accent-cyan)', unbekannt: 'var(--text-muted)' };
             const typName = { vorkasse: 'Vorkasse +3T', rechnung: 'Rechnung+Ziel', annahme: 'Annahme Versand+14T', unbekannt: '?' };
             const bars = days.map((d, i) => {
@@ -15106,8 +15159,9 @@ Keine Erklärungen, kein Markdown.`;
             el.innerHTML = `
               <div style="background:var(--bg-elevated);border:1px solid var(--border);border-radius:12px;padding:0.85rem 1.1rem;">
                 <div style="display:flex;align-items:baseline;gap:1rem;flex-wrap:wrap;margin-bottom:0.6rem;">
-                  <div style="font-size:0.6rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;">Zahlungs-Strahl — geplante Eingänge <span class="vc-info" data-tip="Jeder offene Betrag aus dem Zahlungs-Radar bekommt einen erwarteten Eingangs-Termin: Vorkasse = Auftrags-Erstellung + 3 Tage (Bestätigungsdatum liefert der Export nicht). Rechnungskunden = Rechnungsdatum + Zahlungsziel-Tage, WENN beides im WA-Sheet gepflegt ist — sonst Annahme: Versand-/Anlieferdatum + 14 Tage Standard-Ziel (farblich getrennt). Ohne jedes Datum → „ohne Termin". Termine vor heute → Überfällig-Topf.">ⓘ</span></div>
+                  <div style="font-size:0.6rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;">Zahlungs-Strahl — geplante Eingänge <span class="tb-chip">Stichtag → 28 T</span> <span class="vc-info" data-tip="Jeder offene Betrag aus dem Zahlungs-Radar bekommt einen erwarteten Eingangs-Termin: Vorkasse = Auftrags-Erstellung + 3 Tage (Bestätigungsdatum liefert der Export nicht). Rechnungskunden = Rechnungsdatum + Zahlungsziel-Tage, WENN beides im WA-Sheet gepflegt ist — sonst Annahme: Versand-/Anlieferdatum + 14 Tage Standard-Ziel (farblich getrennt). Ohne jedes Datum → „ohne Termin". Termine vor heute → Überfällig-Topf.">ⓘ</span></div>
                   <div style="font-size:0.72rem;font-family:var(--font-mono);color:var(--text-secondary);">7 Tage: <b>${eur(sum7)}</b> · 14 Tage: <b>${eur(sum14)}</b> · 28 Tage: <b>${eur(sum28)}</b></div>
+                  <div style="font-size:0.62rem;color:var(--text-secondary);">davon <span style="color:var(--accent-green);font-weight:700;">hart ${eur(hartSum)}</span> (Forderung existiert) · <span style="color:var(--accent-orange);font-weight:700;">weich ${eur(weichSum)}</span> (Vorkasse, unverbindlich${sq !== null && sq !== undefined ? ` — Storno-Quote 30 T: ${sq} %` : ''}) <span class="vc-info" data-tip="HART = versendete Ware bzw. gestellte Rechnung — die Forderung existiert rechtlich, der Eingang ist eine Termin-, keine Ob-Frage. WEICH = Vorkasse auf bestätigte, noch nicht versendete Aufträge — vor Lieferung besteht KEIN Zahlungsanspruch, der Kunde kann folgenlos abspringen. Für die Liquiditätsplanung nur den harten Anteil fest einplanen.">ⓘ</span></div>
                 </div>
                 <div style="display:flex;align-items:stretch;gap:0.8rem;">
                   ${topf.ueberfaellig.n ? `<div style="display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:2px;padding-right:0.8rem;border-right:1px dashed var(--border);" title="Termin lag vor heute — Eingang überfällig, nachfassen!">
@@ -15188,18 +15242,40 @@ Keine Erklärungen, kein Markdown.`;
                 const flow = !!_fw;
                 const _root = s => String(s || '').trim().toUpperCase().split('.')[0];
                 const B = {
-                    ang:  { n: 0, vk: 0, entwurf: 0, gesendet: 0 },
+                    ang:  { n: 0, vk: 0, entwurf: 0, gesendet: 0, ageSum: 0, alt7: 0 },
                     prof: { n: 0, vk: 0, proformaN: 0, vorkasse: 0 },
                     rech: { n: 0, vk: 0, offen: 0 },
                     fertig: { n: 0, vk: 0 },
                     storno: { n: 0, vk: 0 }
                 };
+                // AUDIT V1/D4 (16.07.): Storno-Quote rollierend 30 T + Wochen-Trend —
+                // IMMER über alle Aufträge (unabhängig vom Anzeige-Fenster).
+                // Entschieden = storniert + bestätigt; Angebote sind noch offen.
+                const _nowF = Date.now();
+                const _cut30 = _nowF - 30 * 86400000;
+                let _q30s = 0, _q30b = 0; const _qWochen = new Map();
                 oo.forEach(o => {
+                    if (o.erstellt) {
+                        const isS = /^storniert/i.test(o.status), isB = /^verkaufsauftrag/i.test(o.status);
+                        if (isS || isB) {
+                            if (o.erstellt.getTime() >= _cut30) { if (isS) _q30s++; else _q30b++; }
+                            const _d = new Date(o.erstellt); _d.setHours(0, 0, 0, 0);
+                            _d.setDate(_d.getDate() - ((_d.getDay() + 6) % 7));   // ISO-Montag
+                            const wkKey = _localYMD(_d);
+                            const w = _qWochen.get(wkKey) || { s: 0, b: 0 };
+                            if (isS) w.s++; else w.b++;
+                            _qWochen.set(wkKey, w);
+                        }
+                    }
                     if (flow && (!o.erstellt || o.erstellt < _fw.from || o.erstellt > _fw.to)) return;
                     if (/^storniert/i.test(o.status)) { B.storno.n++; B.storno.vk += o.gesamt; return; }
                     if (/^angebot/i.test(o.status)) {
                         B.ang.n++; B.ang.vk += o.gesamt;
                         if (/gesendet/i.test(o.status)) B.ang.gesendet++; else B.ang.entwurf++;
+                        if (o.erstellt) {
+                            const _age = Math.floor((_nowF - o.erstellt.getTime()) / 86400000);
+                            B.ang.ageSum += _age; if (_age > 7) B.ang.alt7++;
+                        }
                         return;
                     }
                     if (!/^verkaufsauftrag/i.test(o.status)) return;
@@ -15217,10 +15293,25 @@ Keine Erklärungen, kein Markdown.`;
                     B.prof.vorkasse += o.zahlungsbetrag || 0;
                 });
                 const modLbl = flow ? `erstellt ${_gfFormat(_fw.from)} – ${_gfFormat(_fw.to)}` : 'Stichtag heute';
+                // Storno-Quote-KPI (Heute-Zeile) + Zustand für den Zahlungs-Strahl
+                const _qEnt = _q30s + _q30b;
+                const _qPct = _qEnt > 0 ? Math.round((_q30s / _qEnt) * 100) : null;
+                dashboardState._stornoQuote30 = _qPct;
+                const _qEl = document.getElementById('kpi-storno-quote');
+                if (_qEl) {
+                    if (_qPct === null) { _qEl.textContent = '—'; }
+                    else {
+                        const _qCol = _qPct >= 50 ? 'var(--accent-red,#ef4444)' : _qPct >= 25 ? 'var(--accent-orange)' : 'var(--accent-green)';
+                        const _qTrend = [..._qWochen.entries()].sort((a, b) => a[0] < b[0] ? -1 : 1).slice(-4)
+                            .map(([k, w]) => { const t = w.s + w.b; return t ? `${Math.round((w.s / t) * 100)}%` : '–'; }).join(' → ');
+                        _qEl.innerHTML = `<span style="color:${_qCol};">${_qPct} %</span><div style="font-size:0.62rem;font-weight:500;color:var(--text-secondary);margin-top:2px;">${fmtN(_q30s)} von ${fmtN(_qEnt)} entschiedenen · Wochen: ${_qTrend}</div>`;
+                    }
+                }
                 const kannDiff = hasRS || !!waM;   // ohne Rechnungsstatus UND ohne WA keine Phasen-Trennung
+                const _angAlter = B.ang.n > 0 ? ` · Ø ${Math.round(B.ang.ageSum / B.ang.n)} T alt${B.ang.alt7 > 0 ? ` · <span style="color:var(--accent-orange);">${fmtN(B.ang.alt7)} älter 7 T</span>` : ''}` : '';
                 const segs = [];
                 segs.push(seg('var(--accent-orange)', 'Unbestätigte Angebote', eur(B.ang.vk),
-                    `${fmtN(B.ang.n)} Aufträge (${fmtN(B.ang.entwurf)} Entwurf · ${fmtN(B.ang.gesendet)} gesendet) · ${modLbl}`,
+                    `${fmtN(B.ang.n)} Aufträge (${fmtN(B.ang.entwurf)} Entwurf · ${fmtN(B.ang.gesendet)} gesendet)${_angAlter} · ${modLbl}`,
                     'Odoo-Status „Angebot" (Entwurf) + „Angebot gesendet" — noch KEINE Kundenzusage. Summe „Gesamt" (Brutto inkl. MwSt). Stornierte/korrigierte Aufträge sind ausgeschlossen (beziffert in der Fußnote). Zeitfenster = im Fenster erstellte Aufträge, „Alle Daten" = kompletter offener Bestand.'));
                 segs.push(seg('var(--accent-purple)', 'Bestätigte Angebote · Proforma', eur(B.prof.vk),
                     `${fmtN(B.prof.n)} Aufträge · ${modLbl}${B.prof.proformaN > 0 ? ` · ${fmtN(B.prof.proformaN)}× Proforma` : ''}${B.prof.vorkasse > 0 ? ` · Vorkasse ${eur(B.prof.vorkasse)}` : ''}`,
@@ -15233,7 +15324,12 @@ Keine Erklärungen, kein Markdown.`;
                 segs.push(seg('var(--accent-green)', 'Verrechnet', eur(verrVK),
                     `${fmtN(sold.length)} Verkäufe · Zeitraum: ${winLbl}${(dashboardState._soldSrcPortal && dashboardState._soldSrcPortal.length) ? '' : ' · <span style="color:var(--accent-orange);">⚠ nur Odoo-Ära (Alt-Archiv fehlt)</span>'}`,
                     'Brutto-VK aller als verkauft gebuchten Geräte (Odoo + All-Sold, per Lager-Nr dedupliziert) im gewählten Zeitraum — Verkaufs-/Belegdatum im Fenster. Fehlt das Alt-Archiv (Portal All-Sold), umfasst die Zahl NUR die Odoo-Ära seit 22.06.2026.'));
-                segsHtml = segs.join('<div style="color:var(--text-muted);font-size:1.1rem;">→</div>');
+                // AUDIT D2: Stufen 1–3 zählen AUFTRÄGE, „Verrechnet" zählt GERÄTE mit
+                // anderem Datumsbezug — der Ebenen-Bruch wird sichtbar markiert statt
+                // durch einen „→"-Pfeil einen durchgängigen Fluss zu behaupten.
+                const _arrow = '<div style="color:var(--text-muted);font-size:1.1rem;">→</div>';
+                const _ebenenSep = '<div style="display:flex;flex-direction:column;align-items:center;gap:1px;color:var(--text-muted);" title="Ebenen-Wechsel: links Auftragsebene (sale.order), rechts Geräteebene (Verkaufsregister) — andere Zähl- und Datumsbasis"><div style="font-size:1.05rem;">‖</div><div style="font-size:0.42rem;text-transform:uppercase;letter-spacing:0.05em;white-space:nowrap;">Geräte-Ebene</div></div>';
+                segsHtml = segs.slice(0, -1).join(_arrow) + _ebenenSep + segs[segs.length - 1];
                 const hinweise = [];
                 if (B.fertig.n > 0) hinweise.push(`<b>Erledigt</b> (versendet & bezahlt${hasRS ? ' / fakturiert & bezahlt' : ''}) — nicht mehr im Funnel: ${fmtN(B.fertig.n)} Aufträge · ${eur(B.fertig.vk)}`);
                 if (B.storno.n > 0) hinweise.push(`<b>Storniert/korrigiert</b> — nie im Funnel: ${fmtN(B.storno.n)} Aufträge · ${eur(B.storno.vk)}`);
@@ -15255,6 +15351,9 @@ Keine Erklärungen, kein Markdown.`;
                 ];
                 segsHtml = segsFb.join('<div style="color:var(--text-muted);font-size:1.1rem;">→</div>');
                 fussnote = 'Näherung aus Gerätestatus — Odoo-Export „Verkaufsauftrag (sale.order)" laden für echte Auftragswerte, Phasen-Trennung (Proforma/Rechnung/erledigt) und den Zeitraum-Filter';
+                const _qElFb = document.getElementById('kpi-storno-quote');
+                if (_qElFb) _qElFb.textContent = '—';
+                dashboardState._stornoQuote30 = null;
             }
             el.innerHTML = `
               <div style="background:var(--bg-elevated);border:1px solid var(--border);border-radius:12px;padding:0.85rem 1.1rem;">
@@ -15567,18 +15666,40 @@ Keine Erklärungen, kein Markdown.`;
             });
             
             const formatCurr = (v) => v.toLocaleString('de-DE', { style: 'currency', currency: 'EUR', minimumFractionDigits: 0, maximumFractionDigits: 0 });
-            
+
             // Totals für Prozent-Berechnung
             const totalLager = rows.reduce((sum, r) => sum + r.lagerCount, 0);
             const totalSold = rows.reduce((sum, r) => sum + r.soldCount, 0);
             const totalProfit = rows.reduce((sum, r) => sum + r.profit, 0);
-            
+
+            // AUDIT D5 (16.07., Datenanalyst): REICHWEITE = Bestand ÷ Verkaufs-
+            // geschwindigkeit (Verkäufe der letzten 30 Tage) — prädiktive Ladenhüter-
+            // Sicht je Warengruppe (Dead Stock >180 T erkennt sie erst rückblickend).
+            const _cut30R = Date.now() - 30 * 86400000;
+            const _sold30ByPg = {};
+            (dashboardState.allSoldData || []).forEach(s => {
+                const d = _parseAnyDate(s.saleDate);
+                if (!d || d.getTime() < _cut30R) return;
+                const pg = String(s.pg || '').toLowerCase();
+                if (pg) _sold30ByPg[pg] = (_sold30ByPg[pg] || 0) + 1;
+            });
+
             tbody.innerHTML = rows.slice(0, 50).map(r => {
                 const marge = r.ekSum > 0 ? ((r.vkSum - r.ekSum) / r.ekSum * 100).toFixed(1) : 0;
                 const margeClass = marge < 0 ? 'negative' : marge > 50 ? 'positive' : '';
                 const daysClass = r.avgDays > 60 ? 'warning' : r.avgDays > 90 ? 'negative' : '';
                 const soldAnteil = totalSold > 0 ? ((r.soldCount / totalSold) * 100).toFixed(1) : 0;
                 const profitAnteil = totalProfit > 0 ? ((r.profit / totalProfit) * 100).toFixed(1) : 0;
+                const _s30 = _sold30ByPg[String(r.pg || '').toLowerCase()] || 0;
+                let reichweiteHtml = '<span style="color:var(--text-muted);">—</span>';
+                if (r.lagerCount > 0) {
+                    if (_s30 === 0) reichweiteHtml = '<span style="color:var(--accent-red,#ef4444);font-weight:700;" title="Seit 30 Tagen kein Verkauf in dieser Warengruppe">∞</span>';
+                    else {
+                        const rw = Math.round(r.lagerCount / (_s30 / 30));
+                        const rwCol = rw < 45 ? 'var(--accent-green)' : rw <= 120 ? 'var(--accent-orange)' : 'var(--accent-red,#ef4444)';
+                        reichweiteHtml = `<span style="color:${rwCol};font-weight:600;" title="${_s30} Verkäufe in 30 T · Bestand ${r.lagerCount}">${rw.toLocaleString('de-DE')} T</span>`;
+                    }
+                }
                 return `
                     <tr>
                         <td><strong>${_h(r.pg || '—')}</strong></td>
@@ -15591,6 +15712,7 @@ Keine Erklärungen, kein Markdown.`;
                         <td class="mono" style="color: var(--accent-green); font-weight: 600;">${profitAnteil}%</td>
                         <td class="mono ${margeClass}">${marge}%</td>
                         <td class="mono ${daysClass}">${r.avgDays || '—'}</td>
+                        <td class="mono">${reichweiteHtml}</td>
                     </tr>
                 `;
             }).join('');
