@@ -13640,9 +13640,61 @@ Keine Erklärungen, kein Markdown.`;
                 } else { elPipe.style.display = 'none'; }
             }
 
+            // STALE-DATEN-GUARD (20.07.2026, Experten-Backlog Session 1 — ausgelöst durch
+            // User-Fall „warum fehlen 14 % Konsistenz?" mit 5–6 Tage alten Exporten):
+            // warnt sichtbar, wenn die Tagesquellen alt sind oder BESTAND↔Odoo
+            // auseinanderliegen (dann sind Phantom-/Unklassifiziert-Meldungen teils
+            // nur Datei-Versatz, kein echter Fehler).
+            try { _renderStaleGuard(bar); } catch (e) { console.warn('[StaleGuard]', e); }
+
             bar.style.display = shown ? 'flex' : 'none';
         }
-        
+
+        function _renderStaleGuard(bar) {
+            let el = document.getElementById('range-stale');
+            if (!el) { el = document.createElement('span'); el.id = 'range-stale'; bar.appendChild(el); }
+            const t0 = new Date(); t0.setHours(0, 0, 0, 0);
+            const tage = d => d ? Math.round((t0 - new Date(d.getFullYear(), d.getMonth(), d.getDate())) / 86400000) : null;
+            const maxDate = (arr, get) => { let m = null; for (const x of arr) { const d = get(x); if (d && (!m || d > m)) m = d; } return m; };
+            const fmtD = d => d ? d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' }) : '?';
+            const stale = [];
+            // BESTAND: Datum aus dem Dateinamen (exakt) — Schwelle > 1 Tag
+            let bestD = null;
+            if ((dashboardState.bestandRaw || []).length) {
+                bestD = _parseAnyDate(typeof currentBestandDate !== 'undefined' ? currentBestandDate : null)
+                    || maxDate(dashboardState.bestandRaw, b => _parseAnyDate(b.weDatum));
+                const a = tage(bestD);
+                if (a !== null && a > 1) stale.push(`BESTAND ${a} T (${fmtD(bestD)})`);
+            }
+            // Odoo-Bestand: jüngster Pool-Eintritt/Erstellt ≈ Exporttag (Näherung,
+            // Wochenende ohne WE möglich) — Schwelle > 2 Tage
+            let odooD = null;
+            const oStock = dashboardState._stockSrcOdoo || {};
+            for (const k in oStock) { const d = _parseAnyDate(oStock[k].dateUpload); if (d && (!odooD || d > odooD)) odooD = d; }
+            if (odooD) { const a = tage(odooD); if (a !== null && a > 2) stale.push(`Odoo-Bestand ${a} T (${fmtD(odooD)})`); }
+            // Aufträge: jüngstes Auftragsdatum ≈ Exporttag (Näherung) — Schwelle > 3 Tage
+            if ((dashboardState.odooOrders || []).length) {
+                const m = maxDate(dashboardState.odooOrders, o => o.auftragsdatum || o.erstellt);
+                const a = tage(m);
+                if (a !== null && a > 3) stale.push(`Aufträge ${a} T (${fmtD(m)})`);
+            }
+            // Rechnungen: jüngstes Rechnungsdatum — Schwelle > 3 Tage
+            if ((dashboardState.odooInvoices || []).length) {
+                const m = maxDate(dashboardState.odooInvoices, v => v.rechnungsdatum);
+                const a = tage(m);
+                if (a !== null && a > 3) stale.push(`Rechnungen ${a} T (${fmtD(m)})`);
+            }
+            // Versatz BESTAND ↔ Odoo (> 1 Tag) → Anomalien teils nur Datei-Versatz
+            let versatz = '';
+            if (bestD && odooD) {
+                const diff = Math.abs(Math.round((bestD - odooD) / 86400000));
+                if (diff > 1) versatz = ` · Versatz BESTAND↔Odoo ${diff} T`;
+            }
+            if (!stale.length && !versatz) { el.style.display = 'none'; return; }
+            el.style.display = 'inline';
+            el.innerHTML = `<span class="ds-pill" style="border-color:var(--accent-red,#ef4444);" data-tip="Die geladenen Tagesdaten sind nicht mehr frisch (Alter aus jüngstem Datensatz bzw. Dateinamen geschätzt). Folgen: Daten-Konsistenz sinkt künstlich (neue Wareneingänge fehlen im alten Odoo-Export → falsche Unklassifiziert-Meldungen; frische Verkäufe fehlen → Phantom-/Versand-Verzerrung), Funnel/Radar zeigen den Stand von damals. Frische Exporte laden — Odoo + BESTAND möglichst ZEITGLEICH."><span class="ds-dot" style="background:var(--accent-red,#ef4444);"></span>⚠ Datenalter</span> <b style="color:var(--accent-red,#ef4444);">${stale.join(' · ')}${versatz}</b> <span style="color:var(--text-muted);">— frisch exportieren, sonst falsche Anomalien</span>`;
+        }
+
         // Export-Funktionen für Potenzial
         function exportPotenzialList() {
             const items = dashboardState.potenzialTop50 || [];
