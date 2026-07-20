@@ -14978,10 +14978,23 @@ Keine Erklärungen, kein Markdown.`;
             // Referenz sammeln, dann Segment 2 (versendet) mit Vorrang, Segment 1 = Rest.
             let ausst = 0, ausstN = 0, eing = 0, eingN = 0;
             const offenByRef = {};
+            const hasZahlB = dashboardState.odooOrdersHasZahlung === true;
+            const refZielTage = {};   // Zahlungsziel je Auftrag aus „Zahlungsbedingungen" (z. B. „7 Tage netto")
             if (orders) orders.forEach(o => {
                 if (!/^verkaufsauftrag/i.test(o.status)) return;
-                offenByRef[o.ref] = Math.max(0, o.gesamt - o.zahlungsbetrag);
-                refErstellt[o.ref] = o.erstellt || null;
+                let off = Math.max(0, o.gesamt - (o.zahlungsbetrag || 0));
+                // Export „alles" (16.07.): keine Zahlungsbetrag-Spalte, aber KATEGORISCHER
+                // Zahlstatus — „Vorkasse bezahlt"/„Bezahlt" heißt: Geld ist da (voll).
+                const bezahltKat = o.profZahlstatus === 'Vorkasse bezahlt' || o.zahlungsstatus === 'Bezahlt';
+                if (!hasZahlB && bezahltKat) {
+                    off = 0;
+                    eing += o.gesamt; eingN++;
+                }
+                offenByRef[o.ref] = off;
+                refErstellt[o.ref] = o.auftragsdatum || o.erstellt || null;   // Bestätigung bevorzugt
+                const zbM = String(o.zahlungsbedingung || '').match(/(\d{1,3})\s*tage/i);
+                if (zbM) refZielTage[o.ref] = +zbM[1];
+                else if (/sofort/i.test(o.zahlungsbedingung || '')) refZielTage[o.ref] = 0;
                 if (hasRS && (/komplett abgerechnet/i.test(o.rechnungsstatus || '') || (o.bereitsAbgerechnet || 0) > 0.01))
                     fakturiertRefs.add(o.ref);   // fakturiert = Rechnungs-Welt, KEINE Vorkasse
                 if (o.proforma) proformaRefs.add(o.ref);   // Proforma raus = Eingang wird fest erwartet
@@ -15017,7 +15030,10 @@ Keine Erklärungen, kein Markdown.`;
                                 due = new Date(rechDt); due.setDate(due.getDate() + zielTage); typ = 'rechnung';
                             } else {
                                 const vs = w.geplantDt || _parseAnyDate(w.anlieferung) || _parseAnyDate(w.kommTag);
-                                if (vs) { due = new Date(vs); due.setDate(due.getDate() + ZZ_ANNAHME_TAGE); typ = 'annahme'; }
+                                // Zahlungsziel aus Odoo-„Zahlungsbedingungen" (z. B. „7 Tage netto")
+                                // bevorzugt vor der pauschalen 14-Tage-Annahme
+                                const annahmeTage = refZielTage[root] !== undefined ? refZielTage[root] : ZZ_ANNAHME_TAGE;
+                                if (vs) { due = new Date(vs); due.setDate(due.getDate() + annahmeTage); typ = 'annahme'; }
                             }
                             if (betrag > 0.01) strahl.push({ root, betrag, due, typ });
                         }
@@ -15108,7 +15124,7 @@ Keine Erklärungen, kein Markdown.`;
                       'Bereits eingegangene Zahlungen auf noch offene bestätigte Aufträge: Geld ist da, die Ware muss noch raus (Verlade-Freigabe erteilt). Ein teilbezahlter Auftrag zählt hier mit seiner Zahlung UND links mit seinem Restbetrag — die Stückzahlen beider Segmente dürfen sich deshalb überschneiden, die €-Beträge nicht.')}
                 </div>
                 ${schuldnerHtml}
-                <div style="font-size:0.58rem;color:var(--text-muted);margin-top:0.5rem;">Quellen: ${quellen} · Stichtagswerte, kein Zeitraum-Filter · versendete Aufträge zählen nur einmal (unter „Versendet") · offene Angebote zählen bewusst nicht (keine Zusage)${orders && dashboardState.odooOrdersHasZahlung === false ? ' · <span style="color:var(--accent-orange);">⚠ Export ohne Spalte „Betrag der Zahlungstransaktionen" — Teilzahlungen unbekannt, „ausstehend" = volle Beträge, „eingegangen" = 0</span>' : ''}</div>
+                <div style="font-size:0.58rem;color:var(--text-muted);margin-top:0.5rem;">Quellen: ${quellen} · Stichtagswerte, kein Zeitraum-Filter · versendete Aufträge zählen nur einmal (unter „Versendet") · offene Angebote zählen bewusst nicht (keine Zusage)${orders && dashboardState.odooOrdersHasZahlung === false ? (dashboardState.odooOrdersHasProfZahl ? ' · <span style="color:var(--text-muted);">Zahlungen kategorisch über „Proforma-Zahlstatus"/„Zahlungsstatus" erkannt (voll bezahlt/offen) — Teilzahlungs-BETRÄGE braucht die Spalte „Betrag der Zahlungstransaktionen"</span>' : ' · <span style="color:var(--accent-orange);">⚠ Export ohne Spalte „Betrag der Zahlungstransaktionen" — Teilzahlungen unbekannt, „ausstehend" = volle Beträge, „eingegangen" = 0</span>') : ''}</div>
               </div>`;
             _renderZahlungsStrahl(strahl);
         }
@@ -15262,20 +15278,23 @@ Keine Erklärungen, kein Markdown.`;
                     prof: { n: 0, vk: 0, proformaN: 0, vorkasse: 0 },
                     rech: { n: 0, vk: 0, offen: 0 },
                     fertig: { n: 0, vk: 0 },
-                    storno: { n: 0, vk: 0 }
+                    storno: { n: 0, vk: 0, merge: 0 }
                 };
                 // AUDIT V1/D4 (16.07.): Storno-Quote rollierend 30 T + Wochen-Trend —
                 // IMMER über alle Aufträge (unabhängig vom Anzeige-Fenster).
                 // Entschieden = storniert + bestätigt; Angebote sind noch offen.
+                // Datum je Auftrag: AUFTRAGSDATUM (= Bestätigung, seit Export „alles")
+                // bevorzugt, Erstellung als Fallback.
                 const _nowF = Date.now();
                 const _cut30 = _nowF - 30 * 86400000;
                 let _q30s = 0, _q30b = 0; const _qWochen = new Map();
                 oo.forEach(o => {
-                    if (o.erstellt) {
+                    const oDatum = o.auftragsdatum || o.erstellt;
+                    if (oDatum) {
                         const isS = /^storniert/i.test(o.status), isB = /^verkaufsauftrag/i.test(o.status);
                         if (isS || isB) {
-                            if (o.erstellt.getTime() >= _cut30) { if (isS) _q30s++; else _q30b++; }
-                            const _d = new Date(o.erstellt); _d.setHours(0, 0, 0, 0);
+                            if (oDatum.getTime() >= _cut30) { if (isS) _q30s++; else _q30b++; }
+                            const _d = new Date(oDatum); _d.setHours(0, 0, 0, 0);
                             _d.setDate(_d.getDate() - ((_d.getDay() + 6) % 7));   // ISO-Montag
                             const wkKey = _localYMD(_d);
                             const w = _qWochen.get(wkKey) || { s: 0, b: 0 };
@@ -15283,8 +15302,12 @@ Keine Erklärungen, kein Markdown.`;
                             _qWochen.set(wkKey, w);
                         }
                     }
-                    if (flow && (!o.erstellt || o.erstellt < _fw.from || o.erstellt > _fw.to)) return;
-                    if (/^storniert/i.test(o.status)) { B.storno.n++; B.storno.vk += o.gesamt; return; }
+                    if (flow && (!oDatum || oDatum < _fw.from || oDatum > _fw.to)) return;
+                    if (/^storniert/i.test(o.status)) {
+                        B.storno.n++; B.storno.vk += o.gesamt;
+                        if (o.mergeStatus === 'Quellauftrag') B.storno.merge++;   // Korrektur durch Auftrags-Zusammenführung
+                        return;
+                    }
                     if (/^angebot/i.test(o.status)) {
                         B.ang.n++; B.ang.vk += o.gesamt;
                         if (/gesendet/i.test(o.status)) B.ang.gesendet++; else B.ang.entwurf++;
@@ -15298,8 +15321,11 @@ Keine Erklärungen, kein Markdown.`;
                     const w = waM ? waM[_root(o.ref)] : null;
                     const waFertig = w && (/^ja/i.test(String(w.abgeschlossen || '')) || (w.versendet && w.bezahlt));
                     const fakturiert = hasRS && (/komplett abgerechnet/i.test(o.rechnungsstatus || '') || (o.bereitsAbgerechnet || 0) > 0.01);
-                    const vollBezahlt = (o.zahlungsbetrag || 0) > 0.01 && o.zahlungsbetrag >= o.gesamt - 0.01;
-                    if (waFertig || (fakturiert && vollBezahlt)) { B.fertig.n++; B.fertig.vk += o.gesamt; return; }
+                    const vollBezahlt = ((o.zahlungsbetrag || 0) > 0.01 && o.zahlungsbetrag >= o.gesamt - 0.01)
+                        || o.profZahlstatus === 'Vorkasse bezahlt' || o.zahlungsstatus === 'Bezahlt';
+                    // Zustellungsstatus (Export „alles"): geliefert & bezahlt = erledigt, ganz ohne WA
+                    const odooFertig = o.zustellung === 'Vollständig geliefert' && vollBezahlt;
+                    if (waFertig || odooFertig || (fakturiert && vollBezahlt)) { B.fertig.n++; B.fertig.vk += o.gesamt; return; }
                     if (fakturiert || (!hasRS && w && w.versendet && !w.bezahlt)) {
                         B.rech.n++; B.rech.vk += o.gesamt; B.rech.offen += Math.max(0, o.gesamt - (o.zahlungsbetrag || 0));
                         return;
@@ -15308,7 +15334,8 @@ Keine Erklärungen, kein Markdown.`;
                     if (o.proforma) B.prof.proformaN++;
                     B.prof.vorkasse += o.zahlungsbetrag || 0;
                 });
-                const modLbl = flow ? `erstellt ${_gfFormat(_fw.from)} – ${_gfFormat(_fw.to)}` : 'Stichtag heute';
+                const _hasAD = dashboardState.odooOrdersHasAuftragsdatum === true;
+                const modLbl = flow ? `${_hasAD ? 'Auftragsdatum' : 'erstellt'} ${_gfFormat(_fw.from)} – ${_gfFormat(_fw.to)}` : 'Stichtag heute';
                 // Storno-Quote-KPI (Heute-Zeile) + Zustand für den Zahlungs-Strahl
                 const _qEnt = _q30s + _q30b;
                 const _qPct = _qEnt > 0 ? Math.round((_q30s / _qEnt) * 100) : null;
@@ -15348,7 +15375,7 @@ Keine Erklärungen, kein Markdown.`;
                 segsHtml = segs.slice(0, -1).join(_arrow) + _ebenenSep + segs[segs.length - 1];
                 const hinweise = [];
                 if (B.fertig.n > 0) hinweise.push(`<b>Erledigt</b> (versendet & bezahlt${hasRS ? ' / fakturiert & bezahlt' : ''}) — nicht mehr im Funnel: ${fmtN(B.fertig.n)} Aufträge · ${eur(B.fertig.vk)}`);
-                if (B.storno.n > 0) hinweise.push(`<b>Storniert/korrigiert</b> — nie im Funnel: ${fmtN(B.storno.n)} Aufträge · ${eur(B.storno.vk)}`);
+                if (B.storno.n > 0) hinweise.push(`<b>Storniert/korrigiert</b> — nie im Funnel: ${fmtN(B.storno.n)} Aufträge · ${eur(B.storno.vk)}${B.storno.merge > 0 ? ` (davon ${fmtN(B.storno.merge)} durch Auftrags-Zusammenführung)` : ''}`);
                 if (!kannDiff) hinweise.push('<span style="color:var(--accent-orange);">⚠ Phasen-Trennung (Proforma vs. Rechnung vs. erledigt) braucht die Export-Spalten „Rechnungsstatus"/„Bereits abgerechnet" ODER die WA-Pipeline-CSV</span>');
                 else if (!hasRS) hinweise.push('<span style="color:var(--accent-orange);">⚠ Export ohne „Rechnungsstatus" — Rechnungs-Stufe & Erledigt-Erkennung näherungsweise über WA-Pipeline</span>');
                 if (kannDiff && !waM) hinweise.push('WA-Pipeline-CSV laden, um auch versendete-unbezahlte & erledigte Aufträge zu erkennen');
@@ -22910,7 +22937,8 @@ Keine Erklärungen, kein Markdown.`;
             const ymd = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
             const root = s => String(s || '').trim().toUpperCase().split('.')[0];
             const byRef = new Map();
-            orders.forEach(o => { if (o.erstellt && !byRef.has(root(o.ref))) byRef.set(root(o.ref), o.erstellt); });
+            // Auftragsdatum (= Bestätigung) bevorzugt — seit Export „alles" 16.07. vorhanden
+            orders.forEach(o => { const d = o.auftragsdatum || o.erstellt; if (d && !byRef.has(root(o.ref))) byRef.set(root(o.ref), d); });
             let hits = 0;
             sold.forEach(s => {
                 const d = byRef.get(root(s.orderNr));
@@ -23768,6 +23796,14 @@ Keine Erklärungen, kein Markdown.`;
                           oLief = HO['Lieferart'], oProf = HO['Proformas'], oRechSt = HO['Rechnungsstatus'],
                           oAbger = HO['Bereits abgerechnet'], oZahlB = HO['Betrag der Zahlungstransaktionen'],
                           oZahlSt = HO['Zahlungsstatus'], oAkt = HO['Aktivitäten'], oUeberm = HO['Auftragsübermittlung Status'];
+                    // NEUE SPALTEN (Export „alles", 16.07.2026) — alle optional, abwärtskompatibel:
+                    // Auftragsdatum = ECHTES Bestätigungsdatum (lang gewünscht!), Proforma-Zahl-
+                    // status ersetzt den fehlenden Zahlungsbetrag kategorisch, Zustellungsstatus
+                    // = Erledigt-Erkennung ohne WA, Zahlungsbedingungen = Zahlungsziel je Auftrag,
+                    // Rechnungen = Link zu INV-Nummern, Merge-Status = Korrektur-Stornos.
+                    const oAuftDat = HO['Auftragsdatum'], oProfZahl = HO['Proforma-Zahlstatus'],
+                          oZustell = HO['Zustellungsstatus'], oZahlBed = HO['Zahlungsbedingungen'],
+                          oRechnungen = HO['Rechnungen'], oMerge = HO['Merge-Status'];
                     const _num = (v) => {
                         if (typeof v === 'number') return v;
                         let s = String(v == null ? '' : v).trim();
@@ -23789,18 +23825,33 @@ Keine Erklärungen, kein Markdown.`;
                         if (!ref) continue;   // Positionszeile
                         if (ooSeen.has(ref.toUpperCase())) { ooDupes++; continue; }
                         ooSeen.add(ref.toUpperCase());
+                        // PROFORMA-FLAG robust: „Proformas" existiert im neuen Export DOPPELT
+                        // (PF-Referenz + Anzahl) — die Header-Map zeigt aufs letzte Vorkommen,
+                        // das die ANZAHL (0/1/2) sein kann. `!!'0'` wäre true → Zahlstatus
+                        // hat Vorrang, sonst Anzahl>0 bzw. nicht-leere PF-Referenz.
+                        const _profZahlV = _str(oProfZahl, row);
+                        const _profRaw = oProf !== undefined ? row[oProf] : '';
+                        const _profFlag = _profZahlV
+                            ? _profZahlV !== 'Keine Proforma'
+                            : (typeof _profRaw === 'number' ? _profRaw > 0 : !!String(_profRaw || '').trim() && String(_profRaw).trim() !== '0');
                         ooOrders.push({
                             ref: ref.toUpperCase(),
                             status: _str(oStat, row),
                             gesamt: _num(row[oGesamt]),
                             netto: oNetto !== undefined ? _num(row[oNetto]) : 0,
                             erstellt: oDat !== undefined ? _parseAnyDate(row[oDat]) : null,
+                            auftragsdatum: oAuftDat !== undefined ? _parseAnyDate(row[oAuftDat]) : null,
                             kunde: _str(oKunde, row),
                             verkaeufer: _str(oVerk, row),
                             paletten: oPal !== undefined ? _num(row[oPal]) : 0,
                             menge: oMenge !== undefined ? _num(row[oMenge]) : 0,
                             lieferart: _str(oLief, row),
-                            proforma: !!_str(oProf, row),
+                            proforma: _profFlag,
+                            profZahlstatus: _profZahlV,
+                            zustellung: _str(oZustell, row),
+                            zahlungsbedingung: _str(oZahlBed, row),
+                            rechnungen: _str(oRechnungen, row),
+                            mergeStatus: _str(oMerge, row),
                             rechnungsstatus: _str(oRechSt, row),
                             bereitsAbgerechnet: oAbger !== undefined ? _num(row[oAbger]) : 0,
                             zahlungsbetrag: oZahlB !== undefined ? _num(row[oZahlB]) : 0,
@@ -23833,7 +23884,10 @@ Keine Erklärungen, kein Markdown.`;
                     // Zahlungs-Spalte ehrlich ausweisen statt still „0 € eingegangen"
                     dashboardState.odooOrdersHasZahlung = (oZahlB !== undefined);
                     dashboardState.odooOrdersHasRechnungsstatus = (oRechSt !== undefined);
-                    dashboardState.odooOrdersHasProforma = (oProf !== undefined);
+                    dashboardState.odooOrdersHasProforma = (oProf !== undefined || oProfZahl !== undefined);
+                    dashboardState.odooOrdersHasProfZahl = (oProfZahl !== undefined);
+                    dashboardState.odooOrdersHasAuftragsdatum = (oAuftDat !== undefined);
+                    dashboardState.odooOrdersHasZustellung = (oZustell !== undefined);
                     // AUDIT-FIX K2: Verkaufsdaten der bereits geladenen Odoo-Verkäufe auf
                     // Auftragsdatum umstellen + abhängige Aggregate neu rechnen
                     if (enrichOdooSaleDates()) {
