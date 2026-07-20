@@ -15083,6 +15083,39 @@ Keine Erklärungen, kein Markdown.`;
             // 2b) ECHTE RECHNUNGEN (account.move): exakte Fälligkeiten in den Strahl
             if (hasInv) invOffen.forEach(v => strahl.push({ root: v.nummer, betrag: v.faellig, due: v.faelligkeit, typ: 'rechnung' }));
             const gesamtOffen = ausst + (hasInv ? invOffenSum : sentVK);
+            // ZEITHORIZONT je KPI (User 20.07.: „Aussagen ohne Zeithorizont sind nutzlos"):
+            // Zerlegung der offenen Beträge nach FÄLLIGKEIT in DISJUNKTE Töpfe —
+            // überfällig · heute · Rest der Woche (bis So) · Rest des Monats · später ·
+            // ohne Termin. Summe der Töpfe = KPI-Wert (Kaskaden-Prinzip, selbstbeweisend).
+            const _hz = (list) => {
+                const h = { ueber: 0, heute: 0, woche: 0, monat: 0, spaeter: 0, offen: 0 };
+                const t0 = new Date(); t0.setHours(0, 0, 0, 0);
+                const t1 = new Date(t0); t1.setHours(23, 59, 59, 999);
+                const wEnd = new Date(t0); wEnd.setDate(wEnd.getDate() + (6 - ((wEnd.getDay() + 6) % 7))); wEnd.setHours(23, 59, 59, 999);
+                const mEnd = new Date(t0.getFullYear(), t0.getMonth() + 1, 0, 23, 59, 59, 999);
+                list.forEach(e => {
+                    if (!e.due) { h.offen += e.betrag; return; }
+                    if (e.due < t0) h.ueber += e.betrag;
+                    else if (e.due <= t1) h.heute += e.betrag;
+                    else if (e.due <= wEnd) h.woche += e.betrag;
+                    else if (e.due <= mEnd) h.monat += e.betrag;
+                    else h.spaeter += e.betrag;
+                });
+                return h;
+            };
+            const _hzLine = (h) => {
+                const p = [];
+                if (h.ueber > 0.01) p.push(`<span style="color:var(--accent-red,#ef4444);font-weight:700;">überfällig ${eur(h.ueber)}</span>`);
+                if (h.heute > 0.01) p.push(`<b>heute ${eur(h.heute)}</b>`);
+                if (h.woche > 0.01) p.push(`Rest d. Woche ${eur(h.woche)}`);
+                if (h.monat > 0.01) p.push(`Rest d. Monats ${eur(h.monat)}`);
+                if (h.spaeter > 0.01) p.push(`später ${eur(h.spaeter)}`);
+                if (h.offen > 0.01) p.push(`<span style="color:var(--text-muted);">ohne Termin ${eur(h.offen)}</span>`);
+                return p.length ? `<div style="font-size:0.6rem;color:var(--text-secondary);margin-top:3px;line-height:1.5;">fällig: ${p.join(' · ')}</div>` : '';
+            };
+            const hzAlle = _hzLine(_hz(strahl));
+            const hzVork = _hzLine(_hz(strahl.filter(e => e.typ === 'vorkasse' || e.typ === 'vorkasseOffen')));
+            const hzRech = _hzLine(_hz(strahl.filter(e => e.typ === 'rechnung' || e.typ === 'annahme' || e.typ === 'unbekannt')));
             if (!ausstN && !sentN && !eingN && !invOffen.length) { el.innerHTML = ''; _renderZahlungsStrahl([]); return; }
             const seg = (dotColor, label, value, sub, tip) => `
                 <div style="flex:1; min-width:190px;">
@@ -15124,20 +15157,21 @@ Keine Erklärungen, kein Markdown.`;
                     <div style="display:flex;align-items:center;gap:0.4rem;font-size:0.6rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;"><span class="ds-dot" style="background:var(--accent-green);"></span>Voraussichtliche Zahlungseingänge <span class="tb-chip">Stichtag</span> <span class="vc-info" data-tip="Summe der offenen, belastbar erwartbaren Eingänge: ausstehende Vorkasse auf bestätigte Aufträge + offene Zahlungen bereits versendeter Aufträge. Stichtag heute. Keine Spekulation: offene Angebote zählen NICHT. Brücke zur Funnel-Stufe „Bestätigt": Bestätigt gesamt − eingegangene Zahlungen ≈ ausstehend; kleine Abweichungen entstehen, wenn ein Auftrag ÜBERzahlt ist (negativer Rest wird auf 0 gekappt, nie als Guthaben verrechnet).">ⓘ</span></div>
                     <div style="font-size:1.9rem;font-weight:800;font-family:var(--font-mono);line-height:1.1;color:var(--accent-green);">${eur(gesamtOffen)}</div>
                     <div style="font-size:0.62rem;color:var(--text-muted);">offen gesamt · Stichtag heute</div>
+                    ${hzAlle}
                   </div>
                   ${seg('var(--accent-orange)', 'Vorkasse ausstehend', orders ? eur(ausst) : '—',
-                      orders ? `${fmtN(ausstN)} bestätigte Aufträge${hasProf ? ` · <b>${fmtN(ausstProfN)} mit Proforma verschickt</b> (fest erwartet)` : ''} · noch nicht versendet · vor Verladung fällig` : 'sale.order-Export laden',
+                      orders ? `${fmtN(ausstN)} bestätigte Aufträge${hasProf ? ` · <b>${fmtN(ausstProfN)} mit Proforma verschickt</b> (fest erwartet)` : ''} · noch nicht versendet · vor Verladung fällig${hzVork}` : 'sale.order-Export laden',
                       'Bestätigte Odoo-Aufträge (Status „Verkaufsauftrag"), die laut WA-Pipeline NOCH NICHT versendet sind: Gesamt (Brutto) minus bereits eingegangener Zahlungen. Vorkasse-Regel: muss VOR der Verladung eingehen. Ist die PROFORMA verschickt, wird der Eingang FEST erwartet — der Betrag ist bis zur Verladung vorläufig (nicht verladene Ware → echte Rechnung kann abweichen). Ohne Proforma fehlt der Zahlungs-Trigger noch. Bereits versendete Aufträge zählen ausschließlich rechts (keine Doppelzählung).')}
                   ${hasInv
                     ? seg('var(--accent-red)', 'Rechnung offen · fällig', eur(invOffenSum),
-                        `${fmtN(invOffen.length)} offene Rechnungen · exakt lt. Buchhaltung (account.move)${waMap && sentN > invOffen.length ? ` · <span style="color:var(--accent-orange);">⚠ WA meldet ${fmtN(sentN)} versendet-unbezahlt — Rechnungen prüfen</span>` : ''}`,
+                        `${fmtN(invOffen.length)} offene Rechnungen · exakt lt. Buchhaltung (account.move)${waMap && sentN > invOffen.length ? ` · <span style="color:var(--accent-orange);">⚠ WA meldet ${fmtN(sentN)} versendet-unbezahlt — Rechnungen prüfen</span>` : ''}${hzRech}`,
                         'EXAKT aus den Odoo-Rechnungen (account.move): Summe der fälligen Restbeträge aller offenen, nicht stornierten Rechnungen. Fälligkeitstermine stehen im Zahlungs-Strahl darunter. Meldet die WA-Pipeline MEHR versendete unbezahlte Aufträge als offene Rechnungen existieren, wurde für Sendungen evtl. noch keine Rechnung gestellt — Hinweis erscheint.')
                     : seg('var(--accent-red)', 'Versendet · Zahlung offen', waMap ? (sentVK > 0 ? eur(sentVK) : `${fmtN(sentN)} Aufträge`) : '—',
-                        waMap ? `${fmtN(sentN)} Aufträge${sentN > 0 ? ` · €-Wert für ${fmtN(sentMatched)}/${fmtN(sentN)} ermittelbar` : ''}` : 'WA-Pipeline-CSV laden',
+                        waMap ? `${fmtN(sentN)} Aufträge${sentN > 0 ? ` · €-Wert für ${fmtN(sentMatched)}/${fmtN(sentN)} ermittelbar` : ''}${hzRech}` : 'WA-Pipeline-CSV laden',
                         'Aufträge mit WA-Status „Versendet — Zahlung offen": Ware ist raus, Geld noch nicht da (echte Forderung). €-Wert über Auftrags-Match im Verkaufsregister — nur für gematchte Aufträge summierbar, Abdeckung wird angezeigt. Exakter wird es mit dem Rechnungs-Export (account.move).')}
                   ${seg('var(--accent-cyan)', 'Vorkasse eingegangen', orders ? eur(eing) : '—',
-                      orders ? `${fmtN(eingN)} (teil)bezahlte offene Aufträge · Lieferpflicht offen` : 'sale.order-Export laden',
-                      'Bereits eingegangene Zahlungen auf noch offene bestätigte Aufträge: Geld ist da, die Ware muss noch raus (Verlade-Freigabe erteilt). Ein teilbezahlter Auftrag zählt hier mit seiner Zahlung UND links mit seinem Restbetrag — die Stückzahlen beider Segmente dürfen sich deshalb überschneiden, die €-Beträge nicht.')}
+                      orders ? `${fmtN(eingN)} (teil)bezahlte offene Aufträge · Lieferpflicht offen · <span style="color:var(--text-muted);">kein Zeithorizont möglich (Zahldatum fehlt im Export)</span>` : 'sale.order-Export laden',
+                      'Bereits eingegangene Zahlungen auf noch offene bestätigte Aufträge: Geld ist da, die Ware muss noch raus (Verlade-Freigabe erteilt). Ein teilbezahlter Auftrag zählt hier mit seiner Zahlung UND links mit seinem Restbetrag — die Stückzahlen beider Segmente dürfen sich deshalb überschneiden, die €-Beträge nicht. WANN das Geld einging, ist nicht zerlegbar: kein Export liefert ein Zahldatum — sobald Odoo das Feld hergibt, bekommt auch diese Zahl ihren Zeithorizont.')}
                 </div>
                 ${schuldnerHtml}
                 <div style="font-size:0.58rem;color:var(--text-muted);margin-top:0.5rem;">Quellen: ${quellen} · Stichtagswerte, kein Zeitraum-Filter · versendete Aufträge zählen nur einmal (unter „Versendet") · offene Angebote zählen bewusst nicht (keine Zusage)${orders && dashboardState.odooOrdersHasZahlung === false ? (dashboardState.odooOrdersHasProfZahl ? ' · <span style="color:var(--text-muted);">Zahlungen kategorisch über „Proforma-Zahlstatus"/„Zahlungsstatus" erkannt (voll bezahlt/offen) — Teilzahlungs-BETRÄGE braucht die Spalte „Betrag der Zahlungstransaktionen"</span>' : ' · <span style="color:var(--accent-orange);">⚠ Export ohne Spalte „Betrag der Zahlungstransaktionen" — Teilzahlungen unbekannt, „ausstehend" = volle Beträge, „eingegangen" = 0</span>') : ''}</div>
