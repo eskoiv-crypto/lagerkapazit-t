@@ -14980,6 +14980,7 @@ Keine Erklärungen, kein Markdown.`;
             const offenByRef = {};
             const hasZahlB = dashboardState.odooOrdersHasZahlung === true;
             const refZielTage = {};   // Zahlungsziel je Auftrag aus „Zahlungsbedingungen" (z. B. „7 Tage netto")
+            const invZuRef = new Map();   // HARTER LINK Rechnung↔Auftrag aus sale.order-Spalte „Rechnungen" („INV/2026/00022 (S00267)")
             if (orders) orders.forEach(o => {
                 if (!/^verkaufsauftrag/i.test(o.status)) return;
                 let off = Math.max(0, o.gesamt - (o.zahlungsbetrag || 0));
@@ -14997,6 +14998,16 @@ Keine Erklärungen, kein Markdown.`;
                 else if (/sofort/i.test(o.zahlungsbedingung || '')) refZielTage[o.ref] = 0;
                 if (hasRS && (/komplett abgerechnet/i.test(o.rechnungsstatus || '') || (o.bereitsAbgerechnet || 0) > 0.01))
                     fakturiertRefs.add(o.ref);   // fakturiert = Rechnungs-Welt, KEINE Vorkasse
+                // HARTER LINK: „Rechnungen"-Spalte nennt die INV-Nummer(n) des Auftrags —
+                // damit ist der Auftrag sicher fakturiert (unabhängig vom Rechnungsstatus)
+                // und die Schuldner-Liste kann die Auftragsreferenz zeigen.
+                if (o.rechnungen) {
+                    const invM = String(o.rechnungen).match(/INV\/\d{4}\/\d+/gi) || [];
+                    if (invM.length) {
+                        fakturiertRefs.add(o.ref);
+                        invM.forEach(nr => { if (!invZuRef.has(nr.toUpperCase())) invZuRef.set(nr.toUpperCase(), o.ref); });
+                    }
+                }
                 if (o.proforma) proformaRefs.add(o.ref);   // Proforma raus = Eingang wird fest erwartet
                 if (o.zahlungsbetrag > 0.01) { eing += o.zahlungsbetrag; eingN++; }
             });
@@ -15088,8 +15099,9 @@ Keine Erklärungen, kein Markdown.`;
                         ? `<span style="color:var(--accent-red,#ef4444);font-weight:700;">überfällig +${ueberT} T${ueberT > 30 ? ' ⚠⚠' : ueberT > 7 ? ' ⚠' : ''}</span>`
                         : `fällig ${faelligTxt}`;
                     const anteil = invOffenSum > 0 ? Math.round((v.faellig / invOffenSum) * 100) : 0;
+                    const _invRef = invZuRef.get(String(v.nummer).toUpperCase());
                     return `<div style="display:flex;gap:0.7rem;align-items:baseline;font-size:0.62rem;padding:0.12rem 0;">
-                        <span style="font-family:var(--font-mono);color:var(--text-muted);min-width:105px;">${v.nummer}</span>
+                        <span style="font-family:var(--font-mono);color:var(--text-muted);min-width:105px;">${v.nummer}${_invRef ? ` <span style="color:var(--accent-cyan);">→ ${_invRef}</span>` : ''}</span>
                         <span style="flex:1;color:var(--text-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${(v.partner || '—').slice(0, 34)}</span>
                         <span style="font-family:var(--font-mono);font-weight:700;">${eur(v.faellig)}</span>
                         <span style="color:var(--text-muted);min-width:34px;text-align:right;" title="Anteil an den offenen Forderungen (Klumpenrisiko)">${anteil} %</span>
