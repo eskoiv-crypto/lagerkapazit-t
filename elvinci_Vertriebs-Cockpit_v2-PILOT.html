@@ -3729,6 +3729,10 @@
                             <div id="uebersicht-daily-kpis" style="margin-bottom: 1rem;"></div>
                             <!-- FUNNEL-KPIs (2026-07-03): Im Angebot → Auftrag bestätigt → Verrechnet (Zeitraum) -->
                             <div id="uebersicht-funnel" style="margin-bottom: 1rem;"></div>
+                            <!-- MONATS-KASKADE (2026-07-20, User-Wunsch „totale + dynamische Zahl"):
+                                 Kohorte der im Zeitraum entstandenen Aufträge, zerlegt in ihren
+                                 HEUTIGEN Zustand — Summe der Teile = Total, keine Doppelzählung -->
+                            <div id="uebersicht-kaskade" style="margin-bottom: 1rem;"></div>
                             <!-- ZAHLUNGS-RADAR (2026-07-10): voraussichtliche Zahlungseingänge -->
                             <div id="uebersicht-zahlungsradar" style="margin-bottom: 1rem;"></div>
                             <!-- ZAHLUNGS-STRAHL (2026-07-16): geplante Eingänge auf der Zeitachse
@@ -15416,6 +15420,100 @@ Keine Erklärungen, kein Markdown.`;
                   ${segsHtml}
                 </div>
                 <div style="font-size:0.58rem;color:var(--text-muted);margin-top:0.5rem;">${fussnote}</div>
+              </div>`;
+            try { _renderMonatsKaskade(); } catch (e) { console.warn('[Kaskade] render', e); }
+        }
+
+        // ============================================
+        // MONATS-KASKADE (2026-07-20, User: „totale Zahl und eine dynamische — die drei
+        // Stufen heben sich teilweise gegeneinander auf"): Die KOHORTE aller im Zeitraum
+        // ENTSTANDENEN Aufträge (jeder Odoo-Auftrag beginnt als Angebot) wird in ihren
+        // HEUTIGEN Zustand zerlegt — die Segmente summieren sich EXAKT zum Total, nichts
+        // zählt doppelt. Total je Stufe = ihr Segment + alle Folge-Segmente (weiter-
+        // gewandert); die „dynamische" Zahl = nur ihr Segment. Zweite Zeile: Rechnungen
+        // exakt aus der Buchhaltung (account.move, Rechnungsdatum im Fenster).
+        // Fenster = globaler Zeitraum-Filter; bei „Alle Daten" automatisch DIESER MONAT.
+        // ============================================
+        function _renderMonatsKaskade() {
+            const el = document.getElementById('uebersicht-kaskade');
+            if (!el) return;
+            const oo = dashboardState.odooOrders || [];
+            if (!oo.length) { el.innerHTML = ''; return; }
+            const f = dashboardState.globalTimeFilter || { preset: 'all' };
+            const winGlobal = _gfWindow(f.preset);
+            const win = winGlobal || _gfWindow('monat');
+            const winLbl = `${winGlobal ? (((document.getElementById('global-time-filter') || {}).selectedOptions || [{}])[0].text || f.preset) : 'Dieser Monat'} (${_gfFormat(win.from)} – ${_gfFormat(win.to)})`;
+            const waM = dashboardState.waStatusMap || null;
+            const hasRS = dashboardState.odooOrdersHasRechnungsstatus === true;
+            const eur = v => Number(v || 0).toLocaleString('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
+            const fmtN = n => Number(n || 0).toLocaleString('de-DE');
+            const _root = s => String(s || '').trim().toUpperCase().split('.')[0];
+            // Phase HEUTE — Kriterien identisch zur Funnel-Klassifikation (HANDOFF 24/28)
+            const phase = (o) => {
+                if (/^storniert/i.test(o.status)) return 'storno';
+                if (/^angebot/i.test(o.status)) return 'angebot';
+                if (!/^verkaufsauftrag/i.test(o.status)) return 'sonstige';
+                const w = waM ? waM[_root(o.ref)] : null;
+                const waFertig = w && (/^ja/i.test(String(w.abgeschlossen || '')) || (w.versendet && w.bezahlt));
+                const fakturiert = (hasRS && (/komplett abgerechnet/i.test(o.rechnungsstatus || '') || (o.bereitsAbgerechnet || 0) > 0.01)) || /INV\//i.test(o.rechnungen || '');
+                const vollBezahlt = ((o.zahlungsbetrag || 0) > 0.01 && o.zahlungsbetrag >= o.gesamt - 0.01) || o.profZahlstatus === 'Vorkasse bezahlt' || o.zahlungsstatus === 'Bezahlt';
+                if (waFertig || (o.zustellung === 'Vollständig geliefert' && vollBezahlt) || (fakturiert && vollBezahlt)) return 'fertig';
+                if (fakturiert || (!hasRS && w && w.versendet && !w.bezahlt)) return 'rech';
+                return 'prof';
+            };
+            const K = { angebot: { n: 0, vk: 0 }, prof: { n: 0, vk: 0, mitProf: 0 }, rech: { n: 0, vk: 0 }, fertig: { n: 0, vk: 0 }, storno: { n: 0, vk: 0 }, sonstige: { n: 0, vk: 0 } };
+            let totN = 0, totVK = 0;
+            oo.forEach(o => {
+                if (!o.erstellt || o.erstellt < win.from || o.erstellt > win.to) return;
+                const p = phase(o);
+                K[p].n++; K[p].vk += o.gesamt;
+                if (p === 'prof' && o.proforma) K.prof.mitProf++;
+                totN++; totVK += o.gesamt;
+            });
+            // Rechnungen im Fenster — EXAKT aus der Buchhaltung, unabhängig von der Kohorte
+            // (eine Juli-Rechnung kann zu einem Juni-Auftrag gehören)
+            const invs = dashboardState.odooInvoices || [];
+            const R = { n: 0, sum: 0, bezN: 0, bezSum: 0, offN: 0, offSum: 0, stoN: 0 };
+            invs.forEach(v => {
+                const d = v.rechnungsdatum || v.faelligkeit;
+                if (!d || d < win.from || d > win.to) return;
+                if (v.status === 'Storniert') { R.stoN++; return; }
+                R.n++; R.sum += v.gesamt;
+                if (v.faellig > 0.01) { R.offN++; R.offSum += v.faellig; }
+                else { R.bezN++; R.bezSum += v.gesamt; }
+            });
+            // Bei leerem Fenster (z. B. Montagmorgen bei „Diese Woche") bleibt der Block
+            // sichtbar mit 0-Hinweis — sonst wirkt der Filterwechsel wie ein Fehler.
+            const SEG = [
+                { k: 'angebot', lbl: 'noch im Angebot', col: 'var(--accent-orange)' },
+                { k: 'prof',    lbl: 'bestätigt · Proforma-Stadium', col: 'var(--accent-purple)' },
+                { k: 'rech',    lbl: 'Rechnung gestellt · offen', col: 'var(--accent-cyan)' },
+                { k: 'fertig',  lbl: 'erledigt (geliefert & bezahlt)', col: 'var(--accent-green)' },
+                { k: 'storno',  lbl: 'storniert/korrigiert', col: 'var(--accent-red,#ef4444)' },
+                { k: 'sonstige', lbl: 'sonstige', col: 'var(--text-muted)' }
+            ].filter(s => K[s.k].n > 0);
+            const bar = SEG.map(s => `<div style="flex:${Math.max(K[s.k].vk, totVK * 0.015)};background:${s.col};height:100%;" title="${s.lbl}: ${fmtN(K[s.k].n)} Aufträge · ${eur(K[s.k].vk)}"></div>`).join('');
+            const legend = SEG.map(s => `
+                <div style="display:flex;align-items:baseline;gap:0.4rem;font-size:0.62rem;">
+                  <span class="ds-dot" style="background:${s.col};"></span>
+                  <span style="color:var(--text-secondary);">${s.lbl}${s.k === 'prof' && K.prof.mitProf > 0 ? ` (${fmtN(K.prof.mitProf)}× Proforma raus)` : ''}</span>
+                  <span style="font-family:var(--font-mono);font-weight:700;">${eur(K[s.k].vk)}</span>
+                  <span style="color:var(--text-muted);">· ${fmtN(K[s.k].n)} Auftr. · ${totVK > 0 ? Math.round((K[s.k].vk / totVK) * 100) : 0} %</span>
+                </div>`).join('');
+            el.innerHTML = `
+              <div style="background:var(--bg-elevated);border:1px solid var(--border);border-radius:12px;padding:0.85rem 1.1rem;">
+                <div style="display:flex;align-items:baseline;gap:1rem;flex-wrap:wrap;margin-bottom:0.5rem;">
+                  <div style="font-size:0.6rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;">Monats-Kaskade — was aus den Aufträgen wurde <span class="vc-info" data-tip="TOTALE Zahl: alle im Zeitraum ENTSTANDENEN Aufträge (jeder Odoo-Auftrag beginnt als Angebot — auch die später bestätigten/fakturierten). DYNAMISCHE Zahl: die Segmente zeigen den HEUTIGEN Zustand derselben Aufträge — zusammen ergeben sie exakt das Total, nichts zählt doppelt. Wer wissen will, wie viel eine Stufe INSGESAMT erreicht hat: ihr Segment plus alle rechts davon (weitergewanderte). Zeitbasis: Erstellungsdatum; Fenster = Zeitraum-Filter oben, bei Alle Daten automatisch dieser Monat.">ⓘ</span> <span class="tb-chip">${winLbl}</span></div>
+                  <div style="font-size:0.85rem;font-family:var(--font-mono);"><b>${eur(totVK)}</b> · ${fmtN(totN)} Aufträge entstanden <span style="color:var(--text-muted);font-size:0.62rem;">(= 100 %, Summe der Segmente)</span></div>
+                </div>
+                ${totN > 0 ? `<div style="display:flex;height:14px;border-radius:4px;overflow:hidden;gap:1px;margin-bottom:0.5rem;">${bar}</div>
+                <div style="display:flex;gap:1.2rem;flex-wrap:wrap;">${legend}</div>` : '<div style="font-size:0.65rem;color:var(--text-muted);">Keine Aufträge im Fenster entstanden.</div>'}
+                <div style="font-size:0.65rem;color:var(--text-secondary);margin-top:0.55rem;border-top:1px solid var(--border);padding-top:0.45rem;">
+                  <span style="text-transform:uppercase;letter-spacing:0.05em;font-size:0.55rem;color:var(--text-muted);">Rechnungen gestellt im Fenster (Buchhaltung)</span>
+                  ${dashboardState.odooInvoicesLoaded
+                    ? ` &nbsp;<b style="font-family:var(--font-mono);">${eur(R.sum)}</b> · ${fmtN(R.n)} Rechnungen &nbsp;—&nbsp; davon <span style="color:var(--accent-green);font-weight:700;">bezahlt ${eur(R.bezSum)}</span> (${fmtN(R.bezN)}) · <span style="color:var(--accent-cyan);font-weight:700;">offen ${eur(R.offSum)}</span> (${fmtN(R.offN)})${R.stoN > 0 ? ` · ${fmtN(R.stoN)} storniert` : ''} <span class="vc-info" data-tip="EXAKT aus account.move (Rechnungsdatum im Fenster) — unabhängig von der Auftrags-Kohorte oben, weil eine Rechnung dieses Zeitraums zu einem älteren Auftrag gehören kann. Offen = fälliger Restbetrag.">ⓘ</span>`
+                    : ' &nbsp;<span style="color:var(--text-muted);">Rechnungs-Export (account.move) laden für die exakte Rechnungs-Zeile</span>'}
+                </div>
               </div>`;
         }
         
