@@ -3727,6 +3727,8 @@
                         <div id="tab-uebersicht" class="analyse-tab-content active" style="padding: 1rem;">
                             <!-- PHASE A (2026-07-02): Tages-Kennzahlen gehören auf die Übersicht, nicht in den System-Reiter Datenqualität -->
                             <div id="uebersicht-daily-kpis" style="margin-bottom: 1rem;"></div>
+                            <!-- NICHT-IN-ODOO-WARNUNG (2026-07-21): physisch im Lager, in Odoo unauffindbar — nach Grund gruppiert -->
+                            <div id="uebersicht-nicht-odoo" style="margin-bottom: 1rem;"></div>
                             <!-- FUNNEL-KPIs (2026-07-03): Im Angebot → Auftrag bestätigt → Verrechnet (Zeitraum) -->
                             <div id="uebersicht-funnel" style="margin-bottom: 1rem;"></div>
                             <!-- MONATS-KASKADE (2026-07-20, User-Wunsch „totale + dynamische Zahl"):
@@ -14623,17 +14625,19 @@ Keine Erklärungen, kein Markdown.`;
             oSold.forEach(s => { const ln = norm(s.lagerNr); if (ln) { odooSoldSet.add(ln); if (!soldInfo.has(ln)) soldInfo.set(ln, { src: 'Odoo', d: _parseAnyDate(s.saleDate), approx: s._saleDateSrc !== 'order' }); } else soldNoKey++; });
             pSold.forEach(s => { const ln = norm(s.lagerNr); if (ln) { portalSoldSet.add(ln); if (!soldInfo.has(ln)) soldInfo.set(ln, { src: 'Alt (Portal/JTL)', d: _parseAnyDate(s.saleDate) }); } else soldNoKey++; });
             const ammStatus = new Map();   // Lager-Nr → QE/VS/AA
+            const ammInfo = new Map();     // Lager-Nr → { we, platz, bez } für die Grund-Gruppierung
             // Alt-Ware-Fall (User-Befund 16.07.2026): bei ~2023er Beständen ist „Palette"
             // eine 18-stellige NVE und die 900er-Lager-Nr steht nur in „Charge" —
             // beide Kandidaten indexieren, sonst falsche Phantom-Meldungen.
             bestand.forEach(b => {
                 const st = norm(b.status).toUpperCase();
+                const info = { we: _parseAnyDate(b.weDatum), platz: norm(b.lagerplatz).toUpperCase(), bez: norm(b.bezeichnung).toLowerCase() };
                 const ln = norm(b.lagerNr || b.lager_number || b['Lager-Nr']);
-                if (/^900/.test(ln)) { ammStatus.set(ln, st); return; }
+                if (/^900/.test(ln)) { ammStatus.set(ln, st); if (!ammInfo.has(ln)) ammInfo.set(ln, info); return; }
                 // Charge NUR als Fallback wenn Palette keine 900er ist (Alt-Ware: Palette=NVE) —
                 // sonst würden Palette+Charge dasselbe Gerät doppelt ins Universum legen (Audit 16.07.)
                 const ch = norm(b.charge);
-                if (ch && /^900/.test(ch) && !ammStatus.has(ch)) ammStatus.set(ch, st);
+                if (ch && /^900/.test(ch) && !ammStatus.has(ch)) { ammStatus.set(ch, st); if (!ammInfo.has(ch)) ammInfo.set(ch, info); }
             });
 
             const uni = new Set([...ammStatus.keys(), ...odooStockSet, ...odooSoldSet, ...portalStockSet]);
@@ -14662,6 +14666,28 @@ Keine Erklärungen, kein Markdown.`;
             // VK ist die belastbare Größe (EK strukturell untererfasst, ~978 Geräte ohne EK);
             // unklassifizierte Geräte haben KEINE Preisquelle → zählen im Stück, nicht im Wert.
             const qeUnsold = { count:0, ek:0, vk:0, frei:0, reserviert:0, unklassifiziert:0, ohnePreis:0, resVk:0 };
+            // NICHT-IN-ODOO-WARNUNG (User 21.07.2026): physisch im Lager, aber in Odoo
+            // nicht zu finden — gruppiert nach GRUND (Taxonomie wie Check1/_categorizeDisk
+            // + „frisch"-Fenster). Kein €-Wert möglich: ohne WaWi-Eintrag kein Preis.
+            const nio = {
+                frisch:      { n: 0, maxT: 0 },   // WE ≤ 3 Tage — Klassifizierung läuft (normal)
+                elhr:        { n: 0, maxT: 0 },   // Lagerplatz ELHR* = Eingangs-/Umlagerbereich (in Bewegung)
+                palette:     { n: 0, maxT: 0 },   // „Unsortierte Kleingeräte" = gemischte Sammelpalette
+                rueckstand:  { n: 0, maxT: 0 },   // > 3 Tage, Hauptlager, < 1 Jahr — ECHTER Klassifizierungs-Rückstand
+                altretoure:  { n: 0, maxT: 0 },   // WE > 365 Tage — Uralt-/Retouren-Klärfall
+                altVerkauft: { n: 0, maxT: 0 },   // im Alt-Archiv (Portal/JTL) verkauft, physisch noch QE
+                versand:     { n: 0, maxT: 0 }    // AMM VS/AA ohne Odoo-Eintrag — verlässt das Haus (Alt-Auftrag)
+            };
+            const _nioTage = (info) => info && info.we ? Math.floor((_nowR - info.we.getTime()) / 86400000) : null;
+            const _nioGrund = (info) => {
+                const t = _nioTage(info);
+                if (t !== null && t <= 3) return 'frisch';
+                if (info && info.bez.includes('unsortiert')) return 'palette';
+                if (info && info.platz.startsWith('ELHR')) return 'elhr';
+                if (t !== null && t > 365) return 'altretoure';
+                return 'rueckstand';
+            };
+            const NIO_GRUND_TEXT = { frisch: 'frischer WE (≤3 T), Klassifizierung läuft', palette: 'gemischte Sammelpalette (unsortiert)', elhr: 'ELHR-Umlagerbereich (in Bewegung)', altretoure: 'Uralt/Retoure (WE >365 T)', rueckstand: 'Klassifizierungs-Rückstand' };
 
             for (const ln of uni) {
                 // SAMMEL-LAGER-NRN (Herdsets, 2026-07-14): Odoo-Komponenten tragen Sub-Keys
@@ -14717,8 +14743,21 @@ Keine Erklärungen, kein Markdown.`;
                 // Anomalien — die echten „stimmt nicht"-Fälle
                 if (inO && !oSoldF && (c === 'verfuegbar' || c === 'reserviert') && !amm)
                     anomalies.PHANTOM_STOCK.push({ ln, detail:`Odoo „${oAvail ? 'Verfügbar' : 'reserviert'}", aber physisch NICHT im AMM-Lager (Phantom-Bestand)` });
-                if (amm === 'QE' && c === 'unklassifiziert')
-                    anomalies.UNKLASSIFIZIERT.push({ ln, detail:'physisch im AMM-Lager (QE), aber nicht im lebenden WaWi Odoo & nicht verkauft → muss klassifiziert/migriert werden' });
+                if (amm === 'QE' && c === 'unklassifiziert') {
+                    const _info = ammInfo.get(ln) || ammInfo.get(String(ln).split('.')[0]);
+                    const _g = _nioGrund(_info);
+                    const _t = _nioTage(_info);
+                    nio[_g].n++; if (_t !== null && _t > nio[_g].maxT) nio[_g].maxT = _t;
+                    anomalies.UNKLASSIFIZIERT.push({ ln, detail:`[${NIO_GRUND_TEXT[_g]}${_t !== null ? ` · WE vor ${_t} T` : ''}] physisch im AMM-Lager (QE), aber nicht in Odoo & nicht verkauft → klassifizieren/anlegen` });
+                }
+                if (c === 'unklassifiziert' && (amm === 'VS' || amm === 'AA')) {
+                    const _tV = _nioTage(ammInfo.get(ln));
+                    nio.versand.n++; if (_tV !== null && _tV > nio.versand.maxT) nio.versand.maxT = _tV;
+                }
+                if (c === 'verkauft' && !oSoldF && amm === 'QE') {
+                    const _tA = _nioTage(ammInfo.get(ln));
+                    nio.altVerkauft.n++; if (_tA !== null && _tA > nio.altVerkauft.maxT) nio.altVerkauft.maxT = _tA;
+                }
                 if (c === 'verkauft' && amm === 'QE') {
                     const si = soldInfo.get(ln) || {};
                     const days = si.d ? Math.floor((_nowR - si.d.getTime()) / 86400000) : null;
@@ -14756,6 +14795,7 @@ Keine Erklärungen, kein Markdown.`;
                 frei: { count: comm.verfuegbar, ek: freiEK, vk: freiVK, portalRest: freiPortalRest },
                 freiPhys,
                 resPhys,
+                nichtInOdoo: nio,
                 qeUnsold,
                 sales: { total: salesTotal, portal: portalSoldSet.size, odoo: odooSoldSet.size, noKey: soldNoKey, double: salesDouble },
                 ok: (anomalyCount + salesDouble.length) === 0
@@ -14857,6 +14897,46 @@ Keine Erklärungen, kein Markdown.`;
               </div>
               </div>`;
             if (uebEl) uebEl.innerHTML = tilesHtml;
+            // NICHT-IN-ODOO-WARNUNG (User 21.07.2026): prominente Warn-Karte auf der
+            // Heute-Seite — physisch da, in Odoo unauffindbar, nach GRUND gruppiert.
+            try {
+                const nioEl = document.getElementById('uebersicht-nicht-odoo');
+                if (nioEl) {
+                    const n = r.nichtInOdoo || {};
+                    const nioGesamt = ['frisch','elhr','palette','rueckstand','altretoure','altVerkauft','versand'].reduce((a, k) => a + ((n[k] || {}).n || 0), 0);
+                    if (!nioGesamt || !hasAmm) { nioEl.innerHTML = ''; }
+                    else {
+                        const grp = (key, lbl, farbe, tip) => {
+                            const g = n[key] || { n: 0, maxT: 0 };
+                            if (!g.n) return '';
+                            return `<div style="display:flex;align-items:baseline;gap:0.4rem;font-size:0.65rem;">
+                                <span class="ds-dot" style="background:${farbe};"></span>
+                                <span style="color:var(--text-secondary);">${lbl} <span class="vc-info" data-tip="${tip}">ⓘ</span></span>
+                                <span style="font-family:var(--font-mono);font-weight:700;">${fmt(g.n)}</span>
+                                ${g.maxT > 3 ? `<span style="color:var(--text-muted);">· ältestes ${fmt(g.maxT)} T</span>` : ''}
+                              </div>`;
+                        };
+                        const kritisch = ((n.rueckstand || {}).n || 0) + ((n.altretoure || {}).n || 0);
+                        nioEl.innerHTML = `
+                          <div style="background:var(--bg-elevated);border:1px solid ${kritisch > 0 ? 'var(--accent-red,#ef4444)' : 'var(--border)'};border-radius:12px;padding:0.85rem 1.1rem;cursor:pointer;" onclick="switchAnalyseTab('datenqualitaet')" title="Klick → Datenqualität mit der vollständigen Lager-Nr-Liste (CSV-Export)">
+                            <div style="display:flex;align-items:baseline;gap:1rem;flex-wrap:wrap;margin-bottom:0.45rem;">
+                              <div style="font-size:0.6rem;color:var(--accent-red,#ef4444);text-transform:uppercase;letter-spacing:0.05em;font-weight:700;">⚠ Im Lager, aber nicht in Odoo <span class="vc-info" data-tip="Geräte, die physisch im AMM stehen, aber in Odoo WEDER als Bestand NOCH als Verkauf existieren — sie haben keinen Preis, keine Marke, kein Listing und können NICHT verkauft werden, bis sie angelegt sind. Gruppiert nach Grund; kritisch (rot) = Rückstand + Uralt. Klick öffnet die Datenqualität mit der vollständigen Liste je Lager-Nr (Grund steht an jedem Gerät, CSV-Export vorhanden).">ⓘ</span> <span class="tb-chip">Stichtag</span></div>
+                              <div style="font-size:1.1rem;font-family:var(--font-mono);font-weight:800;color:${kritisch > 0 ? 'var(--accent-red,#ef4444)' : 'var(--accent-orange)'};">${fmt(nioGesamt)} Geräte</div>
+                              ${kritisch > 0 ? `<div style="font-size:0.65rem;color:var(--accent-red,#ef4444);font-weight:600;">davon ${fmt(kritisch)} kritisch (Rückstand/Uralt) — nicht verkaufbar, bis in Odoo angelegt</div>` : ''}
+                            </div>
+                            <div style="display:flex;gap:1.2rem;flex-wrap:wrap;">
+                              ${grp('rueckstand', 'Klassifizierungs-Rückstand', 'var(--accent-red,#ef4444)', 'Länger als 3 Tage im Hauptlager, jünger als 1 Jahr — hätte längst in Odoo angelegt sein müssen. DER Arbeitsvorrat der Klassifizierung.')}
+                              ${grp('altretoure', 'Uralt/Retoure (>1 Jahr)', 'var(--accent-red,#ef4444)', 'Wareneingang liegt über ein Jahr zurück — Klärfall: freigeben, klassifizieren oder ausbuchen.')}
+                              ${grp('frisch', 'Frischer WE (≤3 T)', 'var(--accent-green)', 'Wareneingang der letzten 3 Tage — Klassifizierung läuft, normaler Durchlauf.')}
+                              ${grp('elhr', 'ELHR-Umlager', 'var(--accent-orange)', 'Lagerplatz im Eingangs-/Umlagerbereich — physisch in Bewegung.')}
+                              ${grp('palette', 'Gemischte Sammelpalette', 'var(--accent-orange)', 'Bezeichner „Unsortierte Kleingeräte" — Sonderfall, wird palettenweise behandelt.')}
+                              ${grp('altVerkauft', 'Alt-verkauft, noch im Lager', 'var(--accent-purple)', 'Im Portal/JTL-Archiv bereits verkauft, steht aber physisch noch als QE — Versand-/Klärfall, NICHT erneut verkaufen.')}
+                              ${grp('versand', 'Im Versand/Ausgang', 'var(--accent-cyan)', 'AMM-Status VS/AA ohne Odoo-Eintrag — Alt-Auftrag verlässt gerade das Haus.')}
+                            </div>
+                          </div>`;
+                    }
+                }
+            } catch (e) { console.warn('[NichtInOdoo] render', e); }
             // Heute-KPI-Zeile (reconcile-getrieben, Wertekreis-Fix 2026-07-03):
             // Reserviert / Versand-Pipeline / Daten-Konsistenz — keine €-Doppelung zu den Kacheln.
             // SCOPE-FIX (User-Befund 2026-07-03, „461 vs 450") + KLARTEXT (User 2026-07-16:
