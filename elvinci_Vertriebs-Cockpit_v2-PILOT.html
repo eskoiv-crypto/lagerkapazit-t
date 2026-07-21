@@ -21716,7 +21716,10 @@ Keine Erklärungen, kein Markdown.`;
                             const workbook = XLSX.read(data, { type: 'array', cellDates: true });
                             console.log('Excel OK:', workbook.SheetNames);
                             processExcel(workbook, type, filename);
-                            if (!opts.fromArchive) saveArchiveFile(type, file);
+                            // Schrumpf-Guard-Veto: abgelehnter Upload darf das Archiv nicht ersetzen
+                            const _veto = dashboardState._archiveVeto === type;
+                            dashboardState._archiveVeto = null;
+                            if (!opts.fromArchive && !_veto) saveArchiveFile(type, file);
                         } catch (err) {
                             const userMsg = handleUploadError(type, err, filename);
                             if (statusEl) {
@@ -21790,7 +21793,10 @@ Keine Erklärungen, kein Markdown.`;
                                 }
                                 console.log('CSV OK:', results.data.length, 'Zeilen');
                                 processCSV(results.data, type, filename);
-                                if (!opts.fromArchive) saveArchiveFile(type, file);
+                                // Schrumpf-Guard-Veto (Parität zum Excel-Pfad)
+                                const _vetoC = dashboardState._archiveVeto === type;
+                                dashboardState._archiveVeto = null;
+                                if (!opts.fromArchive && !_vetoC) saveArchiveFile(type, file);
                             } catch (err) {
                                 const userMsg = handleUploadError(type, err, filename);
                                 if (statusEl) {
@@ -24351,6 +24357,23 @@ Keine Erklärungen, kein Markdown.`;
                             showToast('warning', `⚠️ ${_dupes.length} doppelte Lager-Nrs in ALL_SOLD`,
                                 `${_dupeRows} Zeilen mit bereits vorhandener Lager-Nr (Retoure-Wiederverkauf oder Export-Fehler). Alle Zeilen zählen in Umsatz/Profit. Details in der Browser-Konsole (F12).`, 8000);
                         }
+                    }
+                    // SCHRUMPF-GUARD (21.07.2026, User: „Portal gibt es zukünftig nicht mehr"):
+                    // Das Portal wird abgeschaltet und LÖSCHT rückwärts — der Export vom
+                    // 21.07. hatte nur noch 9.354 von 31.096 Endstand-Zeilen. Das Archiv
+                    // (Endstand 03.07.) ist die EINZIGE vollständige Kopie der Alt-Historie.
+                    // Ein kleinerer Upload würde CLV/Churn/Verrechnet still um >20k Verkäufe
+                    // amputieren → hart ablehnen (Exception verhindert auch den Archiv-
+                    // Persist, der NACH processExcel läuft). Bewusstes Ersetzen: erst
+                    // „Archiv leeren", dann neu laden.
+                    const _prevPortalN = (dashboardState._soldSrcPortal || []).length;
+                    if (_prevPortalN > 0 && allSoldData.length < _prevPortalN * 0.98) {
+                        showToast('error', '⛔ All-Sold-Upload verworfen',
+                            `Die neue Datei hat nur ${allSoldData.length.toLocaleString('de-DE')} Verkäufe, geladen sind ${_prevPortalN.toLocaleString('de-DE')} (Endstand). Das Portal löscht rückwärts — der Endstand ist die einzige vollständige Historie und bleibt erhalten. Bewusst ersetzen: „Archiv leeren", dann neu laden.`, 12000);
+                        // Veto fürs IDB-Archiv: processExcel fängt Fehler intern (kein Rethrow),
+                        // der Persist läuft sonst trotzdem — Flag wird im Upload-Flow konsumiert.
+                        dashboardState._archiveVeto = type;
+                        throw new Error(`All-Sold-Schrumpf-Guard: neue Datei ${allSoldData.length} < Endstand ${_prevPortalN} Zeilen — Upload abgelehnt, Archiv geschützt.`);
                     }
                     // PHASE 2: Portal-Verkäufe als Quelle ablegen, zentraler Merge mit Odoo (Lager-Nr-Dedup).
                     // rebuildMergedSold() setzt allSoldData + alle Aggregate (überschreibt die Inline-Werte unten);
