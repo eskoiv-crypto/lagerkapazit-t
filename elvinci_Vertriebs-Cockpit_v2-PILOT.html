@@ -13603,7 +13603,7 @@ Keine Erklärungen, kein Markdown.`;
                 if (stock.length) {
                     const r = _rangeOf(stock, 'datetime_upload');
                     elStock.style.display = 'inline';
-                    elStock.innerHTML = `<span class="ds-pill" data-tip="Stock-Analysis (Portal-Snapshot): Portal-Bestand. Frei verkäuflich sind NUR Geräte mit leerem Status — A/M = im Paket reserviert (Kundenpaket/Spezialdeal). Stichtag: Zeitpunkt des Portal-Exports."><span class="ds-dot" style="background:var(--accent-green);"></span>Stock</span> <b>Portal-Snapshot:</b> WE ${fmt(r.mn)} – ${fmt(r.mx)} <span style="color:var(--text-muted);">· ${stock.length.toLocaleString('de-DE')} Art.</span>`;
+                    elStock.innerHTML = `<span class="ds-pill" data-tip="KAUFMÄNNISCHER Bestand im WaWi (Odoo ∪ Portal-Rest, per Lager-Nr gemergt, Odoo-Vorrang): alle NICHT verkauften, verkaufbaren Artikel. Das ist die kleinere der beiden Bestandszahlen — sie enthält KEINE verkaufte Ware im Versand/Ausgang und KEINE unklassifizierten Geräte (die stehen nur physisch im AMM). Brücke zwischen beiden Zahlen: Hero-Kacheln auf der Übersicht."><span class="ds-dot" style="background:var(--accent-green);"></span>WaWi</span> <b>Verkaufbar (Odoo ∪ Portal):</b> <span style="color:var(--text-muted);">${stock.length.toLocaleString('de-DE')} Artikel · WE ${fmt(r.mn)} – ${fmt(r.mx)}</span>`;
                     shown = true;
                 } else { elStock.style.display = 'none'; }
             }
@@ -13614,7 +13614,7 @@ Keine Erklärungen, kein Markdown.`;
                 if (bestand.length) {
                     const r = _rangeOf(bestand, 'weDatum');
                     elBest.style.display = 'inline';
-                    elBest.innerHTML = `<span class="ds-pill" data-tip="BESTAND (AMM-Lagerverwaltung): physischer Lagerbestand mit ALLEN Status (QE klassifiziert, VS Versand, AA Sonder, Frischware). Eine Lager-Nr = ein physisches Gerät ODER eine gemischte Sammelpalette."><span class="ds-dot" style="background:var(--accent-cyan);"></span>Bestand</span> <b>Lager-Snapshot:</b> Stichtag heute <span style="color:var(--text-muted);">· ${bestand.length.toLocaleString('de-DE')} Geräte · WE ${fmt(r.mn)}–${fmt(r.mx)}</span>`;
+                    elBest.innerHTML = `<span class="ds-pill" data-tip="PHYSISCHES Lager (AMM): alles, was körperlich in der Halle steht — INKLUSIVE verkaufter Ware im Versand/Ausgang (VS/AA), verkaufter Ware in Kommissionierung (noch QE) und unklassifizierter Geräte ohne WaWi-Eintrag. Deshalb ist diese Zahl IMMER größer als der verkaufbare WaWi-Bestand daneben — die Brücke rechnen die Hero-Kacheln auf der Übersicht vor."><span class="ds-dot" style="background:var(--accent-cyan);"></span>Lager physisch</span> <b>AMM-Snapshot:</b> Stichtag heute <span style="color:var(--text-muted);">· ${bestand.length.toLocaleString('de-DE')} Geräte (inkl. Versand + Unklassifizierte) · WE ${fmt(r.mn)}–${fmt(r.mx)}</span>`;
                     shown = true;
                 } else { elBest.style.display = 'none'; }
             }

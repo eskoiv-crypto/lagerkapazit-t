@@ -84,6 +84,8 @@ Marken, Dead Stock, Verkaufspriorität, Konvolut, Live-View, **Datenqualität**,
 
 31. **Stale-Daten-Guard (20.07., Experten-Backlog Session 1 — ausgelöst durch den „warum fehlen 14 %?"-Fall mit 5–6 Tage alten Exporten):** `_renderStaleGuard()` in der Datenstand-Leiste (`#range-stale`, rote Pill): warnt bei BESTAND > 1 T (Datum exakt aus Dateinamen), Odoo-Bestand > 2 T (Näherung: jüngster Pool-Eintritt/Erstellt), Aufträgen > 3 T (jüngstes Auftragsdatum), Rechnungen > 3 T (jüngstes Rechnungsdatum) sowie bei Versatz BESTAND↔Odoo > 1 T („Anomalien teils nur Datei-Versatz"). Tooltip erklärt die Folgen (Konsistenz sinkt künstlich, Funnel/Radar = Stand von damals). Verifiziert mit den 14./15.07.-Dateien am 20.07.: „⚠ DATENALTER BESTAND 5 T (15.07.) · Odoo-Bestand 6 T (14.07.) · Rechnungen 5 T (15.07.)" — frische Aufträge (19.07.) korrekt nicht gewarnt.
 
+32. **Datenstand-Pills entwirrt (21.07., User: „welcher Bestand stimmt — 5k oder 3k?"):** Die „Stock"-Pill hieß noch „Portal-Snapshot", zeigte aber längst den gemergten WaWi-Bestand (Odoo ∪ Portal, `stockAnalysisRaw`) — neben der AMM-Pill wirkten 5.725 vs. 3.149 wie ein Widerspruch. Umbenannt: **„Lager physisch | AMM-Snapshot: N Geräte (inkl. Versand + Unklassifizierte)"** vs. **„WaWi | Verkaufbar (Odoo ∪ Portal): N Artikel"**; beide Tooltips erklären, warum physisch IMMER größer ist (VS/AA + verkauft-in-Kommissionierung + Unklassifizierte) und verweisen auf die Brücken-Rechnung der Hero-Kacheln.
+
 ## 5. Kernzahlen zum 30.06.2026 (aus echten Dateien)
 - **Freiverkäuflich (Odoo Verfügbar):** ~2.623–2.772 Geräte · EK ~217k · **VK ~517–520k €**.
 - **Alles NICHT verkauft, physisch im Lager (AMM QE):** **3.171 Geräte · VK 508.089 € · EK 226.987 €** (EK = Untergrenze!).
