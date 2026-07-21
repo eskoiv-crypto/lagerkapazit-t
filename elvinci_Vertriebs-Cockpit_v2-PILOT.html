@@ -9792,7 +9792,7 @@ Keine Erklärungen, kein Markdown.`;
                                        '<span class="priority-tag priority-medium">Beobachten</span>';
                     return `
                         <tr>
-                            <td><strong>${row.pg}</strong></td>
+                            <td><strong>${_h(_pgAnzeige(row.pg))}</strong></td>
                             <td class="mono">${row.count}</td>
                             <td class="mono warning">${row.ekSum.toLocaleString('de-DE', {style:'currency',currency:'EUR',minimumFractionDigits:0,maximumFractionDigits:0})}</td>
                             <td class="mono">${row.avgDays}</td>
@@ -13551,6 +13551,10 @@ Keine Erklärungen, kein Markdown.`;
             return d ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` : '';
         }
         function _localTodayYMD() { return _localYMD(new Date()); }
+        // NOMENKLATUR (User 21.07.2026): Anzeige in Odoo-ORIGINAL-Schreibweise —
+        // die lowercase/uppercase-Strings bleiben nur interne Merge-Keys.
+        function _pgAnzeige(pg) { return (dashboardState._pgLabels || {})[String(pg || '').toLowerCase()] || pg || '—'; }
+        function _brandAnzeige(b) { return (dashboardState._brandLabels || {})[String(b || '').toUpperCase()] || b || '—'; }
         function _parseAnyDate(v) {
             if (!v) return null;
             if (v instanceof Date) return isNaN(v.getTime()) ? null : v;
@@ -15942,7 +15946,7 @@ Keine Erklärungen, kein Markdown.`;
                 }
                 return `
                     <tr>
-                        <td><strong>${_h(r.pg || '—')}</strong></td>
+                        <td><strong>${_h(_pgAnzeige(r.pg))}</strong></td>
                         <td class="mono">${r.lagerCount.toLocaleString('de-DE')}</td>
                         <td class="mono" style="color: var(--accent-green);">${r.availableCount.toLocaleString('de-DE')}</td>
                         <td class="mono" style="color: var(--accent-orange);">${r.reservedCount.toLocaleString('de-DE')}</td>
@@ -16024,7 +16028,7 @@ Keine Erklärungen, kein Markdown.`;
                 const profitAnteil = totalProfit > 0 ? ((r.profit / totalProfit) * 100).toFixed(1) : 0;
                 return `
                     <tr>
-                        <td><strong>${_h(r.brand || '—')}</strong></td>
+                        <td><strong>${_h(_brandAnzeige(r.brand))}</strong></td>
                         <td class="mono">${r.lagerCount.toLocaleString('de-DE')}</td>
                         <td class="mono" style="color: var(--accent-green);">${r.availableCount.toLocaleString('de-DE')}</td>
                         <td class="mono" style="color: var(--accent-orange);">${r.reservedCount.toLocaleString('de-DE')}</td>
@@ -23861,6 +23865,12 @@ Keine Erklärungen, kein Markdown.`;
                     }
                     const _now = new Date();
                     const _leaf = s => (s || '').toString().split('/').pop().trim();
+                    // NOMENKLATUR-REGEL (User 21.07.2026): Die Odoo-SCHREIBWEISE ist für
+                    // Gruppen/Artikel/Hersteller/Marken/Kunden verbindlich. Die lowercase/
+                    // uppercase-Keys bleiben interne Merge-Schlüssel — für die ANZEIGE
+                    // werden die Original-Labels aus Odoo mitgeführt.
+                    const _pgLabels = dashboardState._pgLabels = dashboardState._pgLabels || {};
+                    const _brandLabels = dashboardState._brandLabels = dashboardState._brandLabels || {};
                     const odooMap = {};
                     const odooKnown = new Set();   // ALLE Odoo-Lager-Nrn inkl. Verkauft → Odoo entscheidet darüber
                     let soldSkipped = 0, rows = 0, sammelCount = 0; const statusSeen = {};
@@ -23883,6 +23893,10 @@ Keine Erklärungen, kein Markdown.`;
                             const sGradeM = (row[cGrade] || '').toString().match(/\(([A-Za-z])\)/);
                             const sdRaw = cErst !== undefined ? row[cErst] : (cPool !== undefined ? row[cPool] : '');
                             const sd = _parseAnyDate(sdRaw);
+                            const _sPgLeaf = _leaf(row[cKat]);
+                            const _sBrandRaw = (row[cBrand] || '').toString().trim();
+                            if (_sPgLeaf) _pgLabels[_sPgLeaf.toLowerCase()] = _sPgLeaf;
+                            if (_sBrandRaw) _brandLabels[_sBrandRaw.toUpperCase()] = _sBrandRaw;
                             odooSold.push({
                                 lagerNr: lagerNr,
                                 article: (row[cProd] || '').toString().trim(),
@@ -23933,11 +23947,15 @@ Keine Erklärungen, kein Markdown.`;
                             mapKey = `${lagerNr}.${String(sfx).padStart(3, '0')}`;
                             sammelCount++;
                         }
+                        const _pgLeaf = _leaf(row[cKat]);
+                        const _brandRaw = (row[cBrand] || '').toString().trim();
+                        if (_pgLeaf) _pgLabels[_pgLeaf.toLowerCase()] = _pgLeaf;
+                        if (_brandRaw) _brandLabels[_brandRaw.toUpperCase()] = _brandRaw;
                         odooMap[mapKey] = {
                             ek: parseFloat(row[cEK]) || 0,
                             vk: parseFloat(row[cVK]) || 0,
-                            pg: _leaf(row[cKat]).toLowerCase(),
-                            brand: (row[cBrand] || '').toString().trim().toUpperCase(),
+                            pg: _pgLeaf.toLowerCase(),
+                            brand: _brandRaw.toUpperCase(),
                             status: isAvailable ? '' : 'ANGEBOTEN',
                             vstatus,                       // roher Odoo-Verkaufsstatus (Verfügbar/Angeboten/Reserviert)
                             isReserved, isAvailable,
