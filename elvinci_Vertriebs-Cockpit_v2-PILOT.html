@@ -12133,7 +12133,7 @@ Keine Erklärungen, kein Markdown.`;
                 ['Datum: ' + new Date().toLocaleDateString('de-DE') + ' · Kunden-Nr: ' + p.kundenNr],
                 ['elvinci.de GmbH'],
                 [],
-                ['Pos.', 'Bezeichnung', 'Lager-Nr', 'Artikel-Nr', 'Marke', 'Warengruppe', 'Grade', 'Zustand', 'Listen-VK', 'Rabatt', 'Ihr Preis', 'Ersparnis'],
+                ['Pos.', 'Bezeichnung', 'Lager-Nr', 'Artikel-Nr', 'Marke', 'Warengruppe', 'Grade', 'Zustand', 'Aktueller Online-Preis', 'Listen-VK', 'Rabatt', 'Ihr Preis', 'Ersparnis'],
             ];
             const eff = dashboardState._angeboteEffRabatt || (() => rabattInit);
             let sumListen = 0, sumPreis = 0, sumErsparnis = 0;
@@ -12143,6 +12143,12 @@ Keine Erklärungen, kein Markdown.`;
                 const preis = vk * (1 - rab / 100);
                 const ersparnis = vk - preis;
                 sumListen += vk; sumPreis += preis; sumErsparnis += ersparnis;
+                // ONLINE-PREIS (User 22.07.): der Preis, den der Kunde JETZT im Shop sähe —
+                // nur für im Shop gelistete Ware (freigegeben + sichtbar); ohne Rabattpreis
+                // zeigt der Shop den Listen-VK. Nicht gelistet bzw. Flag unbekannt → „—".
+                const onlineAnzeige = m.imShop === true
+                    ? { v: (Number(m.online) > 0 ? Number(m.online) : vk), t: 'n', z: '#,##0.00 "€"' }
+                    : (m.imShop === null && Number(m.online) > 0 ? { v: Number(m.online), t: 'n', z: '#,##0.00 "€"' } : '—');
                 aoa.push([
                     i + 1,
                     String(m.bez || ''),
@@ -12152,34 +12158,37 @@ Keine Erklärungen, kein Markdown.`;
                     String(m.wg || ''),
                     String(m.grade || ''),
                     String(m.usage || ''),
+                    onlineAnzeige,
                     { v: vk, t: 'n', z: '#,##0.00 "€"' },
                     { v: rab / 100, t: 'n', z: '0.0%' },
                     { v: preis, t: 'n', z: '#,##0.00 "€"' },
                     { v: ersparnis, t: 'n', z: '#,##0.00 "€"' },
                 ]);
             });
-            // Summenzeile (Listen-VK=I, Ihr Preis=K, Ersparnis=L)
+            // Summenzeile (Listen-VK=J, Ihr Preis=L, Ersparnis=M)
             aoa.push([]);
             aoa.push([
-                '', 'Σ GESAMT', '', '', '', '', '', '',
+                '', 'Σ GESAMT', '', '', '', '', '', '', '',
                 { v: sumListen,    t: 'n', z: '#,##0.00 "€"' },
                 '',
                 { v: sumPreis,     t: 'n', z: '#,##0.00 "€"' },
                 { v: sumErsparnis, t: 'n', z: '#,##0.00 "€"' },
             ]);
+            aoa.push([]);
+            aoa.push(['', 'Online-Preis = aktueller Preis im elvinci.de-Shop · „—" = Gerät derzeit nicht online gelistet (exklusiv im Direktangebot)']);
 
             const ws = XLSX.utils.aoa_to_sheet(aoa);
             ws['!cols'] = [
                 { wch: 6 }, { wch: 36 }, { wch: 12 }, { wch: 14 }, { wch: 12 }, { wch: 22 }, { wch: 9 }, { wch: 16 },
-                { wch: 12 }, { wch: 8 }, { wch: 13 }, { wch: 13 },
+                { wch: 14 }, { wch: 12 }, { wch: 8 }, { wch: 13 }, { wch: 13 },
             ];
             ws['!merges'] = [
-                { s: { r: 0, c: 0 }, e: { r: 0, c: 11 } },
-                { s: { r: 1, c: 0 }, e: { r: 1, c: 11 } },
-                { s: { r: 2, c: 0 }, e: { r: 2, c: 11 } },
+                { s: { r: 0, c: 0 }, e: { r: 0, c: 12 } },
+                { s: { r: 1, c: 0 }, e: { r: 1, c: 12 } },
+                { s: { r: 2, c: 0 }, e: { r: 2, c: 12 } },
             ];
             ws['!freeze'] = { xSplit: 0, ySplit: 5 };
-            ws['!autofilter'] = { ref: `A5:L${matches.length + 5}` };
+            ws['!autofilter'] = { ref: `A5:M${matches.length + 5}` };
 
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, 'Angebot');
@@ -12711,6 +12720,7 @@ Keine Erklärungen, kein Markdown.`;
                     usage: it.usage || '',
                     artNr: artNr,
                     online: Number(it.Online_Price || 0) || 0,
+                    imShop: it.im_shop === true ? true : (it.im_shop === false ? false : null),
                     status: it.status || '',
                     // Verfügbarkeit: aus Quelle (isAvailable) — defensiver Fallback auf Status-leer
                     available: (typeof it.isAvailable === 'boolean') ? it.isAvailable : ((it.status || '') === ''),
@@ -23328,6 +23338,7 @@ Keine Erklärungen, kein Markdown.`;
                     status:item.status, isReserved:item.isReserved, isAvailable:item.isAvailable, model:item.model,
                     article_number:item.articleNumber, datetime_upload:item.dateUpload, product_life_days:lifeDays,
                     final_grade:item.grade, supply_type:item.supplyType, Online_Price:item.onlinePrice, usage:item.usage,
+                    im_shop:item.imShop === true ? true : (item.imShop === false ? false : null),
                     _src:item._src || 'Portal' });
             }
             dashboardState.stockAnalysisData = merged;
@@ -24100,6 +24111,9 @@ Keine Erklärungen, kein Markdown.`;
                           cGrade = HX['Grade'], cBrand = HX['Marke'], cKat = HX['Produktkategorie'],
                           cEK = HX['Einkaufspreis'], cVK = HX['Verkaufspreis'], cVKrab = HX['Verkaufspreis (nach Rabatt)'],
                           cLief = HX['Lieferantentyp'], cGebr = HX['Gebraucht'], cPool = HX['Pool-Eintritt'], cErst = HX['Erstellt am'];
+                    // SHOP-SICHTBARKEIT (22.07., für Online-Preis im Kundenangebot) — optional
+                    const cFreig = HX['Zum Verkauf freigegeben'], cImShop = HX['Im Shop verfügbar'];
+                    const _wahr = v => v === true || ['wahr', 'true', '1', 'ja'].includes(String(v || '').trim().toLowerCase());
                     // PHASE 2: Verkaufs-Spalten (für „Verkauft"-Zeilen → Verkaufsanalyse)
                     const cAuftrag = HX['Auftrag/Angebot (primär)'], cKunde = HX['Kunde'],
                           cKdNr = HX['Kundennummer'], cVerk = HX['Verkäufer'];
@@ -24209,6 +24223,10 @@ Keine Erklärungen, kein Markdown.`;
                             grade,
                             supplyType: lief,
                             onlinePrice: cVKrab !== undefined ? (parseFloat(row[cVKrab]) || 0) : 0,
+                            // SHOP-SICHTBARKEIT (22.07.): nur „Zum Verkauf freigegeben" + „Im Shop
+                            // verfügbar" haben einen echten Online-Preis (Kundenangebots-Spalte)
+                            imShop: cFreig !== undefined && cImShop !== undefined
+                                ? (_wahr(row[cFreig]) && _wahr(row[cImShop])) : null,
                             usage,
                             _src: 'Odoo',
                             _lagerBasis: lagerNr,          // physische Sammel-Nr (= AMM-Palette)
