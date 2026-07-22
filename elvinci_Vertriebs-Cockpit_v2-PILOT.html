@@ -16261,15 +16261,17 @@ Keine Erklärungen, kein Markdown.`;
                 const brand = (item.brand || '').toUpperCase();
                 
                 if (!lieferantenStats[supplyType]) {
-                    lieferantenStats[supplyType] = { count: 0, umsatz: 0, profit: 0, ek: 0 };
+                    lieferantenStats[supplyType] = { count: 0, umsatz: 0, profit: 0, ek: 0, ekFehlt: 0 };
                     lieferantenWG[supplyType] = {};
                     lieferantenBrand[supplyType] = {};
                 }
-                
+
                 lieferantenStats[supplyType].count++;
                 lieferantenStats[supplyType].umsatz += jtlPrice;
                 lieferantenStats[supplyType].profit += profit;
                 lieferantenStats[supplyType].ek += ek;
+                // EK-Abdeckung (AEG_IT-Fall 22.07.: EK=0 bei allen → „Profit" = Umsatz)
+                if (!(parseFloat(ek) > 0)) lieferantenStats[supplyType].ekFehlt++;
                 
                 // WG-Tracking
                 if (pg) {
@@ -16345,9 +16347,9 @@ Keine Erklärungen, kein Markdown.`;
                             <td class="mono" style="color: var(--accent-cyan);">${stueckAnteil}%</td>
                             <td class="mono">${formatCurr(l.umsatz)}</td>
                             <td class="mono" style="color: var(--accent-orange);">${umsatzAnteil}%</td>
-                            <td class="mono ${l.profit < 0 ? 'negative' : 'positive'}">${formatCurr(l.profit)}</td>
+                            <td class="mono ${l.profit < 0 ? 'negative' : 'positive'}"${l.ekFehlt === l.count ? ' style="color: var(--accent-orange) !important;"' : ''}>${formatCurr(l.profit)}${l.ekFehlt > 0 ? ` <span class="vc-info" data-tip="⚠ EK fehlt bei ${l.ekFehlt} von ${l.count} Verkäufen — für diese zählt der volle VK als Profit (Obergrenze).${l.ekFehlt === l.count ? ' Hier ist Profit = Umsatz, KEIN echter Ertrag!' : ''} EK in Odoo pflegen, dann wird die Zahl belastbar." style="color:var(--accent-orange);">⚠</span>` : ''}</td>
                             <td class="mono" style="color: var(--accent-green); font-weight: 600;">${profitAnteil}%</td>
-                            <td class="mono ${margeClass}">${l.marge.toFixed(1)}%</td>
+                            <td class="mono ${margeClass}">${l.ek > 0 ? l.marge.toFixed(1) + '%' : '<span class="vc-info" data-tip="Kein EK gepflegt — Marge nicht berechenbar (0 im Nenner)." style="color:var(--text-muted);">n. a.</span>'}</td>
                             <td style="font-size:0.55rem;">${l.topWG ? _h(l.topWG[0].substring(0, 12)) : '—'}</td>
                             <td style="font-size:0.55rem;">${l.topBrand ? _h(l.topBrand[0]) : '—'}</td>
                         </tr>
