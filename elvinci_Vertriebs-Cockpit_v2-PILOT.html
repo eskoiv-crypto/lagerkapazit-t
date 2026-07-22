@@ -14741,7 +14741,12 @@ Keine Erklärungen, kein Markdown.`;
                     else qeUnsold.ohnePreis++;
                 }
                 // Anomalien — die echten „stimmt nicht"-Fälle
-                if (inO && !oSoldF && (c === 'verfuegbar' || c === 'reserviert') && !amm)
+                // INVARIANTEN-AUDIT 22.07.: `!oSoldF` entfernt — seit dem Gemischte-Sammel-Nr-
+                // Fix kann ein BESTANDS-Key im Verkauft-Set stehen (Root-Verkäufe der
+                // Geschwister-Komponenten); c berücksichtigt das bereits. Der alte Guard
+                // unterschlug die Basis-Komponente gemischter Sammel-Nrn als Phantom,
+                // während ihre .001-Geschwister korrekt geflaggt wurden.
+                if (inO && (c === 'verfuegbar' || c === 'reserviert') && !amm)
                     anomalies.PHANTOM_STOCK.push({ ln, detail:`Odoo „${oAvail ? 'Verfügbar' : 'reserviert'}", aber physisch NICHT im AMM-Lager (Phantom-Bestand)` });
                 if (amm === 'QE' && c === 'unklassifiziert') {
                     const _info = ammInfo.get(ln) || ammInfo.get(String(ln).split('.')[0]);
