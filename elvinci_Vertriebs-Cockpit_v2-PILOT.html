@@ -14670,13 +14670,13 @@ Keine Erklärungen, kein Markdown.`;
             // nicht zu finden — gruppiert nach GRUND (Taxonomie wie Check1/_categorizeDisk
             // + „frisch"-Fenster). Kein €-Wert möglich: ohne WaWi-Eintrag kein Preis.
             const nio = {
-                frisch:      { n: 0, maxT: 0 },   // WE ≤ 3 Tage — Klassifizierung läuft (normal)
-                elhr:        { n: 0, maxT: 0 },   // Lagerplatz ELHR* = Eingangs-/Umlagerbereich (in Bewegung)
-                palette:     { n: 0, maxT: 0 },   // „Unsortierte Kleingeräte" = gemischte Sammelpalette
-                rueckstand:  { n: 0, maxT: 0 },   // > 3 Tage, Hauptlager, < 1 Jahr — ECHTER Klassifizierungs-Rückstand
-                altretoure:  { n: 0, maxT: 0 },   // WE > 365 Tage — Uralt-/Retouren-Klärfall
-                altVerkauft: { n: 0, maxT: 0 },   // im Alt-Archiv (Portal/JTL) verkauft, physisch noch QE
-                versand:     { n: 0, maxT: 0 }    // AMM VS/AA ohne Odoo-Eintrag — verlässt das Haus (Alt-Auftrag)
+                frisch:      { n: 0, maxT: 0, lns: [] },   // WE ≤ 3 Tage — Klassifizierung läuft (normal)
+                elhr:        { n: 0, maxT: 0, lns: [] },   // Lagerplatz ELHR* = Eingangs-/Umlagerbereich (in Bewegung)
+                palette:     { n: 0, maxT: 0, lns: [] },   // „Unsortierte Kleingeräte" = gemischte Sammelpalette
+                rueckstand:  { n: 0, maxT: 0, lns: [] },   // > 3 Tage, Hauptlager, < 1 Jahr — ECHTER Klassifizierungs-Rückstand
+                altretoure:  { n: 0, maxT: 0, lns: [] },   // WE > 365 Tage — Uralt-/Retouren-Klärfall
+                altVerkauft: { n: 0, maxT: 0, lns: [] },   // im Alt-Archiv (Portal/JTL) verkauft, physisch noch QE
+                versand:     { n: 0, maxT: 0, lns: [] }    // AMM VS/AA ohne Odoo-Eintrag — verlässt das Haus (Alt-Auftrag)
             };
             const _nioTage = (info) => info && info.we ? Math.floor((_nowR - info.we.getTime()) / 86400000) : null;
             const _nioGrund = (info) => {
@@ -14753,15 +14753,18 @@ Keine Erklärungen, kein Markdown.`;
                     const _g = _nioGrund(_info);
                     const _t = _nioTage(_info);
                     nio[_g].n++; if (_t !== null && _t > nio[_g].maxT) nio[_g].maxT = _t;
+                    nio[_g].lns.push({ ln, t: _t });
                     anomalies.UNKLASSIFIZIERT.push({ ln, detail:`[${NIO_GRUND_TEXT[_g]}${_t !== null ? ` · WE vor ${_t} T` : ''}] physisch im AMM-Lager (QE), aber nicht in Odoo & nicht verkauft → klassifizieren/anlegen` });
                 }
                 if (c === 'unklassifiziert' && (amm === 'VS' || amm === 'AA')) {
                     const _tV = _nioTage(ammInfo.get(ln));
                     nio.versand.n++; if (_tV !== null && _tV > nio.versand.maxT) nio.versand.maxT = _tV;
+                    nio.versand.lns.push({ ln, t: _tV });
                 }
                 if (c === 'verkauft' && !oSoldF && amm === 'QE') {
                     const _tA = _nioTage(ammInfo.get(ln));
                     nio.altVerkauft.n++; if (_tA !== null && _tA > nio.altVerkauft.maxT) nio.altVerkauft.maxT = _tA;
+                    nio.altVerkauft.lns.push({ ln, t: _tA });
                 }
                 if (c === 'verkauft' && amm === 'QE') {
                     const si = soldInfo.get(ln) || {};
@@ -14808,6 +14811,51 @@ Keine Erklärungen, kein Markdown.`;
             dashboardState._reconciliation = result;
             console.info(`[Reconcile] Universum ${uni.size} · verfügbar ${comm.verfuegbar} · reserviert ${comm.reserviert} · verkauft ${comm.verkauft} · unklass ${comm.unklassifiziert} || AMM QE ${phys.QE}/VS ${phys.VS}/AA ${phys.AA}/– ${phys.none} || QE-nicht-verkauft ${qeUnsold.count} (frei ${qeUnsold.frei}/res ${qeUnsold.reserviert}/unklass ${qeUnsold.unklassifiziert}) VK ${Math.round(qeUnsold.vk)} || Anomalien Phantom ${anomalies.PHANTOM_STOCK.length}/Unklass ${anomalies.UNKLASSIFIZIERT.length}/VerkImLager ${anomalies.VERKAUFT_IM_LAGER.length} · Versand-Pipeline ≤${VERSAND_FENSTER_TAGE}T ${versandPipeline.count} (Odoo ${versandPipeline.odoo}/Alt ${versandPipeline.alt}) || Verkäufe ${salesTotal} (P ${portalSoldSet.size}+O ${odooSoldSet.size}) doppelt ${salesDouble.length}`);
             return result;
+        }
+
+        // EXPORT „Nicht in Odoo" (2026-07-22, User: „Excel/CSV per Knopfdruck zum
+        // Weitergeben, damit wir herausfinden, warum sich die Anlage verzögert"):
+        // Vollständige Geräteliste je Grund-Gruppe als XLSX (SheetJS, rein im Browser).
+        // Sortierung: kritische Gruppen zuerst, innerhalb älteste zuerst.
+        function exportNichtInOdoo() {
+            const r = dashboardState._reconciliation;
+            const n = r && r.nichtInOdoo;
+            if (!n) { showToast('info', 'Keine Abstimmung', 'Zuerst BESTAND + Odoo laden.', 4000); return; }
+            // Detail-Lookup aus dem AMM-Rohbestand (Palette, sonst Charge-Fallback)
+            const det = new Map();
+            (dashboardState.bestandRaw || []).forEach(b => {
+                const rec = { art: b.artikelnummer || '', bez: b.bezeichnung || '', we: b.weDatum || '',
+                              platz: (b.lagerplatz || '').trim(), st: b.status || '', auftrag: b.auftragNr || '' };
+                const p = String(b.lagerNr || '').trim();
+                if (/^900/.test(p)) { if (!det.has(p)) det.set(p, rec); return; }
+                const ch = String(b.charge || '').trim();
+                if (/^900/.test(ch) && !det.has(ch)) det.set(ch, rec);
+            });
+            const GR = [
+                ['rueckstand',  'KRITISCH: Klassifizierungs-Rückstand'],
+                ['altretoure',  'KRITISCH: Uralt/Retoure (>1 Jahr)'],
+                ['palette',     'Gemischte Sammelpalette'],
+                ['elhr',        'ELHR-Umlager (in Bewegung)'],
+                ['frisch',      'Frischer WE (≤3 T) — Klassifizierung läuft'],
+                ['altVerkauft', 'Alt-verkauft (Portal/JTL), noch im Lager'],
+                ['versand',     'Im Versand/Ausgang (VS/AA)']
+            ];
+            const rows = [['Grund', 'Lager-Nr', 'AMM-Artikel-Nr', 'Bezeichner', 'WE-Datum', 'Alter (Tage)', 'Lagerplatz', 'AMM-Status', 'Auftrag (AMM)']];
+            GR.forEach(([k, lbl]) => {
+                const items = [...((n[k] || {}).lns || [])].sort((a, b) => ((b.t ?? -1) - (a.t ?? -1)));
+                items.forEach(x => {
+                    const d = det.get(String(x.ln)) || {};
+                    rows.push([lbl, String(x.ln), d.art, d.bez, d.we, x.t ?? '', d.platz, d.st, d.auftrag]);
+                });
+            });
+            if (rows.length === 1) { showToast('success', 'Nichts zu exportieren', 'Aktuell keine Geräte ohne Odoo-Eintrag.', 4000); return; }
+            const ws = XLSX.utils.aoa_to_sheet(rows);
+            ws['!cols'] = [{ wch: 38 }, { wch: 13 }, { wch: 16 }, { wch: 32 }, { wch: 11 }, { wch: 10 }, { wch: 12 }, { wch: 10 }, { wch: 14 }];
+            ws['!autofilter'] = { ref: `A1:I${rows.length}` };
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'Nicht in Odoo');
+            XLSX.writeFile(wb, `Nicht_in_Odoo_${_localTodayYMD()}.xlsx`);
+            showToast('success', '⬇ Excel-Liste erzeugt', `${(rows.length - 1).toLocaleString('de-DE')} Geräte exportiert (nach Grund gruppiert, älteste zuerst) — liegt in Downloads.`, 6000);
         }
 
         function exportReconciliationCSV() {
@@ -14928,6 +14976,7 @@ Keine Erklärungen, kein Markdown.`;
                               <div style="font-size:0.6rem;color:var(--accent-red,#ef4444);text-transform:uppercase;letter-spacing:0.05em;font-weight:700;">⚠ Im Lager, aber nicht in Odoo <span class="vc-info" data-tip="Geräte, die physisch im AMM stehen, aber in Odoo WEDER als Bestand NOCH als Verkauf existieren — sie haben keinen Preis, keine Marke, kein Listing und können NICHT verkauft werden, bis sie angelegt sind. Gruppiert nach Grund; kritisch (rot) = Rückstand + Uralt. Klick öffnet die Datenqualität mit der vollständigen Liste je Lager-Nr (Grund steht an jedem Gerät, CSV-Export vorhanden).">ⓘ</span> <span class="tb-chip">Stichtag</span></div>
                               <div style="font-size:1.1rem;font-family:var(--font-mono);font-weight:800;color:${kritisch > 0 ? 'var(--accent-red,#ef4444)' : 'var(--accent-orange)'};">${fmt(nioGesamt)} Geräte</div>
                               ${kritisch > 0 ? `<div style="font-size:0.65rem;color:var(--accent-red,#ef4444);font-weight:600;">davon ${fmt(kritisch)} kritisch (Rückstand/Uralt) — nicht verkaufbar, bis in Odoo angelegt</div>` : ''}
+                              <button onclick="event.stopPropagation(); exportNichtInOdoo();" title="Vollständige Geräteliste mit Grund als Excel-Datei — zum Weitergeben ans Lager-Team" style="margin-left:auto;padding:0.25rem 0.7rem;background:transparent;border:1px solid var(--accent-red,#ef4444);color:var(--accent-red,#ef4444);border-radius:6px;font-size:0.62rem;font-weight:700;cursor:pointer;white-space:nowrap;">⬇ Excel-Liste</button>
                             </div>
                             <div style="display:flex;gap:1.2rem;flex-wrap:wrap;">
                               ${grp('rueckstand', 'Klassifizierungs-Rückstand', 'var(--accent-red,#ef4444)', 'Länger als 3 Tage im Hauptlager, jünger als 1 Jahr — hätte längst in Odoo angelegt sein müssen. DER Arbeitsvorrat der Klassifizierung.')}
