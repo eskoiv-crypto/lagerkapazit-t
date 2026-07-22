@@ -7877,12 +7877,27 @@ Keine Erklärungen, kein Markdown.`;
             if (!el) return;
             let recs = recsMaybe;
             if (!recs) { try { recs = await idbStores.archives().getAll(); } catch (e) { recs = []; } }
-            if (!recs || !recs.length) { el.innerHTML = ''; return; }
+            // DAUER-QUELLEN-CHECK (22.07.2026, User: „werden Stammdaten + historische
+            // Verkäufe ab 2022 automatisch geladen?"): Ja — WENN sie einmal in DIESEM
+            // Browser hochgeladen wurden. Fehlen sie im Archiv, wird das jetzt sichtbar
+            // statt still leerer CLV/Churn/Historie. (stock-analysis bewusst NICHT in
+            // der Erwartungsliste — Portal abgeschaltet.)
+            const ERWARTET = [
+                ['all-sold', 'All-Sold Endstand 03.07. (Verkaufshistorie)', '02 BEI BEDARF/02 Portal All-Sold'],
+                ['jtl4y',    'JTL 4-Jahre ab 2022 (CLV/Churn-Basis)',       '03 EINMALIG/01 JTL 4-Jahre'],
+                ['stamm',    'Kundenstammdaten (Reaktivierung)',            '03 EINMALIG/02 JTL Kundenstammdaten']
+            ];
+            const daTypen = new Set((recs || []).map(r => r.type));
+            const fehlt = ERWARTET.filter(([t]) => !daTypen.has(t));
+            const fehltHtml = fehlt.length
+                ? `<div style="margin-top:0.25rem;color:var(--accent-orange);font-size:0.62rem;">⚠ <b>Fehlt im lokalen Archiv dieses Browsers:</b> ${fehlt.map(([, lbl, ordner]) => `${lbl} <span style="color:var(--text-muted);">(Teams: ${ordner})</span>`).join(' · ')} — je EINMAL in die Ablagezone ziehen, danach lädt es bei jedem Start automatisch.</div>`
+                : '';
+            if (!recs || !recs.length) { el.innerHTML = fehltHtml; return; }
             const newest = recs.map(r => r.savedAt || '').sort().pop() || '';
             const dt = newest ? new Date(newest).toLocaleDateString('de-DE') : '';
-            const names = recs.map(r => FIELD_LABELS[r.type] || r.type).join(' · ');
-            el.innerHTML = `📦 <b>Lokales Archiv:</b> ${names} <span style="color:var(--text-muted);">(Stand ${dt})</span>
-                <button onclick="clearLocalArchive()" style="margin-left:0.5rem;padding:0.1rem 0.45rem;background:transparent;border:1px solid var(--border-subtle,rgba(255,255,255,0.15));color:var(--text-muted);border-radius:4px;font-size:0.6rem;cursor:pointer;">Archiv leeren</button>`;
+            const names = recs.filter(r => r.type !== 'stock-analysis').map(r => FIELD_LABELS[r.type] || r.type).join(' · ');
+            el.innerHTML = `📦 <b>Lokales Archiv (lädt bei jedem Start automatisch):</b> ${names} <span style="color:var(--text-muted);">(Stand ${dt})</span>
+                <button onclick="clearLocalArchive()" style="margin-left:0.5rem;padding:0.1rem 0.45rem;background:transparent;border:1px solid var(--border-subtle,rgba(255,255,255,0.15));color:var(--text-muted);border-radius:4px;font-size:0.6rem;cursor:pointer;">Archiv leeren</button>${fehltHtml}`;
         }
 
         /** CDN-Health-Check. Alle 4 kritischen Libs müssen geladen sein. */
