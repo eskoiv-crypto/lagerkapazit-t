@@ -16112,8 +16112,8 @@ Keine Erklärungen, kein Markdown.`;
                 const soldAnteil = totalSold > 0 ? ((r.soldCount / totalSold) * 100).toFixed(1) : 0;
                 const profitAnteil = totalProfit > 0 ? ((r.profit / totalProfit) * 100).toFixed(1) : 0;
                 return `
-                    <tr>
-                        <td><strong>${_h(_brandAnzeige(r.brand))}</strong></td>
+                    <tr class="brand-row" data-brand="${_h(r.brand)}" onclick="toggleBrandDetail(this)" style="cursor: pointer;" title="Klick: zugehörige Artikel ein-/ausblenden">
+                        <td><span class="brand-caret" style="display:inline-block;width:0.9em;color:var(--text-muted);font-size:0.7rem;">▸</span><strong>${_h(_brandAnzeige(r.brand))}</strong></td>
                         <td class="mono">${r.lagerCount.toLocaleString('de-DE')}</td>
                         <td class="mono" style="color: var(--accent-green);">${r.availableCount.toLocaleString('de-DE')}</td>
                         <td class="mono" style="color: var(--accent-orange);">${r.reservedCount.toLocaleString('de-DE')}</td>
@@ -16129,6 +16129,65 @@ Keine Erklärungen, kein Markdown.`;
         
         function sortBrands() {
             updateBrandsTable();
+        }
+
+        // MARKEN-DRILLDOWN (2026-07-22, User-Wunsch): Klick auf eine Marken-Zeile klappt
+        // darunter die zugehörigen ARTIKEL auf — nach Modell aggregiert (nicht hunderte
+        // Einzelgeräte): Stück · frei/reserviert · Ø Lagertage · VK. Quelle = gemergter
+        // Bestand (stockAnalysisRaw); dataset-Pattern statt Inline-String (K6-Lektion:
+        // Apostroph-Markennamen). Erneutes Klicken oder Klick auf andere Marke schließt.
+        function toggleBrandDetail(tr) {
+            if (!tr) return;
+            const brand = (tr.dataset.brand || '').toUpperCase();
+            const tbody = tr.parentElement;
+            const offen = tr.nextElementSibling && tr.nextElementSibling.classList.contains('brand-detail-row');
+            // Alle offenen Details schließen (nur ein Drilldown gleichzeitig — Übersicht!)
+            tbody.querySelectorAll('.brand-detail-row').forEach(el => el.remove());
+            tbody.querySelectorAll('.brand-caret').forEach(el => { el.textContent = '▸'; });
+            if (offen) return;   // war offen → nur zuklappen
+            const caret = tr.querySelector('.brand-caret'); if (caret) caret.textContent = '▾';
+            // Artikel-Aggregation: Modell × Artikel-Nr über den gemergten Bestand
+            const items = (dashboardState.stockAnalysisRaw || []).filter(x => String(x.brand || '').toUpperCase() === brand);
+            const agg = {};
+            items.forEach(x => {
+                const key = `${x.model || '(ohne Modell)'}|${x.article_number || ''}`;
+                if (!agg[key]) agg[key] = { model: x.model || '(ohne Modell)', art: x.article_number || '—', pg: x.product_group || '', n: 0, frei: 0, res: 0, vk: 0, tage: 0, tageN: 0 };
+                const a = agg[key];
+                a.n++; a.vk += parseFloat(x.Selling_Price) || 0;
+                if (x.isAvailable) a.frei++; else a.res++;
+                const t = parseFloat(x.product_life_days) || 0;
+                if (t > 0) { a.tage += t; a.tageN++; }
+            });
+            const liste = Object.values(agg).sort((a, b) => b.n - a.n || b.vk - a.vk);
+            const eur = v => Number(v || 0).toLocaleString('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
+            const zeilen = liste.map(a => `
+                <tr>
+                    <td style="max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${_h(a.model)}">${_h(a.model)}</td>
+                    <td class="mono" style="font-size:0.62rem;color:var(--text-muted);">${_h(a.art)}</td>
+                    <td style="font-size:0.62rem;color:var(--text-muted);">${_h(_pgAnzeige(a.pg))}</td>
+                    <td class="mono"><b>${a.n}</b></td>
+                    <td class="mono" style="color:var(--accent-green);">${a.frei}</td>
+                    <td class="mono" style="color:var(--accent-orange);">${a.res}</td>
+                    <td class="mono">${a.tageN ? Math.round(a.tage / a.tageN) + ' T' : '—'}</td>
+                    <td class="mono">${eur(a.vk)}</td>
+                </tr>`).join('');
+            const detail = document.createElement('tr');
+            detail.className = 'brand-detail-row';
+            detail.innerHTML = `
+                <td colspan="${tr.cells.length}" style="padding:0;background:var(--bg-card);">
+                  <div style="padding:0.6rem 0.9rem;border-left:3px solid var(--accent-cyan);">
+                    <div style="font-size:0.6rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.35rem;">
+                      Artikel im Bestand — ${_h(_brandAnzeige(brand))} · ${items.length.toLocaleString('de-DE')} Geräte · ${liste.length.toLocaleString('de-DE')} Artikel <span style="text-transform:none;letter-spacing:0;">(Klick auf die Marke schließt)</span>
+                    </div>
+                    <div style="max-height:320px;overflow-y:auto;">
+                      <table class="analyse-table" style="font-size:0.68rem;">
+                        <thead><tr><th>Modell</th><th>Artikel-Nr</th><th>Warengruppe</th><th>Stück</th><th>Frei</th><th>Reserv.</th><th>Ø Tage</th><th>VK gesamt</th></tr></thead>
+                        <tbody>${zeilen || '<tr><td colspan="8" style="color:var(--text-muted);">Keine Geräte im Bestand (nur Verkaufshistorie)</td></tr>'}</tbody>
+                      </table>
+                    </div>
+                  </div>
+                </td>`;
+            tr.after(detail);
         }
         
         // ========== LIEFERANTEN-TAB ==========
