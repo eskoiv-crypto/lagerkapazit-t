@@ -22,7 +22,8 @@
          berechnet) + crossorigin — manipulierte/ausgetauschte CDN-Inhalte werden vom Browser
          verweigert statt ausgeführt. Bei CDN-Versionswechsel Hash NEU berechnen! -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1" integrity="sha384-jb8JQMbMoBUzgWatfe6COACi2ljcDdZQ2OxczGA3bGNeWe+6DChMTBJemed7ZnvJ" crossorigin="anonymous"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" integrity="sha384-vtjasyidUo0kW94K5MXDXntzOJpQgBKXmE7e2Ga4LG0skTTLeBi97eFAXsqewJjw" crossorigin="anonymous"></script>
+    <!-- xlsx-js-style = SheetJS 0.18.5 + Zell-Styles (Füllfarben) — API-identischer Drop-in, gleiche globale XLSX -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.min.js" integrity="sha384-TKzdYxq/t9UpLrJcIQu2hpfQg+oSoJVDkhWcS4zuzQmzQTBx5gSMhINXD2uGv0jw" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js" integrity="sha384-D/t0ZMqQW31H3az8ktEiNb39wyKnS82iFY52QPACM+IjKW3jDUhyIgh2PApRqJZs" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" integrity="sha384-JcnsjUPPylna1s1fvi1u12X5qjY5OL56iySh75FdtrwhO/SWXgMjoVqcKyIIWOLk" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.1/jspdf.plugin.autotable.min.js" integrity="sha384-b8MpgG2ZzWN6OPAtiB1JiBmDr9MpTt3NKK6KQf61hC/L7X4wJrvoTeVmMFPgp3nL" crossorigin="anonymous"></script>
@@ -12128,12 +12129,17 @@ Keine Erklärungen, kein Markdown.`;
             // STATISCHE Werte (keine Cross-Sheet-Formeln — Datei muss eigenstaendig funktionieren)
             // Spalten A–J inkl. Grade + echtem Zustand (usage) — vorher zeigte die
             // "Zustand"-Spalte fälschlich den Grade.
+            // „Ihr Preis" hellgrün unterlegt — braucht den xlsx-js-style-Fork (Standard-
+            // SheetJS ignoriert s); numFmt MUSS mit in den Style, weil eine gestylte
+            // Zelle ihr Zahlenformat aus dem Style bezieht (z allein reicht dann nicht).
+            const _sGruen    = { fill: { patternType: 'solid', fgColor: { rgb: 'E2EFDA' } } };
+            const _sGruenEur = { fill: { patternType: 'solid', fgColor: { rgb: 'E2EFDA' } }, numFmt: '#,##0.00 "€"' };
             const aoa = [
                 ['Angebot für ' + String(p.firma || ('Kunde ' + p.kundenNr))],
                 ['Datum: ' + new Date().toLocaleDateString('de-DE') + ' · Kunden-Nr: ' + p.kundenNr],
                 ['elvinci.de GmbH'],
                 [],
-                ['Pos.', 'Bezeichnung', 'Lager-Nr', 'Artikel-Nr', 'Marke', 'Warengruppe', 'Grade', 'Zustand', 'Aktueller Online-Preis', 'Listen-VK', 'Rabatt', 'Ihr Preis', 'Ersparnis'],
+                ['Pos.', 'Bezeichnung', 'Lager-Nr', 'Artikel-Nr', 'Marke', 'Warengruppe', 'Grade', 'Zustand', 'Aktueller Online-Preis', 'Listen-VK', 'Rabatt', { v: 'Ihr Preis', t: 's', s: _sGruen }, 'Ersparnis'],
             ];
             const eff = dashboardState._angeboteEffRabatt || (() => rabattInit);
             let sumListen = 0, sumPreis = 0, sumErsparnis = 0;
@@ -12161,7 +12167,7 @@ Keine Erklärungen, kein Markdown.`;
                     onlineAnzeige,
                     { v: vk, t: 'n', z: '#,##0.00 "€"' },
                     { v: rab / 100, t: 'n', z: '0.0%' },
-                    { v: preis, t: 'n', z: '#,##0.00 "€"' },
+                    { v: preis, t: 'n', z: '#,##0.00 "€"', s: _sGruenEur },
                     { v: ersparnis, t: 'n', z: '#,##0.00 "€"' },
                 ]);
             });
@@ -12171,7 +12177,7 @@ Keine Erklärungen, kein Markdown.`;
                 '', 'Σ GESAMT', '', '', '', '', '', '', '',
                 { v: sumListen,    t: 'n', z: '#,##0.00 "€"' },
                 '',
-                { v: sumPreis,     t: 'n', z: '#,##0.00 "€"' },
+                { v: sumPreis,     t: 'n', z: '#,##0.00 "€"', s: _sGruenEur },
                 { v: sumErsparnis, t: 'n', z: '#,##0.00 "€"' },
             ]);
             aoa.push([]);
