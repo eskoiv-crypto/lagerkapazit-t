@@ -7850,6 +7850,10 @@ Keine Erklärungen, kein Markdown.`;
             let n = 0;
             for (const rec of recs) {
                 if (!rec || !rec.blob || !ARCHIVE_TYPES.includes(rec.type)) continue;
+                // PORTAL ABGESCHALTET (22.07.2026): Der Portal-Stock-Endstand ist kein
+                // Bestand mehr — Replay überspringen (Datei bleibt im Archiv erhalten,
+                // falls je eine historische Auswertung gebraucht wird).
+                if (rec.type === 'stock-analysis') { console.info('[Archiv] stock-analysis übersprungen — Portal abgeschaltet, Endstand ist kein Bestand mehr.'); continue; }
                 const f = (rec.blob instanceof File) ? rec.blob : new File([rec.blob], rec.name || rec.type);
                 processUploadedFile(f, rec.type, { fromArchive: true });
                 n++;
@@ -13609,7 +13613,7 @@ Keine Erklärungen, kein Markdown.`;
                 if (stock.length) {
                     const r = _rangeOf(stock, 'datetime_upload');
                     elStock.style.display = 'inline';
-                    elStock.innerHTML = `<span class="ds-pill" data-tip="KAUFMÄNNISCHER Bestand im WaWi (Odoo ∪ Portal-Rest, per Lager-Nr gemergt, Odoo-Vorrang): alle NICHT verkauften, verkaufbaren Artikel. Das ist die kleinere der beiden Bestandszahlen — sie enthält KEINE verkaufte Ware im Versand/Ausgang und KEINE unklassifizierten Geräte (die stehen nur physisch im AMM). Brücke zwischen beiden Zahlen: Hero-Kacheln auf der Übersicht."><span class="ds-dot" style="background:var(--accent-green);"></span>WaWi</span> <b>Verkaufbar (Odoo ∪ Portal):</b> <span style="color:var(--text-muted);">${stock.length.toLocaleString('de-DE')} Artikel · WE ${fmt(r.mn)} – ${fmt(r.mx)}</span>`;
+                    elStock.innerHTML = `<span class="ds-pill" data-tip="KAUFMÄNNISCHER Bestand im WaWi (Odoo ∪ Portal-Rest, per Lager-Nr gemergt, Odoo-Vorrang): alle NICHT verkauften, verkaufbaren Artikel. Das ist die kleinere der beiden Bestandszahlen — sie enthält KEINE verkaufte Ware im Versand/Ausgang und KEINE unklassifizierten Geräte (die stehen nur physisch im AMM). Brücke zwischen beiden Zahlen: Hero-Kacheln auf der Übersicht."><span class="ds-dot" style="background:var(--accent-green);"></span>WaWi</span> <b>Verkaufbar (Odoo):</b> <span style="color:var(--text-muted);">${stock.length.toLocaleString('de-DE')} Artikel · WE ${fmt(r.mn)} – ${fmt(r.mx)}</span>`;
                     shown = true;
                 } else { elStock.style.display = 'none'; }
             }
@@ -14606,7 +14610,10 @@ Keine Erklärungen, kein Markdown.`;
         // kumulativen Verkaufs-Register. POLICY: nur flaggen, nichts verändern.
         function reconcileAllSources() {
             const norm = v => (v == null ? '' : String(v).trim());
-            const pStock = dashboardState._stockSrcPortal || {};
+            // PORTAL ABGESCHALTET (22.07.2026): Portal-Stock ist kein Bestand mehr —
+            // hart ignorieren (siehe rebuildMergedStock), sonst zählt der tote Endstand
+            // als „frei"/„reserviert" ins Universum.
+            const pStock = {};
             const oStock = dashboardState._stockSrcOdoo   || {};
             const pSold  = dashboardState._soldSrcPortal  || [];   // Portal ALL_SOLD (alt, eingefroren)
             const oSold  = dashboardState._soldSrcOdoo    || [];   // Odoo „Verkauft" (lebendes WaWi)
@@ -23200,7 +23207,13 @@ Keine Erklärungen, kein Markdown.`;
         // (per eindeutiger Lager-Nr). Wird nach jedem Stock-Upload (Portal ODER Odoo) gerufen.
         // ============================================================
         function rebuildMergedStock() {
-            const portal = dashboardState._stockSrcPortal || {};
+            // PORTAL ABGESCHALTET (User 22.07.2026: „wir haben gar nichts mehr im Portal —
+            // die Anzeige ist falsch"): Das Portal ist LEER (Stock-Analysis 0 Artikel seit
+            // 21.07.) und wird eingestellt. Der archivierte Portal-Stock-Endstand ist damit
+            // KEIN Bestand mehr — er wird hier hart ignoriert, sonst zeigt das Cockpit im
+            // Archiv-Replay 265 tote Rest-Artikel als „sofort verkaufbar". Das All-Sold-
+            // VERKAUFS-Archiv bleibt unberührt (Historie ≠ Bestand).
+            const portal = {};
             const odoo   = dashboardState._stockSrcOdoo   || {};
             // Alle Lager-Nrn, die Odoo KENNT (inkl. Verkauft) — für die entscheidet Odoo.
             const known = dashboardState._stockSrcOdooKnown || null;
@@ -23846,9 +23859,17 @@ Keine Erklärungen, kein Markdown.`;
                     combineAndRenderAuftragData();
                     
                 } else if (type === 'stock-analysis') {
-                    // STOCK-ANALYSIS (elvinci Portal Export)
-                    // ERWEITERT: Alle Felder für Verkaufsanalyse PRO
-                    
+                    // PORTAL ABGESCHALTET (22.07.2026): Der Portal-Stock ist kein Bestand
+                    // mehr (Portal leer + wird eingestellt) — Upload wird höflich abgelehnt,
+                    // damit der tote Endstand nie wieder als „verkaufbar" auftaucht.
+                    showToast('info', 'Portal ist abgeschaltet',
+                        'Stock-Analysis wird nicht mehr geladen — das Portal ist leer, der Endstand ist kein Bestand. Verkaufs-Historie (All-Sold) bleibt davon unberührt.', 8000);
+                    if (statusEl) { statusEl.textContent = 'Portal abgeschaltet — Datei ignoriert'; statusEl.style.color = 'var(--text-muted)'; }
+                    dashboardState._archiveVeto = type;   // nicht (erneut) ins Archiv legen
+                    return;
+                } else if (false) {
+                    // (Portal-Stock-Parser stillgelegt 22.07.2026 — Code bleibt für Referenz)
+
                     const sheetName = workbook.SheetNames[0];
                     const sheet = workbook.Sheets[sheetName];
                     const data = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: false, defval: '' });
