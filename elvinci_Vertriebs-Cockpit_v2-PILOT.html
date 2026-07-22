@@ -7827,7 +7827,17 @@ Keine Erklärungen, kein Markdown.`;
         // (Replay = Upload → kein Drift-Risiko zwischen Parse-Logik und Persistenz).
         // Tagesaktuelle Quellen (Odoo, BESTAND, Pipeline) werden BEWUSST nicht
         // archiviert — veraltete Bestandszahlen wären gefährlicher als ein Upload.
-        const ARCHIVE_TYPES = ['stock-analysis', 'all-sold', 'jtl-sales', 'jtl4y', 'stamm', 'wa-status'];
+        // ARCHIV-SCHNITT (User 22.07.2026: „wichtig sind NUR die Kundenhistorien von
+        // 2022 bis heute und die Stammdaten"): Auto-Restore nur noch für HISTORIE —
+        //   jtl4y   = JTL-Verkaufshistorie ab 2022 (CLV/Churn-Basis)
+        //   all-sold = Portal-Verkaufshistorie 2026 (Endstand, einzige Kopie)
+        //   stamm   = Kundenstammdaten (Reaktivierung)
+        //   jtl-sales = Alt-Auftrags-Referenz (bei Bedarf)
+        // RAUS: wa-status (lebende Tagesquelle! Der 03.07.-Stand zeigte nach Wochen
+        // noch „26 Aufträge versendet-unbezahlt" als einzige Zahl — irreführend) und
+        // stock-analysis (Portal tot). Alt-Einträge im IDB werden beim Restore
+        // automatisch übersprungen (includes-Check).
+        const ARCHIVE_TYPES = ['all-sold', 'jtl-sales', 'jtl4y', 'stamm'];
 
         async function saveArchiveFile(type, file) {
             if (!ARCHIVE_TYPES.includes(type)) return;
@@ -7844,8 +7854,8 @@ Keine Erklärungen, kein Markdown.`;
             catch (e) { console.warn('[Archiv] Lesen fehlgeschlagen', e); return; }
             updateArchiveStatusUI(recs);
             if (!recs.length) return;
-            // Stabile Reihenfolge: Bestand vor Verkauf vor CLV-Daten
-            const order = { 'stock-analysis': 1, 'all-sold': 2, 'jtl-sales': 3, 'jtl4y': 4, 'stamm': 5, 'wa-status': 6 };
+            // Stabile Reihenfolge: Verkaufshistorie vor CLV-Daten
+            const order = { 'all-sold': 1, 'jtl-sales': 2, 'jtl4y': 3, 'stamm': 4 };
             recs.sort((a, b) => (order[a.type] || 9) - (order[b.type] || 9));
             let n = 0;
             for (const rec of recs) {
@@ -7860,7 +7870,7 @@ Keine Erklärungen, kein Markdown.`;
             }
             if (n > 0) {
                 showToast('info', '📦 Archiv wiederhergestellt',
-                    `${n} eingefrorene Quelle(n) aus dem lokalen Speicher geladen.<br>Tagesaktuell noch laden: <b>Odoo (stock.lot)</b> + <b>BESTAND</b>.`, 8000);
+                    `${n} Historien-Quelle(n) aus dem lokalen Speicher geladen.<br>Tagesaktuell noch laden: <b>Odoo (stock.lot)</b> + <b>BESTAND</b> · optional sale.order/Rechnungen/WA-CSV (immer frisch, werden bewusst nicht archiviert).`, 8000);
             }
         }
 
@@ -7887,15 +7897,18 @@ Keine Erklärungen, kein Markdown.`;
                 ['jtl4y',    'JTL 4-Jahre ab 2022 (CLV/Churn-Basis)',       '03 EINMALIG/01 JTL 4-Jahre'],
                 ['stamm',    'Kundenstammdaten (Reaktivierung)',            '03 EINMALIG/02 JTL Kundenstammdaten']
             ];
-            const daTypen = new Set((recs || []).map(r => r.type));
+            // Nur noch gültige Archiv-Typen zählen — Alt-Einträge (wa-status/stock-analysis)
+            // im IDB werden ignoriert (Restore überspringt sie ohnehin)
+            recs = (recs || []).filter(r => ARCHIVE_TYPES.includes(r.type));
+            const daTypen = new Set(recs.map(r => r.type));
             const fehlt = ERWARTET.filter(([t]) => !daTypen.has(t));
             const fehltHtml = fehlt.length
                 ? `<div style="margin-top:0.25rem;color:var(--accent-orange);font-size:0.62rem;">⚠ <b>Fehlt im lokalen Archiv dieses Browsers:</b> ${fehlt.map(([, lbl, ordner]) => `${lbl} <span style="color:var(--text-muted);">(Teams: ${ordner})</span>`).join(' · ')} — je EINMAL in die Ablagezone ziehen, danach lädt es bei jedem Start automatisch.</div>`
                 : '';
-            if (!recs || !recs.length) { el.innerHTML = fehltHtml; return; }
+            if (!recs.length) { el.innerHTML = fehltHtml; return; }
             const newest = recs.map(r => r.savedAt || '').sort().pop() || '';
             const dt = newest ? new Date(newest).toLocaleDateString('de-DE') : '';
-            const names = recs.filter(r => r.type !== 'stock-analysis').map(r => FIELD_LABELS[r.type] || r.type).join(' · ');
+            const names = recs.map(r => FIELD_LABELS[r.type] || r.type).join(' · ');
             el.innerHTML = `📦 <b>Lokales Archiv (lädt bei jedem Start automatisch):</b> ${names} <span style="color:var(--text-muted);">(Stand ${dt})</span>
                 <button onclick="clearLocalArchive()" style="margin-left:0.5rem;padding:0.1rem 0.45rem;background:transparent;border:1px solid var(--border-subtle,rgba(255,255,255,0.15));color:var(--text-muted);border-radius:4px;font-size:0.6rem;cursor:pointer;">Archiv leeren</button>${fehltHtml}`;
         }
