@@ -15405,8 +15405,8 @@ Keine Erklärungen, kein Markdown.`;
                       'Bestätigte Odoo-Aufträge (Status „Verkaufsauftrag"), die laut WA-Pipeline NOCH NICHT versendet sind: Gesamt (Brutto) minus bereits eingegangener Zahlungen. Vorkasse-Regel: muss VOR der Verladung eingehen. Ist die PROFORMA verschickt, wird der Eingang FEST erwartet — der Betrag ist bis zur Verladung vorläufig (nicht verladene Ware → echte Rechnung kann abweichen). Ohne Proforma fehlt der Zahlungs-Trigger noch. Bereits versendete Aufträge zählen ausschließlich rechts (keine Doppelzählung).')}
                   ${hasInv
                     ? seg('var(--accent-red)', 'Rechnung offen · fällig', eur(invOffenSum),
-                        `${fmtN(invOffen.length)} offene Rechnungen · exakt lt. Buchhaltung (account.move)${waMap && sentN > invOffen.length ? ` · <span style="color:var(--accent-orange);">⚠ WA meldet ${fmtN(sentN)} versendet-unbezahlt — Rechnungen prüfen</span>` : ''}${hzRech}`,
-                        'EXAKT aus den Odoo-Rechnungen (account.move): Summe der fälligen Restbeträge aller offenen, nicht stornierten Rechnungen. Fälligkeitstermine stehen im Zahlungs-Strahl darunter. Meldet die WA-Pipeline MEHR versendete unbezahlte Aufträge als offene Rechnungen existieren, wurde für Sendungen evtl. noch keine Rechnung gestellt — Hinweis erscheint.')
+                        `${fmtN(invOffen.length)} offene Rechnungen · ${dashboardState.odooInvoicesFaelligExakt === true ? 'exakt lt. Buchhaltung (account.move)' : '<span style="color:var(--accent-orange);">≈ lt. Buchhaltung — Teilzahlungen zählen voll (Spalte „Fälliger Betrag" fehlt im Export)</span>'}${waMap && sentN > invOffen.length ? ` · <span style="color:var(--accent-orange);">⚠ WA meldet ${fmtN(sentN)} versendet-unbezahlt — Rechnungen prüfen</span>` : ''}${hzRech}`,
+                        'Aus den Odoo-Rechnungen (account.move): Summe der offenen, nicht stornierten Rechnungen. Enthält der Export die Spalte „Fälliger Betrag", ist das der exakte Restbetrag — ohne sie zählt jede offene Rechnung (auch Teilzahlungen) mit dem vollen Betrag. Fälligkeitstermine stehen im Zahlungs-Strahl darunter. Meldet die WA-Pipeline MEHR versendete unbezahlte Aufträge als offene Rechnungen existieren, wurde für Sendungen evtl. noch keine Rechnung gestellt — Hinweis erscheint.')
                     : seg('var(--accent-red)', 'Versendet · Zahlung offen', waMap ? (sentVK > 0 ? eur(sentVK) : `${fmtN(sentN)} Aufträge`) : '—',
                         waMap ? `${fmtN(sentN)} Aufträge${sentN > 0 ? ` · €-Wert für ${fmtN(sentMatched)}/${fmtN(sentN)} ermittelbar` : ''}${hzRech}` : 'WA-Pipeline-CSV laden',
                         'Aufträge mit WA-Status „Versendet — Zahlung offen": Ware ist raus, Geld noch nicht da (echte Forderung). €-Wert über Auftrags-Match im Verkaufsregister — nur für gematchte Aufträge summierbar, Abdeckung wird angezeigt. Exakter wird es mit dem Rechnungs-Export (account.move).')}
@@ -15650,11 +15650,33 @@ Keine Erklärungen, kein Markdown.`;
                 segs.push(seg('var(--accent-purple)', 'Bestätigte Angebote · Proforma', eur(B.prof.vk),
                     `${fmtN(B.prof.n)} Aufträge · ${modLbl}${B.prof.proformaN > 0 ? ` · ${fmtN(B.prof.proformaN)}× Proforma` : ''}${B.prof.vorkasse > 0 ? ` · Vorkasse ${eur(B.prof.vorkasse)}` : ''}`,
                     'Bestätigte Aufträge im PROFORMA-Stadium: Kunde hat zugesagt (Status „Verkaufsauftrag"), Proforma-Rechnung/Vorkasse-Phase — noch keine echte Rechnung gestellt, Ware noch nicht raus. Erledigte (versendet & bezahlt) und fakturierte Aufträge sind hier RAUS und stehen rechts bzw. in der Fußnote.'));
-                if (kannDiff) segs.push(seg('var(--accent-cyan)', 'Rechnung gestellt · Ziel läuft', eur(B.rech.vk),
-                    `${fmtN(B.rech.n)} Aufträge${B.rech.offen > 0.01 ? ` · davon offen ${eur(B.rech.offen)}` : ''}${hasRS ? '' : ' · ≈ Näherung über WA-Versand'} · ${modLbl}`,
+                // DRAUFSICHT-FIX (User 24.07.: „die Draufsicht muss zu 100% stimmen"):
+                // Mit geladenem account.move zeigt Stufe 3 die BUCHHALTUNGS-Sicht —
+                // alle im Fenster GESTELLTEN Rechnungen (Rechnungsdatum), deckungsgleich
+                // mit Odoo Buchhaltung → Ausgangsrechnungen. Vorher stand hier nur die
+                // Momentaufnahme „fakturiert & noch unbezahlt" (Auftragsdatum-Fenster) —
+                // bezahlte Rechnungen fehlten, die Zahl wirkte „völlig falsch" (54 T€
+                // statt 500 T€). Stornierte Rechnungen separat in der Fußnote.
+                const _invAll = dashboardState.odooInvoicesLoaded ? (dashboardState.odooInvoices || []) : [];
+                const _invDatiert = _invAll.some(v => v.rechnungsdatum);
+                let _invSto = null;
+                if (_invDatiert) {
+                    const inWin = _invAll.filter(v => v.rechnungsdatum && (!flow || (v.rechnungsdatum >= _fw.from && v.rechnungsdatum <= _fw.to)));
+                    _invSto = inWin.filter(v => /^storniert/i.test(v.status));
+                    const akt  = inWin.filter(v => !/^storniert/i.test(v.status));
+                    const bez  = akt.filter(v => /^bezahlt/i.test(v.status));
+                    const off  = akt.filter(v => !/^bezahlt/i.test(v.status));
+                    const _sum = a => a.reduce((s, v) => s + (v.gesamt || 0), 0);
+                    const _offSum = dashboardState.odooInvoicesFaelligExakt === true
+                        ? off.reduce((s, v) => s + (v.faellig || 0), 0) : _sum(off);
+                    segs.push(seg('var(--accent-cyan)', 'Rechnung gestellt', eur(_sum(akt)),
+                        `${fmtN(akt.length)} Rechnungen · bezahlt ${eur(_sum(bez))} (${fmtN(bez.length)}) · offen ${eur(_offSum)} (${fmtN(off.length)}) · Rechnungsdatum${flow ? ` ${_gfFormat(_fw.from)} – ${_gfFormat(_fw.to)}` : ': alle'}`,
+                        'EXAKT lt. Buchhaltung (account.move): alle im Zeitfenster GESTELLTEN Rechnungen — deckungsgleich mit Odoo → Buchhaltung → Ausgangsrechnungen im selben Zeitraum. Stornierte Rechnungen sind hier raus (beziffert in der Fußnote). Offen = Gesendet/Teilzahlung — der Betrag ist der fällige Rest, falls der Export die Spalte Fälliger Betrag enthält, sonst der volle Rechnungsbetrag. Achtung Ebenen-Wechsel: Stufe 1–2 zählen Aufträge im Auftragsdatum-Fenster, diese Stufe zählt Rechnungsbelege im Rechnungsdatum-Fenster.'));
+                } else if (kannDiff) segs.push(seg('var(--accent-cyan)', 'Rechnung gestellt · Ziel läuft', eur(B.rech.vk),
+                    `${fmtN(B.rech.n)} Aufträge${B.rech.offen > 0.01 ? ` · davon offen ${eur(B.rech.offen)}` : ''}${hasRS ? '' : ' · ≈ Näherung über WA-Versand'} · ${modLbl} · <span style="color:var(--accent-orange);">≈ aus Auftragsstatus — account.move laden für die exakte Rechnungs-Sicht</span>`,
                     hasRS
-                        ? 'ECHTE Rechnung existiert: Odoo-Rechnungsstatus = Komplett abgerechnet, oder es wurde bereits ein Betrag fakturiert — das Zahlungsziel läuft. Davon offen = Gesamt minus eingegangener Zahlungen.'
-                        : 'NÄHERUNG (Export ohne Spalte Rechnungsstatus): laut WA-Pipeline versendet und Zahlung offen = Forderung läuft. Für die exakte Rechnungs-Stufe die Spalten Rechnungsstatus / Bereits abgerechnet in den Odoo-Export aufnehmen.'));
+                        ? 'NÄHERUNG aus dem Auftragsstatus: nur Aufträge, die HEUTE fakturiert & noch nicht voll bezahlt sind — bereits bezahlte Rechnungen stehen unter „Erledigt", das Fenster läuft aufs Auftragsdatum. Für die echte Draufsicht (alle im Zeitraum gestellten Rechnungen wie in Odoo → Ausgangsrechnungen) den Rechnungs-Export (account.move) laden.'
+                        : 'NÄHERUNG (Export ohne Spalte Rechnungsstatus): laut WA-Pipeline versendet und Zahlung offen = Forderung läuft. Für die exakte Rechnungs-Stufe die Spalten Rechnungsstatus / Bereits abgerechnet in den Odoo-Export aufnehmen — oder den Rechnungs-Export (account.move) laden.'));
                 segs.push(seg('var(--accent-green)', 'Verrechnet', eur(verrVK),
                     `${fmtN(sold.length)} Verkäufe · Zeitraum: ${winLbl}${(dashboardState._soldSrcPortal && dashboardState._soldSrcPortal.length) ? '' : ' · <span style="color:var(--accent-orange);">⚠ nur Odoo-Ära (Alt-Archiv fehlt)</span>'}`,
                     'Brutto-VK aller als verkauft gebuchten Geräte (Odoo + All-Sold, per Lager-Nr dedupliziert) im gewählten Zeitraum — Verkaufs-/Belegdatum im Fenster. Fehlt das Alt-Archiv (Portal All-Sold), umfasst die Zahl NUR die Odoo-Ära seit 22.06.2026.'));
@@ -15665,12 +15687,14 @@ Keine Erklärungen, kein Markdown.`;
                 const _ebenenSep = '<div style="display:flex;flex-direction:column;align-items:center;gap:1px;color:var(--text-muted);" title="Ebenen-Wechsel: links Auftragsebene (sale.order), rechts Geräteebene (Verkaufsregister) — andere Zähl- und Datumsbasis"><div style="font-size:1.05rem;">‖</div><div style="font-size:0.42rem;text-transform:uppercase;letter-spacing:0.05em;white-space:nowrap;">Geräte-Ebene</div></div>';
                 segsHtml = segs.slice(0, -1).join(_arrow) + _ebenenSep + segs[segs.length - 1];
                 const hinweise = [];
+                if (_invSto && _invSto.length > 0) hinweise.push(`<b>Stornierte Rechnungen</b> im Fenster (Buchhaltung): ${fmtN(_invSto.length)} · ${eur(_invSto.reduce((s, v) => s + (v.gesamt || 0), 0))}`);
+                if (_invDatiert && B.rech.n > 0) hinweise.push(`Aufträge aktuell im Stadium <b>Rechnung offen</b>: ${fmtN(B.rech.n)} · offen ${eur(B.rech.offen)}`);
                 if (B.fertig.n > 0) hinweise.push(`<b>Erledigt</b> (versendet & bezahlt${hasRS ? ' / fakturiert & bezahlt' : ''}) — nicht mehr im Funnel: ${fmtN(B.fertig.n)} Aufträge · ${eur(B.fertig.vk)}`);
                 if (B.storno.n > 0) hinweise.push(`<b>Storniert/korrigiert</b> — nie im Funnel: ${fmtN(B.storno.n)} Aufträge · ${eur(B.storno.vk)}${B.storno.merge > 0 ? ` (davon ${fmtN(B.storno.merge)} durch Auftrags-Zusammenführung)` : ''}`);
                 if (!kannDiff) hinweise.push('<span style="color:var(--accent-orange);">⚠ Phasen-Trennung (Proforma vs. Rechnung vs. erledigt) braucht die Export-Spalten „Rechnungsstatus"/„Bereits abgerechnet" ODER die WA-Pipeline-CSV</span>');
                 else if (!hasRS) hinweise.push('<span style="color:var(--accent-orange);">⚠ Export ohne „Rechnungsstatus" — Rechnungs-Stufe & Erledigt-Erkennung näherungsweise über WA-Pipeline</span>');
                 if (kannDiff && !waM) hinweise.push('WA-Pipeline-CSV laden, um auch versendete-unbezahlte & erledigte Aufträge zu erkennen');
-                fussnote = `Quelle: Odoo-Aufträge (sale.order)${waM ? ' + WA-Pipeline' : ''}${flow ? ` · Fenster: ${modLbl}` : ''} &nbsp;·&nbsp; ${hinweise.join(' &nbsp;·&nbsp; ')}`;
+                fussnote = `Quelle: Odoo-Aufträge (sale.order)${_invDatiert ? ' + Rechnungen (account.move)' : ''}${waM ? ' + WA-Pipeline' : ''}${flow ? ` · Fenster: ${modLbl}` : ''} &nbsp;·&nbsp; ${hinweise.join(' &nbsp;·&nbsp; ')}`;
             } else {
                 const segsFb = [
                     seg('var(--accent-orange)', 'Im Angebot', eur(ang.vk),
@@ -24403,29 +24427,42 @@ Keine Erklärungen, kein Markdown.`;
                     const invHdr = (invData[0] || []).map(h => (h || '').toString().trim());
                     const HI = {}; invHdr.forEach((h, i) => { HI[h] = i; });
                     const _hFind = (needle) => { const k = invHdr.find(h => h.toLowerCase().includes(needle)); return k !== undefined ? HI[k] : undefined; };
+                    // LAYOUT-TOLERANZ (24.07.): Die Odoo-Feldauswahl variiert je Export —
+                    // der 24.07.-Export kam OHNE „Fälliger Betrag" (dafür „Nächstes
+                    // Zahlungsdatum") und wurde hart abgelehnt → Cockpit lief ohne
+                    // Rechnungsdaten. Pflicht ist nur noch Nummer + Betrag + Status;
+                    // fehlt „Fälliger Betrag", wird der Rest aus dem Status abgeleitet
+                    // (Bezahlt/Storniert = 0, sonst Gesamtbetrag) und als ≈ gekennzeichnet.
                     const iNum = HI['Nummer'], iPart = _hFind('rechnungspartner'),
                           iRechDat = _hFind('rechnungsdatum'), iFaellDat = HI['Fälligkeitsdatum'],
+                          iNextZahl = _hFind('nächstes zahlungsdatum'),
                           iTotal = _hFind('insgesamt'), iFaellig = _hFind('fälliger betrag'),
                           iStatus = _hFind('in zahlung'), iGesendet = HI['Gesendet'];
-                    if (iNum === undefined || iFaellDat === undefined || iFaellig === undefined) {
-                        throw new Error('Spalten "Nummer"/"Fälligkeitsdatum"/"Fälliger Betrag" nicht gefunden — ist das der account.move-Export?');
+                    if (iNum === undefined || iTotal === undefined || iStatus === undefined) {
+                        throw new Error('Spalten "Nummer"/"Insgesamt…"/"Status In Zahlung" nicht gefunden — ist das der account.move-Export?');
                     }
+                    const faelligExakt = iFaellig !== undefined;
                     const invoices = [];
                     for (let i = 1; i < invData.length; i++) {
                         const row = invData[i]; if (!row) continue;
                         const num = (row[iNum] || '').toString().trim();
                         if (!num) continue;
+                        const gesamt = parseFloat(row[iTotal]) || 0;
+                        const status = (row[iStatus] || '').toString().trim();
                         invoices.push({
                             nummer: num,
                             partner: iPart !== undefined ? (row[iPart] || '').toString().trim() : '',
                             rechnungsdatum: iRechDat !== undefined ? _parseAnyDate(row[iRechDat]) : null,
-                            faelligkeit: _parseAnyDate(row[iFaellDat]),
-                            gesamt: iTotal !== undefined ? (parseFloat(row[iTotal]) || 0) : 0,
-                            faellig: parseFloat(row[iFaellig]) || 0,
-                            status: iStatus !== undefined ? (row[iStatus] || '').toString().trim() : '',
+                            faelligkeit: (iFaellDat !== undefined ? _parseAnyDate(row[iFaellDat]) : null)
+                                || (iNextZahl !== undefined ? _parseAnyDate(row[iNextZahl]) : null),
+                            gesamt: gesamt,
+                            faellig: faelligExakt ? (parseFloat(row[iFaellig]) || 0)
+                                : (/^(bezahlt|storniert)/i.test(status) ? 0 : gesamt),
+                            status: status,
                             gesendet: iGesendet !== undefined ? (row[iGesendet] || '').toString().trim() : ''
                         });
                     }
+                    dashboardState.odooInvoicesFaelligExakt = faelligExakt;
                     const invOffen = invoices.filter(v => v.status !== 'Storniert' && v.faellig > 0.01);
                     const invOffenSum = invOffen.reduce((a, v) => a + v.faellig, 0);
                     dashboardState.odooInvoices = invoices;
