@@ -15514,7 +15514,9 @@ Keine Erklärungen, kein Markdown.`;
                         ? `<span style="color:var(--accent-red,#ef4444);font-weight:700;">überfällig +${ueberT} T${ueberT > 30 ? ' ⚠⚠' : ueberT > 7 ? ' ⚠' : ''}</span>`
                         : `fällig ${faelligTxt}`;
                     const anteil = invOffenSum > 0 ? Math.round((v.faellig / invOffenSum) * 100) : 0;
-                    const _invRef = invZuRef.get(String(v.nummer).toUpperCase());
+                    // Auftrags-Link: direkt aus account.move („Verknüpfte Aufträge"),
+                    // Fallback = Rückwärts-Match über die sale.order-„Rechnungen"-Spalte
+                    const _invRef = v.auftrag || invZuRef.get(String(v.nummer).toUpperCase());
                     return `<div style="display:flex;gap:0.7rem;align-items:baseline;font-size:0.62rem;padding:0.12rem 0;">
                         <span style="font-family:var(--font-mono);color:var(--text-muted);min-width:105px;">${v.nummer}${_invRef ? ` <span style="color:var(--accent-cyan);">→ ${_invRef}</span>` : ''}</span>
                         <span style="flex:1;color:var(--text-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${(v.partner || '—').slice(0, 34)}</span>
@@ -15833,7 +15835,9 @@ Keine Erklärungen, kein Markdown.`;
                 let _invSto = null;
                 if (_invDatiert) {
                     const inWin = _invAll.filter(v => v.rechnungsdatum && (!flow || (v.rechnungsdatum >= _fw.from && v.rechnungsdatum <= _fw.to)));
-                    _invSto = inWin.filter(v => /^storniert/i.test(v.status));
+                    // Stornierte GUTSCHRIFTEN (RINV, negativer Betrag) sind doppelt nichtig —
+                    // sie würden die Storno-Summe sonst nach unten verrechnen
+                    _invSto = inWin.filter(v => /^storniert/i.test(v.status) && !v.gutschrift);
                     const akt  = inWin.filter(v => !/^storniert/i.test(v.status));
                     const bez  = akt.filter(v => /^bezahlt/i.test(v.status));
                     const off  = akt.filter(v => !/^bezahlt/i.test(v.status));
@@ -15947,7 +15951,7 @@ Keine Erklärungen, kein Markdown.`;
             invs.forEach(v => {
                 const d = v.rechnungsdatum || v.faelligkeit;
                 if (!d || d < win.from || d > win.to) return;
-                if (v.status === 'Storniert') { R.stoN++; return; }
+                if (v.status === 'Storniert') { if (!v.gutschrift) R.stoN++; return; }
                 R.n++; R.sum += v.gesamt;
                 if (v.faellig > 0.01) { R.offN++; R.offSum += v.faellig; }
                 else { R.bezN++; R.bezSum += v.gesamt; }
@@ -24612,7 +24616,9 @@ Keine Erklärungen, kein Markdown.`;
                           iRechDat = _hFind('rechnungsdatum'), iFaellDat = HI['Fälligkeitsdatum'],
                           iNextZahl = _hFind('nächstes zahlungsdatum'),
                           iTotal = _hFind('insgesamt'), iFaellig = _hFind('fälliger betrag'),
-                          iStatus = _hFind('in zahlung'), iGesendet = HI['Gesendet'];
+                          iStatus = _hFind('in zahlung'), iGesendet = HI['Gesendet'],
+                          // Voll-Export (24.07. „(2)"): direkter Auftrags-Link aus der Buchhaltung
+                          iAuftrag = _hFind('verknuepfte auftr') ?? _hFind('verknüpfte auftr') ?? HI['Referenz'];
                     if (iNum === undefined || iTotal === undefined || iStatus === undefined) {
                         throw new Error('Spalten "Nummer"/"Insgesamt…"/"Status In Zahlung" nicht gefunden — ist das der account.move-Export?');
                     }
@@ -24634,7 +24640,13 @@ Keine Erklärungen, kein Markdown.`;
                             faellig: faelligExakt ? (parseFloat(row[iFaellig]) || 0)
                                 : (/^(bezahlt|storniert)/i.test(status) ? 0 : gesamt),
                             status: status,
-                            gesendet: iGesendet !== undefined ? (row[iGesendet] || '').toString().trim() : ''
+                            gesendet: iGesendet !== undefined ? (row[iGesendet] || '').toString().trim() : '',
+                            // Direkter Rechnung→Auftrag-Link (Spalte „Verknüpfte Aufträge" bzw.
+                            // „Referenz") — erfüllt den offenen „Ursprung"-Wunsch aus der Buchhaltung
+                            auftrag: iAuftrag !== undefined ? (row[iAuftrag] || '').toString().trim() : '',
+                            // RINV-Gutschriften tragen NEGATIVE signierte Beträge — Kennzeichen,
+                            // damit Storno-Fußnoten sie nicht mit Rechnungs-Stornos verrechnen
+                            gutschrift: gesamt < -0.01
                         });
                     }
                     dashboardState.odooInvoicesFaelligExakt = faelligExakt;
