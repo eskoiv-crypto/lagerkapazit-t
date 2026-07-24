@@ -5390,6 +5390,8 @@
                         <div style="font-size: 0.62rem; color: var(--text-muted); margin-top: 0.25rem;">Täglich: <b>Odoo (stock.lot)</b> + <b>BESTAND134</b> · optional AUFTRAG_STATUS · Portal/JTL-Archive merkt sich das Dashboard lokal</div>
                     </div>
                     <input type="file" class="file-input" id="file-auto" multiple accept=".csv,.xlsx,.xls" style="display: none;" onchange="handleAutoFiles(this)">
+                    <!-- AUTO-LOAD (24.07.): einmal Teams-Ordner verbinden → bei jedem Öffnen die jüngste Datei je Quelle -->
+                    <div id="autoload-bar" style="font-size: 0.65rem; color: var(--text-secondary); margin-bottom: 0.5rem;"></div>
                     <div id="archive-status" style="font-size: 0.65rem; color: var(--text-secondary); margin-bottom: 0.5rem;"></div>
                     <div style="margin-bottom: 0.5rem;">
                         <button onclick="toggleManualUpload()" id="manual-upload-toggle" type="button" style="padding: 0.2rem 0.6rem; background: transparent; border: 1px solid var(--border-subtle, rgba(255,255,255,0.15)); color: var(--text-muted); border-radius: 4px; font-size: 0.62rem; cursor: pointer;">▸ Manuelle Zuordnung</button>
@@ -7816,6 +7818,13 @@ Keine Erklärungen, kein Markdown.`;
                     this._cache.archives = createIDBStore('elvinci_nh5_archive', 'files', 1, 'type');
                 }
                 return this._cache.archives;
+            },
+            /** Kleine Einstellungen (z. B. Auto-Load-Ordner-Handle). Key = 'k'. */
+            settings() {
+                if (!this._cache.settings) {
+                    this._cache.settings = createIDBStore('elvinci_nh5_settings', 'kv', 1, 'k');
+                }
+                return this._cache.settings;
             }
         };
 
@@ -7881,6 +7890,134 @@ Keine Erklärungen, kein Markdown.`;
                 showToast('success', 'Archiv geleert', 'Die eingefrorenen Quellen werden beim nächsten Upload automatisch neu gespeichert.', 5000);
                 updateArchiveStatusUI([]);
             } catch (e) { showToast('error', 'Archiv leeren fehlgeschlagen', String(e), 5000); }
+        }
+
+        // ============================================
+        // AUTO-LOAD AUS DEM TEAMS-ORDNER (24.07.2026)
+        // ============================================
+        // User: „kann der Upload der frischen Daten nicht automatisch passieren
+        // beim Öffnen — aus allen relevanten Ordnern die jeweils jüngste Datei?"
+        // Eine file://-HTML darf NICHT still von der Platte lesen — der einzige
+        // saubere Weg ist die File System Access API (Edge/Chrome): der Nutzer
+        // verbindet EINMAL den Teams-Ordner (Nur-Lese-Handle, in IndexedDB
+        // gemerkt). Danach lädt das Cockpit beim Öffnen selbst die jüngste Datei
+        // je Quelle — vollautomatisch, wenn der Browser die Berechtigung behält
+        // („Bei jedem Besuch zulassen"), sonst mit genau EINEM Klick.
+        // Historie (all-sold/jtl4y/stamm) wird nur geladen, wenn sie im lokalen
+        // Archiv fehlt — der 74-MB-JTL-Export wird nicht täglich neu gelesen.
+        // Unterordner „ARCHIV …" werden übersprungen (alte Kopien wären sonst
+        // Kandidaten); die Typ-Erkennung ist dieselbe wie in der Ablagezone.
+        const AUTOLOAD_DAILY = ['bestand', 'odoo-stock', 'odoo-orders', 'odoo-invoices', 'pipeline'];
+        const AUTOLOAD_EINMALIG = ['all-sold', 'jtl4y', 'stamm', 'jtl-sales'];
+
+        function _autoloadBar(html) { const el = document.getElementById('autoload-bar'); if (el) el.innerHTML = html; }
+        const _alLink = (fn, txt) => `<a onclick="${fn}()" style="color:var(--accent-cyan);cursor:pointer;text-decoration:underline;">${txt}</a>`;
+
+        async function autoLoadTry() {
+            if (typeof window.showDirectoryPicker !== 'function') {
+                _autoloadBar('<span style="color:var(--text-muted);">📂 Auto-Load: benötigt Edge/Chrome (File System Access API) — hier gilt weiter Drag & Drop.</span>');
+                return;
+            }
+            let rec = null;
+            try { rec = await idbStores.settings().get('autoload-dir'); } catch (e) {}
+            dashboardState._autoloadRec = rec || null;
+            if (!rec || !rec.handle) {
+                _autoloadBar(`<button onclick="autoLoadConnect()" type="button" style="padding:0.3rem 0.7rem;background:transparent;border:1px solid var(--accent-cyan);color:var(--accent-cyan);border-radius:5px;font-size:0.65rem;cursor:pointer;font-weight:600;">📂 Teams-Ordner verbinden — Auto-Load der jüngsten Dateien</button> <span style="color:var(--text-muted);">einmalig · nur Lese-Zugriff · den Ordner „Lager_Sales Dashboard" wählen</span>`);
+                return;
+            }
+            let perm = 'prompt';
+            try { perm = await rec.handle.queryPermission({ mode: 'read' }); } catch (e) {}
+            if (perm === 'granted') { autoLoadScan(rec.handle); }
+            else {
+                _autoloadBar(`<button onclick="autoLoadClick()" type="button" style="padding:0.35rem 0.8rem;background:var(--accent-cyan);border:none;color:#fff;border-radius:5px;font-size:0.68rem;cursor:pointer;font-weight:700;">📂 Frische Daten aus „${rec.handle.name}" laden — 1 Klick</button> <span style="color:var(--text-muted);">Tipp: im Berechtigungs-Dialog „Bei jedem Besuch zulassen" wählen → läuft künftig ganz ohne Klick</span> · ${_alLink('autoLoadDisconnect', 'trennen')}`);
+            }
+        }
+
+        async function autoLoadClick() {
+            const rec = dashboardState._autoloadRec;
+            if (!rec || !rec.handle) return autoLoadConnect();
+            try {
+                const p = await rec.handle.requestPermission({ mode: 'read' });
+                if (p === 'granted') autoLoadScan(rec.handle);
+                else showToast('warning', 'Auto-Load', 'Zugriff nicht erteilt — Ordner neu verbinden oder Drag & Drop nutzen.', 6000);
+            } catch (e) {
+                showToast('error', 'Auto-Load', 'Zugriff fehlgeschlagen: ' + (e.message || e) + ' — Ordner über „verbinden" neu wählen.', 7000);
+                try { await idbStores.settings().delete('autoload-dir'); } catch (e2) {}
+                dashboardState._autoloadRec = null;
+                autoLoadTry();
+            }
+        }
+
+        async function autoLoadConnect() {
+            try {
+                const dir = await window.showDirectoryPicker({ id: 'elvinci-teams-ordner', mode: 'read' });
+                dashboardState._autoloadRec = { k: 'autoload-dir', handle: dir };
+                try { await idbStores.settings().put({ k: 'autoload-dir', handle: dir }); }
+                catch (e) { console.warn('[Auto-Load] Handle-Persist fehlgeschlagen (Auto-Load gilt dann nur für diese Sitzung)', e); }
+                autoLoadScan(dir);
+            } catch (e) {
+                if (e && e.name === 'AbortError') return;
+                showToast('error', 'Auto-Load', 'Ordner-Auswahl fehlgeschlagen: ' + (e.message || e) + (location.protocol === 'file:' ? ' — blockiert der Browser file://-Seiten, bleibt Drag & Drop der Weg.' : ''), 8000);
+            }
+        }
+
+        async function autoLoadDisconnect() {
+            try { await idbStores.settings().delete('autoload-dir'); } catch (e) {}
+            dashboardState._autoloadRec = null;
+            dashboardState._autoloadDone = {};
+            showToast('info', 'Auto-Load getrennt', 'Der Ordner-Zugriff wurde entfernt — Drag & Drop wie gehabt.', 5000);
+            autoLoadTry();
+        }
+
+        async function _autoloadWalk(dir, depth, out) {
+            for await (const entry of dir.values()) {
+                if (entry.kind === 'directory') {
+                    if (depth < 3 && !/archiv/i.test(entry.name)) await _autoloadWalk(entry, depth + 1, out);
+                } else if (/\.(csv|xlsx|xls)$/i.test(entry.name)) {
+                    const t = detectFileType(entry.name);
+                    if (t && (AUTOLOAD_DAILY.includes(t) || AUTOLOAD_EINMALIG.includes(t))) (out[t] = out[t] || []).push(entry);
+                }
+            }
+        }
+
+        async function autoLoadScan(dirHandle) {
+            _autoloadBar(`<span style="color:var(--text-muted);">📂 Auto-Load läuft — durchsuche „${dirHandle.name}" …</span>`);
+            const found = {};
+            try { await _autoloadWalk(dirHandle, 0, found); }
+            catch (e) {
+                _autoloadBar(`<span style="color:var(--accent-orange);">📂 Auto-Load: Ordner-Zugriff fehlgeschlagen (${e.message || e})</span> · ${_alLink('autoLoadConnect', 'neu verbinden')}`);
+                return;
+            }
+            let archived = [];
+            try { archived = (await idbStores.archives().getAll()).map(r => r.type); } catch (e) {}
+            const done = dashboardState._autoloadDone = dashboardState._autoloadDone || {};
+            const geladen = [], uebersprungen = [];
+            const lbl = t => (typeof FIELD_LABELS !== 'undefined' && FIELD_LABELS[t]) || t.toUpperCase();
+            for (const typ of [...AUTOLOAD_EINMALIG, ...AUTOLOAD_DAILY]) {
+                const hs = found[typ]; if (!hs || !hs.length) continue;
+                if (AUTOLOAD_EINMALIG.includes(typ) && archived.includes(typ)) { uebersprungen.push(lbl(typ)); continue; }
+                let newest = null;
+                for (const h of hs) {
+                    try { const f = await h.getFile(); if (!newest || f.lastModified > newest.lastModified) newest = f; }
+                    catch (e) { console.warn('[Auto-Load] Datei nicht lesbar', h.name, e); }
+                }
+                if (!newest) continue;
+                const key = `${newest.name}|${newest.lastModified}`;
+                if (done[typ] === key) continue;   // exakt diese Datei läuft bereits in dieser Sitzung
+                done[typ] = key;
+                try { await processUploadedFile(newest, typ); geladen.push({ typ, name: newest.name, mtime: new Date(newest.lastModified) }); }
+                catch (e) { console.warn('[Auto-Load] Verarbeitung fehlgeschlagen', typ, e); }
+                await new Promise(r => setTimeout(r, 50));   // UI atmen lassen
+            }
+            const zeit = new Date().toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+            const fmtT = d => d.toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+            const teile = geladen.map(g => `<b>${lbl(g.typ)}</b> (Stand ${fmtT(g.mtime)})`).join(' · ');
+            _autoloadBar(`<span style="color:var(--accent-green);">✓ Auto-Load ${zeit}:</span> ${geladen.length ? teile : 'keine neuen Dateien'}${uebersprungen.length ? ` <span style="color:var(--text-muted);">· Historie aus dem Archiv: ${uebersprungen.join(', ')}</span>` : ''} · ${_alLink('autoLoadClick', '↻ neu laden')} · ${_alLink('autoLoadDisconnect', '✕ trennen')}`);
+            if (geladen.length) {
+                showToast('success', '📂 Auto-Load', `${geladen.length} jüngste Datei(en) aus „${dirHandle.name}" geladen.`, 6000);
+            } else if (!uebersprungen.length) {
+                showToast('warning', '📂 Auto-Load', `In „${dirHandle.name}" keine bekannten Dateien gefunden — den Ordner „Lager_Sales Dashboard" (mit den Unterordnern 01–03) verbinden.`, 8000);
+            }
         }
 
         async function updateArchiveStatusUI(recsMaybe) {
@@ -17667,6 +17804,10 @@ Keine Erklärungen, kein Markdown.`;
             // IndexedDB-Archiv wiederherstellen — Replay durch den normalen Upload-Pfad.
             // Läuft async NACH der kompletten Init (Bus-Subscriber sind registriert).
             try { restoreArchivesFromIDB(); } catch (e) { console.warn('[Archiv] Restore-Start fehlgeschlagen', e); }
+
+            // AUTO-LOAD (24.07.): verbundener Teams-Ordner → jüngste Datei je Quelle
+            // automatisch laden (bzw. 1-Klick-Button, wenn der Browser neu fragt).
+            try { autoLoadTry(); } catch (e) { console.warn('[Auto-Load] Start fehlgeschlagen', e); }
         });
         
         // ============================================
