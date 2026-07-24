@@ -15350,8 +15350,9 @@ Keine Erklärungen, kein Markdown.`;
             const proformaRefs = new Set();
             const ZZ_VORKASSE_TAGE = 3;    // Vorkasse-Regel: Eingang binnen 3 Tagen erwartet
             const ZZ_ANNAHME_TAGE = 14;    // Standard-Zahlungsziel als Annahme, wenn Rechnungsdatum fehlt
-            const strahl = [];             // { root, betrag, due: Date|null, typ: vorkasse|rechnung|annahme|unbekannt }
+            const strahl = [];             // { root, betrag, due: Date|null, typ: vorkasse|rechnung|annahme|unbekannt, firma, auftrag? }
             const refErstellt = {};
+            const refKunde = {};           // Firma je Auftrag — für den Balken-Drilldown im Zahlungsplan
             const eur = v => Number(v || 0).toLocaleString('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
             const fmtN = n => Number(n || 0).toLocaleString('de-DE');
             // DOPPEL-CHECK-FIX (2026-07-10): Ein bestätigter Auftrag, der laut WA bereits
@@ -15375,6 +15376,7 @@ Keine Erklärungen, kein Markdown.`;
                 }
                 offenByRef[o.ref] = off;
                 refErstellt[o.ref] = o.auftragsdatum || o.erstellt || null;   // Bestätigung bevorzugt
+                refKunde[o.ref] = o.kunde || '';
                 const zbM = String(o.zahlungsbedingung || '').match(/(\d{1,3})\s*tage/i);
                 if (zbM) refZielTage[o.ref] = +zbM[1];
                 else if (/sofort/i.test(o.zahlungsbedingung || '')) refZielTage[o.ref] = 0;
@@ -15428,7 +15430,7 @@ Keine Erklärungen, kein Markdown.`;
                                 const annahmeTage = refZielTage[root] !== undefined ? refZielTage[root] : ZZ_ANNAHME_TAGE;
                                 if (vs) { due = new Date(vs); due.setDate(due.getDate() + annahmeTage); typ = 'annahme'; }
                             }
-                            if (betrag > 0.01) strahl.push({ root, betrag, due, typ });
+                            if (betrag > 0.01) strahl.push({ root, betrag, due, typ, firma: refKunde[root] || '' });
                         }
                     } else if ((w.versendet && w.bezahlt) || /^ja/i.test(String(w.abgeschlossen || ''))) {
                         // AUDIT-FIX 16.07.: versendet & laut WA bezahlt ODER als abgeschlossen
@@ -15455,11 +15457,11 @@ Keine Erklärungen, kein Markdown.`;
                     // (Export liefert nur das Erstellungsdatum → als Näherung verwendet)
                     let due = null;
                     if (refErstellt[ref]) { due = new Date(refErstellt[ref]); due.setDate(due.getDate() + ZZ_VORKASSE_TAGE); due.setHours(0, 0, 0, 0); }
-                    strahl.push({ root: ref, betrag: offenByRef[ref], due, typ: (hasProf && !mitProf) ? 'vorkasseOffen' : 'vorkasse' });
+                    strahl.push({ root: ref, betrag: offenByRef[ref], due, typ: (hasProf && !mitProf) ? 'vorkasseOffen' : 'vorkasse', firma: refKunde[ref] || '' });
                 }
             });
             // 2b) ECHTE RECHNUNGEN (account.move): exakte Fälligkeiten in den Strahl
-            if (hasInv) invOffen.forEach(v => strahl.push({ root: v.nummer, betrag: v.faellig, due: v.faelligkeit, typ: 'rechnung' }));
+            if (hasInv) invOffen.forEach(v => strahl.push({ root: v.nummer, betrag: v.faellig, due: v.faelligkeit, typ: 'rechnung', firma: v.partner || '', auftrag: v.auftrag || invZuRef.get(String(v.nummer).toUpperCase()) || '' }));
             const gesamtOffen = ausst + (hasInv ? invOffenSum : sentVK);
             // ZEITHORIZONT je KPI (User 20.07.: „Aussagen ohne Zeithorizont sind nutzlos"):
             // Zerlegung der offenen Beträge nach FÄLLIGKEIT in DISJUNKTE Töpfe —
@@ -15571,7 +15573,14 @@ Keine Erklärungen, kein Markdown.`;
         // Zahlungsziel. Typ-Aufriss je Balken steckt im Hover-Tooltip; die drei
         // Verbindlichkeits-Stufen bleiben als Kopfzeile erhalten.
         // ============================================
-        function _zsSetMode(m) { dashboardState._zsMode = m; _renderZahlungsStrahl(dashboardState._zsEntries || []); }
+        function _zsSetMode(m) { dashboardState._zsMode = m; dashboardState._zsSel = null; _renderZahlungsStrahl(dashboardState._zsEntries || []); }
+        // Balken-Drilldown (User 24.07.): Klick auf einen Balken → Aufklapp-Liste der
+        // dahinterliegenden Kundenaufträge/Rechnungen (Nummer · Firma · Betrag).
+        // Index -1 = Fußnoten-Topf „Fälligkeit offen". Erneuter Klick schließt.
+        function _zsToggleDetail(i) {
+            dashboardState._zsSel = (dashboardState._zsSel === i) ? null : i;
+            _renderZahlungsStrahl(dashboardState._zsEntries || []);
+        }
         function _renderZahlungsStrahl(entries) {
             const el = document.getElementById('uebersicht-zahlungsstrahl');
             if (!el) return;
@@ -15586,9 +15595,9 @@ Keine Erklärungen, kein Markdown.`;
             const typName = { vorkasse: 'Vorkasse n. Proforma +3T', vorkasseOffen: 'Proforma ausstehend', rechnung: 'Rechnung + Ziel', annahme: 'Annahme: Versand + Ziel', unbekannt: 'ohne Einordnung' };
             // Farbwelt exakt wie Otto: rot/orange/blau/grau + violett für „ohne Termin"
             const C_UEB = 'var(--accent-red,#ef4444)', C_HEUTE = '#ff9f0a', C_TAG = '#4a9eea', C_SPAET = '#9a9aa0', C_OFFEN = '#8e6fd8';
-            const mk = (name, col, end) => ({ name, col, end: end || null, v: 0, n: 0, typen: {} });
+            const mk = (name, col, end) => ({ name, col, end: end || null, v: 0, n: 0, typen: {}, items: [] });
             const over = mk('überfällig', C_UEB), today = mk('heute', C_HEUTE), later = mk('später', C_SPAET), offen = mk('ohne Termin', C_OFFEN);
-            const add = (b, e) => { b.v += e.betrag; b.n++; b.typen[e.typ] = (b.typen[e.typ] || 0) + e.betrag; };
+            const add = (b, e) => { b.v += e.betrag; b.n++; b.typen[e.typ] = (b.typen[e.typ] || 0) + e.betrag; b.items.push(e); };
             let sum7 = 0, sum14 = 0, sum30 = 0;
             let slots;
             if (mode === 'tag') {
@@ -15641,19 +15650,49 @@ Keine Erklärungen, kein Markdown.`;
                 gy += `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${W - padR}" y2="${y.toFixed(1)}" stroke="var(--border)"/><text x="${padL - 8}" y="${(y + 4).toFixed(1)}" text-anchor="end" font-size="10" fill="var(--text-muted)">${Math.round(v / 1000)}k</text>`;
             }
             const barW = Math.min(mode === 'tag' ? 52 : 120, slotW * (mode === 'tag' ? 0.62 : 0.5));
+            dashboardState._zsSlots = slots;
+            dashboardState._zsOffenTopf = offen;
+            const sel = dashboardState._zsSel;
+            if (typeof sel === 'number' && sel >= slots.length) dashboardState._zsSel = null;   // Slot-Zahl hat sich geändert
             let bars = '';
             slots.forEach((b, i) => {
                 const cx = padL + slotW * (i + 0.5), h = plotH * (b.v / maxV), x = cx - barW / 2, y = padT + plotH - h;
-                const tip = `${b.name}: ${eur(b.v)} · ${b.n} Posten${Object.keys(b.typen).length ? ' — ' + Object.entries(b.typen).map(([t, v]) => `${typName[t] || t} ${eur(v)}`).join(' · ') : ''}`;
+                const tip = `${b.name}: ${eur(b.v)} · ${b.n} Posten${Object.keys(b.typen).length ? ' — ' + Object.entries(b.typen).map(([t, v]) => `${typName[t] || t} ${eur(v)}`).join(' · ') : ''} — Klick für die Auftragsliste`;
+                const istSel = dashboardState._zsSel === i;
                 if (b.v > 0) {
-                    bars += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${h.toFixed(1)}" rx="4" fill="${b.col}"><title>${tip}</title></rect>`;
-                    bars += `<text x="${cx.toFixed(1)}" y="${(y - 8).toFixed(1)}" text-anchor="middle" font-size="${mode === 'tag' ? 10.5 : 13}" font-weight="700" fill="var(--text-primary,#eee)">${eur(b.v)}</text>`;
+                    bars += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${h.toFixed(1)}" rx="4" fill="${b.col}" style="cursor:pointer;${istSel ? '' : 'opacity:0.92;'}" ${istSel ? 'stroke="var(--text-primary,#eee)" stroke-width="2"' : ''} onclick="_zsToggleDetail(${i})"><title>${tip}</title></rect>`;
+                    bars += `<text x="${cx.toFixed(1)}" y="${(y - 8).toFixed(1)}" text-anchor="middle" font-size="${mode === 'tag' ? 10.5 : 13}" font-weight="700" fill="var(--text-primary,#eee)" style="cursor:pointer;" onclick="_zsToggleDetail(${i})">${eur(b.v)}</text>`;
                 } else {
                     bars += `<text x="${cx.toFixed(1)}" y="${(padT + plotH - 4).toFixed(1)}" text-anchor="middle" font-size="11" fill="var(--text-muted)">—</text>`;
                 }
-                bars += `<text x="${cx.toFixed(1)}" y="${(H - padB + 20).toFixed(1)}" text-anchor="middle" font-size="${mode === 'tag' ? 10.5 : 12}" font-weight="600" fill="var(--text-secondary)">${b.name}</text>`;
+                bars += `<text x="${cx.toFixed(1)}" y="${(H - padB + 20).toFixed(1)}" text-anchor="middle" font-size="${mode === 'tag' ? 10.5 : 12}" font-weight="600" fill="${istSel ? 'var(--text-primary,#eee)' : 'var(--text-secondary)'}" ${b.v > 0 ? `style="cursor:pointer;" onclick="_zsToggleDetail(${i})"` : ''}>${b.name}</text>`;
                 if (b.end) bars += `<text x="${cx.toFixed(1)}" y="${(H - padB + 35).toFixed(1)}" text-anchor="middle" font-size="10" fill="var(--text-muted)">bis ${fmtD(b.end)}</text>`;
             });
+            // Detail-Panel zum angeklickten Balken: Auftrags-/Rechnungsnummer · Firma · Betrag
+            let detailHtml = '';
+            const selSlot = dashboardState._zsSel === -1 ? offen : (typeof dashboardState._zsSel === 'number' ? slots[dashboardState._zsSel] : null);
+            if (selSlot && selSlot.items.length) {
+                const rows = [...selSlot.items].sort((a, b) => b.betrag - a.betrag).map(e => {
+                    const nr = /^INV/i.test(e.root)
+                        ? `${e.root}${e.auftrag ? ` <span style="color:var(--accent-cyan);">→ ${e.auftrag}</span>` : ''}`
+                        : e.root;
+                    return `<div style="display:flex;gap:0.7rem;align-items:baseline;font-size:0.65rem;padding:0.14rem 0;border-bottom:1px solid var(--border-subtle,rgba(128,128,128,0.12));">
+                        <span style="font-family:var(--font-mono);min-width:150px;">${nr}</span>
+                        <span style="flex:1;color:var(--text-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${(e.firma || '—').slice(0, 42)}</span>
+                        <span style="color:var(--text-muted);min-width:150px;">${typName[e.typ] || e.typ}</span>
+                        <span style="font-family:var(--font-mono);font-weight:700;min-width:80px;text-align:right;">${eur(e.betrag)}</span>
+                      </div>`;
+                }).join('');
+                detailHtml = `<div style="margin-top:0.55rem;border:1px solid var(--border);border-radius:8px;padding:0.55rem 0.8rem;background:var(--bg-secondary,rgba(128,128,128,0.05));">
+                    <div style="display:flex;align-items:baseline;gap:0.6rem;margin-bottom:0.3rem;">
+                      <span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${selSlot.col};"></span>
+                      <b style="font-size:0.72rem;">${selSlot.name}${selSlot.end ? ` (bis ${fmtD(selSlot.end)})` : ''}</b>
+                      <span style="font-size:0.65rem;color:var(--text-secondary);">${eur(selSlot.v)} · ${selSlot.n} Posten</span>
+                      <a onclick="_zsToggleDetail(${dashboardState._zsSel})" style="margin-left:auto;font-size:0.62rem;color:var(--text-muted);cursor:pointer;text-decoration:underline;">✕ schließen</a>
+                    </div>
+                    ${rows}
+                  </div>`;
+            }
             const svg = `<svg viewBox="0 0 ${W} ${H}" width="100%" preserveAspectRatio="xMidYMid meet">
                 <text x="${padL}" y="20" font-size="14" font-weight="700" fill="var(--text-primary,#eee)">Wann kommen die offenen Zahlungen rein?</text>
                 <text x="${padL}" y="37" font-size="11.5" fill="var(--text-muted)">Zahlungsplan der terminierten ${eur(planSum)} · ${mode === 'tag' ? 'je Fälligkeitstag' : 'je Woche'} · Fenster heute bis +${FENSTER} Tage</text>
@@ -15669,14 +15708,15 @@ Keine Erklärungen, kein Markdown.`;
                   <span style="margin-left:auto;display:inline-flex;gap:4px;">${tglBtn('woche', 'Wochen')}${tglBtn('tag', 'Tage')}</span>
                 </div>
                 ${svg}
+                ${detailHtml}
                 <div style="display:flex;gap:1.2rem;flex-wrap:wrap;font-size:0.6rem;color:var(--text-secondary);margin-top:0.3rem;">
                   ${legDot(C_UEB, 'überfällig (sollte längst da sein)')}
                   ${legDot(C_HEUTE, 'fällig heute (letzter Zahltag)')}
                   ${legDot(C_TAG, mode === 'tag' ? 'fällig je Tag' : 'fällig je Woche')}
                   ${legDot(C_SPAET, 'später (nach +' + FENSTER + ' T)')}
                 </div>
-                ${offen.n ? `<div style="font-size:0.62rem;color:var(--text-secondary);margin-top:0.35rem;">${legDot(C_OFFEN, `<b>Fälligkeit offen:</b> ${eur(offen.v)} (${offen.n} Posten — ${Object.entries(offen.typen).map(([t, v]) => `${typName[t] || t} ${eur(v)}`).join(' · ')}) — noch kein Termin bestimmbar.`)}</div>` : ''}
-                <div style="font-size:0.55rem;color:var(--text-muted);margin-top:0.35rem;">Stichtagswerte · kein Zeitraum-Filter · Hover auf einen Balken zeigt den Aufriss (Vorkasse / Rechnung / Annahme)</div>
+                ${offen.n ? `<div style="font-size:0.62rem;color:var(--text-secondary);margin-top:0.35rem;cursor:pointer;" onclick="_zsToggleDetail(-1)" title="Klick für die Auftragsliste">${legDot(C_OFFEN, `<b>Fälligkeit offen:</b> ${eur(offen.v)} (${offen.n} Posten — ${Object.entries(offen.typen).map(([t, v]) => `${typName[t] || t} ${eur(v)}`).join(' · ')}) — noch kein Termin bestimmbar. <u>anzeigen</u>`)}</div>` : ''}
+                <div style="font-size:0.55rem;color:var(--text-muted);margin-top:0.35rem;">Stichtagswerte · kein Zeitraum-Filter · <b>Klick auf einen Balken</b> öffnet die Auftragsliste (Nummer · Firma · Betrag) · Hover zeigt den Aufriss (Vorkasse / Rechnung / Annahme)</div>
               </div>`;
         }
 
