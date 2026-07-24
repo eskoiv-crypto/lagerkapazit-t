@@ -3738,8 +3738,8 @@
                             <div id="uebersicht-kaskade" style="margin-bottom: 1rem;"></div>
                             <!-- ZAHLUNGS-RADAR (2026-07-10): voraussichtliche Zahlungseingänge -->
                             <div id="uebersicht-zahlungsradar" style="margin-bottom: 1rem;"></div>
-                            <!-- ZAHLUNGS-STRAHL (2026-07-16): geplante Eingänge auf der Zeitachse
-                                 (Vorkasse +3 Tage · Rechnungsdatum+Zahlungsziel · Annahme ab Versand) -->
+                            <!-- ZAHLUNGSPLAN · FÄLLIGKEITEN (24.07.): Otto-Chart-Port — Balken je
+                                 Fälligkeitstag/-woche (Vorkasse +3 T · Rechnung = echtes Fälligkeitsdatum · Annahme ab Versand) -->
                             <div id="uebersicht-zahlungsstrahl" style="margin-bottom: 1rem;"></div>
                             <!-- WERTEKREIS-FIX (User-Befund 2026-07-03): Vorher standen hier „Lagerwert
                                  EK/VK" + „Marge-Potenzial" = ein DRITTER Wertekreis neben den zwei Kacheln
@@ -15558,89 +15558,123 @@ Keine Erklärungen, kein Markdown.`;
         }
 
         // ============================================
-        // ZAHLUNGS-STRAHL (2026-07-16, User-Wunsch): geplante Zahlungseingänge auf der
-        // Zeitachse — Überfällig-Topf · Tages-Balken 4 Wochen · Später · Ohne Termin.
-        // Termin-Güte je Auftrag farblich getrennt: Vorkasse (+3T ab Bestätigung≈Erstellung),
-        // Rechnung (Rechnungsdatum + Zahlungsziel, wenn im WA-Sheet gepflegt),
-        // Annahme (Versand-/Anlieferdatum + 14 Tage Standard-Ziel).
+        // ZAHLUNGSPLAN · FÄLLIGKEITEN (24.07., User: „dieselbe Logik und Anzeige wie
+        // im Otto-Obligo-Cockpit — für unsere Ausgangsrechnungen"): Der Otto-Chart
+        // (faelligChart) ist hierher portiert — SVG-Balken je Fälligkeitstag (nur
+        // Tage MIT Betrag) bzw. je Woche, Wochen/Tage-Umschalter, Überfällig-Topf
+        // rot · „fällig heute" orange · „später" grau · „ohne Termin" als Fußnote.
+        // Die TERMIN-Logik ist unverändert die des Vertriebs-Cockpits: Vorkasse =
+        // Bestätigung + 3 T (Proforma-Regel) · Rechnung = echtes Fälligkeitsdatum
+        // aus account.move (bzw. WA-Sheet) · Annahme = Versand/Anlieferung +
+        // Zahlungsziel. Typ-Aufriss je Balken steckt im Hover-Tooltip; die drei
+        // Verbindlichkeits-Stufen bleiben als Kopfzeile erhalten.
         // ============================================
+        function _zsSetMode(m) { dashboardState._zsMode = m; _renderZahlungsStrahl(dashboardState._zsEntries || []); }
         function _renderZahlungsStrahl(entries) {
             const el = document.getElementById('uebersicht-zahlungsstrahl');
             if (!el) return;
+            dashboardState._zsEntries = entries || [];
             if (!entries || !entries.length) { el.innerHTML = ''; return; }
+            const mode = dashboardState._zsMode || 'tag';
             const eur = v => Number(v || 0).toLocaleString('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
-            const TAGE = 28;
+            const FENSTER = 30;
             const heute0 = new Date(); heute0.setHours(0, 0, 0, 0);
-            const days = Array.from({ length: TAGE }, () => ({ sum: 0, n: 0, typen: {} }));
-            const topf = { ueberfaellig: { sum: 0, n: 0 }, spaeter: { sum: 0, n: 0 }, offen: { sum: 0, n: 0 } };
-            let sum7 = 0, sum14 = 0, sum28 = 0, sumUeb = 0;
-            entries.forEach(e => {
-                if (!e.due) { topf.offen.sum += e.betrag; topf.offen.n++; return; }
-                const d0 = new Date(e.due); d0.setHours(0, 0, 0, 0);
-                const off = Math.round((d0 - heute0) / 86400000);
-                if (off < 0) { topf.ueberfaellig.sum += e.betrag; topf.ueberfaellig.n++; sumUeb += e.betrag; return; }
-                if (off >= TAGE) { topf.spaeter.sum += e.betrag; topf.spaeter.n++; return; }
-                days[off].sum += e.betrag; days[off].n++;
-                days[off].typen[e.typ] = (days[off].typen[e.typ] || 0) + e.betrag;
-                if (off < 7) sum7 += e.betrag; if (off < 14) sum14 += e.betrag; sum28 += e.betrag;
-            });
-            const maxSum = Math.max(...days.map(d => d.sum), 1);
-            // GESCHÄFTSREGEL (User 16.07., ersetzt „hart/weich"): DREI Verbindlichkeits-
-            // Stufen — (1) Rechnung/geliefert = exakte Forderung, (2) Vorkasse nach
-            // PROFORMA = Eingang wird FEST erwartet, Betrag bis Verladung vorläufig
-            // (Δ Proforma↔Rechnung bei nicht verladener Ware), (3) bestätigt OHNE
-            // Proforma = Zahlungs-Trigger noch nicht raus.
+            const addT = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
+            const fmtD = d => d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' });
+            const typName = { vorkasse: 'Vorkasse n. Proforma +3T', vorkasseOffen: 'Proforma ausstehend', rechnung: 'Rechnung + Ziel', annahme: 'Annahme: Versand + Ziel', unbekannt: 'ohne Einordnung' };
+            // Farbwelt exakt wie Otto: rot/orange/blau/grau + violett für „ohne Termin"
+            const C_UEB = 'var(--accent-red,#ef4444)', C_HEUTE = '#ff9f0a', C_TAG = '#4a9eea', C_SPAET = '#9a9aa0', C_OFFEN = '#8e6fd8';
+            const mk = (name, col, end) => ({ name, col, end: end || null, v: 0, n: 0, typen: {} });
+            const over = mk('überfällig', C_UEB), today = mk('heute', C_HEUTE), later = mk('später', C_SPAET), offen = mk('ohne Termin', C_OFFEN);
+            const add = (b, e) => { b.v += e.betrag; b.n++; b.typen[e.typ] = (b.typen[e.typ] || 0) + e.betrag; };
+            let sum7 = 0, sum14 = 0, sum30 = 0;
+            let slots;
+            if (mode === 'tag') {
+                // TAGES-Ebene (Otto): ein Balken je Fälligkeitstag — nur Tage mit Betrag
+                const bd = {};
+                entries.forEach(e => {
+                    if (!e.due) return add(offen, e);
+                    const d0 = new Date(e.due); d0.setHours(0, 0, 0, 0);
+                    const d = Math.round((d0 - heute0) / 86400000);
+                    if (d < 0) return add(over, e);
+                    if (d > FENSTER) return add(later, e);
+                    if (d <= 7) sum7 += e.betrag; if (d <= 14) sum14 += e.betrag; sum30 += e.betrag;
+                    if (d === 0) return add(today, e);
+                    add(bd[d] = bd[d] || mk(fmtD(addT(heute0, d)), C_TAG), e);
+                });
+                slots = [over, today, ...Object.keys(bd).map(Number).sort((a, b) => a - b).map(k => bd[k]), later].filter(b => b.v > 0);
+                if (!slots.length) slots = [today];
+            } else {
+                // WOCHEN-Ebene (Otto): 4 feste Buckets bis +30, Rand-Töpfe nur bei Betrag
+                const w = [mk('diese Woche', C_TAG, addT(heute0, 7)), mk('in 2 Wochen', C_TAG, addT(heute0, 14)),
+                           mk('in 3 Wochen', C_TAG, addT(heute0, 21)), mk('in 4 Wochen', C_TAG, addT(heute0, 30))];
+                entries.forEach(e => {
+                    if (!e.due) return add(offen, e);
+                    const d0 = new Date(e.due); d0.setHours(0, 0, 0, 0);
+                    const d = Math.round((d0 - heute0) / 86400000);
+                    if (d < 0) return add(over, e);
+                    if (d > FENSTER) return add(later, e);
+                    if (d <= 7) sum7 += e.betrag; if (d <= 14) sum14 += e.betrag; sum30 += e.betrag;
+                    if (d === 0) return add(today, e);
+                    add(d <= 7 ? w[0] : d <= 14 ? w[1] : d <= 21 ? w[2] : w[3], e);
+                });
+                slots = [over, today, ...w, later].filter(b => b.col === C_TAG ? true : b.v > 0);
+            }
+            // Drei Verbindlichkeits-Stufen (GESCHÄFTSREGEL 16.07.) — bleiben Kopfzeile
             let rechSumV = 0, profSumV = 0, ohneProfSumV = 0;
             entries.forEach(e => {
                 if (e.typ === 'vorkasse') profSumV += e.betrag;
                 else if (e.typ === 'vorkasseOffen') ohneProfSumV += e.betrag;
                 else rechSumV += e.betrag;
             });
-            const typFarbe = { vorkasse: 'var(--accent-orange)', vorkasseOffen: 'var(--text-muted)', rechnung: 'var(--accent-green)', annahme: 'var(--accent-cyan)', unbekannt: 'var(--text-muted)' };
-            const typName = { vorkasse: 'Vorkasse n. Proforma +3T', vorkasseOffen: 'Proforma ausstehend', rechnung: 'Rechnung+Ziel', annahme: 'Annahme Versand+14T', unbekannt: '?' };
-            const bars = days.map((d, i) => {
-                const dt = new Date(heute0); dt.setDate(dt.getDate() + i);
-                const lbl = i === 0 ? 'Heute' : (dt.getDate() === 1 || i % 7 === 0 ? `${dt.getDate()}.${dt.getMonth() + 1}.` : '');
-                const isMon = dt.getDay() === 1;
-                const domTyp = Object.entries(d.typen).sort((a, b) => b[1] - a[1])[0];
-                const farbe = d.sum > 0 ? typFarbe[domTyp[0]] : 'var(--border)';
-                const h = d.sum > 0 ? Math.max(8, Math.round((d.sum / maxSum) * 52)) : 2;
-                const tip = d.sum > 0
-                    ? `${dt.toLocaleDateString('de-DE')}: ${eur(d.sum)} · ${d.n} Auftr. (${Object.entries(d.typen).map(([t, v]) => `${typName[t]} ${eur(v)}`).join(' · ')})`
-                    : dt.toLocaleDateString('de-DE');
-                return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;min-width:0;" title="${tip}">
-                    <div style="font-size:0.52rem;color:var(--text-muted);font-family:var(--font-mono);height:0.8rem;">${d.sum > 0 ? eur(d.sum).replace(/ €/, '') : ''}</div>
-                    <div style="width:70%;height:${h}px;background:${farbe};border-radius:2px;${isMon ? 'outline:1px solid var(--border);' : ''}"></div>
-                    <div style="font-size:0.5rem;color:var(--text-muted);height:0.7rem;white-space:nowrap;">${lbl}</div>
-                  </div>`;
-            }).join('');
-            const chip = (farbe, lbl, t) => `<span style="display:inline-flex;align-items:center;gap:0.3rem;"><span class="ds-dot" style="background:${farbe};"></span>${lbl}${t ? ` <span class="vc-info" data-tip="${t}">ⓘ</span>` : ''}</span>`;
+            const planSum = entries.reduce((s, e) => s + (e.due ? e.betrag : 0), 0);
+            // ---- SVG (Otto-Port, Dark-Theme-Farben über CSS-Variablen) ----
+            const W = 1080, H = 300, padL = 66, padR = 26, padT = 46, padB = 66;
+            const n = slots.length, plotW = W - padL - padR, plotH = H - padT - padB, slotW = plotW / n;
+            const maxV = Math.max(...slots.map(b => b.v), 1) * 1.16;
+            const Y = v => padT + plotH * (1 - v / maxV);
+            let gy = '';
+            for (let k = 0; k <= 4; k++) {
+                const v = maxV * k / 4, y = Y(v);
+                gy += `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${W - padR}" y2="${y.toFixed(1)}" stroke="var(--border)"/><text x="${padL - 8}" y="${(y + 4).toFixed(1)}" text-anchor="end" font-size="10" fill="var(--text-muted)">${Math.round(v / 1000)}k</text>`;
+            }
+            const barW = Math.min(mode === 'tag' ? 52 : 120, slotW * (mode === 'tag' ? 0.62 : 0.5));
+            let bars = '';
+            slots.forEach((b, i) => {
+                const cx = padL + slotW * (i + 0.5), h = plotH * (b.v / maxV), x = cx - barW / 2, y = padT + plotH - h;
+                const tip = `${b.name}: ${eur(b.v)} · ${b.n} Posten${Object.keys(b.typen).length ? ' — ' + Object.entries(b.typen).map(([t, v]) => `${typName[t] || t} ${eur(v)}`).join(' · ') : ''}`;
+                if (b.v > 0) {
+                    bars += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${h.toFixed(1)}" rx="4" fill="${b.col}"><title>${tip}</title></rect>`;
+                    bars += `<text x="${cx.toFixed(1)}" y="${(y - 8).toFixed(1)}" text-anchor="middle" font-size="${mode === 'tag' ? 10.5 : 13}" font-weight="700" fill="var(--text-primary,#eee)">${eur(b.v)}</text>`;
+                } else {
+                    bars += `<text x="${cx.toFixed(1)}" y="${(padT + plotH - 4).toFixed(1)}" text-anchor="middle" font-size="11" fill="var(--text-muted)">—</text>`;
+                }
+                bars += `<text x="${cx.toFixed(1)}" y="${(H - padB + 20).toFixed(1)}" text-anchor="middle" font-size="${mode === 'tag' ? 10.5 : 12}" font-weight="600" fill="var(--text-secondary)">${b.name}</text>`;
+                if (b.end) bars += `<text x="${cx.toFixed(1)}" y="${(H - padB + 35).toFixed(1)}" text-anchor="middle" font-size="10" fill="var(--text-muted)">bis ${fmtD(b.end)}</text>`;
+            });
+            const svg = `<svg viewBox="0 0 ${W} ${H}" width="100%" preserveAspectRatio="xMidYMid meet">
+                <text x="${padL}" y="20" font-size="14" font-weight="700" fill="var(--text-primary,#eee)">Wann kommen die offenen Zahlungen rein?</text>
+                <text x="${padL}" y="37" font-size="11.5" fill="var(--text-muted)">Zahlungsplan der terminierten ${eur(planSum)} · ${mode === 'tag' ? 'je Fälligkeitstag' : 'je Woche'} · Fenster heute bis +${FENSTER} Tage</text>
+                ${gy}${bars}</svg>`;
+            const tglBtn = (m, lbl) => `<button onclick="_zsSetMode('${m}')" type="button" style="padding:0.25rem 0.7rem;border-radius:6px;font-size:0.65rem;cursor:pointer;font-weight:600;border:1px solid var(--border);${mode === m ? 'background:var(--text-primary,#eee);color:var(--bg-elevated,#111);' : 'background:transparent;color:var(--text-secondary);'}">${lbl}</button>`;
+            const legDot = (col, lbl) => `<span style="display:inline-flex;align-items:center;gap:0.35rem;"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${col};flex:none;"></span><span>${lbl}</span></span>`;
             el.innerHTML = `
               <div style="background:var(--bg-elevated);border:1px solid var(--border);border-radius:12px;padding:0.85rem 1.1rem;">
-                <div style="display:flex;align-items:baseline;gap:1rem;flex-wrap:wrap;margin-bottom:0.6rem;">
-                  <div style="font-size:0.6rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;">Zahlungs-Strahl — geplante Eingänge <span class="tb-chip">Stichtag → 28 T</span> <span class="vc-info" data-tip="Jeder offene Betrag aus dem Zahlungs-Radar bekommt einen erwarteten Eingangs-Termin: Vorkasse = Auftrags-Erstellung + 3 Tage (Bestätigungsdatum liefert der Export nicht). Rechnungskunden = Rechnungsdatum + Zahlungsziel-Tage, WENN beides im WA-Sheet gepflegt ist — sonst Annahme: Versand-/Anlieferdatum + 14 Tage Standard-Ziel (farblich getrennt). Ohne jedes Datum → „ohne Termin". Termine vor heute → Überfällig-Topf.">ⓘ</span></div>
-                  <div style="font-size:0.72rem;font-family:var(--font-mono);color:var(--text-secondary);">7 Tage: <b>${eur(sum7)}</b> · 14 Tage: <b>${eur(sum14)}</b> · 28 Tage: <b>${eur(sum28)}</b></div>
-                  <div style="font-size:0.62rem;color:var(--text-secondary);"><span style="color:var(--accent-green);font-weight:700;">Rechnung/geliefert ${eur(rechSumV)}</span> (exakt) · <span style="color:var(--accent-orange);font-weight:700;">Vorkasse n. Proforma ${eur(profSumV)}</span> (fest erwartet, Betrag vorläufig)${ohneProfSumV > 0.01 ? ` · <span style="color:var(--text-muted);font-weight:700;">Proforma ausstehend ${eur(ohneProfSumV)}</span>` : ''} <span class="vc-info" data-tip="Drei Verbindlichkeits-Stufen: (1) RECHNUNG/GELIEFERT — Forderung existiert, Betrag und Termin exakt. (2) VORKASSE NACH PROFORMA — Zahlungsaufforderung ist raus, der Eingang wird laut Vorkasse-Regel FEST erwartet; der Betrag ist bis zur Verladung vorläufig, weil nicht verladene Ware die echte Rechnung noch verändern kann (Δ Proforma↔Rechnung). (3) PROFORMA AUSSTEHEND — Auftrag bestätigt, aber die Zahlungsaufforderung ist noch nicht verschickt. Fehlt die Spalte Proformas im Export, zählt alle Vorkasse als Stufe 2.">ⓘ</span></div>
+                <div style="display:flex;align-items:baseline;gap:1rem;flex-wrap:wrap;margin-bottom:0.35rem;">
+                  <div style="font-size:0.6rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;">Zahlungsplan · Fälligkeiten <span class="tb-chip">Stichtag → ${FENSTER} T</span> <span class="vc-info" data-tip="Jeder offene Betrag aus dem Zahlungs-Radar bekommt einen erwarteten Eingangs-Termin: Vorkasse = Bestätigung (≈ Auftrags-Erstellung) + 3 Tage · Rechnungskunden = echtes Fälligkeitsdatum aus account.move (Rechnungsdatum + Zahlungsziel), ohne den Export ersatzweise WA-Sheet · sonst Annahme: Versand-/Anlieferdatum + Zahlungsziel. Termine vor heute → Überfällig. Ohne jedes Datum → Fußnote „Fälligkeit offen". Balken-Aufriss nach Verbindlichkeits-Stufe per Maus-Hover.">ⓘ</span></div>
+                  <div style="font-size:0.72rem;font-family:var(--font-mono);color:var(--text-secondary);">7 Tage: <b>${eur(sum7)}</b> · 14 Tage: <b>${eur(sum14)}</b> · ${FENSTER} Tage: <b>${eur(sum30)}</b></div>
+                  <div style="font-size:0.62rem;color:var(--text-secondary);"><span style="color:var(--accent-green);font-weight:700;">Rechnung/geliefert ${eur(rechSumV)}</span> (exakt) · <span style="color:var(--accent-orange);font-weight:700;">Vorkasse n. Proforma ${eur(profSumV)}</span> (fest erwartet, Betrag vorläufig)${ohneProfSumV > 0.01 ? ` · <span style="color:var(--text-muted);font-weight:700;">Proforma ausstehend ${eur(ohneProfSumV)}</span>` : ''} <span class="vc-info" data-tip="Drei Verbindlichkeits-Stufen: (1) RECHNUNG/GELIEFERT — Forderung existiert, Betrag und Termin exakt. (2) VORKASSE NACH PROFORMA — Zahlungsaufforderung ist raus, der Eingang wird laut Vorkasse-Regel FEST erwartet; der Betrag ist bis zur Verladung vorläufig (Δ Proforma↔Rechnung bei nicht verladener Ware). (3) PROFORMA AUSSTEHEND — Auftrag bestätigt, aber die Zahlungsaufforderung ist noch nicht verschickt. Fehlt die Spalte Proformas im Export, zählt alle Vorkasse als Stufe 2.">ⓘ</span></div>
+                  <span style="margin-left:auto;display:inline-flex;gap:4px;">${tglBtn('woche', 'Wochen')}${tglBtn('tag', 'Tage')}</span>
                 </div>
-                <div style="display:flex;align-items:stretch;gap:0.8rem;">
-                  ${topf.ueberfaellig.n ? `<div style="display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:2px;padding-right:0.8rem;border-right:1px dashed var(--border);" title="Termin lag vor heute — Eingang überfällig, nachfassen!">
-                    <div style="font-size:0.72rem;font-weight:700;font-family:var(--font-mono);color:var(--accent-red);">${eur(topf.ueberfaellig.sum)}</div>
-                    <div style="width:26px;height:40px;background:var(--accent-red);border-radius:2px;opacity:0.85;"></div>
-                    <div style="font-size:0.5rem;color:var(--accent-red);">ÜBERFÄLLIG (${topf.ueberfaellig.n})</div>
-                  </div>` : ''}
-                  <div style="flex:1;display:flex;align-items:flex-end;gap:1px;">${bars}</div>
-                  ${(topf.spaeter.n || topf.offen.n) ? `<div style="display:flex;flex-direction:column;justify-content:flex-end;gap:0.3rem;padding-left:0.8rem;border-left:1px dashed var(--border);font-size:0.55rem;color:var(--text-muted);white-space:nowrap;">
-                    ${topf.spaeter.n ? `<div title="Termin liegt mehr als 4 Wochen in der Zukunft">später: <b style="font-family:var(--font-mono);">${eur(topf.spaeter.sum)}</b> (${topf.spaeter.n})</div>` : ''}
-                    ${topf.offen.n ? `<div title="Kein Rechnungs-, Versand- oder Anlieferdatum vorhanden — Termin nicht bestimmbar. Rechnungsdatum + Zahlungsziel im WA-Sheet pflegen!">ohne Termin: <b style="font-family:var(--font-mono);">${eur(topf.offen.sum)}</b> (${topf.offen.n})</div>` : ''}
-                  </div>` : ''}
+                ${svg}
+                <div style="display:flex;gap:1.2rem;flex-wrap:wrap;font-size:0.6rem;color:var(--text-secondary);margin-top:0.3rem;">
+                  ${legDot(C_UEB, 'überfällig (sollte längst da sein)')}
+                  ${legDot(C_HEUTE, 'fällig heute (letzter Zahltag)')}
+                  ${legDot(C_TAG, mode === 'tag' ? 'fällig je Tag' : 'fällig je Woche')}
+                  ${legDot(C_SPAET, 'später (nach +' + FENSTER + ' T)')}
                 </div>
-                <div style="display:flex;gap:1.2rem;flex-wrap:wrap;font-size:0.55rem;color:var(--text-muted);margin-top:0.55rem;">
-                  ${chip('var(--accent-orange)', 'Vorkasse n. Proforma (+3 Tage)', 'Bestätigte, noch nicht versendete Aufträge MIT verschickter Proforma — Eingang wird fest erwartet (Vorkasse-Regel), Betrag bis Verladung vorläufig. Termin ab Auftrags-Erstellungsdatum gerechnet (Proforma-/Bestätigungsdatum fehlt im Export).')}
-                  ${chip('var(--text-muted)', 'Proforma ausstehend', 'Bestätigte Aufträge, für die noch KEINE Proforma verschickt ist — der Zahlungs-Trigger fehlt noch. To-do fürs Backoffice: Proforma raus, dann wandert der Betrag in die feste Erwartung.')}
-                  ${chip('var(--accent-green)', 'Rechnung + Zahlungsziel', 'EXAKTE Termine: offene Rechnungen aus dem Odoo-Export account.move (fälliger Restbetrag am Fälligkeitsdatum) — bzw. ohne diesen Export: versendete Aufträge mit gepflegtem Rechnungsdatum + Zahlungsziel im WA-Sheet.')}
-                  ${chip('var(--accent-cyan)', 'Annahme: Versand + 14 Tage', 'Versendete Aufträge OHNE Rechnungsdaten: Standard-Zahlungsziel 14 Tage ab Versand-/Anlieferdatum als Annahme — wird exakt, sobald Rechnungsdatum + Ziel im WA-Sheet stehen.')}
-                  <span>Stichtagswerte · kein Zeitraum-Filter</span>
-                </div>
+                ${offen.n ? `<div style="font-size:0.62rem;color:var(--text-secondary);margin-top:0.35rem;">${legDot(C_OFFEN, `<b>Fälligkeit offen:</b> ${eur(offen.v)} (${offen.n} Posten — ${Object.entries(offen.typen).map(([t, v]) => `${typName[t] || t} ${eur(v)}`).join(' · ')}) — noch kein Termin bestimmbar.`)}</div>` : ''}
+                <div style="font-size:0.55rem;color:var(--text-muted);margin-top:0.35rem;">Stichtagswerte · kein Zeitraum-Filter · Hover auf einen Balken zeigt den Aufriss (Vorkasse / Rechnung / Annahme)</div>
               </div>`;
         }
 
