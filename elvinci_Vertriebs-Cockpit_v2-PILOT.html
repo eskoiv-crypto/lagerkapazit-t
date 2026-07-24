@@ -5392,6 +5392,8 @@
                     <input type="file" class="file-input" id="file-auto" multiple accept=".csv,.xlsx,.xls" style="display: none;" onchange="handleAutoFiles(this)">
                     <!-- AUTO-LOAD (24.07.): einmal Teams-Ordner verbinden → bei jedem Öffnen die jüngste Datei je Quelle -->
                     <div id="autoload-bar" style="font-size: 0.65rem; color: var(--text-secondary); margin-bottom: 0.5rem;"></div>
+                    <!-- Fallback-Ordner-Dialog (webkitdirectory): funktioniert auch auf file://-Seiten -->
+                    <input type="file" id="autoload-dir-input" webkitdirectory multiple style="display: none;" onchange="_autoloadFallbackFiles(this)">
                     <div id="archive-status" style="font-size: 0.65rem; color: var(--text-secondary); margin-bottom: 0.5rem;"></div>
                     <div style="margin-bottom: 0.5rem;">
                         <button onclick="toggleManualUpload()" id="manual-upload-toggle" type="button" style="padding: 0.2rem 0.6rem; background: transparent; border: 1px solid var(--border-subtle, rgba(255,255,255,0.15)); color: var(--text-muted); border-radius: 4px; font-size: 0.62rem; cursor: pointer;">▸ Manuelle Zuordnung</button>
@@ -7913,16 +7915,38 @@ Keine Erklärungen, kein Markdown.`;
         function _autoloadBar(html) { const el = document.getElementById('autoload-bar'); if (el) el.innerHTML = html; }
         const _alLink = (fn, txt) => `<a onclick="${fn}()" style="color:var(--accent-cyan);cursor:pointer;text-decoration:underline;">${txt}</a>`;
 
+        // Zwei Wege zum Ordner (24.07., User: „der Autoupload funktioniert noch nicht"):
+        //   (A) File System Access API — merkt sich den Ordner, lädt künftig ohne/mit
+        //       1 Klick. Funktioniert aber NICHT überall (insb. file://-Seiten können
+        //       den Picker blockieren) — genau daran scheiterte der erste Wurf.
+        //   (B) FALLBACK Ordner-Dialog (webkitdirectory-Input) — funktioniert in jedem
+        //       Chromium-Browser auch auf file://: 1 Klick → Ordner bestätigen → der
+        //       Browser liefert ALLE Dateien rekursiv, wir picken die jüngste je Typ.
+        //       Keine Persistenz nötig; der Dialog merkt sich die letzte Position.
+        // Schlägt (A) fehl, schaltet das Cockpit automatisch und DAUERHAFT auf (B)
+        // um (localStorage-Flag) — der Nutzer sieht nie wieder den kaputten Weg.
+        function _autoloadModus() { try { return localStorage.getItem('elvinci_autoload_modus') || 'fsa'; } catch (e) { return 'fsa'; } }
+        function _autoloadSetModus(m) { try { localStorage.setItem('elvinci_autoload_modus', m); } catch (e) {} }
+
+        function _autoloadFallbackBar(zusatz) {
+            _autoloadBar(`<button onclick="autoLoadFallbackClick()" type="button" style="padding:0.35rem 0.8rem;background:var(--accent-cyan);border:none;color:#fff;border-radius:5px;font-size:0.68rem;cursor:pointer;font-weight:700;">📂 Frische Daten laden — Ordner wählen</button> <span style="color:var(--text-muted);">den Ordner „Lager_Sales Dashboard" bestätigen — das Cockpit pickt selbst die jüngste Datei je Quelle</span>${zusatz || ''}`);
+        }
+
         async function autoLoadTry() {
-            if (typeof window.showDirectoryPicker !== 'function') {
-                _autoloadBar('<span style="color:var(--text-muted);">📂 Auto-Load: benötigt Edge/Chrome (File System Access API) — hier gilt weiter Drag & Drop.</span>');
+            const fallbackNoetig = typeof window.showDirectoryPicker !== 'function' || _autoloadModus() === 'fallback';
+            if (fallbackNoetig) {
+                if (typeof window.showDirectoryPicker !== 'function' && !/chrom|edg/i.test(navigator.userAgent)) {
+                    _autoloadBar('<span style="color:var(--text-muted);">📂 Auto-Load: benötigt Edge/Chrome — hier gilt weiter Drag & Drop.</span>');
+                    return;
+                }
+                _autoloadFallbackBar();
                 return;
             }
             let rec = null;
             try { rec = await idbStores.settings().get('autoload-dir'); } catch (e) {}
             dashboardState._autoloadRec = rec || null;
             if (!rec || !rec.handle) {
-                _autoloadBar(`<button onclick="autoLoadConnect()" type="button" style="padding:0.3rem 0.7rem;background:transparent;border:1px solid var(--accent-cyan);color:var(--accent-cyan);border-radius:5px;font-size:0.65rem;cursor:pointer;font-weight:600;">📂 Teams-Ordner verbinden — Auto-Load der jüngsten Dateien</button> <span style="color:var(--text-muted);">einmalig · nur Lese-Zugriff · den Ordner „Lager_Sales Dashboard" wählen</span>`);
+                _autoloadBar(`<button onclick="autoLoadConnect()" type="button" style="padding:0.3rem 0.7rem;background:transparent;border:1px solid var(--accent-cyan);color:var(--accent-cyan);border-radius:5px;font-size:0.65rem;cursor:pointer;font-weight:600;">📂 Teams-Ordner verbinden — Auto-Load der jüngsten Dateien</button> <span style="color:var(--text-muted);">einmalig · nur Lese-Zugriff · den Ordner „Lager_Sales Dashboard" wählen</span> · ${_alLink('autoLoadFallbackClick', 'oder: Ordner-Dialog nutzen')}`);
                 return;
             }
             let perm = 'prompt';
@@ -7939,12 +7963,14 @@ Keine Erklärungen, kein Markdown.`;
             try {
                 const p = await rec.handle.requestPermission({ mode: 'read' });
                 if (p === 'granted') autoLoadScan(rec.handle);
-                else showToast('warning', 'Auto-Load', 'Zugriff nicht erteilt — Ordner neu verbinden oder Drag & Drop nutzen.', 6000);
+                else showToast('warning', 'Auto-Load', 'Zugriff nicht erteilt — Ordner neu verbinden oder den Ordner-Dialog nutzen.', 6000);
             } catch (e) {
-                showToast('error', 'Auto-Load', 'Zugriff fehlgeschlagen: ' + (e.message || e) + ' — Ordner über „verbinden" neu wählen.', 7000);
+                console.warn('[Auto-Load] requestPermission fehlgeschlagen → Fallback', e);
                 try { await idbStores.settings().delete('autoload-dir'); } catch (e2) {}
                 dashboardState._autoloadRec = null;
-                autoLoadTry();
+                _autoloadSetModus('fallback');
+                _autoloadFallbackBar(` <span style="color:var(--accent-orange);">(gemerkter Ordner-Zugriff funktionierte nicht mehr — umgestellt auf den Ordner-Dialog)</span>`);
+                autoLoadFallbackClick();
             }
         }
 
@@ -7957,7 +7983,12 @@ Keine Erklärungen, kein Markdown.`;
                 autoLoadScan(dir);
             } catch (e) {
                 if (e && e.name === 'AbortError') return;
-                showToast('error', 'Auto-Load', 'Ordner-Auswahl fehlgeschlagen: ' + (e.message || e) + (location.protocol === 'file:' ? ' — blockiert der Browser file://-Seiten, bleibt Drag & Drop der Weg.' : ''), 8000);
+                // SecurityError & Co. (typisch bei file://-Seiten): dauerhaft auf den
+                // Ordner-Dialog umschalten und ihn im selben Klick direkt öffnen.
+                console.warn('[Auto-Load] showDirectoryPicker fehlgeschlagen → Fallback', e);
+                _autoloadSetModus('fallback');
+                _autoloadFallbackBar(` <span style="color:var(--accent-orange);">(Browser blockiert den Ordner-Zugriff hier — umgestellt auf den Ordner-Dialog, der überall funktioniert)</span>`);
+                autoLoadFallbackClick();
             }
         }
 
@@ -7967,6 +7998,27 @@ Keine Erklärungen, kein Markdown.`;
             dashboardState._autoloadDone = {};
             showToast('info', 'Auto-Load getrennt', 'Der Ordner-Zugriff wurde entfernt — Drag & Drop wie gehabt.', 5000);
             autoLoadTry();
+        }
+
+        // FALLBACK: versteckter Ordner-Dialog. Liefert ALLE Dateien des gewählten
+        // Ordners rekursiv (webkitRelativePath) — Auswahl-Logik identisch zu (A).
+        function autoLoadFallbackClick() {
+            const inp = document.getElementById('autoload-dir-input');
+            if (inp) { inp.value = ''; inp.click(); }
+        }
+        function _autoloadFallbackFiles(input) {
+            const files = Array.from((input && input.files) || []);
+            if (!files.length) return;
+            const gruppen = {};
+            files.forEach(f => {
+                const pfad = f.webkitRelativePath || f.name;
+                if (/(^|\/)archiv/i.test(pfad)) return;                    // alte Kopien ignorieren
+                if (!/\.(csv|xlsx|xls)$/i.test(f.name)) return;
+                const t = detectFileType(f.name);
+                if (t && (AUTOLOAD_DAILY.includes(t) || AUTOLOAD_EINMALIG.includes(t))) (gruppen[t] = gruppen[t] || []).push(f);
+            });
+            const wurzel = (files[0].webkitRelativePath || '').split('/')[0] || 'Ordner';
+            _autoloadVerarbeite(gruppen, wurzel, 'fallback');
         }
 
         async function _autoloadWalk(dir, depth, out) {
@@ -7985,23 +8037,32 @@ Keine Erklärungen, kein Markdown.`;
             const found = {};
             try { await _autoloadWalk(dirHandle, 0, found); }
             catch (e) {
-                _autoloadBar(`<span style="color:var(--accent-orange);">📂 Auto-Load: Ordner-Zugriff fehlgeschlagen (${e.message || e})</span> · ${_alLink('autoLoadConnect', 'neu verbinden')}`);
+                _autoloadBar(`<span style="color:var(--accent-orange);">📂 Auto-Load: Ordner-Zugriff fehlgeschlagen (${e.message || e})</span> · ${_alLink('autoLoadConnect', 'neu verbinden')} · ${_alLink('autoLoadFallbackClick', 'Ordner-Dialog nutzen')}`);
                 return;
             }
+            // Handles → Dateien (jüngste Ermittlung braucht lastModified)
+            const gruppen = {};
+            for (const typ of Object.keys(found)) {
+                for (const h of found[typ]) {
+                    try { (gruppen[typ] = gruppen[typ] || []).push(await h.getFile()); }
+                    catch (e) { console.warn('[Auto-Load] Datei nicht lesbar', h.name, e); }
+                }
+            }
+            _autoloadVerarbeite(gruppen, dirHandle.name, 'fsa');
+        }
+
+        // Gemeinsame Verarbeitung beider Wege: jüngste Datei je Typ laden.
+        async function _autoloadVerarbeite(gruppen, quelle, modus) {
             let archived = [];
             try { archived = (await idbStores.archives().getAll()).map(r => r.type); } catch (e) {}
             const done = dashboardState._autoloadDone = dashboardState._autoloadDone || {};
             const geladen = [], uebersprungen = [];
             const lbl = t => (typeof FIELD_LABELS !== 'undefined' && FIELD_LABELS[t]) || t.toUpperCase();
             for (const typ of [...AUTOLOAD_EINMALIG, ...AUTOLOAD_DAILY]) {
-                const hs = found[typ]; if (!hs || !hs.length) continue;
+                const fs = gruppen[typ]; if (!fs || !fs.length) continue;
                 if (AUTOLOAD_EINMALIG.includes(typ) && archived.includes(typ)) { uebersprungen.push(lbl(typ)); continue; }
                 let newest = null;
-                for (const h of hs) {
-                    try { const f = await h.getFile(); if (!newest || f.lastModified > newest.lastModified) newest = f; }
-                    catch (e) { console.warn('[Auto-Load] Datei nicht lesbar', h.name, e); }
-                }
-                if (!newest) continue;
+                fs.forEach(f => { if (!newest || f.lastModified > newest.lastModified) newest = f; });
                 const key = `${newest.name}|${newest.lastModified}`;
                 if (done[typ] === key) continue;   // exakt diese Datei läuft bereits in dieser Sitzung
                 done[typ] = key;
@@ -8012,11 +8073,14 @@ Keine Erklärungen, kein Markdown.`;
             const zeit = new Date().toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
             const fmtT = d => d.toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
             const teile = geladen.map(g => `<b>${lbl(g.typ)}</b> (Stand ${fmtT(g.mtime)})`).join(' · ');
-            _autoloadBar(`<span style="color:var(--accent-green);">✓ Auto-Load ${zeit}:</span> ${geladen.length ? teile : 'keine neuen Dateien'}${uebersprungen.length ? ` <span style="color:var(--text-muted);">· Historie aus dem Archiv: ${uebersprungen.join(', ')}</span>` : ''} · ${_alLink('autoLoadClick', '↻ neu laden')} · ${_alLink('autoLoadDisconnect', '✕ trennen')}`);
+            const links = modus === 'fallback'
+                ? `${_alLink('autoLoadFallbackClick', '↻ neu laden (Ordner wählen)')}`
+                : `${_alLink('autoLoadClick', '↻ neu laden')} · ${_alLink('autoLoadDisconnect', '✕ trennen')}`;
+            _autoloadBar(`<span style="color:var(--accent-green);">✓ Auto-Load ${zeit}:</span> ${geladen.length ? teile : 'keine neuen Dateien'}${uebersprungen.length ? ` <span style="color:var(--text-muted);">· Historie aus dem Archiv: ${uebersprungen.join(', ')}</span>` : ''} · ${links}`);
             if (geladen.length) {
-                showToast('success', '📂 Auto-Load', `${geladen.length} jüngste Datei(en) aus „${dirHandle.name}" geladen.`, 6000);
+                showToast('success', '📂 Auto-Load', `${geladen.length} jüngste Datei(en) aus „${quelle}" geladen.`, 6000);
             } else if (!uebersprungen.length) {
-                showToast('warning', '📂 Auto-Load', `In „${dirHandle.name}" keine bekannten Dateien gefunden — den Ordner „Lager_Sales Dashboard" (mit den Unterordnern 01–03) verbinden.`, 8000);
+                showToast('warning', '📂 Auto-Load', `In „${quelle}" keine bekannten Dateien gefunden — den Ordner „Lager_Sales Dashboard" (mit den Unterordnern 01–03) wählen.`, 8000);
             }
         }
 
