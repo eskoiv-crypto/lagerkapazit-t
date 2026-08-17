@@ -11,8 +11,203 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
-  <!-- Dashboard CSS -->
-  <link rel="stylesheet" href="src/css/dashboard.css">
+  <style>
+/* ============================================================
+   NH5 Lagerkapazitäts-Dashboard — Styles
+   elvinci.de GmbH | v1.0
+   ============================================================ */
+
+:root {
+  /* Brand */
+  --orange: #f97316;
+  --orange-light: #fff7ed;
+  --blue: #3b82f6;
+  --blue-light: #eff6ff;
+
+  /* Status */
+  --green: #22c55e;
+  --yellow: #eab308;
+  --red: #ef4444;
+
+  /* Layout */
+  --sidebar-w: 280px;
+  --header-h: 64px;
+
+  /* Surfaces */
+  --bg: #f0f2f5;
+  --surface: #ffffff;
+  --sidebar-bg: #1a1a2e;
+  --sidebar-text: #e2e8f0;
+  --text: #1e293b;
+  --text-muted: #64748b;
+  --border: #e2e8f0;
+  --shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+/* ---- Reset ---- */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); }
+
+/* ---- Layout ---- */
+#app { display: flex; min-height: 100vh; }
+
+/* ---- Sidebar ---- */
+#sidebar {
+  width: var(--sidebar-w);
+  background: var(--sidebar-bg);
+  color: var(--sidebar-text);
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  overflow-y: auto;
+  position: fixed;
+  top: 0; left: 0; bottom: 0;
+  z-index: 100;
+}
+#sidebar .logo { font-size: 1.4rem; font-weight: 700; padding: 0.5rem 0 1rem; border-bottom: 1px solid rgba(255,255,255,0.1); }
+
+/* Upload Groups */
+.upload-group { padding: 0.75rem; border-radius: 8px; }
+.upload-group.orange { background: rgba(249,115,22,0.1); border: 1px solid rgba(249,115,22,0.3); }
+.upload-group.blue { background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.3); }
+.upload-group h3 { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem; }
+.upload-group.orange h3 { color: var(--orange); }
+.upload-group.blue h3 { color: var(--blue); }
+
+/* Upload Slots */
+.upload-slot { margin-bottom: 0.5rem; }
+.upload-slot label { display: block; font-size: 0.8rem; margin-bottom: 0.25rem; color: var(--sidebar-text); }
+.upload-slot input[type="file"] { display: none; }
+.upload-btn {
+  display: flex; align-items: center; gap: 0.5rem;
+  width: 100%; padding: 0.5rem 0.75rem;
+  background: rgba(255,255,255,0.05); border: 1px dashed rgba(255,255,255,0.2);
+  border-radius: 6px; color: var(--sidebar-text);
+  font-size: 0.75rem; cursor: pointer; transition: all 0.2s;
+}
+.upload-btn:hover { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.4); }
+
+/* Upload Status Indicators — FIX #10 */
+.upload-status {
+  font-size: 0.7rem; margin-top: 0.25rem; min-height: 1rem;
+  display: flex; align-items: center; gap: 0.25rem;
+}
+.upload-status.loading { color: var(--yellow); }
+.upload-status.success { color: var(--green); }
+.upload-status.error { color: var(--red); }
+
+/* Drag-and-drop — FIX #12 */
+.upload-slot.dragover .upload-btn {
+  background: rgba(255,255,255,0.15);
+  border-color: var(--green);
+  border-style: solid;
+}
+
+/* ---- Main Content ---- */
+#content {
+  margin-left: var(--sidebar-w);
+  flex: 1;
+  padding: 1.5rem;
+}
+
+/* Header */
+#content header {
+  display: flex; align-items: center; gap: 1rem;
+  margin-bottom: 1.5rem; padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border);
+}
+#content header h1 { font-size: 1.5rem; font-weight: 700; }
+.version { background: var(--blue); color: #fff; padding: 0.15rem 0.5rem; border-radius: 4px; font-size: 0.7rem; }
+#current-date { margin-left: auto; color: var(--text-muted); font-size: 0.85rem; }
+
+/* ---- Cards ---- */
+.stats-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-top: 1rem; }
+.card {
+  background: var(--surface); border-radius: 10px; padding: 1.25rem;
+  box-shadow: var(--shadow); border-left: 4px solid var(--blue);
+}
+.card h4 { font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); margin-bottom: 0.5rem; }
+.card .value { font-size: 2rem; font-weight: 700; display: block; }
+.card .unit { font-size: 0.75rem; color: var(--text-muted); }
+.card.orange { border-left-color: var(--orange); }
+.card.green { border-left-color: var(--green); }
+.card.red { border-left-color: var(--red); }
+
+/* ---- Gauge ---- */
+.gauge-container { display: flex; flex-direction: column; align-items: center; margin-bottom: 1rem; }
+.gauge-container canvas { max-width: 320px; max-height: 200px; }
+.gauge-label { font-size: 0.85rem; font-weight: 600; margin-top: 0.5rem; color: var(--text-muted); }
+.gauge-value { font-size: 2.5rem; font-weight: 700; margin-top: -1.5rem; }
+
+/* ---- Sections ---- */
+section { background: var(--surface); border-radius: 10px; padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: var(--shadow); }
+section h2 { font-size: 1.1rem; font-weight: 700; margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border); }
+
+/* ---- Tables ---- */
+table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+th { text-align: left; padding: 0.6rem 0.75rem; background: var(--bg); font-weight: 600; color: var(--text-muted); font-size: 0.7rem; text-transform: uppercase; }
+td { padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border); }
+tr:hover td { background: rgba(59,130,246,0.03); }
+
+/* ---- Filter Bar ---- */
+.filter-bar { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
+.filter-bar button {
+  padding: 0.35rem 0.75rem; border-radius: 6px; border: 1px solid var(--border);
+  background: var(--surface); color: var(--text-muted); font-size: 0.75rem; cursor: pointer;
+}
+.filter-bar button.active { background: var(--blue); color: #fff; border-color: var(--blue); }
+
+/* ---- Effizienz ---- */
+.effizienz-container { display: grid; grid-template-columns: 250px 1fr; gap: 1.5rem; align-items: start; }
+.effizienz-today { background: var(--bg); padding: 1rem; border-radius: 8px; }
+.effizienz-today h4 { margin-bottom: 0.75rem; }
+.effizienz-values { display: flex; flex-direction: column; gap: 0.5rem; font-size: 0.85rem; }
+.effizienz-values strong { font-size: 1.2rem; }
+
+/* ---- Settings Overlay ---- */
+#settings-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+  display: flex; align-items: center; justify-content: center; z-index: 200;
+}
+#settings-overlay.hidden { display: none; }
+.settings-panel {
+  background: var(--surface); border-radius: 12px; padding: 2rem;
+  width: 90%; max-width: 600px; max-height: 80vh; overflow-y: auto;
+}
+.settings-panel h2 { margin-bottom: 1.5rem; }
+.settings-panel label { display: block; font-size: 0.8rem; font-weight: 600; margin-bottom: 0.25rem; }
+.settings-panel input[type="number"],
+.settings-panel input[type="password"],
+.settings-panel input[type="text"] {
+  width: 100%; padding: 0.5rem; border: 1px solid var(--border);
+  border-radius: 6px; font-size: 0.85rem; margin-bottom: 0.75rem;
+}
+.settings-panel button {
+  padding: 0.5rem 1.25rem; border-radius: 6px; border: none;
+  font-size: 0.85rem; cursor: pointer; font-weight: 600;
+}
+.btn-primary { background: var(--blue); color: #fff; }
+.btn-danger { background: var(--red); color: #fff; }
+.btn-secondary { background: var(--bg); color: var(--text); border: 1px solid var(--border); }
+.settings-actions { display: flex; gap: 0.75rem; margin-top: 1rem; }
+
+.hidden { display: none !important; }
+
+/* ---- Validation ---- */
+#validation-results { font-size: 0.8rem; }
+.validation-ok { color: var(--green); }
+.validation-warn { color: var(--yellow); }
+.validation-error { color: var(--red); }
+
+/* ---- Responsive ---- */
+@media (max-width: 768px) {
+  #sidebar { width: 100%; position: relative; }
+  #content { margin-left: 0; }
+  .stats-cards { grid-template-columns: 1fr 1fr; }
+  .effizienz-container { grid-template-columns: 1fr; }
+}
+  </style>
 </head>
 <body>
   <div id="app">
@@ -97,7 +292,7 @@
           <canvas id="gauge-canvas" width="320" height="200"></canvas>
           <div class="gauge-value" id="gauge-pct">0%</div>
           <div class="gauge-label">LAGER — Auslastung</div>
-          <div class="gauge-detail" id="gauge-detail" style="font-size:0.8rem;color:var(--text-muted);">0 / 0 Punkte</div>
+          <div id="gauge-detail" style="font-size:0.8rem;color:var(--text-muted);">0 / 0 Punkte</div>
         </div>
         <div class="stats-cards">
           <div class="card">
@@ -200,14 +395,12 @@
     <div class="settings-panel">
       <h2>Einstellungen</h2>
 
-      <!-- Password Gate — FIX #17 -->
       <div id="password-gate">
         <label for="admin-pw">Admin-Passwort</label>
         <input type="password" id="admin-pw" placeholder="Passwort eingeben">
         <button id="btn-pw-submit" type="button" class="btn-primary">Anmelden</button>
       </div>
 
-      <!-- Settings Content (hidden until auth) -->
       <div id="settings-content" class="hidden">
         <h3 style="margin:1rem 0 0.5rem;">Kapazitäts-Parameter</h3>
         <label>Fläche (qm)</label>
@@ -233,21 +426,1416 @@
     </div>
   </div>
 
-  <!-- ===== JAVASCRIPT SILOS (load order matters) ===== -->
-  <script src="src/js/utils/config.js"></script>
-  <script src="src/js/utils/dates.js"></script>
-  <script src="src/js/utils/storage.js"></script>
-  <script src="src/js/utils/dom.js"></script>
-  <script src="src/js/utils/gewichtung.js"></script>
-  <script src="src/js/upload/csv-reader.js"></script>
-  <script src="src/js/upload/xlsx-reader.js"></script>
-  <script src="src/js/upload/handler.js"></script>
-  <script src="src/js/capacity/capacity.js"></script>
-  <script src="src/js/forecast/forecast.js"></script>
-  <script src="src/js/blocker/blocker.js"></script>
-  <script src="src/js/effizienz/effizienz.js"></script>
-  <script src="src/js/charts/charts.js"></script>
-  <script src="src/js/admin/admin.js"></script>
-  <script src="src/js/app.js"></script>
+  <!-- ===== ALL JAVASCRIPT (BUNDLED) ===== -->
+  <script>
+  (function() {
+  'use strict';
+/* ============================================================
+   SILO: Configuration & Defaults
+   All tuneable parameters in one place
+   ============================================================ */
+
+const CONFIG = {
+  // Capacity defaults
+  defaults: {
+    flaecheQm: 2766,
+    palettenProQm: 0.565,
+    punkteProPalette: 4,
+    regalHalle1: 702,
+    regalHalle2: 828,
+    quKapazitaet: 2350
+  },
+
+  // Calculated capacity (derived from defaults)
+  get calculated() {
+    const d = this.defaults;
+    const bodenKapazitaet = Math.round(d.flaecheQm * d.palettenProQm * d.punkteProPalette);
+    const regalKapazitaet = d.regalHalle1 + d.regalHalle2;
+    const lagerKapazitaet = bodenKapazitaet + regalKapazitaet;
+    const gesamtNH5 = lagerKapazitaet + d.quKapazitaet;
+    return { bodenKapazitaet, regalKapazitaet, lagerKapazitaet, gesamtNH5 };
+  },
+
+  // Effizienz
+  effizienzZiel: 470,
+  effizienzHistorieTage: 90,
+
+  // localStorage keys
+  storageKeys: {
+    settings: 'elvinci_dashboard_settings',
+    effizienz: 'elvinci_effizienz_daily',
+    snapshots: 'elvinci_bestand_snapshots'
+  },
+
+  // Admin
+  adminPassword: 'elvinci'
+};
+/* ============================================================
+   SILO: Date Utilities
+   FIX #15: Enforce DD.MM.YYYY parsing for German dates
+   ============================================================ */
+
+/* Parse German date string "DD.MM.YYYY" → Date object
+   Returns null on invalid input instead of Invalid Date */
+function parseGermanDate(dateStr) {
+  if (!dateStr) return null;
+  const str = String(dateStr).trim();
+
+  // Try DD.MM.YYYY
+  const dotMatch = str.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+  if (dotMatch) {
+    const [, day, month, year] = dotMatch;
+    const d = new Date(+year, +month - 1, +day);
+    if (!isNaN(d.getTime())) return d;
+  }
+
+  // Try YYYY-MM-DD (ISO fallback)
+  const isoMatch = str.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (isoMatch) {
+    const [, year, month, day] = isoMatch;
+    const d = new Date(+year, +month - 1, +day);
+    if (!isNaN(d.getTime())) return d;
+  }
+
+  return null;
+}
+
+/* Format Date → "DD.MM.YYYY" */
+function formatGermanDate(date) {
+  if (!date || isNaN(date.getTime())) return '—';
+  const dd = String(date.getDate()).padStart(2, '0');
+  const mm = String(date.getMonth() + 1).padStart(2, '0');
+  return `${dd}.${mm}.${date.getFullYear()}`;
+}
+
+/* Days between two dates (ignoring time) */
+function daysBetween(a, b) {
+  const msPerDay = 86400000;
+  const utcA = Date.UTC(a.getFullYear(), a.getMonth(), a.getDate());
+  const utcB = Date.UTC(b.getFullYear(), b.getMonth(), b.getDate());
+  return Math.floor((utcB - utcA) / msPerDay);
+}
+
+/* Get next N workdays from a start date */
+function getWorkdays(startDate, count) {
+  const days = [];
+  const d = new Date(startDate);
+  while (days.length < count) {
+    d.setDate(d.getDate() + 1);
+    const dow = d.getDay();
+    if (dow !== 0 && dow !== 6) days.push(new Date(d));
+  }
+  return days;
+}
+
+/* Today at midnight */
+function today() {
+  const now = new Date();
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+}
+/* ============================================================
+   SILO: localStorage Utilities
+   FIX #16: Quota guard with try/catch + size management
+   ============================================================ */
+
+/* Safe localStorage write — catches QuotaExceededError */
+function safeStorageSet(key, value) {
+  try {
+    const json = JSON.stringify(value);
+    localStorage.setItem(key, json);
+    return true;
+  } catch (e) {
+    if (e.name === 'QuotaExceededError' || e.code === 22) {
+      console.warn('[Storage] Quota exceeded for key:', key);
+      // Try to free space by trimming oldest snapshots
+      trimSnapshots();
+      try {
+        localStorage.setItem(key, JSON.stringify(value));
+        return true;
+      } catch (e2) {
+        console.error('[Storage] Still over quota after trim:', e2);
+        return false;
+      }
+    }
+    console.error('[Storage] Write failed:', e);
+    return false;
+  }
+}
+
+/* Safe localStorage read — returns null on failure */
+function safeStorageGet(key) {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) {
+    console.error('[Storage] Read failed for key:', key, e);
+    return null;
+  }
+}
+
+/* Remove a key */
+function safeStorageRemove(key) {
+  try { localStorage.removeItem(key); } catch (e) { /* ignore */ }
+}
+
+/* Trim oldest BESTAND snapshots to stay under quota */
+function trimSnapshots() {
+  const key = 'elvinci_bestand_snapshots';
+  const data = safeStorageGet(key);
+  if (!data || typeof data !== 'object') return;
+
+  const dates = Object.keys(data).sort();
+  // Keep only last 30 days instead of 90 when over quota
+  while (dates.length > 30) {
+    delete data[dates.shift()];
+  }
+  try {
+    localStorage.setItem(key, JSON.stringify(data));
+  } catch (e) { /* last resort: clear snapshots entirely */
+    localStorage.removeItem(key);
+  }
+}
+
+/* Approximate localStorage usage in bytes */
+function getStorageUsage() {
+  let total = 0;
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    total += key.length + (localStorage.getItem(key) || '').length;
+  }
+  return total * 2; // UTF-16 = 2 bytes per char
+}
+
+/* Clear all dashboard keys */
+function clearAllLocalStorage() {
+  ['elvinci_dashboard_settings', 'elvinci_effizienz_daily', 'elvinci_bestand_snapshots'].forEach(k => {
+    safeStorageRemove(k);
+  });
+}
+/* ============================================================
+   SILO: Safe DOM Utilities
+   FIX #18: Always use textContent, never innerHTML for user data
+   ============================================================ */
+
+/* Create element with text content (safe from XSS) */
+function createEl(tag, text, className) {
+  const el = document.createElement(tag);
+  if (text !== undefined && text !== null) el.textContent = String(text);
+  if (className) el.className = className;
+  return el;
+}
+
+/* Create a table row from array of cell values (all textContent) */
+function createTableRow(cells, isHeader) {
+  const tr = document.createElement('tr');
+  cells.forEach(cellValue => {
+    const cell = document.createElement(isHeader ? 'th' : 'td');
+    cell.textContent = cellValue !== undefined && cellValue !== null ? String(cellValue) : '—';
+    tr.appendChild(cell);
+  });
+  return tr;
+}
+
+/* Safely set text on an element by ID */
+function setText(id, text) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = String(text);
+}
+
+/* Show/hide element */
+function show(el) { if (typeof el === 'string') el = document.getElementById(el); if (el) el.classList.remove('hidden'); }
+function hide(el) { if (typeof el === 'string') el = document.getElementById(el); if (el) el.classList.add('hidden'); }
+
+/* Set upload status indicator — FIX #10 */
+function setUploadStatus(slotId, status, message) {
+  const slot = document.getElementById(slotId);
+  if (!slot) return;
+  const statusEl = slot.querySelector('.upload-status');
+  if (!statusEl) return;
+
+  statusEl.className = 'upload-status ' + status;
+  const icons = { loading: '\u23F3', success: '\u2705', error: '\u274C' };
+  statusEl.textContent = (icons[status] || '') + ' ' + (message || '');
+}
+/* ============================================================
+   SILO: Gewichtungsfaktoren (Weighting Factors)
+   Faktor = how much pallet space a device occupies (in PUNKTE)
+   ============================================================ */
+
+const GEWICHTUNG_MAP = [
+  { faktor: 4.0, typen: ['side-by-side kühlschrank', 'gefriertruhe', 'freistehender gefrierschrank'] },
+  { faktor: 2.0, typen: ['kühlschrank', 'kühl-/gefrierkombination', 'kühl-gefrierkombination', 'einbaukühlschrank', 'fernseher'] },
+  { faktor: 1.0, typen: ['waschmaschine', 'trockner', 'geschirrspüler', 'backofen', 'herd', 'dunstabzugshaube', 'klimagerät', 'weinkühlschrank'] },
+  { faktor: 0.8, typen: ['luftreiniger'] },
+  { faktor: 0.5, typen: ['set-artikel'] },
+  { faktor: 0.4, typen: ['mikrowelle', 'staubsauger', 'saugroboter', 'kaffeevollautomat'] },
+  { faktor: 0.2, typen: ['kochfeld', 'monitor'] }
+];
+
+/* FIX #13: Case-insensitive, includes()-based matching
+   Normalizes Bezeichner to lowercase and checks via includes()
+   so "Kühl-Gefrierkombination" matches "kühl-gefrierkombination" */
+function getGewichtung(bezeichner) {
+  if (!bezeichner) return 1.0;
+  const norm = bezeichner.toLowerCase().trim();
+
+  for (const entry of GEWICHTUNG_MAP) {
+    for (const typ of entry.typen) {
+      if (norm.includes(typ)) return entry.faktor;
+    }
+  }
+  return 1.0; // default fallback
+}
+
+/* FIX #14: Set-Artikel logic with explicit fallback chain
+   Artikelnummer ending determines factor:
+   .001 = Hauptgerät (Herd) = 1.0
+   .002 = Zubehör (Kochfeld) = 0.2
+   .003+ = Weiteres Zubehör = 0.2
+   no dot = use Bezeichner-based lookup (default) */
+function getSetArtikelFaktor(artikelNr) {
+  if (!artikelNr) return null; // no override, use Bezeichner
+  const str = String(artikelNr).trim();
+  const dotIdx = str.lastIndexOf('.');
+  if (dotIdx === -1) return null; // no dot, no set-artikel
+
+  const suffix = str.substring(dotIdx + 1);
+  if (suffix === '001') return 1.0;
+  if (suffix === '002') return 0.2;
+  // .003, .004, ... = further accessories
+  if (/^\d{3,}$/.test(suffix) && parseInt(suffix) > 2) return 0.2;
+  return null; // not a set-artikel pattern
+}
+/* ============================================================
+   SILO: CSV Upload Handler
+   Fixes: #1 (encoding), #2 (delimiter), #3 (row skip),
+          #4 (positional indices), #5 (re-upload), #11 (async)
+   ============================================================ */
+
+/* FIX #1: Read CSV with ISO-8859-1 encoding (not UTF-8!)
+   German chars ä ö ü ß will be garbled without this.
+   Returns a Promise so callers can await. FIX #11 */
+function readCSVFile(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => resolve(e.target.result);
+    reader.onerror = (e) => reject(new Error('FileReader error: ' + e.target.error));
+    reader.readAsText(file, 'ISO-8859-1'); // FIX #1: explicit encoding
+  });
+}
+
+/* FIX #2 + #3 + #4: Parse CSV text into structured rows
+   - delimiter: ";" (never auto-detect)                   — FIX #2
+   - header: false (use positional indices, not names)     — FIX #4
+   - WE-IST/WA-IST: skip row 0 (summary) + row 1 (header)— FIX #3
+   - BESTAND: skip row 0 (header only)                            */
+function parseCSV(text, type) {
+  const result = Papa.parse(text, {
+    delimiter: ';',       // FIX #2: explicit semicolon
+    header: false,        // FIX #4: positional indices
+    skipEmptyLines: true,
+    dynamicTyping: false  // keep everything as strings for safety
+  });
+
+  if (result.errors && result.errors.length > 0) {
+    console.warn('[CSV] Parse warnings:', result.errors);
+  }
+
+  let rows = result.data;
+
+  // FIX #3: Skip summary + header for WE-IST / WA-IST
+  if (type === 'we-ist' || type === 'wa-ist') {
+    // Row 0 = Zusammenfassung (ignore), Row 1 = Header, Row 2+ = Data
+    rows = rows.slice(2);
+  } else {
+    // BESTAND: Row 0 = Header, Row 1+ = Data
+    rows = rows.slice(1);
+  }
+
+  return rows;
+}
+
+/* Process BESTAND CSV — FIX #4: column indices per spec
+   Col 0: Palette, Col 1: Artikel, Col 2: Bezeichner,
+   Col 4: Lagerplatz, Col 6: Menge, Col 7: WE-Datum,
+   Col 9: Status, Col 10: Auftragsnummer */
+function processBestandCSV(rows) {
+  const items = [];
+  for (const row of rows) {
+    if (!row || row.length < 10) continue;
+
+    const bezeichner = (row[2] || '').trim();
+    const artikelNr = (row[1] || '').trim();
+    const menge = parseInt(row[6]) || 0;
+    const lagerplatz = (row[4] || '').trim();
+    const status = (row[9] || '').trim().toUpperCase();
+
+    // FIX #14: Set-Artikel factor takes priority, else use Bezeichner matching
+    let faktor = getSetArtikelFaktor(artikelNr);
+    if (faktor === null) faktor = getGewichtung(bezeichner); // FIX #13
+
+    const punkte = menge * faktor;
+
+    // Lagerplatz parsing per spec
+    let zone = 'lager';
+    if (lagerplatz.match(/^H05-WA/i)) zone = 'versand';
+    else if (lagerplatz.match(/^H05-WE/i)) zone = 'we-zone';
+
+    items.push({
+      palette: (row[0] || '').trim(),
+      artikel: artikelNr,
+      bezeichner: bezeichner,
+      lagerplatz: lagerplatz,
+      menge: menge,
+      weDatum: (row[7] || '').trim(),
+      status: status,
+      auftragsnummer: (row[10] || '').trim(),
+      faktor: faktor,
+      punkte: punkte,
+      zone: zone,
+      isQU: status === 'QU' || status === 'QE'
+    });
+  }
+  return items;
+}
+
+/* Process WE-IST CSV — FIX #4: column indices per spec
+   Col 2: Bezeichner, Col 5: Bestell-Nr, Col 6: Menge */
+function processWeIstCSV(rows) {
+  const items = [];
+  for (const row of rows) {
+    if (!row || row.length < 7) continue;
+    items.push({
+      bezeichner: (row[2] || '').trim(),
+      bestellNr: (row[5] || '').trim(),
+      menge: parseInt(row[6]) || 0
+    });
+  }
+  return items;
+}
+
+/* Process WA-IST CSV — FIX #4: column indices per spec
+   Col 2: Bezeichner, Col 5: Empfänger, Col 6: Auftrag/Beleg, Col 7: Menge */
+function processWaIstCSV(rows) {
+  const items = [];
+  for (const row of rows) {
+    if (!row || row.length < 8) continue;
+    items.push({
+      bezeichner: (row[2] || '').trim(),
+      empfaenger: (row[5] || '').trim(),
+      auftrag: (row[6] || '').trim(),
+      menge: parseInt(row[7]) || 0
+    });
+  }
+  return items;
+}
+/* ============================================================
+   SILO: XLSX Upload Handler
+   Fixes: #6 (ArrayBuffer), #7 (multi-file race),
+          #8 (sheet selection), #11 (async)
+   ============================================================ */
+
+/* FIX #6: Read XLSX with readAsArrayBuffer (NOT readAsText!)
+   FIX #11: Returns a Promise for proper async chaining */
+function readXLSXFile(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: 'array' }); // FIX #6
+        resolve(workbook);
+      } catch (err) {
+        reject(new Error('XLSX parse error: ' + err.message));
+      }
+    };
+    reader.onerror = (e) => reject(new Error('FileReader error: ' + e.target.error));
+    reader.readAsArrayBuffer(file); // FIX #6: NOT readAsText or readAsBinaryString
+  });
+}
+
+/* FIX #8: Get sheet data — tries first sheet, but accepts override.
+   Returns array of objects (rows) using column headers from the sheet. */
+function getSheetData(workbook, preferredSheet) {
+  let sheetName;
+
+  if (preferredSheet && workbook.SheetNames.includes(preferredSheet)) {
+    sheetName = preferredSheet;
+  } else {
+    sheetName = workbook.SheetNames[0];
+    if (workbook.SheetNames.length > 1) {
+      console.info('[XLSX] Multiple sheets found:', workbook.SheetNames, '— using:', sheetName);
+    }
+  }
+
+  const sheet = workbook.Sheets[sheetName];
+  return XLSX.utils.sheet_to_json(sheet, { defval: '' });
+}
+
+/* Process WE Pipeline XLSX → array of incoming goods entries */
+function processWePipeXLSX(rows) {
+  return rows.map(row => ({
+    bezeichner: String(row['Bezeichner'] || row['Artikelbezeichnung'] || '').trim(),
+    bestellNr: String(row['Bestellnummer'] || row['Bestell-Nr'] || '').trim(),
+    menge: parseInt(row['Menge'] || row['Anzahl'] || 0) || 0,
+    lieferdatum: String(row['Lieferdatum'] || row['Datum'] || '').trim()
+  }));
+}
+
+/* Process Fulfilment Pipeline XLSX → Map<AU-Nr, {...}>
+   Key columns: Auftragsnummer, Versanddatum, Spediteur, Kunde, Land */
+function processFulfilmentXLSX(rows) {
+  const map = new Map();
+  for (const row of rows) {
+    const auNr = String(row['Auftragsnummer'] || row['AU-Nr'] || row['Auftrags-Nr'] || '').trim();
+    if (!auNr) continue;
+
+    // Sum Menge if same AU-Nr appears multiple times
+    const existing = map.get(auNr);
+    const menge = parseInt(row['Menge'] || row['Anzahl'] || 0) || 0;
+
+    if (existing) {
+      existing.summe += menge;
+    } else {
+      map.set(auNr, {
+        kunde: String(row['Kunde'] || row['Kundenname'] || '').trim(),
+        land: String(row['Land'] || '').trim(),
+        versanddatum: String(row['Versanddatum'] || row['Versand'] || '').trim(),
+        spediteur: String(row['Spediteur'] || row['Spedition'] || '').trim(),
+        summe: menge
+      });
+    }
+  }
+  return map;
+}
+
+/* Process Auftrag Status XLSX → Map<AU-Nr, {...}> */
+function processAuftragStatusXLSX(rows) {
+  const map = new Map();
+  for (const row of rows) {
+    const auNr = String(row['Auftragsnummer'] || row['AU-Nr'] || '').trim();
+    if (!auNr) continue;
+    map.set(auNr, {
+      status: String(row['Status'] || '').trim(),
+      kunde: String(row['Kunde'] || '').trim(),
+      land: String(row['Land'] || '').trim(),
+      artikel: String(row['Artikel'] || row['Bezeichnung'] || '').trim(),
+      spediteur: String(row['Spediteur'] || '').trim()
+    });
+  }
+  return map;
+}
+
+/* Process Planner XLSX → Map<AU-Nr, Planner-Notiz> */
+function processPlannerXLSX(rows) {
+  const map = new Map();
+  for (const row of rows) {
+    const auNr = String(row['Auftragsnummer'] || row['AU-Nr'] || row['Titel'] || '').trim();
+    if (!auNr) continue;
+    const notiz = String(row['Notiz'] || row['Beschreibung'] || row['Label'] || '').trim();
+    map.set(auNr, notiz);
+  }
+  return map;
+}
+/* ============================================================
+   SILO: Upload Handler (Orchestrator)
+   Fixes: #5 (re-upload), #7 (multi-file), #9 (validation),
+          #10 (feedback), #11 (async), #12 (drag-drop)
+   ============================================================ */
+
+/* FIX #9: Validate file type before processing */
+function validateFile(file, expectedFormat) {
+  const name = file.name.toLowerCase();
+  if (expectedFormat === 'csv') {
+    if (!name.endsWith('.csv') && !name.endsWith('.txt')) {
+      throw new Error('Erwartetes Format: CSV. Erhalten: ' + file.name);
+    }
+  } else if (expectedFormat === 'xlsx') {
+    if (!name.endsWith('.xlsx') && !name.endsWith('.xls')) {
+      throw new Error('Erwartetes Format: XLSX. Erhalten: ' + file.name);
+    }
+  }
+  if (file.size === 0) {
+    throw new Error('Datei ist leer: ' + file.name);
+  }
+  if (file.size > 50 * 1024 * 1024) {
+    throw new Error('Datei zu groß (max 50MB): ' + file.name);
+  }
+}
+
+/* FIX #11: Main upload handler — fully async, Promise-based
+   FIX #5: Resets input.value AFTER processing
+   FIX #7: Copies file references BEFORE any async work
+   FIX #10: Updates visual status per slot */
+async function handleFileUpload(input, type) {
+  const slotId = 'slot-' + type;
+
+  // FIX #7: Copy file list immediately (FileList is live!)
+  const files = Array.from(input.files);
+  if (files.length === 0) return;
+
+  // FIX #10: Show loading
+  setUploadStatus(slotId, 'loading', 'Verarbeite...');
+
+  try {
+    for (const file of files) {
+      // FIX #9: Validate file type
+      const isCSV = ['bestand', 'we-ist', 'wa-ist'].includes(type);
+      validateFile(file, isCSV ? 'csv' : 'xlsx');
+
+      if (isCSV) {
+        await handleCSVUpload(file, type);
+      } else {
+        await handleXLSXUpload(file, type);
+      }
+    }
+
+    // FIX #10: Show success
+    const fileNames = files.map(f => f.name).join(', ');
+    setUploadStatus(slotId, 'success', fileNames);
+
+    // FIX #11: Only update dashboard AFTER all files processed
+    updateDashboard();
+
+  } catch (err) {
+    // FIX #10: Show error with message
+    console.error('[Upload]', type, err);
+    setUploadStatus(slotId, 'error', err.message);
+  } finally {
+    // FIX #5: Reset input so same file can be re-uploaded
+    input.value = '';
+  }
+}
+
+/* Process a single CSV file */
+async function handleCSVUpload(file, type) {
+  const text = await readCSVFile(file);     // FIX #1: ISO-8859-1
+  const rows = parseCSV(text, type);        // FIX #2, #3, #4
+
+  switch (type) {
+    case 'bestand':
+      state.bestandData = processBestandCSV(rows);
+      state.flags.bestandLoaded = true;
+      break;
+    case 'we-ist':
+      state.weIstData = processWeIstCSV(rows);
+      state.flags.weIstLoaded = true;
+      break;
+    case 'wa-ist':
+      state.waIstData = processWaIstCSV(rows);
+      state.flags.waIstLoaded = true;
+      break;
+  }
+}
+
+/* Process a single XLSX file */
+async function handleXLSXUpload(file, type) {
+  const workbook = await readXLSXFile(file);   // FIX #6: ArrayBuffer
+  const rows = getSheetData(workbook);          // FIX #8: sheet selection
+
+  switch (type) {
+    case 'we-pipe':
+      state.wePipeData = processWePipeXLSX(rows);
+      state.flags.weLoaded = true;
+      break;
+    case 'wa-pipe':
+      state.fulfillmentDataMap = processFulfilmentXLSX(rows);
+      state.flags.waLoaded = true;
+      break;
+    case 'auftrag-status':
+      state.auftragStatusMap = processAuftragStatusXLSX(rows);
+      break;
+    case 'planner':
+      state.plannerDataMap = processPlannerXLSX(rows);
+      break;
+  }
+}
+
+/* FIX #12: Setup drag-and-drop on all upload slots */
+function setupDragAndDrop() {
+  document.querySelectorAll('.upload-slot').forEach(slot => {
+    const input = slot.querySelector('input[type="file"]');
+    if (!input) return;
+    const type = input.dataset.type;
+
+    slot.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      slot.classList.add('dragover');
+    });
+
+    slot.addEventListener('dragleave', () => {
+      slot.classList.remove('dragover');
+    });
+
+    slot.addEventListener('drop', (e) => {
+      e.preventDefault();
+      slot.classList.remove('dragover');
+      if (e.dataTransfer.files.length > 0) {
+        // Create a synthetic input-like object
+        handleFileUpload({ files: e.dataTransfer.files, value: '', dataset: { type } }, type);
+      }
+    });
+  });
+}
+
+/* Bind all upload inputs */
+function setupUploadHandlers() {
+  document.querySelectorAll('.upload-slot input[type="file"]').forEach(input => {
+    const type = input.dataset.type;
+    input.addEventListener('change', () => handleFileUpload(input, type));
+
+    // Make the styled button trigger the hidden input
+    const btn = input.parentElement.querySelector('.upload-btn');
+    if (btn) btn.addEventListener('click', () => input.click());
+  });
+
+  // FIX #12: drag-and-drop
+  setupDragAndDrop();
+}
+/* ============================================================
+   SILO: Capacity Calculation Engine
+   Unit: PUNKTE (not devices!)
+   ============================================================ */
+
+function updateCapacity() {
+  if (!state.flags.bestandLoaded) return;
+
+  const data = state.bestandData;
+  let lager = 0, versand = 0, weZone = 0, quPunkte = 0;
+  let totalGeraete = 0, quGeraete = 0;
+
+  for (const item of data) {
+    totalGeraete += item.menge;
+    switch (item.zone) {
+      case 'lager':   lager += item.punkte; break;
+      case 'versand': versand += item.punkte; break;
+      case 'we-zone': weZone += item.punkte; break;
+    }
+    if (item.isQU) {
+      quPunkte += item.punkte;
+      quGeraete += item.menge;
+    }
+  }
+
+  state.capacity = {
+    lager, versand, weZone, quPunkte,
+    totalPunkte: lager + versand + weZone,
+    totalGeraete, quGeraete
+  };
+
+  updateStats();
+  updateGauge();
+  updateQUDisplay();
+
+  // Save daily snapshot — FIX #16: safe write
+  const dateKey = formatGermanDate(today());
+  const snapshots = safeStorageGet(CONFIG.storageKeys.snapshots) || {};
+  snapshots[dateKey] = {
+    lager, versand, weZone, quPunkte,
+    total: lager + versand + weZone,
+    geraete: totalGeraete,
+    timestamp: Date.now()
+  };
+  safeStorageSet(CONFIG.storageKeys.snapshots, snapshots);
+}
+
+/* FIX #18: Update stat cards using textContent */
+function updateStats() {
+  const cap = state.capacity;
+  const calc = CONFIG.calculated;
+
+  setText('val-lager', cap.lager.toLocaleString('de-DE'));
+  setText('val-versand', cap.versand.toLocaleString('de-DE'));
+  setText('val-we', cap.weZone.toLocaleString('de-DE'));
+  setText('val-qu', cap.quPunkte.toLocaleString('de-DE'));
+  setText('val-geraete', cap.totalGeraete.toLocaleString('de-DE'));
+  setText('val-kapazitaet', calc.lagerKapazitaet.toLocaleString('de-DE'));
+}
+
+function updateQUDisplay() {
+  const cap = state.capacity;
+  const quMax = CONFIG.defaults.quKapazitaet;
+  const pct = quMax > 0 ? Math.round((cap.quPunkte / quMax) * 100) : 0;
+  setText('val-qu-pct', pct + '%');
+}
+
+function updateGauge() {
+  const cap = state.capacity;
+  const calc = CONFIG.calculated;
+  const used = cap.lager;
+  const max = calc.lagerKapazitaet;
+  const pct = max > 0 ? Math.round((used / max) * 100) : 0;
+
+  // Color based on utilization
+  let color = 'var(--green)';
+  if (pct >= 95) color = 'var(--red)';
+  else if (pct >= 85) color = '#f97316';
+  else if (pct >= 70) color = 'var(--yellow)';
+
+  setText('gauge-pct', pct + '%');
+  setText('gauge-detail', used.toLocaleString('de-DE') + ' / ' + max.toLocaleString('de-DE') + ' Punkte');
+
+  // Update Chart.js gauge if available
+  if (window.gaugeChart) {
+    window.gaugeChart.data.datasets[0].data = [used, Math.max(0, max - used)];
+    window.gaugeChart.data.datasets[0].backgroundColor = [color, '#e5e7eb'];
+    window.gaugeChart.update();
+  }
+}
+/* ============================================================
+   SILO: Forecast Engine
+   5-workday capacity projection
+   ============================================================ */
+
+function renderForecastTable() {
+  const table = document.getElementById('forecast-table');
+  if (!table) return;
+  table.innerHTML = ''; // safe: no user data in structure
+
+  const thead = document.createElement('thead');
+  thead.appendChild(createTableRow(['Tag', 'Datum', 'WE (Prognose)', 'WA (Prognose)', 'Bestand (Prognose)', 'Auslastung'], true));
+  table.appendChild(thead);
+
+  const tbody = document.createElement('tbody');
+  const days = getWorkdays(today(), 5);
+  const calc = CONFIG.calculated;
+  let currentBestand = state.capacity ? state.capacity.lager : 0;
+
+  // Estimate daily WE/WA from pipeline data or historical average
+  const avgWE = getAverageDaily('we');
+  const avgWA = getAverageDaily('wa');
+
+  for (const day of days) {
+    const prognoseWE = avgWE;
+    const prognoseWA = avgWA;
+    currentBestand = currentBestand + prognoseWE - prognoseWA;
+    if (currentBestand < 0) currentBestand = 0;
+
+    const auslastung = calc.lagerKapazitaet > 0
+      ? Math.round((currentBestand / calc.lagerKapazitaet) * 100)
+      : 0;
+
+    const row = createTableRow([
+      ['Mo','Di','Mi','Do','Fr','Sa','So'][day.getDay() - 1] || '?',
+      formatGermanDate(day),
+      prognoseWE.toLocaleString('de-DE'),
+      prognoseWA.toLocaleString('de-DE'),
+      currentBestand.toLocaleString('de-DE'),
+      auslastung + '%'
+    ]);
+    tbody.appendChild(row);
+  }
+  table.appendChild(tbody);
+}
+
+/* Get average daily WE or WA from efficiency history */
+function getAverageDaily(type) {
+  const history = safeStorageGet(CONFIG.storageKeys.effizienz) || {};
+  const values = Object.values(history).map(d => d[type] || 0).filter(v => v > 0);
+  if (values.length === 0) return type === 'we' ? 150 : 200; // sensible defaults
+  return Math.round(values.reduce((a, b) => a + b, 0) / values.length);
+}
+
+function updateChart() {
+  if (!window.forecastChart) return;
+
+  const days = getWorkdays(today(), 5);
+  const calc = CONFIG.calculated;
+  let currentBestand = state.capacity ? state.capacity.lager : 0;
+  const avgWE = getAverageDaily('we');
+  const avgWA = getAverageDaily('wa');
+
+  const labels = days.map(d => formatGermanDate(d));
+  const dataPoints = [];
+  const capacityLine = [];
+
+  for (const day of days) {
+    currentBestand = currentBestand + avgWE - avgWA;
+    if (currentBestand < 0) currentBestand = 0;
+    dataPoints.push(currentBestand);
+    capacityLine.push(calc.lagerKapazitaet);
+  }
+
+  window.forecastChart.data.labels = labels;
+  window.forecastChart.data.datasets[0].data = dataPoints;
+  window.forecastChart.data.datasets[1].data = capacityLine;
+  window.forecastChart.update();
+}
+/* ============================================================
+   SILO: Blockierer-Erkennung (Blocker Detection)
+   Priority-sorted problem identification
+   ============================================================ */
+
+function detectBlockers() {
+  if (!state.flags.bestandLoaded) return [];
+
+  const now = today();
+  const auftraege = new Map(); // group by Auftragsnummer
+
+  // Group BESTAND items by Auftragsnummer
+  for (const item of state.bestandData) {
+    if (!item.auftragsnummer) continue;
+    if (!auftraege.has(item.auftragsnummer)) {
+      auftraege.set(item.auftragsnummer, { items: [], auNr: item.auftragsnummer });
+    }
+    auftraege.get(item.auftragsnummer).items.push(item);
+  }
+
+  const blockerList = [];
+
+  for (const [auNr, auftrag] of auftraege) {
+    const fulfillment = state.fulfillmentDataMap.get(auNr) || {};
+    const auftragStatus = state.auftragStatusMap.get(auNr) || {};
+    const plannerNotiz = state.plannerDataMap.get(auNr) || '';
+
+    const hasQU = auftrag.items.some(i => i.isQU);
+    const totalMenge = auftrag.items.reduce((s, i) => s + i.menge, 0);
+    const totalPunkte = auftrag.items.reduce((s, i) => s + i.punkte, 0);
+
+    // FIX #15: Parse dates properly
+    const versanddatum = parseGermanDate(fulfillment.versanddatum);
+    const weDatum = parseGermanDate(auftrag.items[0]?.weDatum);
+
+    // Blocker: QU status + no future valid pickup date
+    const hatZukunftTermin = versanddatum && versanddatum >= now;
+    const istBlockierer = hasQU && !hatZukunftTermin;
+
+    // Days since WE (how long in warehouse)
+    const tageImLager = weDatum ? daysBetween(weDatum, now) : 0;
+
+    // Kritischer Blockierer: blocked >= 3 days
+    const istKritischerBlockierer = istBlockierer && tageImLager >= 3;
+
+    // Überfällig: Versanddatum in the past
+    const istUeberfaellig = versanddatum && versanddatum < now;
+    const tageUeberfaellig = istUeberfaellig ? daysBetween(versanddatum, now) : 0;
+
+    // Planner label present
+    const hatPlannerLabel = plannerNotiz.length > 0;
+
+    // "Warte" text in planner
+    const istWarteText = plannerNotiz.toLowerCase().includes('warte');
+
+    // Heute fällig
+    const istHeuteFaellig = versanddatum && daysBetween(versanddatum, now) === 0;
+
+    // Problemfall criteria
+    const istProblemfall =
+      istKritischerBlockierer ||
+      hatPlannerLabel ||
+      (istUeberfaellig && tageUeberfaellig >= 3) ||
+      (istWarteText && istBlockierer) ||
+      (auftragStatus.status === 'AK' && tageUeberfaellig >= 7);
+
+    // Priority score for sorting
+    let prioritaet = 7; // default: fallback
+    if (istKritischerBlockierer) prioritaet = 1;
+    else if (istProblemfall) prioritaet = 2;
+    else if (istBlockierer) prioritaet = 3;
+    else if (istUeberfaellig) prioritaet = 4;
+    else if (istHeuteFaellig) prioritaet = 5;
+    else if (hatZukunftTermin) prioritaet = 6;
+
+    // Only include relevant entries
+    if (istBlockierer || istUeberfaellig || istHeuteFaellig || istProblemfall) {
+      blockerList.push({
+        auNr,
+        kunde: fulfillment.kunde || auftragStatus.kunde || '—',
+        land: fulfillment.land || auftragStatus.land || '',
+        spediteur: fulfillment.spediteur || auftragStatus.spediteur || '',
+        status: hasQU ? 'QU' : (auftragStatus.status || '—'),
+        versanddatum: fulfillment.versanddatum || '—',
+        menge: totalMenge,
+        punkte: totalPunkte,
+        tageImLager,
+        tageUeberfaellig,
+        plannerNotiz,
+        prioritaet,
+        istKritischerBlockierer,
+        istBlockierer,
+        istUeberfaellig,
+        istHeuteFaellig,
+        istProblemfall
+      });
+    }
+  }
+
+  // Sort per spec
+  blockerList.sort((a, b) => {
+    if (a.prioritaet !== b.prioritaet) return a.prioritaet - b.prioritaet;
+    // Within same priority: oldest first for blockers, nearest date for planned
+    if (a.prioritaet <= 3) return b.tageImLager - a.tageImLager;
+    if (a.prioritaet === 6) return a.versanddatum.localeCompare(b.versanddatum);
+    return b.menge - a.menge; // fallback: by article count
+  });
+
+  state.blockerList = blockerList;
+  return blockerList;
+}
+
+/* FIX #18: Render blocker table with textContent */
+function renderBlockerTable(filter) {
+  const tbody = document.querySelector('#blocker-table tbody');
+  if (!tbody) return;
+  tbody.innerHTML = ''; // safe: clearing, not injecting user data
+
+  let list = state.blockerList || [];
+
+  if (filter && filter !== 'all') {
+    switch (filter) {
+      case 'kritisch': list = list.filter(b => b.istKritischerBlockierer); break;
+      case 'blockierer': list = list.filter(b => b.istBlockierer); break;
+      case 'ueberfaellig': list = list.filter(b => b.istUeberfaellig); break;
+    }
+  }
+
+  if (list.length === 0) {
+    const tr = document.createElement('tr');
+    const td = document.createElement('td');
+    td.colSpan = 7;
+    td.textContent = 'Keine Einträge';
+    td.style.textAlign = 'center';
+    td.style.color = 'var(--text-muted)';
+    tr.appendChild(td);
+    tbody.appendChild(tr);
+    return;
+  }
+
+  for (const b of list) {
+    const tr = createTableRow([
+      b.prioritaet <= 2 ? 'KRITISCH' : (b.prioritaet <= 3 ? 'Blockierer' : (b.istUeberfaellig ? 'Überfällig' : 'Geplant')),
+      b.auNr,
+      b.kunde,
+      b.status,
+      b.istBlockierer ? b.tageImLager + ' T.' : (b.istUeberfaellig ? b.tageUeberfaellig + ' T.' : '—'),
+      b.menge,
+      b.plannerNotiz || b.versanddatum
+    ]);
+
+    if (b.prioritaet <= 2) tr.style.background = 'rgba(239,68,68,0.08)';
+    else if (b.prioritaet <= 3) tr.style.background = 'rgba(249,115,22,0.06)';
+    tbody.appendChild(tr);
+  }
+}
+/* ============================================================
+   SILO: Effizienz-Tracker
+   Daily throughput: WE + WA devices
+   Target: 470/day | History: 90 days
+   ============================================================ */
+
+/* Save daily efficiency data */
+function saveEffizienzTag(datum, we, wa) {
+  const history = safeStorageGet(CONFIG.storageKeys.effizienz) || {};
+  const dateKey = typeof datum === 'string' ? datum : formatGermanDate(datum);
+
+  history[dateKey] = {
+    we: we,
+    wa: wa,
+    total: we + wa
+  };
+
+  // Trim to 90 days
+  const keys = Object.keys(history).sort();
+  while (keys.length > CONFIG.effizienzHistorieTage) {
+    delete history[keys.shift()];
+  }
+
+  safeStorageSet(CONFIG.storageKeys.effizienz, history); // FIX #16
+}
+
+/* Load efficiency history */
+function loadEffizienzHistorie() {
+  return safeStorageGet(CONFIG.storageKeys.effizienz) || {};
+}
+
+/* Update efficiency display from current uploads */
+function updateEffizienzTracker() {
+  const todayStr = formatGermanDate(today());
+  let weCount = 0;
+  let waCount = 0;
+
+  // Count from WE-IST
+  if (state.flags.weIstLoaded) {
+    weCount = state.weIstData.reduce((sum, item) => sum + item.menge, 0);
+  }
+
+  // Count from WA-IST
+  if (state.flags.waIstLoaded) {
+    waCount = state.waIstData.reduce((sum, item) => sum + item.menge, 0);
+  }
+
+  // Save today's data
+  if (weCount > 0 || waCount > 0) {
+    saveEffizienzTag(todayStr, weCount, waCount);
+  }
+
+  const total = weCount + waCount;
+  const ziel = CONFIG.effizienzZiel;
+  const pct = ziel > 0 ? Math.round((total / ziel) * 100) : 0;
+
+  // FIX #18: textContent only
+  setText('eff-we', weCount.toLocaleString('de-DE'));
+  setText('eff-wa', waCount.toLocaleString('de-DE'));
+  setText('eff-total', total.toLocaleString('de-DE'));
+  setText('eff-pct', pct + '%');
+
+  // Update chart
+  updateEffizienzChart();
+}
+
+/* Update efficiency bar chart */
+function updateEffizienzChart() {
+  if (!window.effizienzChart) return;
+
+  const history = loadEffizienzHistorie();
+  const dates = Object.keys(history).sort().slice(-14); // last 14 days
+
+  const labels = dates;
+  const weData = dates.map(d => history[d].we || 0);
+  const waData = dates.map(d => history[d].wa || 0);
+
+  window.effizienzChart.data.labels = labels;
+  window.effizienzChart.data.datasets[0].data = weData;
+  window.effizienzChart.data.datasets[1].data = waData;
+  window.effizienzChart.update();
+}
+/* ============================================================
+   SILO: Chart.js Initialization
+   Gauge, Forecast, Effizienz charts
+   ============================================================ */
+
+function initCharts() {
+  initGaugeChart();
+  initForecastChart();
+  initEffizienzChart();
+}
+
+/* Half-doughnut gauge for capacity */
+function initGaugeChart() {
+  const ctx = document.getElementById('gauge-canvas');
+  if (!ctx) return;
+
+  const calc = CONFIG.calculated;
+  window.gaugeChart = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      datasets: [{
+        data: [0, calc.lagerKapazitaet],
+        backgroundColor: ['var(--green)', '#e5e7eb'],
+        borderWidth: 0
+      }]
+    },
+    options: {
+      rotation: -90,
+      circumference: 180,
+      cutout: '75%',
+      responsive: true,
+      maintainAspectRatio: true,
+      plugins: {
+        legend: { display: false },
+        tooltip: { enabled: false }
+      }
+    }
+  });
+}
+
+/* Line chart for 5-day forecast */
+function initForecastChart() {
+  const ctx = document.getElementById('forecast-chart');
+  if (!ctx) return;
+
+  window.forecastChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: [],
+      datasets: [
+        {
+          label: 'Bestand (Prognose)',
+          data: [],
+          borderColor: '#3b82f6',
+          backgroundColor: 'rgba(59,130,246,0.1)',
+          fill: true,
+          tension: 0.3
+        },
+        {
+          label: 'Kapazitätsgrenze',
+          data: [],
+          borderColor: '#ef4444',
+          borderDash: [5, 5],
+          pointRadius: 0,
+          fill: false
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { position: 'bottom' }
+      },
+      scales: {
+        y: { beginAtZero: true, title: { display: true, text: 'Punkte' } }
+      }
+    }
+  });
+}
+
+/* Stacked bar chart for daily WE/WA */
+function initEffizienzChart() {
+  const ctx = document.getElementById('effizienz-chart');
+  if (!ctx) return;
+
+  window.effizienzChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: [],
+      datasets: [
+        {
+          label: 'WE (Wareneingang)',
+          data: [],
+          backgroundColor: '#3b82f6'
+        },
+        {
+          label: 'WA (Warenausgang)',
+          data: [],
+          backgroundColor: '#f97316'
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { position: 'bottom' }
+      },
+      scales: {
+        x: { stacked: true },
+        y: {
+          stacked: true,
+          beginAtZero: true,
+          title: { display: true, text: 'Geräte' }
+        }
+      }
+    }
+  });
+}
+/* ============================================================
+   SILO: Admin Panel
+   FIX #17: Password is a deterrent only (visible in source)
+   Settings, maintenance, reset
+   ============================================================ */
+
+function openSettingsPanel() {
+  show('settings-overlay');
+  hide('settings-content');
+  show('password-gate');
+  const pw = document.getElementById('admin-pw');
+  if (pw) { pw.value = ''; pw.focus(); }
+}
+
+function closeSettingsPanel() {
+  hide('settings-overlay');
+}
+
+/* FIX #17: Password check — deterrent, not real security */
+function checkAdminPassword() {
+  const pw = document.getElementById('admin-pw');
+  if (!pw) return;
+  if (pw.value === CONFIG.adminPassword) {
+    hide('password-gate');
+    show('settings-content');
+    loadSettingsIntoForm();
+  } else {
+    pw.style.borderColor = 'var(--red)';
+    pw.value = '';
+    pw.placeholder = 'Falsches Passwort';
+  }
+}
+
+/* Load current settings into admin form fields */
+function loadSettingsIntoForm() {
+  const s = state.settings || CONFIG.defaults;
+  const fields = {
+    'set-flaeche': s.flaecheQm,
+    'set-paletten': s.palettenProQm,
+    'set-punkte': s.punkteProPalette,
+    'set-regal1': s.regalHalle1,
+    'set-regal2': s.regalHalle2,
+    'set-qu': s.quKapazitaet
+  };
+  for (const [id, val] of Object.entries(fields)) {
+    const el = document.getElementById(id);
+    if (el) el.value = val;
+  }
+}
+
+/* Save settings from admin form */
+function saveAllSettings() {
+  state.settings = {
+    flaecheQm: parseFloat(document.getElementById('set-flaeche')?.value) || CONFIG.defaults.flaecheQm,
+    palettenProQm: parseFloat(document.getElementById('set-paletten')?.value) || CONFIG.defaults.palettenProQm,
+    punkteProPalette: parseFloat(document.getElementById('set-punkte')?.value) || CONFIG.defaults.punkteProPalette,
+    regalHalle1: parseInt(document.getElementById('set-regal1')?.value) || CONFIG.defaults.regalHalle1,
+    regalHalle2: parseInt(document.getElementById('set-regal2')?.value) || CONFIG.defaults.regalHalle2,
+    quKapazitaet: parseInt(document.getElementById('set-qu')?.value) || CONFIG.defaults.quKapazitaet
+  };
+
+  // Update CONFIG defaults so calculated getters work
+  Object.assign(CONFIG.defaults, state.settings);
+
+  // FIX #16: Safe storage
+  safeStorageSet(CONFIG.storageKeys.settings, state.settings);
+
+  // Recalculate
+  updateDashboard();
+  closeSettingsPanel();
+}
+
+function resetToDefaults() {
+  Object.assign(CONFIG.defaults, {
+    flaecheQm: 2766, palettenProQm: 0.565, punkteProPalette: 4,
+    regalHalle1: 702, regalHalle2: 828, quKapazitaet: 2350
+  });
+  state.settings = { ...CONFIG.defaults };
+  safeStorageRemove(CONFIG.storageKeys.settings);
+  loadSettingsIntoForm();
+  updateDashboard();
+}
+
+function setupAdminHandlers() {
+  document.getElementById('btn-settings')?.addEventListener('click', openSettingsPanel);
+  document.getElementById('btn-pw-submit')?.addEventListener('click', checkAdminPassword);
+  document.getElementById('admin-pw')?.addEventListener('keydown', (e) => { if (e.key === 'Enter') checkAdminPassword(); });
+  document.getElementById('btn-save-settings')?.addEventListener('click', saveAllSettings);
+  document.getElementById('btn-reset-defaults')?.addEventListener('click', resetToDefaults);
+  document.getElementById('btn-clear-storage')?.addEventListener('click', () => {
+    if (confirm('Alle lokalen Daten löschen?')) { clearAllLocalStorage(); location.reload(); }
+  });
+  document.getElementById('btn-close-settings')?.addEventListener('click', closeSettingsPanel);
+  document.getElementById('settings-overlay')?.addEventListener('click', (e) => {
+    if (e.target.id === 'settings-overlay') closeSettingsPanel();
+  });
+}
+/* ============================================================
+   SILO: App State & Initialization
+   Master controller — wires all silos together
+   ============================================================ */
+
+/* Global application state */
+const state = {
+  bestandData: [],
+  weIstData: [],
+  waIstData: [],
+  wePipeData: [],
+  fulfillmentDataMap: new Map(),
+  auftragStatusMap: new Map(),
+  plannerDataMap: new Map(),
+  blockerList: [],
+  capacity: null,
+  settings: {},
+
+  flags: {
+    bestandLoaded: false,
+    weLoaded: false,
+    waLoaded: false,
+    weIstLoaded: false,
+    waIstLoaded: false
+  }
+};
+
+/* Central dashboard refresh — called after any data upload */
+function updateDashboard() {
+  updateCapacity();
+  detectBlockers();
+  renderBlockerTable('all');
+  renderForecastTable();
+  updateChart();
+  updateEffizienzTracker();
+}
+
+/* Validation runner */
+function runValidation() {
+  const results = document.getElementById('validation-results');
+  if (!results) return;
+  results.innerHTML = ''; // safe: clearing
+
+  const checks = [];
+
+  // Check data loaded
+  if (!state.flags.bestandLoaded) checks.push({ level: 'error', msg: 'BESTAND CSV nicht geladen' });
+  else checks.push({ level: 'ok', msg: 'BESTAND: ' + state.bestandData.length + ' Einträge geladen' });
+
+  if (!state.flags.waLoaded) checks.push({ level: 'warn', msg: 'Fulfilment Pipeline nicht geladen' });
+  else checks.push({ level: 'ok', msg: 'Fulfilment Pipeline: ' + state.fulfillmentDataMap.size + ' Aufträge' });
+
+  if (!state.flags.weIstLoaded) checks.push({ level: 'warn', msg: 'WE-IST nicht geladen' });
+  if (!state.flags.waIstLoaded) checks.push({ level: 'warn', msg: 'WA-IST nicht geladen' });
+
+  // Cross-reference: BESTAND AU-Nr vs Fulfilment
+  if (state.flags.bestandLoaded && state.flags.waLoaded) {
+    const bestandAU = new Set(state.bestandData.map(i => i.auftragsnummer).filter(Boolean));
+    let missing = 0;
+    for (const auNr of bestandAU) {
+      if (!state.fulfillmentDataMap.has(auNr)) missing++;
+    }
+    if (missing > 0) {
+      checks.push({ level: 'warn', msg: missing + ' Aufträge in BESTAND ohne Fulfilment-Eintrag' });
+    } else {
+      checks.push({ level: 'ok', msg: 'Alle BESTAND-Aufträge in Fulfilment gefunden' });
+    }
+  }
+
+  // Storage usage
+  const usage = getStorageUsage();
+  const usageMB = (usage / 1024 / 1024).toFixed(2);
+  checks.push({ level: usage > 4000000 ? 'warn' : 'ok', msg: 'localStorage: ' + usageMB + ' MB belegt' });
+
+  // FIX #18: Render with textContent
+  for (const check of checks) {
+    const div = createEl('div', (check.level === 'ok' ? '\u2705 ' : check.level === 'warn' ? '\u26A0\uFE0F ' : '\u274C ') + check.msg, 'validation-' + check.level);
+    div.style.padding = '0.3rem 0';
+    results.appendChild(div);
+  }
+}
+
+/* Initialize everything on DOM ready */
+function initApp() {
+  // Load saved settings
+  const saved = safeStorageGet(CONFIG.storageKeys.settings);
+  if (saved) {
+    state.settings = saved;
+    Object.assign(CONFIG.defaults, saved);
+  }
+
+  // Set current date
+  setText('current-date', formatGermanDate(today()));
+
+  // Init charts
+  initCharts();
+
+  // Setup upload handlers (FIX #5, #7, #9, #10, #11, #12)
+  setupUploadHandlers();
+
+  // Setup admin panel (FIX #17)
+  setupAdminHandlers();
+
+  // Setup blocker filter buttons
+  document.querySelectorAll('.filter-bar button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.filter-bar button').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      renderBlockerTable(btn.dataset.filter);
+    });
+  });
+
+  // Validation button
+  document.getElementById('btn-validate')?.addEventListener('click', runValidation);
+
+  // Initial gauge with empty state
+  updateGauge();
+}
+
+// Boot
+document.addEventListener('DOMContentLoaded', initApp);
+  })();
+  </script>
 </body>
 </html>
