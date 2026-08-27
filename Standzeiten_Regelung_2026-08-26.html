@@ -129,14 +129,14 @@ footer b{color:var(--ink)}
 </style>
 
 <main>
-  <span class="draft">Entwurf v1 · zur internen Abstimmung</span>
+  <span class="draft">Entwurf v2 · Prozess nach Verkauf integriert · zur internen Abstimmung</span>
   <div class="eyebrow">elvinci.de GmbH · Backoffice &amp; Fulfillment</div>
   <h1>Standzeiten-Regelung <em>Abholung &amp; Versand</em></h1>
   <p class="lede">Feste Fristen, feste Aktionen: Standgeld bei Überschreitung der Abholfrist,
   angekündigter Ersatzversand auf Kosten des Kunden — abgestuft nach Zahlungsart,
   mit dokumentierter Ausnahme-Möglichkeit je Kunde.</p>
   <div class="meta">
-    <span>Stand <b>26.08.2026</b></span>
+    <span>Stand <b>27.08.2026</b></span>
     <span>Verantwortlich <b>Leitung Backoffice &amp; Fulfillment</b></span>
     <span>Datenbasis <b>Durchlaufzeit-Ranking v4 (19.08.2026)</b></span>
     <span>Gilt für <b>Lager NH5 / AMM</b></span>
@@ -144,9 +144,10 @@ footer b{color:var(--ink)}
 
   <div class="core">
     <div class="big">Standgeld <span class="num">9 € pro Palette pro Tag</span></div>
-    <p>ab dem ersten Kalendertag nach Ablauf der Abholfrist von <b>3 Werktagen</b> nach der
-    Abholbereit-Meldung. Ziel ist nicht die Einnahme, sondern die schnelle Räumung des Lagers —
-    wer rechtzeitig abholt oder versendet, zahlt nichts.</p>
+    <p>ab dem ersten Tag nach Ablauf des Abholfensters von <b>5 Werktagen ab Kommissioniertag</b> —
+    oder planbar im Voraus über <b>Standgeldpakete</b> (Zeitblöcke bis Tag 12 / Tag 20).
+    Ziel ist nicht die Einnahme, sondern die schnelle Räumung des Lagers —
+    wer im Fenster abholt oder versendet, zahlt nichts.</p>
   </div>
 
   <!-- ============ 1 · WARUM ============ -->
@@ -171,52 +172,141 @@ footer b{color:var(--ink)}
     <p class="small">Liegezeit = Kunden-Phase: Kommissionierung abgeschlossen → Ware verlässt das Lager.</p>
   </section>
 
-  <!-- ============ 2 · ESKALATION ============ -->
+  <!-- ============ 2 · PROZESS NACH VERKAUF ============ -->
   <section>
-    <h2><span class="secno">2</span>Eskalationsstufen — Frist, Aktion, Konsequenz</h2>
-    <p>Der Zähler startet mit der <b>Abholbereit-Meldung</b> (Ware vollständig kommissioniert,
-    Meldung per E-Mail an den Kunden). Jede Stufe hat eine feste Aktion — keine Ermessensfragen im Tagesgeschäft.</p>
+    <h2><span class="secno">2</span>Ablauf nach Angebotsannahme — zwei Fristblöcke</h2>
+    <p>Der Gesamtprozess besteht aus zwei Fristblöcken: <b>Zahlungsblock</b> (nur Vorkasse) und
+    <b>Abhol-/Versandblock</b> (alle). Zwischen beiden liegt die Kommissionierung.</p>
 
+    <h3>Block 1 · Vorkassekunden: Zahlung</h3>
     <div class="stages">
       <div class="stage s0">
-        <div class="when"><span class="day">Tag 0</span><span class="daylabel">Meldung</span></div>
+        <div class="when"><span class="day">Tag 0</span><span class="daylabel">Annahme</span></div>
         <div>
-          <h3>Abholbereit-Meldung mit Frist <span class="chip mail">E-Mail</span></h3>
-          <p>Kunde erhält die Meldung „Ware abholbereit" inkl. Palettenzahl, Abholfrist
-          (3 Werktage) und Hinweis auf Standgeld und Ersatzversand (Textbaustein A).
-          Bei Vorkasse zusätzlich: Zahlungsstand.</p>
-        </div>
-      </div>
-      <div class="stage s0">
-        <div class="when"><span class="day">Tag 1–3</span><span class="daylabel">Abholfrist</span></div>
-        <div>
-          <h3>Kostenfreie Abholfrist <span class="chip frei">kostenfrei</span></h3>
-          <p>3 Werktage für Terminvereinbarung und Abholung/Versand. Wird in dieser Zeit ein
-          <b>konkreter Abholtermin</b> (Datum + Spedition/Kennzeichen) bestätigt, pausiert die
-          Eskalation bis zu diesem Termin — maximal 5 weitere Werktage.</p>
+          <h3>Angebotsannahme = Rechnungsstellung <span class="chip auto">automatisch</span></h3>
+          <p>Die Rechnung wird <b>zeitgleich mit der Angebotsannahme</b> erstellt. Damit startet
+          der erste Fristblock: <b>3 Werktage (72 Stunden) Zahlungsfrist</b> für Vorkassekunden.</p>
         </div>
       </div>
       <div class="stage s1">
-        <div class="when"><span class="day">Tag 4</span><span class="daylabel">Fristablauf</span></div>
+        <div class="when"><span class="day">+72 h</span><span class="daylabel">Zahlungsfrist</span></div>
+        <div>
+          <h3>Zahlung nicht eingegangen <span class="chip mail">Erinnerung</span></h3>
+          <p>Erinnerung mit letzter Frist (3 Werktage). Ohne Zahlungseingang danach: Auftrag wird
+          storniert bzw. Ware wieder freigegeben — kommissioniert wird erst nach Zahlungseingang,
+          damit fertige Ware nicht auf offene Zahlungen wartet.</p>
+        </div>
+      </div>
+    </div>
+    <p class="small" style="margin-top:.6rem"><b>Zahlungszielkunden</b> überspringen Block 1:
+    ihre Rechnung entsteht erst <b>bei Warenausgang</b> — genau deshalb muss der Warenausgang
+    forciert werden (Block 2), sonst verschiebt der Kunde mit der Abholung auch sein Zahlungsziel.</p>
+
+    <h3>Block 2 · Abholung oder Versand (ab Kommissioniertag)</h3>
+    <div class="tablewrap"><table>
+      <thead><tr><th>Variante</th><th>Terminwahl</th><th>Kontrolle</th><th>Regel</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><b>Versand</b></td>
+          <td>Kunde wählt Wunschtermin im Kalender — oder keinen</td>
+          <td><span class="chip frei">in unserer Hand</span></td>
+          <td>Ohne Wunschtermin geht die Ware zum nächsten freien Kapa-Slot raus.
+          Der Warenausgang wird von uns gesteuert — kein Standgeld-Fall, solange wir liefern können.</td>
+        </tr>
+        <tr>
+          <td><b>Abholung</b></td>
+          <td>Kunde wählt aus angebotenen Terminen — oder keinen</td>
+          <td><span class="chip hart">nicht in unserer Hand</span></td>
+          <td><b>Zeitfenster: 5 Werktage ab Kommissioniertag</b> zur Auswahl (der Kalender zeigt
+          genau diese 5 verfügbaren Abholtermine). Keine Abholung im Fenster → Standgeld
+          bzw. Eskalation (Abschnitt 4).</td>
+        </tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <!-- ============ 3 · KALENDER ============ -->
+  <section>
+    <h2><span class="secno">3</span>Terminbuchung im Shop — Kalender mit Kapa-Kopplung</h2>
+    <p>Im Online-Shop (Checkout bzw. Auftragsbestätigungs-Seite) wählt der Kunde seinen
+    Abhol- oder Versandtermin in einem <b>Kalender</b>. Drei Bauprinzipien:</p>
+    <ul>
+      <li><b>Puffer:</b> Der früheste angebotene Termin liegt hinter dem geplanten Kommissioniertag
+      (Puffer für WE-/Kommissionier-Schwankungen) — keine Termine, die wir nicht halten können.</li>
+      <li><b>Kapa-Kopplung:</b> Verfügbare Slots kommen aus den echten Lagerkapazitäten
+      (NH5-Pipeline / Tageskapazität mit AMM, 532 Geräte/Tag) — ausgebuchte Tage erscheinen nicht.</li>
+      <li><b>Nach hinten gedeckelt:</b> Standardauswahl endet mit dem Abholfenster
+      (5 Werktage ab Kommissioniertag). Spätere Termine sind <b>nicht frei wählbar</b>, sondern nur
+      über kostenpflichtige <b>Standgeldpakete</b> buchbar.</li>
+    </ul>
+    <h3>Standgeldpakete — spätere Abholung planbar machen</h3>
+    <div class="tablewrap"><table>
+      <thead><tr><th>Paket</th><th>Abholung bis</th><th>Preislogik</th><th>Hinweis im Checkout</th></tr></thead>
+      <tbody>
+        <tr><td><b>Standard</b></td><td>Tag 5 (Werktage ab Kommissionierung)</td><td class="num">0 €</td><td>„Kostenfreies Abholfenster"</td></tr>
+        <tr><td><b>Paket 12</b></td><td>Tag 12</td><td class="num">9 €/Palette/Tag ab Tag 6, im Voraus als Paketpreis</td><td>„Verlängerte Lagerung — Standgeldpaket"</td></tr>
+        <tr><td><b>Paket 20</b></td><td>Tag 20</td><td class="num">9 €/Palette/Tag ab Tag 6, im Voraus als Paketpreis</td><td>„Maximale Verlängerung — danach Ersatzversand"</td></tr>
+      </tbody>
+    </table></div>
+    <p class="small">Paketpreise werden bei Buchung fest berechnet (Palettenzahl × Tage × 9 €) — der Kunde
+    kauft Planbarkeit, wir bekommen den Stellplatz bezahlt. Nach Tag 20 gibt es keinen regulären
+    Slot mehr → Eskalationsstufen greifen.</p>
+
+    <h3>Terminlogik Zahlungszielkunden (Abholer)</h3>
+    <ul>
+      <li>Das System bietet <b>3 verschiedene Abholtage</b> an (mit Puffer und Blick auf die NH5-Kapa) — der Kunde wählt einen davon.</li>
+      <li>Direkter Hinweis beim Abschluss: <b>„Bei späterem Abholtermin fällt Standgeld von 9 € pro Palette und Tag an."</b></li>
+      <li>Rechnungsstellung erfolgt bei Warenausgang — je früher die Abholung, desto früher läuft das Zahlungsziel.</li>
+    </ul>
+  </section>
+
+  <!-- ============ 4 · ESKALATION ============ -->
+  <section>
+    <h2><span class="secno">4</span>Eskalationsstufen — Frist, Aktion, Konsequenz</h2>
+    <p>Der Zähler startet mit dem <b>Kommissioniertag</b> (Ware vollständig kommissioniert,
+    Abholbereit-Meldung per E-Mail an den Kunden). Jede Stufe hat eine feste Aktion — keine Ermessensfragen im Tagesgeschäft.</p>
+
+    <div class="stages">
+      <div class="stage s0">
+        <div class="when"><span class="day">Tag 0</span><span class="daylabel">Kommission.</span></div>
+        <div>
+          <h3>Abholbereit-Meldung mit Terminfenster <span class="chip mail">E-Mail</span></h3>
+          <p>Kunde erhält die Meldung „Ware abholbereit" inkl. Palettenzahl, Kalender-Link mit den
+          <b>5 verfügbaren Abholterminen</b> (NH5-Pipeline-Kapa) und Hinweis auf Standgeld,
+          Standgeldpakete und Ersatzversand (Textbaustein A). Bei Vorkasse zusätzlich: Zahlungsstand.</p>
+        </div>
+      </div>
+      <div class="stage s0">
+        <div class="when"><span class="day">Tag 1–5</span><span class="daylabel">Abholfenster</span></div>
+        <div>
+          <h3>Kostenfreies Abholfenster <span class="chip frei">kostenfrei</span></h3>
+          <p><b>5 Werktage ab Kommissioniertag</b> für Abholung bzw. Versand — der Kalender zeigt genau
+          diese Termine. Ein gebuchtes <b>Standgeldpaket</b> (Tag 12 / Tag 20, Abschnitt 3) verlängert
+          das Fenster kostenpflichtig und pausiert die Eskalation bis zum Paketende.</p>
+        </div>
+      </div>
+      <div class="stage s1">
+        <div class="when"><span class="day">Tag 6</span><span class="daylabel">Fensterende</span></div>
         <div>
           <h3>Standgeld beginnt <span class="chip geld">9 €/Palette/Tag</span> <span class="chip auto">automatisch</span></h3>
-          <p>Ab dem 1. Kalendertag nach Fristablauf läuft Standgeld je angefangenem Tag und Palette.
+          <p>Ab dem 1. Tag nach Fensterende läuft Standgeld je angefangenem Tag und Palette —
+          außer es wurde vorab ein Standgeldpaket gebucht (dann ist der Zeitraum bereits bezahlt).
           Kunde erhält Mitteilung mit laufendem Zählerstand (Textbaustein B).</p>
           <p class="aktion"><b>Aktion Backoffice:</b> Standgeld-Zähler in der Pipeline aktiv, keine manuelle Entscheidung nötig.</p>
         </div>
       </div>
       <div class="stage s2">
-        <div class="when"><span class="day">Tag 7</span><span class="daylabel">Ankündigung</span></div>
+        <div class="when"><span class="day">Tag 10</span><span class="daylabel">Ankündigung</span></div>
         <div>
           <h3>Ankündigung Ersatzversand <span class="chip mail">E-Mail + Telefon</span></h3>
-          <p>Zweite Erinnerung mit Ansage: Erfolgt bis <b>Tag 14</b> keine Abholung und kein
-          bestätigter Termin, organisiert elvinci den Versand per Spedition
-          <b>auf Kosten des Kunden</b> (Tagespreis-Offerte + aufgelaufenes Standgeld) — Textbaustein C.</p>
+          <p>Zweite Erinnerung mit Ansage: Erfolgt bis <b>Tag 15</b> (bzw. bis zum Ende eines gebuchten
+          Standgeldpakets) keine Abholung und kein bestätigter Termin, organisiert elvinci den Versand
+          per Spedition <b>auf Kosten des Kunden</b> (Tagespreis-Offerte + aufgelaufenes Standgeld) — Textbaustein C.</p>
           <p class="aktion"><b>Aktion Backoffice:</b> Telefonat dokumentieren; parallel Tagespreis bei AMM anfragen, damit Stufe 3 sofort umsetzbar ist.</p>
         </div>
       </div>
       <div class="stage s3">
-        <div class="when"><span class="day">Tag 14</span><span class="daylabel">Umsetzung</span></div>
+        <div class="when"><span class="day">Tag 15</span><span class="daylabel">Umsetzung</span></div>
         <div>
           <h3>Ersatzversand durch elvinci <span class="chip hart">auf Kundenkosten</span></h3>
           <p>elvinci beauftragt die Spedition an die hinterlegte Lieferadresse. Berechnet werden
@@ -239,27 +329,30 @@ footer b{color:var(--ink)}
 
   <!-- ============ 3 · ZAHLUNGSARTEN ============ -->
   <section>
-    <h2><span class="secno">3</span>Abstufung nach Zahlungsart</h2>
+    <h2><span class="secno">5</span>Abstufung nach Zahlungsart</h2>
     <p>Die Zahlungsart entscheidet, welche Stufen greifen — insbesondere bei
     <b>Zahlungsziel-Kunden</b>, die den Großteil der planbaren Aufträge stellen:</p>
     <div class="tablewrap"><table>
-      <thead><tr><th>Kundengruppe</th><th>Standgeld ab Tag 4</th><th>Ersatzversand ab Tag 14</th><th>Abrechnung</th></tr></thead>
+      <thead><tr><th>Kundengruppe</th><th>Rechnung</th><th>Standgeld ab Tag 6</th><th>Ersatzversand ab Tag 15</th><th>Abrechnung</th></tr></thead>
       <tbody>
         <tr>
           <td><b>Zahlungsziel</b> (z. B. 30 Tage netto)<br><span class="small">kein Zahlungsblocker — Liegezeit ist reines Abholverhalten</span></td>
+          <td><b>bei Warenausgang</b> — deshalb Warenausgang forcieren: System bietet 3 Abholtage an, Standgeld-Hinweis direkt beim Abschluss</td>
           <td>ja, automatisch</td>
           <td><b>ja, ohne weitere Bedingung</b> — Rechnung läuft ohnehin mit Ziel</td>
           <td>Standgeld + Fracht auf der Auftragsrechnung bzw. Folgerechnung</td>
         </tr>
         <tr>
           <td><b>Vorkasse / Anzahlung</b><br><span class="small">Ware liegt oft, weil Zahlung fehlt</span></td>
+          <td><b>bei Angebotsannahme</b> (sofort) — 72 h Zahlungsfrist, Kommissionierung erst nach Zahlungseingang</td>
           <td>ja — Zahlungsverzug ist Kundenverhalten, das Lager ist trotzdem blockiert</td>
           <td>erst nach vollständigem Zahlungseingang; ohne Zahlung → Stufe „Tag 30"</td>
           <td>Standgeld als Voraussetzung der Versandfreigabe, separat ausgewiesen</td>
         </tr>
         <tr>
           <td><b>Barzahler / Sofort-Abholer</b><br><span class="small">Auftrag entsteht meist erst im Abholmoment (⚡ im Ranking)</span></td>
-          <td colspan="2">Regelung greift praktisch nicht — Frist beginnt erst mit Abholbereit-Meldung</td>
+          <td>bei Abholung</td>
+          <td colspan="2">Regelung greift praktisch nicht — Fenster beginnt erst mit Abholbereit-Meldung</td>
           <td>—</td>
         </tr>
       </tbody>
@@ -274,7 +367,7 @@ footer b{color:var(--ink)}
 
   <!-- ============ 4 · AUSNAHMEN ============ -->
   <section>
-    <h2><span class="secno">4</span>Ausnahme-Flag je Kunde</h2>
+    <h2><span class="secno">6</span>Ausnahme-Flags: Kunden-Ausnahme &amp; Sammler</h2>
     <div class="box flag">
       <h3>Flag „Standgeld-Ausnahme" in der Pipeline</h3>
       <p>Einzelne Kunden können von Standgeld und Ersatzversand ausgenommen werden —
@@ -286,36 +379,51 @@ footer b{color:var(--ink)}
         <li><b>Review:</b> Quartalsweise Prüfung aller aktiven Flags gegen das Durchlaufzeit-Ranking; abgelaufene Flags erlöschen automatisch.</li>
       </ul>
     </div>
+    <div class="box warnung">
+      <h3>Flag „Sammler" — verlängerte Prozesszeit</h3>
+      <p><b>Definition:</b> Ein Sammler nimmt Reste aus <b>mehr als 5 Plomben</b> sowie C-Ware und
+      Problemware (z. B. Herd-Sets Einbau) ab. Diese Kunden räumen uns Restbestände weg, brauchen aber
+      naturgemäß länger zum Zusammenstellen und Abholen.</p>
+      <ul>
+        <li><b>„Echte" Sammler</b> bekommen im System ein Flag und damit eine <b>verlängerte
+        Gesamtprozesszeit</b> (längeres Abholfenster statt 5 Werktage — Vorschlag: 10 Werktage, dann Standgeld).</li>
+        <li>Prüfkriterium aus der Kundenanalyse: Anzahl unterschiedlicher Plomben je Auftrag &gt; 5
+        <b>und</b> überdurchschnittlicher C-/Problemware-Anteil — Flag wird wie die Standgeld-Ausnahme
+        nur durch Leitung Backoffice gesetzt, befristet und quartalsweise reviewt.</li>
+        <li>Sammler-Flag und Standgeld-Ausnahme sind getrennte Flags: der Sammler zahlt nach seiner
+        verlängerten Frist normal Standgeld.</li>
+      </ul>
+    </div>
     <p class="small">Umsetzung: Spalte in NH5_Pipeline_MAX-STATUS („Ausnahme bis / Grund / von"), später Feld am Kundenstamm in Odoo.</p>
   </section>
 
   <!-- ============ 5 · BEISPIEL ============ -->
   <section>
-    <h2><span class="secno">5</span>Beispielrechnung</h2>
+    <h2><span class="secno">7</span>Beispielrechnung</h2>
     <p>Auftrag mit 10 Paletten, abholbereit gemeldet am Montag. Abholung erfolgt erst 12 Kalendertage
     nach Fristablauf:</p>
     <div class="calc">
-      <span>Abholfrist (3 Werktage)</span><span class="r">0 €</span>
+      <span>Abholfenster (5 Werktage)</span><span class="r">0 €</span>
       <span>Standgeld: 10 Paletten × 12 Tage × 9 €</span><span class="r">1.080 €</span>
       <span class="sum">Berechnung an den Kunden</span><span class="r sum">1.080 €</span>
     </div>
-    <p class="small" style="margin-top:.8rem">Zum Vergleich: Bei Ø-Liegezeit von 5,1 Tagen und 3 Werktagen Frist
+    <p class="small" style="margin-top:.8rem">Zum Vergleich: Bei Ø-Liegezeit von 5,1 Tagen und 5 Werktagen Fenster
     fallen für die Mehrheit der Kunden <b>0 €</b> an. Die Regelung trifft gezielt die Ausreißer.</p>
   </section>
 
   <!-- ============ 6 · TEXTBAUSTEINE ============ -->
   <section>
-    <h2><span class="secno">6</span>Textbausteine</h2>
+    <h2><span class="secno">8</span>Textbausteine</h2>
 
     <div class="tpl">
       <div class="tname">A · Hinweis in Auftragsbestätigung &amp; Abholbereit-Meldung</div>
       <p>„Ihre Ware ist ab <span class="var">[Datum]</span> abholbereit (<span class="var">[X]</span> Paletten).
-      Bitte holen Sie die Ware innerhalb von <b>3 Werktagen</b> ab oder bestätigen Sie uns einen festen Abholtermin.
+      Bitte wählen Sie einen der angebotenen Abholtermine (Kalender-Link, 5 Werktage ab Kommissionierung) oder buchen Sie ein Standgeldpaket für eine spätere Abholung.
       Nach Ablauf der Frist berechnen wir ein Standgeld von <b>9 € pro Palette und Tag</b>.
       Das Zahlungsziel beginnt mit Rechnungsstellung, nicht mit Abholung."</p>
     </div>
     <div class="tpl">
-      <div class="tname">B · Standgeld-Start (Tag 4)</div>
+      <div class="tname">B · Standgeld-Start (Tag 6)</div>
       <p>„Die Abholfrist für Auftrag <span class="var">[AU-Nr.]</span> ist am <span class="var">[Datum]</span> abgelaufen.
       Ab heute berechnen wir Standgeld: <span class="var">[X]</span> Paletten × 9 € = <span class="var">[Betrag]</span> pro Tag.
       Aktueller Stand: <span class="var">[Summe]</span>. Bitte nennen Sie uns umgehend einen Abholtermin."</p>
@@ -323,7 +431,7 @@ footer b{color:var(--ink)}
     <div class="tpl">
       <div class="tname">C · Ankündigung Ersatzversand (Tag 7)</div>
       <p>„Trotz Erinnerung liegt für Auftrag <span class="var">[AU-Nr.]</span> kein Abholtermin vor.
-      Erfolgt bis <span class="var">[Datum = Tag 14]</span> keine Abholung, beauftragen wir den Versand per Spedition
+      Erfolgt bis <span class="var">[Datum = Tag 15]</span> keine Abholung, beauftragen wir den Versand per Spedition
       an Ihre hinterlegte Lieferadresse <b>auf Ihre Kosten</b> (Frachtkosten laut Tagespreis zzgl. aufgelaufenem Standgeld,
       aktuell <span class="var">[Summe]</span>)."</p>
     </div>
@@ -331,7 +439,7 @@ footer b{color:var(--ink)}
 
   <!-- ============ 7 · UMSETZUNG ============ -->
   <section>
-    <h2><span class="secno">7</span>Umsetzung &amp; offene Punkte</h2>
+    <h2><span class="secno">9</span>Umsetzung &amp; offene Punkte</h2>
     <div class="tablewrap"><table>
       <thead><tr><th>Schritt</th><th>Wer</th><th>Wann</th></tr></thead>
       <tbody>
@@ -340,10 +448,12 @@ footer b{color:var(--ink)}
         <tr><td>Pipeline-Spalten: Abholbereit-Datum, Standgeld-Zähler, Ausnahme-Flag</td><td>Dustin</td><td>KW 36</td></tr>
         <tr><td>Bestandskunden anschreiben (Ankündigung mit Vorlauf, Start <b>01.10.2026</b>)</td><td>Janna / Vertrieb</td><td>KW 36</td></tr>
         <tr><td>AGB / Rahmenvereinbarungen um Standgeld-Klausel ergänzen (rechtlich prüfen)</td><td>GF</td><td>vor Start</td></tr>
+        <tr><td>Shop-Kalender: Abhol-/Versandtermine mit Kapa-Kopplung (NH5-Pipeline), Puffer, Deckel + Standgeldpakete (Tag 12/20) als buchbare Optionen</td><td>Dustin + IT/Odoo</td><td>Konzept KW 36, Umsetzung Q4</td></tr>
+        <tr><td>Sammler-Kriterien aus Kundenanalyse ableiten (Plomben je Auftrag, C-Anteil) + Flags setzen</td><td>Dustin</td><td>KW 37</td></tr>
         <tr><td>Monatsauswertung: berechnetes Standgeld vs. Liegezeit-Entwicklung</td><td>Dustin</td><td>ab Oktober</td></tr>
       </tbody>
     </table></div>
-    <p class="small">Zur Abstimmung markiert: Fristlängen (3 Werktage / Tag 7 / Tag 14), Pausieren bei bestätigtem Termin (max. 5 Werktage),
+    <p class="small">Zur Abstimmung markiert: Fristlängen (5 Werktage Fenster / Tag 10 / Tag 15), Paketpreise (Tag 12/20), Pausieren bei bestätigtem Termin (max. 5 Werktage),
     Höhe unstrittig gesetzt auf 9 €/Palette/Tag.</p>
   </section>
 
