@@ -153,8 +153,8 @@ footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--line);font-si
       <div class="f"><label>Standgeldpaket</label>
         <select id="c-paket">
           <option value="0">keins (Standard)</option>
-          <option value="12">Paket 12 (bis Tag 12)</option>
-          <option value="20">Paket 20 (bis Tag 20)</option>
+          <option value="12">Paket 12 — 6,50 €/Pal/Tag vorab</option>
+          <option value="20">Paket 20 — 6,50 € bis T12, dann 9 €</option>
         </select>
       </div>
       <div class="f"><label>Paletten</label><input type="number" id="c-pal" value="10" min="1" max="66" style="width:5rem"></div>
@@ -209,7 +209,7 @@ footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--line);font-si
         <tr><td>Zahlungsziel: Rechnung</td><td>bei <b>Warenausgang</b> → Warenausgang forcieren (3 angebotene Abholtage, Standgeld-Hinweis im Abschluss)</td></tr>
         <tr><td>Abholfenster</td><td><span class="num">5 WT</span> ab Kommissioniertag (Kalender zeigt 5 Termine, NH5-Kapa) · Sammler: <span class="num">10 WT</span></td></tr>
         <tr><td>Standgeld</td><td><span class="num">9 €</span> pro Palette pro Tag ab Fensterende</td></tr>
-        <tr><td>Standgeldpakete</td><td>bis Tag 12 / Tag 20 — vorab als Paketpreis (Paletten × Tage über Fenster × 9 €)</td></tr>
+        <tr><td>Standgeldpakete</td><td>vorab gebucht: <span class="num">6,50 €</span>/Palette/Tag bis Tag 12, <span class="num">9 €</span> Tag 13–20 · nachträglich immer 9 € · nur bei NH5-Belegung &lt; 85 % buchbar · keine Erstattung</td></tr>
         <tr><td>Ankündigung Ersatzversand</td><td>Tag 10 (bzw. vor Paketende)</td></tr>
         <tr><td>Ersatzversand auf Kundenkosten</td><td>ab Tag 15 (bzw. nach Paketende) — Fracht laut Tagespreis + Standgeld; Vorkasse: erst nach Zahlungseingang</td></tr>
         <tr><td>Rücktritt / Verwertung</td><td>Tag 30, nur mit gesonderter Freigabe</td></tr>
@@ -243,7 +243,8 @@ function calc(){
   const freiBis=fenster;
   const bezahltBis=Math.max(fenster,paketEnde);      // Paket verlängert kostenpflichtig-bezahlt
   const paketTage=Math.max(0,paketEnde-fenster);
-  const paketPreis=paketTage*9*s.pal;
+  const t65=Math.max(0,Math.min(paketEnde,12)-fenster), t90=Math.max(0,paketEnde-Math.max(12,fenster));
+  const paketPreis=(t65*6.5+t90*9)*s.pal;
   const ankuend=Math.min(Math.max(10,(paketEnde||0)-2), ersatzSafe());function ersatzSafe(){return Math.max(15,(paketEnde||0)+1)-1}
   const ersatz=Math.max(15,(paketEnde||0)+1);
   // Standgeld je nach tatsächlichem Abholtag
@@ -263,7 +264,7 @@ function render(){
   const gesamt=c.paketPreis+c.standgeld;
   $("results").innerHTML=[
     ["Abholfenster",c.fenster+" WT",s.sammler?"Sammler-Flag aktiv":"Standard", c.fenster>5?"warn":"ok"],
-    ["Standgeldpaket",c.paketEnde?("bis Tag "+c.paketEnde):"—",c.paketEnde?eur(c.paketPreis)+" vorab ("+c.paketTage+" T × "+s.pal+" Pal × 9 €)":"nicht gebucht", c.paketEnde?"warn":"ok"],
+    ["Standgeldpaket",c.paketEnde?("bis Tag "+c.paketEnde):"—",c.paketEnde?eur(c.paketPreis)+" vorab (Rabatt 6,50 € bis Tag 12, danach 9 €)":"nicht gebucht", c.paketEnde?"warn":"ok"],
     ["Standgeld bei Abholung Tag "+s.tag, bar?"—":(versand?"0 €":eur(c.standgeld)), bar?"greift bei Barzahlern kaum":(versand?"Versand steuern wir selbst":c.note), c.standgeld>0?"bad":"ok"],
     ["Gesamtkosten Kunde", bar||versand?"0 €":eur(gesamt), "Paket + laufendes Standgeld", gesamt>0?"bad":"ok"]
   ].map(k=>`<div class="res ${k[3]}"><div class="l">${k[0]}</div><div class="v">${k[1]}</div><div class="s">${k[2]}</div></div>`).join("");
@@ -301,7 +302,7 @@ function render(){
         s.sammler?"Sammler-Flag: verlängertes Fenster (10 WT).":"5 Werktage, Termine aus dem Kalender.",true]);
       if(c.paketEnde) steps.push([`Tag ${c.fenster+1}–${c.paketEnde}`,"Paket","warn",
         `Standgeldpaket bis Tag ${c.paketEnde} <span class='chip geld'>${eur(c.paketPreis)} vorab</span>`,
-        "Verlängerung wurde beim Abschluss gekauft — Eskalation pausiert bis Paketende.",true]);
+        "Vorbucher-Rabatt 6,50 €/Pal/Tag (bis Tag 12; Tag 13–20: 9 €) — Eskalation pausiert bis Paketende.",true]);
       steps.push([`Tag ${c.bezahltBis+1}`,"Standgeld","warn",`Standgeld läuft <span class='chip geld'>9 €/Palette/Tag</span> <span class='chip auto'>automatisch</span>`,
         `Bei ${s.pal} Paletten: ${eur(9*s.pal)} pro Tag. Mitteilung mit Zählerstand (Textbaustein B).`, s.tag>c.bezahltBis]);
       steps.push([`Tag ${c.ankuend}`,"Ankündigung","pink","Ankündigung Ersatzversand <span class='chip mail'>E-Mail + Telefon</span>",
