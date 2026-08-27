@@ -1,0 +1,476 @@
+<title>Standzeiten-Regelung</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Source+Sans+3:ital,wght@0,400;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+:root{
+  --bg:#F6F3ED; --surface:#FFFFFF; --surface-2:#FBFAF7;
+  --ink:#2B2926; --muted:#7A7469; --line:#E3DFD8; --line-strong:#CFC9BF;
+  --pink:#FC3C8C; --pink-ink:#B3175F; --pink-soft:#FFE9F3;
+  --ok:#1F9D6B; --ok-bg:#E4F5EE; --warn:#B06A14; --warn-bg:#FBEFD9;
+  --bad:#C22B4E; --bad-bg:#FBE4EA; --info:#3B6FD6; --info-bg:#EAF0FB;
+  --shadow:0 1px 2px rgba(43,41,38,.05), 0 8px 24px rgba(43,41,38,.05);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#1F1D1A; --surface:#282623; --surface-2:#2F2C28;
+    --ink:#EFEBE3; --muted:#A39C90; --line:#3C3831; --line-strong:#4C463D;
+    --pink:#FF6FAC; --pink-ink:#FF9BC6; --pink-soft:#472334;
+    --ok:#7FC9A4; --ok-bg:#22352C; --warn:#E0A659; --warn-bg:#3B2F1B;
+    --bad:#F0819B; --bad-bg:#42222B; --info:#8FB0EE; --info-bg:#232F45;
+    --shadow:0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.25);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#1F1D1A; --surface:#282623; --surface-2:#2F2C28;
+  --ink:#EFEBE3; --muted:#A39C90; --line:#3C3831; --line-strong:#4C463D;
+  --pink:#FF6FAC; --pink-ink:#FF9BC6; --pink-soft:#472334;
+  --ok:#7FC9A4; --ok-bg:#22352C; --warn:#E0A659; --warn-bg:#3B2F1B;
+  --bad:#F0819B; --bad-bg:#42222B; --info:#8FB0EE; --info-bg:#232F45;
+  --shadow:0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.25);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font:400 16.5px/1.6 "Source Sans 3",system-ui,sans-serif}
+main{max-width:56rem;margin:0 auto;padding:2.6rem 1.4rem 6rem}
+h1,h2,h3{font-family:"Archivo",system-ui,sans-serif;line-height:1.15;text-wrap:balance}
+h1{font-size:2.15rem;font-weight:800;letter-spacing:-.015em;margin:.5rem 0 .4rem}
+h1 em{font-style:normal;color:var(--pink)}
+h2{font-size:1.28rem;font-weight:700;margin:0 0 .35rem}
+h3{font-size:1.02rem;font-weight:600;margin:1.5rem 0 .5rem}
+p{max-width:70ch}
+section{margin-top:3rem;padding-top:1.6rem;border-top:2px solid var(--line)}
+.eyebrow{font-family:"Archivo",sans-serif;font-size:.72rem;font-weight:700;
+  letter-spacing:.15em;text-transform:uppercase;color:var(--pink)}
+.secno{font-family:"IBM Plex Mono",monospace;font-size:.85rem;color:var(--pink);margin-right:.5rem}
+.lede{font-size:1.05rem;color:var(--muted);max-width:66ch;margin:.2rem 0 0}
+.meta{display:flex;flex-wrap:wrap;gap:.35rem 1.8rem;margin:1.3rem 0 0;
+  padding:.9rem 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);
+  font-size:.9rem;color:var(--muted)}
+.meta b{color:var(--ink);font-weight:600}
+.draft{display:inline-block;font-family:"Archivo",sans-serif;font-size:.7rem;font-weight:700;
+  letter-spacing:.1em;text-transform:uppercase;color:var(--warn);background:var(--warn-bg);
+  border-radius:4px;padding:.25rem .6rem;margin-bottom:1rem}
+
+.core{margin:1.6rem 0 0;background:var(--surface);border:1px solid var(--line);
+  border-left:5px solid var(--pink);border-radius:0 10px 10px 0;box-shadow:var(--shadow);
+  padding:1.15rem 1.4rem}
+.core .big{font-family:"Archivo",sans-serif;font-size:1.5rem;font-weight:800;letter-spacing:-.01em}
+.core .big .num{font-family:"IBM Plex Mono",monospace;color:var(--pink)}
+.core p{margin:.45rem 0 0;color:var(--muted);font-size:.95rem}
+
+/* Eskalationsstufen */
+.stages{display:flex;flex-direction:column;gap:.7rem;margin-top:1.2rem}
+.stage{display:grid;grid-template-columns:7.2rem 1fr;gap:1.1rem;align-items:start;
+  background:var(--surface);border:1px solid var(--line);border-radius:10px;
+  box-shadow:var(--shadow);padding:1rem 1.2rem}
+.stage .when{display:flex;flex-direction:column;gap:.15rem}
+.stage .day{font-family:"IBM Plex Mono",monospace;font-size:1.05rem;font-weight:600}
+.stage .daylabel{font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.stage h3{margin:0 0 .25rem;font-size:1rem}
+.stage p{margin:0;font-size:.94rem;color:var(--muted);max-width:none}
+.stage .aktion{margin-top:.5rem;font-size:.88rem}
+.stage .aktion b{font-weight:600}
+.s0{border-left:5px solid var(--line-strong)}
+.s1{border-left:5px solid var(--warn)}
+.s2{border-left:5px solid var(--pink)}
+.s3{border-left:5px solid var(--bad)}
+.s4{border-left:5px solid var(--ink)}
+@media(max-width:600px){.stage{grid-template-columns:1fr}.stage .when{flex-direction:row;gap:.6rem;align-items:baseline}}
+
+/* Chips */
+.chip{display:inline-block;font-family:"Archivo",sans-serif;font-size:.68rem;font-weight:700;
+  letter-spacing:.05em;text-transform:uppercase;padding:.18rem .55rem;border-radius:99px;white-space:nowrap}
+.chip.auto{background:var(--info-bg);color:var(--info)}
+.chip.mail{background:var(--pink-soft);color:var(--pink-ink)}
+.chip.geld{background:var(--warn-bg);color:var(--warn)}
+.chip.hart{background:var(--bad-bg);color:var(--bad)}
+.chip.frei{background:var(--ok-bg);color:var(--ok)}
+
+/* Tabellen */
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px;
+  background:var(--surface);box-shadow:var(--shadow);margin:1.1rem 0}
+table{border-collapse:collapse;width:100%;font-size:.92rem}
+th{font-family:"Archivo",sans-serif;font-size:.7rem;font-weight:700;letter-spacing:.08em;
+  text-transform:uppercase;text-align:left;color:var(--muted);
+  padding:.75rem .9rem;border-bottom:1px solid var(--line);background:var(--surface-2)}
+td{padding:.7rem .9rem;border-bottom:1px solid var(--line);vertical-align:top}
+tr:last-child td{border-bottom:none}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;font-family:"IBM Plex Mono",monospace;font-size:.86rem}
+td b{font-weight:600}
+.small{font-size:.85rem;color:var(--muted)}
+
+/* Boxen */
+.box{background:var(--surface);border:1px solid var(--line);border-radius:10px;
+  box-shadow:var(--shadow);padding:1.1rem 1.3rem;margin-top:1.1rem}
+.box.flag{border-left:5px solid var(--ok)}
+.box.warnung{border-left:5px solid var(--warn)}
+.box h3{margin-top:0}
+ul{padding-left:1.2rem;margin:.5rem 0}
+li{margin:.35rem 0;max-width:68ch}
+li::marker{color:var(--pink)}
+
+/* Beispielrechnung */
+.calc{display:grid;grid-template-columns:1fr auto;gap:.3rem 1.6rem;
+  font-variant-numeric:tabular-nums;max-width:34rem;margin-top:.6rem;font-size:.95rem}
+.calc .r{text-align:right;font-family:"IBM Plex Mono",monospace;font-size:.88rem}
+.calc .sum{border-top:1px solid var(--line-strong);padding-top:.35rem;font-weight:700}
+
+/* Textbausteine */
+.tpl{background:var(--surface-2);border:1px dashed var(--line-strong);border-radius:8px;
+  padding:.9rem 1.1rem;margin:.8rem 0;font-size:.92rem}
+.tpl .tname{font-family:"Archivo",sans-serif;font-size:.72rem;font-weight:700;
+  letter-spacing:.08em;text-transform:uppercase;color:var(--pink-ink);margin-bottom:.4rem}
+.tpl p{margin:.3rem 0;max-width:none}
+.tpl .var{font-family:"IBM Plex Mono",monospace;font-size:.82rem;background:var(--pink-soft);
+  color:var(--pink-ink);border-radius:4px;padding:0 .3rem}
+
+footer{margin-top:3.5rem;padding-top:1.2rem;border-top:1px solid var(--line);
+  font-size:.85rem;color:var(--muted)}
+footer b{color:var(--ink)}
+</style>
+
+<main>
+  <span class="draft">Entwurf v2 · Prozess nach Verkauf integriert · zur internen Abstimmung</span>
+  <div class="eyebrow">elvinci.de GmbH</div>
+  <h1>Standzeiten-Regelung <em>Abholung &amp; Versand</em></h1>
+  <p class="lede">Feste Fristen, feste Aktionen: Standgeld bei Überschreitung der Abholfrist,
+  angekündigter Ersatzversand auf Kosten des Kunden — abgestuft nach Zahlungsart,
+  mit dokumentierter Ausnahme-Möglichkeit je Kunde.</p>
+  <div class="meta">
+    <span>Stand <b>27.08.2026</b></span>
+    <span>Verantwortlich <b>Dustin</b></span>
+    <span>Datenbasis <b>Durchlaufzeit-Ranking v4 (19.08.2026)</b></span>
+    <span>Gilt für <b>Lager NH5 / AMM</b></span>
+  </div>
+
+  <div class="core">
+    <div class="big">Standgeld <span class="num">9 € pro Palette pro Tag</span></div>
+    <p>ab dem ersten Tag nach Ablauf des Abholfensters von <b>5 Werktagen ab Kommissioniertag</b> —
+    oder planbar im Voraus über <b>Standgeldpakete</b> (Zeitblöcke bis Tag 12 / Tag 20).
+    Ziel ist nicht die Einnahme, sondern die schnelle Räumung des Lagers —
+    wer im Fenster abholt oder versendet, zahlt nichts.</p>
+  </div>
+
+  <!-- ============ 1 · WARUM ============ -->
+  <section>
+    <h2><span class="secno">1</span>Ausgangslage</h2>
+    <p>Fertig kommissionierte Ware bleibt im Schnitt <b>5,1 Tage</b> (Median 4 Tage) liegen,
+    bevor sie abgeholt oder versendet wird — bei einzelnen Kunden über 15 Tage, Spitzen bis 40 Tage
+    (Durchlaufzeit-Ranking, N=246 Aufträge 2026). Diese Liegezeit blockiert Stellplätze,
+    verzögert Wareneingänge und kostet Kapazität, die mit AMM fest vereinbart ist.
+    Bisher gibt es keine Konsequenz — Erinnerungen ohne Frist und ohne Folge.</p>
+    <p>Die größten Liegezeiten entstehen fast ausschließlich bei <b>Abholkunden</b>:</p>
+    <div class="tablewrap"><table>
+      <thead><tr><th>Kunde (Beispiele aus Ranking)</th><th class="num">Aufträge</th><th class="num">Ø Liegezeit</th><th class="num">Max</th><th>Versandart</th></tr></thead>
+      <tbody>
+        <tr><td>Banat Electrocasnice S.R.L</td><td class="num">4</td><td class="num">17,5 T</td><td class="num">30 T</td><td>Abholung</td></tr>
+        <tr><td>Egzoni Sh.P.K</td><td class="num">3</td><td class="num">15,0 T</td><td class="num">35 T</td><td>Abholung</td></tr>
+        <tr><td>UAB Stevija</td><td class="num">9</td><td class="num">11,3 T</td><td class="num">42 T</td><td>Abholung</td></tr>
+        <tr><td>Hanseatic Georgia LLC</td><td class="num">12</td><td class="num">9,6 T</td><td class="num">35 T</td><td>Abholung</td></tr>
+        <tr><td>Outlet Mebeli Ltd</td><td class="num">6</td><td class="num">9,0 T</td><td class="num">40 T</td><td>Abholung</td></tr>
+      </tbody>
+    </table></div>
+    <p class="small">Liegezeit = Kunden-Phase: Kommissionierung abgeschlossen → Ware verlässt das Lager.</p>
+  </section>
+
+  <!-- ============ 2 · PROZESS NACH VERKAUF ============ -->
+  <section>
+    <h2><span class="secno">2</span>Ablauf nach Angebotsannahme — zwei Fristblöcke</h2>
+    <p>Der Gesamtprozess besteht aus zwei Fristblöcken: <b>Zahlungsblock</b> (nur Vorkasse) und
+    <b>Abhol-/Versandblock</b> (alle). Zwischen beiden liegt die Kommissionierung.</p>
+
+    <h3>Block 1 · Vorkassekunden: Zahlung</h3>
+    <div class="stages">
+      <div class="stage s0">
+        <div class="when"><span class="day">Tag 0</span><span class="daylabel">Annahme</span></div>
+        <div>
+          <h3>Angebotsannahme = Rechnungsstellung <span class="chip auto">automatisch</span></h3>
+          <p>Die Rechnung wird <b>zeitgleich mit der Angebotsannahme</b> erstellt. Damit startet
+          der erste Fristblock: <b>3 Werktage (72 Stunden) Zahlungsfrist</b> für Vorkassekunden.</p>
+        </div>
+      </div>
+      <div class="stage s1">
+        <div class="when"><span class="day">+72 h</span><span class="daylabel">Zahlungsfrist</span></div>
+        <div>
+          <h3>Zahlung nicht eingegangen <span class="chip mail">Erinnerung</span></h3>
+          <p>Erinnerung mit letzter Frist (3 Werktage). Ohne Zahlungseingang danach: Auftrag wird
+          storniert bzw. Ware wieder freigegeben — kommissioniert wird erst nach Zahlungseingang,
+          damit fertige Ware nicht auf offene Zahlungen wartet.</p>
+        </div>
+      </div>
+    </div>
+    <p class="small" style="margin-top:.6rem"><b>Zahlungszielkunden</b> überspringen Block 1:
+    ihre Rechnung entsteht erst <b>bei Warenausgang</b> — genau deshalb muss der Warenausgang
+    forciert werden (Block 2), sonst verschiebt der Kunde mit der Abholung auch sein Zahlungsziel.</p>
+
+    <h3>Block 2 · Abholung oder Versand (ab Kommissioniertag)</h3>
+    <div class="tablewrap"><table>
+      <thead><tr><th>Variante</th><th>Terminwahl</th><th>Kontrolle</th><th>Regel</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><b>Versand</b></td>
+          <td>Kunde wählt Wunschtermin im Kalender — oder keinen</td>
+          <td><span class="chip frei">in unserer Hand</span></td>
+          <td>Ohne Wunschtermin geht die Ware zum nächsten freien Kapa-Slot raus.
+          Der Warenausgang wird von uns gesteuert — kein Standgeld-Fall, solange wir liefern können.</td>
+        </tr>
+        <tr>
+          <td><b>Abholung</b></td>
+          <td>Kunde wählt aus angebotenen Terminen — oder keinen</td>
+          <td><span class="chip hart">nicht in unserer Hand</span></td>
+          <td><b>Zeitfenster: 5 Werktage ab Kommissioniertag</b> zur Auswahl (der Kalender zeigt
+          genau diese 5 verfügbaren Abholtermine). Keine Abholung im Fenster → Standgeld
+          bzw. Eskalation (Abschnitt 4).</td>
+        </tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <!-- ============ 3 · KALENDER ============ -->
+  <section>
+    <h2><span class="secno">3</span>Terminbuchung im Shop — Kalender mit Kapa-Kopplung</h2>
+    <p>Im Online-Shop (Checkout bzw. Auftragsbestätigungs-Seite) wählt der Kunde seinen
+    Abhol- oder Versandtermin in einem <b>Kalender</b>. Drei Bauprinzipien:</p>
+    <ul>
+      <li><b>Puffer:</b> Der früheste angebotene Termin liegt hinter dem geplanten Kommissioniertag
+      (Puffer für WE-/Kommissionier-Schwankungen) — keine Termine, die wir nicht halten können.</li>
+      <li><b>Kapa-Kopplung:</b> Verfügbare Slots kommen aus den echten Lagerkapazitäten
+      (NH5-Pipeline / Tageskapazität mit AMM, 532 Geräte/Tag) — ausgebuchte Tage erscheinen nicht.</li>
+      <li><b>Nach hinten gedeckelt:</b> Standardauswahl endet mit dem Abholfenster
+      (5 Werktage ab Kommissioniertag). Spätere Termine sind <b>nicht frei wählbar</b>, sondern nur
+      über kostenpflichtige <b>Standgeldpakete</b> buchbar.</li>
+    </ul>
+    <h3>Standgeldpakete — spätere Abholung planbar machen</h3>
+    <div class="tablewrap"><table>
+      <thead><tr><th>Paket</th><th>Abholung bis</th><th>Preislogik</th><th>Hinweis im Checkout</th></tr></thead>
+      <tbody>
+        <tr><td><b>Standard</b></td><td>Tag 5 (Werktage ab Kommissionierung)</td><td class="num">0 €</td><td>„Kostenfreies Abholfenster"</td></tr>
+        <tr><td><b>Paket 12</b></td><td>Tag 12</td><td class="num">6,50 €/Palette/Tag (Vorbucher-Rabatt statt 9 €), im Voraus als Paketpreis</td><td>„Verlängerte Lagerung — Standgeldpaket"</td></tr>
+        <tr><td><b>Paket 20</b></td><td>Tag 20</td><td class="num">Tag 6–12: 6,50 € · Tag 13–20: 9,00 € je Palette/Tag, im Voraus</td><td>„Maximale Verlängerung — danach Ersatzversand"</td></tr>
+      </tbody>
+    </table></div>
+    <p class="small">Paketpreise werden bei Buchung fest berechnet — der Kunde kauft Planbarkeit,
+    wir bekommen den Stellplatz im Voraus bezahlt. Der <b>Vorbucher-Rabatt (6,50 € statt 9 €)</b> macht
+    das Paket attraktiver als „liegen lassen und nachzahlen" — nachträgliches Standgeld bleibt immer 9 €.
+    Nach Tag 20 gibt es keinen regulären Slot mehr → Eskalationsstufen greifen.</p>
+    <ul>
+      <li><b>Kapa-Schranke:</b> Pakete werden nur angeboten, solange die NH5-Belegung unter der Warnstufe (85 %) liegt — bei voller Halle blendet der Kalender sie aus.</li>
+      <li><b>Rabatt nur bei Vorbuchung:</b> im Checkout bzw. bis Tag 3 nach Kommissionierung; danach gilt der volle Satz von 9 €.</li>
+      <li><b>Keine Erstattung</b> bei früherer Abholung — das Paket ist eine Stellplatz-Reservierung, kein Guthaben.</li>
+      <li><b>Sammler:</b> Rabatt-Tage beginnen erst nach deren verlängertem Fenster (kein Doppelrabatt).</li>
+    </ul>
+
+    <h3>Terminlogik Zahlungszielkunden (Abholer)</h3>
+    <ul>
+      <li>Das System bietet <b>3 verschiedene Abholtage</b> an (mit Puffer und Blick auf die NH5-Kapa) — der Kunde wählt einen davon.</li>
+      <li>Direkter Hinweis beim Abschluss: <b>„Bei späterem Abholtermin fällt Standgeld von 9 € pro Palette und Tag an."</b></li>
+      <li>Rechnungsstellung erfolgt bei Warenausgang — je früher die Abholung, desto früher läuft das Zahlungsziel.</li>
+    </ul>
+  </section>
+
+  <!-- ============ 4 · ESKALATION ============ -->
+  <section>
+    <h2><span class="secno">4</span>Eskalationsstufen — Frist, Aktion, Konsequenz</h2>
+    <p>Der Zähler startet mit dem <b>Kommissioniertag</b> (Ware vollständig kommissioniert,
+    Abholbereit-Meldung per E-Mail an den Kunden). Jede Stufe hat eine feste Aktion — keine Ermessensfragen im Tagesgeschäft.</p>
+
+    <div class="stages">
+      <div class="stage s0">
+        <div class="when"><span class="day">Tag 0</span><span class="daylabel">Kommission.</span></div>
+        <div>
+          <h3>Abholbereit-Meldung mit Terminfenster <span class="chip mail">E-Mail</span></h3>
+          <p>Kunde erhält die Meldung „Ware abholbereit" inkl. Palettenzahl, Kalender-Link mit den
+          <b>5 verfügbaren Abholterminen</b> (NH5-Pipeline-Kapa) und Hinweis auf Standgeld,
+          Standgeldpakete und Ersatzversand (Textbaustein A). Bei Vorkasse zusätzlich: Zahlungsstand.</p>
+        </div>
+      </div>
+      <div class="stage s0">
+        <div class="when"><span class="day">Tag 1–5</span><span class="daylabel">Abholfenster</span></div>
+        <div>
+          <h3>Kostenfreies Abholfenster <span class="chip frei">kostenfrei</span></h3>
+          <p><b>5 Werktage ab Kommissioniertag</b> für Abholung bzw. Versand — der Kalender zeigt genau
+          diese Termine. Ein gebuchtes <b>Standgeldpaket</b> (Tag 12 / Tag 20, Abschnitt 3) verlängert
+          das Fenster kostenpflichtig und pausiert die Eskalation bis zum Paketende.</p>
+        </div>
+      </div>
+      <div class="stage s1">
+        <div class="when"><span class="day">Tag 6</span><span class="daylabel">Fensterende</span></div>
+        <div>
+          <h3>Standgeld beginnt <span class="chip geld">9 €/Palette/Tag</span> <span class="chip auto">automatisch</span></h3>
+          <p>Ab dem 1. Tag nach Fensterende läuft Standgeld je angefangenem Tag und Palette —
+          außer es wurde vorab ein Standgeldpaket gebucht (dann ist der Zeitraum bereits bezahlt).
+          Kunde erhält Mitteilung mit laufendem Zählerstand (Textbaustein B).</p>
+          <p class="aktion"><b>Aktion:</b> Standgeld-Zähler in der Pipeline aktiv, keine manuelle Entscheidung nötig.</p>
+        </div>
+      </div>
+      <div class="stage s2">
+        <div class="when"><span class="day">Tag 10</span><span class="daylabel">Ankündigung</span></div>
+        <div>
+          <h3>Ankündigung Ersatzversand <span class="chip mail">E-Mail + Telefon</span></h3>
+          <p>Zweite Erinnerung mit Ansage: Erfolgt bis <b>Tag 15</b> (bzw. bis zum Ende eines gebuchten
+          Standgeldpakets) keine Abholung und kein bestätigter Termin, organisiert elvinci den Versand
+          per Spedition <b>auf Kosten des Kunden</b> (Tagespreis-Offerte + aufgelaufenes Standgeld) — Textbaustein C.</p>
+          <p class="aktion"><b>Aktion:</b> Telefonat dokumentieren; parallel Tagespreis bei AMM anfragen, damit Stufe 3 sofort umsetzbar ist.</p>
+        </div>
+      </div>
+      <div class="stage s3">
+        <div class="when"><span class="day">Tag 15</span><span class="daylabel">Umsetzung</span></div>
+        <div>
+          <h3>Ersatzversand durch elvinci <span class="chip hart">auf Kundenkosten</span></h3>
+          <p>elvinci beauftragt die Spedition an die hinterlegte Lieferadresse. Berechnet werden
+          Frachtkosten laut Tagespreis + Standgeld bis Verladetag. Standgeld endet mit der Verladung.</p>
+          <p class="aktion"><b>Voraussetzung:</b> Ware ist bezahlt oder Kunde hat Zahlungsziel (→ Abschnitt 3).
+          Ist Versand nicht möglich (Adresse/Land/Zoll), stattdessen: kostenpflichtige Auslagerung zu externem Lagerpartner, Standgeld läuft weiter.</p>
+        </div>
+      </div>
+      <div class="stage s4">
+        <div class="when"><span class="day">Tag 30</span><span class="daylabel">Letzte Stufe</span></div>
+        <div>
+          <h3>Rücktritt &amp; Verwertung <span class="chip hart">Einzelfall</span></h3>
+          <p>Bei unbezahlter Ware ohne Abholung: schriftliche letzte Frist (7 Tage), danach Rücktritt
+          vom Auftrag und freie Verwertung der Ware. Anzahlungen werden mit Standgeld und Kosten
+          verrechnet. <b>Nur mit gesonderter Freigabe, je Einzelfall.</b></p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 3 · ZAHLUNGSARTEN ============ -->
+  <section>
+    <h2><span class="secno">5</span>Abstufung nach Zahlungsart</h2>
+    <p>Die Zahlungsart entscheidet, welche Stufen greifen — insbesondere bei
+    <b>Zahlungsziel-Kunden</b>, die den Großteil der planbaren Aufträge stellen:</p>
+    <div class="tablewrap"><table>
+      <thead><tr><th>Kundengruppe</th><th>Rechnung</th><th>Standgeld ab Tag 6</th><th>Ersatzversand ab Tag 15</th><th>Abrechnung</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><b>Zahlungsziel</b> (z. B. 30 Tage netto)<br><span class="small">kein Zahlungsblocker — Liegezeit ist reines Abholverhalten</span></td>
+          <td><b>bei Warenausgang</b> — deshalb Warenausgang forcieren: System bietet 3 Abholtage an, Standgeld-Hinweis direkt beim Abschluss</td>
+          <td>ja, automatisch</td>
+          <td><b>ja, ohne weitere Bedingung</b> — Rechnung läuft ohnehin mit Ziel</td>
+          <td>Standgeld + Fracht auf der Auftragsrechnung bzw. Folgerechnung</td>
+        </tr>
+        <tr>
+          <td><b>Vorkasse / Anzahlung</b><br><span class="small">Ware liegt oft, weil Zahlung fehlt</span></td>
+          <td><b>bei Angebotsannahme</b> (sofort) — 72 h Zahlungsfrist, Kommissionierung erst nach Zahlungseingang</td>
+          <td>ja — Zahlungsverzug ist Kundenverhalten, das Lager ist trotzdem blockiert</td>
+          <td>erst nach vollständigem Zahlungseingang; ohne Zahlung → Stufe „Tag 30"</td>
+          <td>Standgeld als Voraussetzung der Versandfreigabe, separat ausgewiesen</td>
+        </tr>
+        <tr>
+          <td><b>Barzahler / Sofort-Abholer</b><br><span class="small">Auftrag entsteht meist erst im Abholmoment (⚡ im Ranking)</span></td>
+          <td>bei Abholung</td>
+          <td colspan="2">Regelung greift praktisch nicht — Fenster beginnt erst mit Abholbereit-Meldung</td>
+          <td>—</td>
+        </tr>
+      </tbody>
+    </table></div>
+    <div class="box warnung">
+      <h3>Wichtig für Zahlungsziel-Kunden</h3>
+      <p style="margin:0">Die Rechnung an Zahlungsziel-Kunden entsteht erst <b>bei Warenausgang</b> —
+      je später die Abholung, desto später beginnt also auch das Zahlungsziel. Ohne Gegendruck
+      lohnt sich Liegenlassen für den Kunden doppelt. Deshalb: Warenausgang aktiv forcieren
+      (System bietet 3 frühe Abholtage an) und ab Tag 6 Standgeld — damit ist Trödeln teurer
+      als der Zinsvorteil aus dem späteren Zahlungsziel.</p>
+    </div>
+  </section>
+
+  <!-- ============ 4 · AUSNAHMEN ============ -->
+  <section>
+    <h2><span class="secno">6</span>Ausnahme-Flags: Kunden-Ausnahme &amp; Sammler</h2>
+    <div class="box flag">
+      <h3>Flag „Standgeld-Ausnahme" in der Pipeline</h3>
+      <p>Einzelne Kunden können von Standgeld und Ersatzversand ausgenommen werden —
+      dokumentiert, befristet, personengebunden:</p>
+      <ul>
+        <li><b>Wer setzt es:</b> ausschließlich Dustin — beantragen kann jeder, setzen nur er.</li>
+        <li><b>Was wird erfasst:</b> Kunde · Grund (z. B. Rahmenvereinbarung, strategischer Kunde, vereinbarte Sammellieferung) · gesetzt von · gültig bis (max. 6 Monate, dann Review).</li>
+        <li><b>Wirkung:</b> kein Standgeld, kein Ersatzversand — die Erinnerungen (Tag 0, Tag 7) laufen trotzdem, damit die Liegezeit sichtbar bleibt.</li>
+        <li><b>Review:</b> Quartalsweise Prüfung aller aktiven Flags gegen das Durchlaufzeit-Ranking; abgelaufene Flags erlöschen automatisch.</li>
+      </ul>
+    </div>
+    <div class="box warnung">
+      <h3>Flag „Sammler" — verlängerte Prozesszeit</h3>
+      <p><b>Definition:</b> Ein Sammler nimmt Reste aus <b>mehr als 5 Plomben</b> sowie C-Ware und
+      Problemware (z. B. Herd-Sets Einbau) ab. Diese Kunden räumen uns Restbestände weg, brauchen aber
+      naturgemäß länger zum Zusammenstellen und Abholen.</p>
+      <ul>
+        <li><b>„Echte" Sammler</b> bekommen im System ein Flag und damit eine <b>verlängerte
+        Gesamtprozesszeit</b> (längeres Abholfenster statt 5 Werktage — Vorschlag: 10 Werktage, dann Standgeld).</li>
+        <li><b>Wer darf flaggen:</b> ausschließlich <b>Siyad oder Johannes</b> markieren
+        einen Kunden als Sammler — sonst niemand. Erfasst wird: Kunde · gesetzt von · Datum · Grund;
+        befristet und quartalsweise reviewt (gegen die Kundenanalyse geprüft).</li>
+        <li>Prüfkriterium aus der Kundenanalyse: Anzahl unterschiedlicher Plomben je Auftrag &gt; 5
+        <b>und</b> überdurchschnittlicher C-/Problemware-Anteil.</li>
+        <li>Sammler-Flag und Standgeld-Ausnahme sind getrennte Flags: der Sammler zahlt nach seiner
+        verlängerten Frist normal Standgeld.</li>
+      </ul>
+    </div>
+    <p class="small">Umsetzung: Spalte in NH5_Pipeline_MAX-STATUS („Ausnahme bis / Grund / von"), später Feld am Kundenstamm in Odoo.</p>
+  </section>
+
+  <!-- ============ 5 · BEISPIEL ============ -->
+  <section>
+    <h2><span class="secno">7</span>Beispielrechnung</h2>
+    <p>Auftrag mit 10 Paletten, abholbereit gemeldet am Montag. Abholung erfolgt erst 12 Kalendertage
+    nach Fristablauf:</p>
+    <div class="calc">
+      <span>Abholfenster (5 Werktage)</span><span class="r">0 €</span>
+      <span>Standgeld: 10 Paletten × 12 Tage × 9 €</span><span class="r">1.080 €</span>
+      <span class="sum">Berechnung an den Kunden</span><span class="r sum">1.080 €</span>
+    </div>
+    <p class="small" style="margin-top:.8rem">Zum Vergleich: Bei Ø-Liegezeit von 5,1 Tagen und 5 Werktagen Fenster
+    fallen für die Mehrheit der Kunden <b>0 €</b> an. Die Regelung trifft gezielt die Ausreißer.</p>
+  </section>
+
+  <!-- ============ 6 · TEXTBAUSTEINE ============ -->
+  <section>
+    <h2><span class="secno">8</span>Textbausteine</h2>
+
+    <div class="tpl">
+      <div class="tname">A · Hinweis in Auftragsbestätigung &amp; Abholbereit-Meldung</div>
+      <p>„Ihre Ware ist ab <span class="var">[Datum]</span> abholbereit (<span class="var">[X]</span> Paletten).
+      Bitte wählen Sie einen der angebotenen Abholtermine (Kalender-Link, 5 Werktage ab Kommissionierung) oder buchen Sie ein Standgeldpaket für eine spätere Abholung.
+      Nach Ablauf der Frist berechnen wir ein Standgeld von <b>9 € pro Palette und Tag</b>.
+      Hinweis für Zahlungsziel-Kunden: Ihre Rechnung wird bei Warenausgang erstellt — bei späterem Abholtermin fällt Standgeld von 9 € pro Palette und Tag an."</p>
+    </div>
+    <div class="tpl">
+      <div class="tname">B · Standgeld-Start (Tag 6)</div>
+      <p>„Die Abholfrist für Auftrag <span class="var">[AU-Nr.]</span> ist am <span class="var">[Datum]</span> abgelaufen.
+      Ab heute berechnen wir Standgeld: <span class="var">[X]</span> Paletten × 9 € = <span class="var">[Betrag]</span> pro Tag.
+      Aktueller Stand: <span class="var">[Summe]</span>. Bitte nennen Sie uns umgehend einen Abholtermin."</p>
+    </div>
+    <div class="tpl">
+      <div class="tname">C · Ankündigung Ersatzversand (Tag 7)</div>
+      <p>„Trotz Erinnerung liegt für Auftrag <span class="var">[AU-Nr.]</span> kein Abholtermin vor.
+      Erfolgt bis <span class="var">[Datum = Tag 15]</span> keine Abholung, beauftragen wir den Versand per Spedition
+      an Ihre hinterlegte Lieferadresse <b>auf Ihre Kosten</b> (Frachtkosten laut Tagespreis zzgl. aufgelaufenem Standgeld,
+      aktuell <span class="var">[Summe]</span>)."</p>
+    </div>
+  </section>
+
+  <!-- ============ 7 · UMSETZUNG ============ -->
+  <section>
+    <h2><span class="secno">9</span>Umsetzung &amp; offene Punkte</h2>
+    <div class="tablewrap"><table>
+      <thead><tr><th>Schritt</th><th>Wann</th></tr></thead>
+      <tbody>
+        <tr><td>Regelung final abstimmen (Fristen, Stufe „Tag 30")</td><td>KW 35</td></tr>
+        <tr><td>Textbausteine A–C in E-Mail-Vorlagen übernehmen</td><td>KW 35</td></tr>
+        <tr><td>Pipeline-Spalten: Abholbereit-Datum, Standgeld-Zähler, Ausnahme-Flag</td><td>KW 36</td></tr>
+        <tr><td>Bestandskunden anschreiben (Ankündigung mit Vorlauf, Start <b>01.10.2026</b>)</td><td>KW 36</td></tr>
+        <tr><td>AGB / Rahmenvereinbarungen um Standgeld-Klausel ergänzen (rechtlich prüfen)</td><td>vor Start</td></tr>
+        <tr><td>Shop-Kalender: Abhol-/Versandtermine mit Kapa-Kopplung (NH5-Pipeline), Puffer, Deckel + Standgeldpakete (Tag 12/20) als buchbare Optionen</td><td>Konzept KW 36, Umsetzung Q4</td></tr>
+        <tr><td>Sammler-Kriterien aus Kundenanalyse ableiten (Plomben je Auftrag, C-Anteil) + Flags setzen</td><td>KW 37</td></tr>
+        <tr><td>Monatsauswertung: berechnetes Standgeld vs. Liegezeit-Entwicklung</td><td>ab Oktober</td></tr>
+      </tbody>
+    </table></div>
+    <p class="small">Zur Abstimmung markiert: Fristlängen (5 Werktage Fenster / Tag 10 / Tag 15), Paketpreise (6,50 € Vorbucher / 9 € Staffel ab Tag 13), Pausieren bei bestätigtem Termin (max. 5 Werktage),
+    Höhe unstrittig gesetzt auf 9 €/Palette/Tag.</p>
+  </section>
+
+  <footer>
+    <b>elvinci.de GmbH · Standzeiten-Regelung · Entwurf v1 · 26.08.2026</b><br>
+    Datenbasis: Durchlaufzeit_Ranking_2026-08-19.html (N=246 planbare Aufträge 2026, 34 Kunden mit N ≥ 3) ·
+    NH5_Pipeline_MAX-STATUS · Frühere Preisüberlegung: Input Lieferservices.xlsx (Lagergeld je Stellplatz, 2025).
+  </footer>
+</main>

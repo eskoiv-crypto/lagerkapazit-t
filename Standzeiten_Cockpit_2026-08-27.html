@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Standzeiten-Cockpit</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Source+Sans+3:wght@400;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+:root{
+  --bg:#F6F3ED; --surface:#FFFFFF; --surface-2:#FBFAF7;
+  --ink:#2B2926; --muted:#7A7469; --line:#E3DFD8; --line-strong:#CFC9BF;
+  --pink:#E0327A; --pink-ink:#B3175F; --pink-soft:#FFE9F3;
+  --ok:#1F9D6B; --ok-bg:#E4F5EE; --warn:#B06A14; --warn-bg:#FBEFD9;
+  --bad:#C22B4E; --bad-bg:#FBE4EA; --info:#3B6FD6; --info-bg:#EAF0FB;
+  --shadow:0 1px 2px rgba(43,41,38,.05),0 6px 18px rgba(43,41,38,.05);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#1F1D1A; --surface:#282623; --surface-2:#2F2C28;
+    --ink:#EFEBE3; --muted:#A39C90; --line:#3C3831; --line-strong:#4C463D;
+    --pink:#FF6FAC; --pink-ink:#FF9BC6; --pink-soft:#472334;
+    --ok:#7FC9A4; --ok-bg:#22352C; --warn:#E0A659; --warn-bg:#3B2F1B;
+    --bad:#F0819B; --bad-bg:#42222B; --info:#8FB0EE; --info-bg:#232F45;
+    --shadow:0 1px 2px rgba(0,0,0,.3),0 6px 18px rgba(0,0,0,.25);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#1F1D1A; --surface:#282623; --surface-2:#2F2C28;
+  --ink:#EFEBE3; --muted:#A39C90; --line:#3C3831; --line-strong:#4C463D;
+  --pink:#FF6FAC; --pink-ink:#FF9BC6; --pink-soft:#472334;
+  --ok:#7FC9A4; --ok-bg:#22352C; --warn:#E0A659; --warn-bg:#3B2F1B;
+  --bad:#F0819B; --bad-bg:#42222B; --info:#8FB0EE; --info-bg:#232F45;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 6px 18px rgba(0,0,0,.25);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 15.5px/1.55 "Source Sans 3",system-ui,sans-serif}
+main{max-width:70rem;margin:0 auto;padding:2.2rem 1.2rem 5rem}
+h1,h2,h3{font-family:"Archivo",sans-serif;line-height:1.15;text-wrap:balance}
+h1{font-size:1.9rem;font-weight:800;margin:.3rem 0 .2rem}
+h1 em{font-style:normal;color:var(--pink)}
+h2{font-size:1.2rem;font-weight:700;margin:0 0 .3rem}
+.eyebrow{font-family:"Archivo",sans-serif;font-size:.68rem;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:var(--pink)}
+.sub{color:var(--muted);font-size:.92rem;margin:0}
+section{margin-top:2.6rem;padding-top:1.4rem;border-top:2px solid var(--line)}
+.secno{font-family:"IBM Plex Mono",monospace;font-size:.85rem;color:var(--pink);margin-right:.45rem}
+.hint{font-size:.83rem;color:var(--muted);margin:.3rem 0 .9rem}
+.num{font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums;font-size:.88em}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);padding:1rem 1.2rem}
+
+/* Simulator Controls */
+.controls{display:flex;flex-wrap:wrap;gap:.6rem .8rem;align-items:end;background:var(--surface);
+  border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);padding:.9rem 1.1rem}
+.f{display:flex;flex-direction:column;gap:.2rem}
+.f label{font-size:.64rem;font-family:"Archivo",sans-serif;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+select,input[type=number],input[type=range]{font:inherit;font-size:.88rem;padding:.35rem .5rem;border:1px solid var(--line-strong);border-radius:7px;background:var(--surface-2);color:var(--ink)}
+select:focus,input:focus{outline:2px solid var(--pink);outline-offset:1px}
+.seg{display:inline-flex;background:var(--surface-2);border:1px solid var(--line-strong);border-radius:99px;padding:2px;gap:2px}
+.seg button{border:0;background:transparent;font-family:"Archivo",sans-serif;font-size:.78rem;font-weight:700;
+  padding:.35rem .8rem;border-radius:99px;cursor:pointer;color:var(--muted)}
+.seg button.on{background:var(--pink);color:#fff}
+.seg button:focus-visible{outline:2px solid var(--pink);outline-offset:1px}
+
+/* Timeline */
+.timeline{display:flex;flex-direction:column;gap:.55rem;margin-top:1rem}
+.step{display:grid;grid-template-columns:8.2rem 1fr;gap:1rem;align-items:start;background:var(--surface);
+  border:1px solid var(--line);border-left:5px solid var(--line-strong);border-radius:10px;box-shadow:var(--shadow);padding:.75rem 1rem}
+.step.off{opacity:.38;filter:grayscale(.4)}
+.step .when{display:flex;flex-direction:column}
+.step .day{font-family:"IBM Plex Mono",monospace;font-size:.98rem;font-weight:600}
+.step .dl{font-size:.68rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.step h3{margin:0 0 .15rem;font-size:.95rem}
+.step p{margin:0;font-size:.86rem;color:var(--muted);max-width:none}
+.step.ok{border-left-color:var(--ok)} .step.warn{border-left-color:var(--warn)}
+.step.pink{border-left-color:var(--pink)} .step.bad{border-left-color:var(--bad)} .step.ink{border-left-color:var(--ink)}
+.chip{display:inline-block;font-family:"Archivo",sans-serif;font-size:.64rem;font-weight:700;letter-spacing:.05em;
+  text-transform:uppercase;padding:.14rem .5rem;border-radius:99px;white-space:nowrap;vertical-align:1px}
+.chip.frei{background:var(--ok-bg);color:var(--ok)} .chip.geld{background:var(--warn-bg);color:var(--warn)}
+.chip.hart{background:var(--bad-bg);color:var(--bad)} .chip.auto{background:var(--info-bg);color:var(--info)}
+.chip.mail{background:var(--pink-soft);color:var(--pink-ink)}
+
+/* Ergebnis-Kacheln */
+.resgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(11rem,1fr));gap:.7rem;margin-top:1rem}
+.res{background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--pink);border-radius:8px;box-shadow:var(--shadow);padding:.65rem .9rem}
+.res .l{font-size:.66rem;font-family:"Archivo",sans-serif;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+.res .v{font-family:"Archivo",sans-serif;font-size:1.35rem;font-weight:800;font-variant-numeric:tabular-nums}
+.res .s{font-size:.74rem;color:var(--muted)}
+.res.warn{border-left-color:var(--warn)} .res.bad{border-left-color:var(--bad)} .res.ok{border-left-color:var(--ok)}
+
+/* Balken-Leiste */
+.track{position:relative;height:38px;border-radius:8px;overflow:hidden;display:flex;margin:.9rem 0 .2rem;border:1px solid var(--line)}
+.track i{display:block;height:100%}
+.track .z-frei{background:var(--ok-bg)} .track .z-paket{background:var(--info-bg)}
+.track .z-geld{background:var(--warn-bg)} .track .z-ersatz{background:var(--bad-bg)}
+.tlegend{display:flex;gap:1.1rem;font-size:.74rem;color:var(--muted);flex-wrap:wrap}
+.sw{display:inline-block;width:10px;height:10px;border-radius:3px;vertical-align:-1px;margin-right:4px;border:1px solid var(--line)}
+.marker{position:absolute;top:0;bottom:0;width:3px;background:var(--pink)}
+.marker::after{content:"Abholung";position:absolute;top:2px;left:6px;font-size:.62rem;font-family:"Archivo",sans-serif;font-weight:700;color:var(--pink-ink);white-space:nowrap}
+
+/* Tabelle */
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:var(--surface);box-shadow:var(--shadow)}
+table{border-collapse:collapse;width:100%;font-size:.84rem;white-space:nowrap}
+th{font-family:"Archivo",sans-serif;font-size:.63rem;font-weight:700;letter-spacing:.07em;text-transform:uppercase;
+  text-align:left;color:var(--muted);padding:.55rem .7rem;border-bottom:1px solid var(--line);background:var(--surface-2);cursor:pointer;user-select:none;position:sticky;top:0}
+th.r,td.r{text-align:right}
+th .arr{color:var(--pink)}
+td{padding:.45rem .7rem;border-bottom:1px solid var(--line)}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:var(--surface-2)}
+.badge{display:inline-block;font-size:.66rem;font-family:"Archivo",sans-serif;font-weight:700;padding:.13rem .5rem;border-radius:99px}
+.badge.kand{background:var(--bad-bg);color:var(--bad)}
+.badge.pruef{background:var(--warn-bg);color:var(--warn)}
+.badge.no{background:var(--surface-2);color:var(--muted)}
+.covnote{background:var(--warn-bg);color:var(--warn);border-radius:7px;font-size:.78rem;padding:.45rem .7rem;margin:.5rem 0 .8rem}
+.box{background:var(--surface);border:1px solid var(--line);border-left:5px solid var(--ok);border-radius:10px;box-shadow:var(--shadow);padding:.9rem 1.1rem;margin-top:1rem;font-size:.9rem}
+ul{padding-left:1.15rem;margin:.4rem 0}
+li{margin:.3rem 0}
+li::marker{color:var(--pink)}
+footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--line);font-size:.78rem;color:var(--muted)}
+@media(max-width:620px){.step{grid-template-columns:1fr}.step .when{flex-direction:row;gap:.5rem;align-items:baseline}}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<main>
+  <div class="eyebrow">elvinci.de GmbH</div>
+  <h1>Standzeiten-<em>Cockpit</em></h1>
+  <p class="sub">Prozess-Simulator (Regelung v2) + Sammler-Übersicht aus der Kundenanalyse · Stand 27.08.2026</p>
+
+  <!-- ============ 1 · SIMULATOR ============ -->
+  <section>
+    <h2><span class="secno">1</span>Ablauf-Simulator — Fall durchspielen</h2>
+    <p class="hint">Fall einstellen, der Ablauf und das Standgeld rechnen live mit. Alle Angaben in <b>Werktagen (WT)</b> ab Kommissioniertag.</p>
+    <div class="controls">
+      <div class="f"><label>Zahlungsart</label>
+        <span class="seg" id="c-zahlart">
+          <button data-v="zziel" class="on">Zahlungsziel</button>
+          <button data-v="vorkasse">Vorkasse</button>
+          <button data-v="bar">Barzahler</button>
+        </span>
+      </div>
+      <div class="f"><label>Variante</label>
+        <span class="seg" id="c-variante">
+          <button data-v="abholung" class="on">Abholung</button>
+          <button data-v="versand">Versand</button>
+        </span>
+      </div>
+      <div class="f"><label>Sammler-Flag</label>
+        <span class="seg" id="c-sammler">
+          <button data-v="0" class="on">nein</button>
+          <button data-v="1">ja (Fenster 10 WT)</button>
+        </span>
+      </div>
+      <div class="f"><label>Standgeldpaket</label>
+        <select id="c-paket">
+          <option value="0">keins (Standard)</option>
+          <option value="12">Paket 12 — 6,50 €/Pal/Tag vorab</option>
+          <option value="20">Paket 20 — 6,50 € bis T12, dann 9 €</option>
+        </select>
+      </div>
+      <div class="f"><label>Paletten</label><input type="number" id="c-pal" value="10" min="1" max="66" style="width:5rem"></div>
+      <div class="f" style="min-width:15rem"><label>Abholung/Versand an Werktag <span class="num" id="c-tag-l">7</span></label>
+        <input type="range" id="c-tag" min="1" max="30" value="7"></div>
+    </div>
+
+    <div class="resgrid" id="results"></div>
+
+    <div style="position:relative">
+      <div class="track" id="track"></div>
+    </div>
+    <div class="tlegend">
+      <span><span class="sw" style="background:var(--ok-bg)"></span>kostenfreies Fenster</span>
+      <span><span class="sw" style="background:var(--info-bg)"></span>Standgeldpaket (vorab bezahlt)</span>
+      <span><span class="sw" style="background:var(--warn-bg)"></span>Standgeld 9 €/Palette/Tag</span>
+      <span><span class="sw" style="background:var(--bad-bg)"></span>Ersatzversand-Zone</span>
+      <span>Skala: Werktag 0–30 ab Kommissionierung</span>
+    </div>
+
+    <div class="timeline" id="timeline"></div>
+  </section>
+
+  <!-- ============ 2 · SAMMLER ============ -->
+  <section>
+    <h2><span class="secno">2</span>Wer ist Sammler? — Kandidaten aus der Kundenanalyse</h2>
+    <p class="hint">Definition (Regelung v2, Abschnitt 6): nimmt Reste aus <b>mehr als 5 Plomben</b> je Auftrag <b>und</b> C-Ware/Problemware
+    (Herd-Sets, Einbau o. ä.). <b>Kandidat</b> = &gt;5 Plomben in mind. einem Auftrag <b>und</b> überdurchschnittlicher C- oder Problemware-Anteil.
+    Das Flag setzen dürfen <b>ausschließlich Siyad oder Johannes</b>.</p>
+    <div class="covnote" id="covnote"></div>
+    <div class="f" style="max-width:14rem;margin-bottom:.6rem"><label for="s-filter">Anzeigen</label>
+      <select id="s-filter"><option value="">Alle Kunden (n ≥ 30 Geräte)</option><option value="Kandidat" selected>nur Kandidaten</option><option value="prüfen">Kandidaten + prüfen</option></select>
+    </div>
+    <div class="tablewrap" style="max-height:30rem;overflow-y:auto"><table id="t-sammler"></table></div>
+    <div class="box">
+      <b>Flag-Prozess:</b>
+      <ul>
+        <li>Siyad oder Johannes markieren den Kunden (Kunde · gesetzt von · Datum · Grund), befristet.</li>
+        <li>Wirkung: Abholfenster <b>10 statt 5 Werktage</b> — danach normales Standgeld (kein Freibrief).</li>
+        <li>Quartalsweises Review gegen diese Tabelle: wer die Kriterien nicht mehr erfüllt, verliert das Flag.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ============ 3 · REGELN KOMPAKT ============ -->
+  <section>
+    <h2><span class="secno">3</span>Regeln kompakt</h2>
+    <div class="tablewrap"><table>
+      <thead><tr><th>Regel</th><th>Wert</th></tr></thead>
+      <tbody>
+        <tr><td>Vorkasse: Rechnung + Zahlungsfrist</td><td>bei Angebotsannahme · <span class="num">72 h</span> (3 WT); Kommissionierung erst nach Zahlungseingang</td></tr>
+        <tr><td>Zahlungsziel: Rechnung</td><td>bei <b>Warenausgang</b> → Warenausgang forcieren (3 angebotene Abholtage, Standgeld-Hinweis im Abschluss)</td></tr>
+        <tr><td>Abholfenster</td><td><span class="num">5 WT</span> ab Kommissioniertag (Kalender zeigt 5 Termine, NH5-Kapa) · Sammler: <span class="num">10 WT</span></td></tr>
+        <tr><td>Standgeld</td><td><span class="num">9 €</span> pro Palette pro Tag ab Fensterende</td></tr>
+        <tr><td>Standgeldpakete</td><td>vorab gebucht: <span class="num">6,50 €</span>/Palette/Tag bis Tag 12, <span class="num">9 €</span> Tag 13–20 · nachträglich immer 9 € · nur bei NH5-Belegung &lt; 85 % buchbar · keine Erstattung</td></tr>
+        <tr><td>Ankündigung Ersatzversand</td><td>Tag 10 (bzw. vor Paketende)</td></tr>
+        <tr><td>Ersatzversand auf Kundenkosten</td><td>ab Tag 15 (bzw. nach Paketende) — Fracht laut Tagespreis + Standgeld; Vorkasse: erst nach Zahlungseingang</td></tr>
+        <tr><td>Rücktritt / Verwertung</td><td>Tag 30, nur mit gesonderter Freigabe</td></tr>
+        <tr><td>Flags</td><td>Standgeld-Ausnahme: nur Dustin · Sammler-Flag: nur Siyad oder Johannes</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <footer id="foot"></footer>
+</main>
+<script>
+const S={"rows": [{"kunde": "Ya-Sec Handel GmbH", "geraete": 533, "auftraege": 5, "plomben": 163, "max_pl_au": 87, "avg_pl_au": 63.8, "auftr_ueber5": 4, "c_anteil": 84.0, "problem_ant": 27.0, "status": "Kandidat"}, {"kunde": "Euroda Transport &Handel", "geraete": 963, "auftraege": 5, "plomben": 122, "max_pl_au": 86, "avg_pl_au": 43.0, "auftr_ueber5": 3, "c_anteil": 42.0, "problem_ant": 42.0, "status": "Kandidat"}, {"kunde": "SC GELLIMPEX S.R.L.", "geraete": 228, "auftraege": 1, "plomben": 84, "max_pl_au": 84, "avg_pl_au": 84.0, "auftr_ueber5": 1, "c_anteil": 47.0, "problem_ant": 47.0, "status": "Kandidat"}, {"kunde": "Sefik Saracevic", "geraete": 720, "auftraege": 23, "plomben": 154, "max_pl_au": 73, "avg_pl_au": 23.5, "auftr_ueber5": 6, "c_anteil": 51.0, "problem_ant": 50.0, "status": "Kandidat"}, {"kunde": "RU Recycling und Umweltdienst GmbH", "geraete": 1757, "auftraege": 23, "plomben": 122, "max_pl_au": 62, "avg_pl_au": 9.9, "auftr_ueber5": 5, "c_anteil": 10.0, "problem_ant": 14.0, "status": "prüfen"}, {"kunde": "Techno Vision Group Ltd.", "geraete": 742, "auftraege": 7, "plomben": 62, "max_pl_au": 55, "avg_pl_au": 15.5, "auftr_ueber5": 1, "c_anteil": 25.0, "problem_ant": 30.0, "status": "Kandidat"}, {"kunde": "Alayham Shakantana", "geraete": 426, "auftraege": 2, "plomben": 80, "max_pl_au": 52, "avg_pl_au": 45.0, "auftr_ueber5": 2, "c_anteil": 17.0, "problem_ant": 26.0, "status": "Kandidat"}, {"kunde": "Stock House Nikaias", "geraete": 664, "auftraege": 4, "plomben": 50, "max_pl_au": 50, "avg_pl_au": 50.0, "auftr_ueber5": 1, "c_anteil": 39.0, "problem_ant": 37.0, "status": "Kandidat"}, {"kunde": "Ovit Shop V.O.F.", "geraete": 2068, "auftraege": 16, "plomben": 105, "max_pl_au": 43, "avg_pl_au": 18.7, "auftr_ueber5": 4, "c_anteil": 3.0, "problem_ant": 19.0, "status": "Kandidat"}, {"kunde": "Electro B.P. SRL", "geraete": 526, "auftraege": 15, "plomben": 59, "max_pl_au": 38, "avg_pl_au": 9.9, "auftr_ueber5": 4, "c_anteil": 70.0, "problem_ant": 10.0, "status": "Kandidat"}, {"kunde": "Luna Umzug", "geraete": 175, "auftraege": 3, "plomben": 47, "max_pl_au": 37, "avg_pl_au": 24.5, "auftr_ueber5": 2, "c_anteil": 30.0, "problem_ant": 35.0, "status": "Kandidat"}, {"kunde": "Blenq BV", "geraete": 95, "auftraege": 2, "plomben": 38, "max_pl_au": 36, "avg_pl_au": 19.0, "auftr_ueber5": 1, "c_anteil": 8.0, "problem_ant": 0.0, "status": "prüfen"}, {"kunde": "Alinklizi Almuntaser Billah", "geraete": 839, "auftraege": 2, "plomben": 65, "max_pl_au": 35, "avg_pl_au": 33.0, "auftr_ueber5": 2, "c_anteil": 36.0, "problem_ant": 46.0, "status": "Kandidat"}, {"kunde": "Sparhaus GbR", "geraete": 223, "auftraege": 1, "plomben": 35, "max_pl_au": 35, "avg_pl_au": 35.0, "auftr_ueber5": 1, "c_anteil": 19.0, "problem_ant": 39.0, "status": "Kandidat"}, {"kunde": "Deland Ltd EOOD", "geraete": 1621, "auftraege": 12, "plomben": 46, "max_pl_au": 34, "avg_pl_au": 7.8, "auftr_ueber5": 1, "c_anteil": 5.0, "problem_ant": 25.0, "status": "Kandidat"}, {"kunde": "Simex D.O.O", "geraete": 2928, "auftraege": 18, "plomben": 71, "max_pl_au": 31, "avg_pl_au": 10.9, "auftr_ueber5": 4, "c_anteil": 31.0, "problem_ant": 31.0, "status": "Kandidat"}, {"kunde": "Enterijer D.O.O.", "geraete": 2399, "auftraege": 19, "plomben": 96, "max_pl_au": 30, "avg_pl_au": 10.7, "auftr_ueber5": 6, "c_anteil": 24.0, "problem_ant": 22.0, "status": "Kandidat"}, {"kunde": "Buy4less GmbH", "geraete": 2857, "auftraege": 20, "plomben": 59, "max_pl_au": 30, "avg_pl_au": 8.6, "auftr_ueber5": 2, "c_anteil": 48.0, "problem_ant": 29.0, "status": "Kandidat"}, {"kunde": "Macias Dominguez Juan Carlos", "geraete": 70, "auftraege": 2, "plomben": 36, "max_pl_au": 30, "avg_pl_au": 19.0, "auftr_ueber5": 2, "c_anteil": 9.0, "problem_ant": 0.0, "status": "prüfen"}, {"kunde": "EvroStok SRL", "geraete": 446, "auftraege": 7, "plomben": 26, "max_pl_au": 26, "avg_pl_au": 12.3, "auftr_ueber5": 2, "c_anteil": 79.0, "problem_ant": 5.0, "status": "Kandidat"}, {"kunde": "UAB STEVIJA", "geraete": 974, "auftraege": 27, "plomben": 94, "max_pl_au": 24, "avg_pl_au": 7.4, "auftr_ueber5": 7, "c_anteil": 41.0, "problem_ant": 22.0, "status": "Kandidat"}, {"kunde": "Egzoni Sh.P.K", "geraete": 745, "auftraege": 18, "plomben": 77, "max_pl_au": 24, "avg_pl_au": 8.9, "auftr_ueber5": 6, "c_anteil": 26.0, "problem_ant": 48.0, "status": "Kandidat"}, {"kunde": "Marketvibe Srl", "geraete": 385, "auftraege": 9, "plomben": 41, "max_pl_au": 24, "avg_pl_au": 7.5, "auftr_ueber5": 2, "c_anteil": 1.0, "problem_ant": 5.0, "status": "prüfen"}, {"kunde": "Online Shopping Trade S.R.O. Számlázási", "geraete": 508, "auftraege": 26, "plomben": 86, "max_pl_au": 23, "avg_pl_au": 7.4, "auftr_ueber5": 7, "c_anteil": 51.0, "problem_ant": 9.0, "status": "Kandidat"}, {"kunde": "Hermans Trading BV", "geraete": 5283, "auftraege": 54, "plomben": 93, "max_pl_au": 23, "avg_pl_au": 7.5, "auftr_ueber5": 6, "c_anteil": 17.0, "problem_ant": 13.0, "status": "prüfen"}, {"kunde": "Kaldi Prime Kft", "geraete": 539, "auftraege": 10, "plomben": 55, "max_pl_au": 22, "avg_pl_au": 8.3, "auftr_ueber5": 3, "c_anteil": 8.0, "problem_ant": 3.0, "status": "prüfen"}, {"kunde": "Outlet Mebeli Ltd", "geraete": 2571, "auftraege": 24, "plomben": 29, "max_pl_au": 22, "avg_pl_au": 5.8, "auftr_ueber5": 1, "c_anteil": 9.0, "problem_ant": 22.0, "status": "Kandidat"}, {"kunde": "Buy24", "geraete": 1843, "auftraege": 13, "plomben": 28, "max_pl_au": 18, "avg_pl_au": 4.1, "auftr_ueber5": 1, "c_anteil": 35.0, "problem_ant": 27.0, "status": "Kandidat"}, {"kunde": "PowerSoft Vertriebs GmbH", "geraete": 971, "auftraege": 13, "plomben": 19, "max_pl_au": 18, "avg_pl_au": 9.5, "auftr_ueber5": 1, "c_anteil": 21.0, "problem_ant": 19.0, "status": "Kandidat"}, {"kunde": "Triantafilliana Nikoletou", "geraete": 126, "auftraege": 4, "plomben": 17, "max_pl_au": 17, "avg_pl_au": 17.0, "auftr_ueber5": 1, "c_anteil": 100.0, "problem_ant": 20.0, "status": "Kandidat"}, {"kunde": "P&C Trading B.V.", "geraete": 308, "auftraege": 4, "plomben": 32, "max_pl_au": 16, "avg_pl_au": 8.0, "auftr_ueber5": 3, "c_anteil": 18.0, "problem_ant": 13.0, "status": "prüfen"}, {"kunde": "GLOBAL LIQUIDACIONES SL", "geraete": 650, "auftraege": 13, "plomben": 30, "max_pl_au": 16, "avg_pl_au": 7.8, "auftr_ueber5": 2, "c_anteil": 17.0, "problem_ant": 14.0, "status": "prüfen"}, {"kunde": "IG International Trading GmbH", "geraete": 6300, "auftraege": 102, "plomben": 66, "max_pl_au": 15, "avg_pl_au": 3.8, "auftr_ueber5": 5, "c_anteil": 12.0, "problem_ant": 22.0, "status": "Kandidat"}, {"kunde": "Karakitsos Stock House IKE", "geraete": 1475, "auftraege": 20, "plomben": 40, "max_pl_au": 15, "avg_pl_au": 6.8, "auftr_ueber5": 2, "c_anteil": 36.0, "problem_ant": 32.0, "status": "Kandidat"}, {"kunde": "V&A Tehimpex SRL", "geraete": 266, "auftraege": 5, "plomben": 17, "max_pl_au": 15, "avg_pl_au": 4.5, "auftr_ueber5": 1, "c_anteil": 33.0, "problem_ant": 19.0, "status": "Kandidat"}, {"kunde": "Hanseatic Georgia LLC", "geraete": 5281, "auftraege": 48, "plomben": 59, "max_pl_au": 14, "avg_pl_au": 5.0, "auftr_ueber5": 5, "c_anteil": 9.0, "problem_ant": 12.0, "status": "prüfen"}, {"kunde": "KOUTLIANOS NIKOS", "geraete": 1707, "auftraege": 21, "plomben": 33, "max_pl_au": 14, "avg_pl_au": 5.5, "auftr_ueber5": 2, "c_anteil": 12.0, "problem_ant": 21.0, "status": "Kandidat"}, {"kunde": "TECHNO ELECTRONICS 5 Ltd", "geraete": 2504, "auftraege": 25, "plomben": 41, "max_pl_au": 13, "avg_pl_au": 4.9, "auftr_ueber5": 3, "c_anteil": 45.0, "problem_ant": 27.0, "status": "Kandidat"}, {"kunde": "Outlet Simex D.O.O", "geraete": 2740, "auftraege": 27, "plomben": 34, "max_pl_au": 13, "avg_pl_au": 3.8, "auftr_ueber5": 2, "c_anteil": 47.0, "problem_ant": 22.0, "status": "Kandidat"}, {"kunde": "Elektro Outlet Sinzig GmbH I.G.", "geraete": 1349, "auftraege": 15, "plomben": 22, "max_pl_au": 13, "avg_pl_au": 5.5, "auftr_ueber5": 2, "c_anteil": 63.0, "problem_ant": 19.0, "status": "Kandidat"}, {"kunde": "Elettrodomestici Di Macchia Vito Giacomo", "geraete": 147, "auftraege": 1, "plomben": 13, "max_pl_au": 13, "avg_pl_au": 13.0, "auftr_ueber5": 1, "c_anteil": NaN, "problem_ant": 8.0, "status": "prüfen"}, {"kunde": "Rati Marti", "geraete": 2596, "auftraege": 31, "plomben": 13, "max_pl_au": 12, "avg_pl_au": 5.0, "auftr_ueber5": 1, "c_anteil": NaN, "problem_ant": 11.0, "status": "prüfen"}, {"kunde": "Leader Menager", "geraete": 239, "auftraege": 2, "plomben": 11, "max_pl_au": 11, "avg_pl_au": 9.0, "auftr_ueber5": 2, "c_anteil": NaN, "problem_ant": 0.0, "status": "prüfen"}, {"kunde": "ER-DOM Firma Handlowo", "geraete": 86, "auftraege": 5, "plomben": 13, "max_pl_au": 11, "avg_pl_au": 6.5, "auftr_ueber5": 1, "c_anteil": 16.0, "problem_ant": 10.0, "status": "prüfen"}, {"kunde": "ELECTRO BALKAN DI BOJANIC ZELJKO", "geraete": 1219, "auftraege": 17, "plomben": 24, "max_pl_au": 10, "avg_pl_au": 6.5, "auftr_ueber5": 2, "c_anteil": 39.0, "problem_ant": 10.0, "status": "Kandidat"}, {"kunde": "NAS ELECTROMENAGER", "geraete": 233, "auftraege": 16, "plomben": 22, "max_pl_au": 9, "avg_pl_au": 4.4, "auftr_ueber5": 2, "c_anteil": NaN, "problem_ant": 9.0, "status": "prüfen"}, {"kunde": "Warriors Cascade Lda", "geraete": 655, "auftraege": 4, "plomben": 9, "max_pl_au": 8, "avg_pl_au": 5.7, "auftr_ueber5": 2, "c_anteil": NaN, "problem_ant": 19.0, "status": "Kandidat"}, {"kunde": "Bastounis Anastasios", "geraete": 772, "auftraege": 20, "plomben": 16, "max_pl_au": 8, "avg_pl_au": 4.0, "auftr_ueber5": 1, "c_anteil": 61.0, "problem_ant": 27.0, "status": "Kandidat"}, {"kunde": "AMY Witgoed", "geraete": 390, "auftraege": 9, "plomben": 12, "max_pl_au": 8, "avg_pl_au": 2.4, "auftr_ueber5": 1, "c_anteil": NaN, "problem_ant": 11.0, "status": "prüfen"}, {"kunde": "Gujjar Begum", "geraete": 438, "auftraege": 17, "plomben": 10, "max_pl_au": 8, "avg_pl_au": 5.0, "auftr_ueber5": 1, "c_anteil": NaN, "problem_ant": 0.0, "status": "prüfen"}, {"kunde": "M&J TRADE D.O.O.", "geraete": 229, "auftraege": 9, "plomben": 12, "max_pl_au": 8, "avg_pl_au": 4.3, "auftr_ueber5": 1, "c_anteil": 0.0, "problem_ant": 0.0, "status": "prüfen"}, {"kunde": "Enno Kundendienst", "geraete": 266, "auftraege": 10, "plomben": 19, "max_pl_au": 7, "avg_pl_au": 3.8, "auftr_ueber5": 2, "c_anteil": 38.0, "problem_ant": 18.0, "status": "Kandidat"}, {"kunde": "BOSAK Sp z o.o.", "geraete": 186, "auftraege": 2, "plomben": 10, "max_pl_au": 7, "avg_pl_au": 5.0, "auftr_ueber5": 1, "c_anteil": 69.0, "problem_ant": 2.0, "status": "Kandidat"}, {"kunde": "Save Mission S.R.O", "geraete": 155, "auftraege": 14, "plomben": 7, "max_pl_au": 7, "avg_pl_au": 7.0, "auftr_ueber5": 1, "c_anteil": 46.0, "problem_ant": 0.0, "status": "Kandidat"}, {"kunde": "SADI", "geraete": 170, "auftraege": 10, "plomben": 12, "max_pl_au": 6, "avg_pl_au": 3.0, "auftr_ueber5": 1, "c_anteil": 5.0, "problem_ant": 26.0, "status": "Kandidat"}, {"kunde": "Soutis Electrics", "geraete": 773, "auftraege": 17, "plomben": 14, "max_pl_au": 5, "avg_pl_au": 2.5, "auftr_ueber5": 0, "c_anteil": 9.0, "problem_ant": 34.0, "status": "—"}, {"kunde": "Keeyword ApS.", "geraete": 51, "auftraege": 1, "plomben": 5, "max_pl_au": 5, "avg_pl_au": 5.0, "auftr_ueber5": 0, "c_anteil": NaN, "problem_ant": 25.0, "status": "—"}, {"kunde": "UAB Portana", "geraete": 1513, "auftraege": 29, "plomben": 14, "max_pl_au": 5, "avg_pl_au": 2.8, "auftr_ueber5": 0, "c_anteil": 0.0, "problem_ant": 19.0, "status": "—"}, {"kunde": "L&L Electronics Kft", "geraete": 685, "auftraege": 15, "plomben": 11, "max_pl_au": 5, "avg_pl_au": 3.7, "auftr_ueber5": 0, "c_anteil": 34.0, "problem_ant": 18.0, "status": "prüfen"}, {"kunde": "MON-LIP ROCK KFT", "geraete": 493, "auftraege": 6, "plomben": 7, "max_pl_au": 5, "avg_pl_au": 3.5, "auftr_ueber5": 0, "c_anteil": NaN, "problem_ant": 14.0, "status": "—"}, {"kunde": "Banat Electrocasnice S.R.L", "geraete": 440, "auftraege": 9, "plomben": 15, "max_pl_au": 5, "avg_pl_au": 3.8, "auftr_ueber5": 0, "c_anteil": NaN, "problem_ant": 8.0, "status": "—"}, {"kunde": "GeoHansi LLC", "geraete": 361, "auftraege": 4, "plomben": 7, "max_pl_au": 5, "avg_pl_au": 3.5, "auftr_ueber5": 0, "c_anteil": 26.0, "problem_ant": 4.0, "status": "—"}, {"kunde": "Ado's Witgoed", "geraete": 537, "auftraege": 13, "plomben": 10, "max_pl_au": 4, "avg_pl_au": 2.5, "auftr_ueber5": 0, "c_anteil": 40.0, "problem_ant": 22.0, "status": "prüfen"}, {"kunde": "NOIKOKYRA E.E.", "geraete": 48, "auftraege": 1, "plomben": 4, "max_pl_au": 4, "avg_pl_au": 4.0, "auftr_ueber5": 0, "c_anteil": 8.0, "problem_ant": 8.0, "status": "—"}, {"kunde": "Nagy Szabolcs Bela", "geraete": 1001, "auftraege": 18, "plomben": 6, "max_pl_au": 4, "avg_pl_au": 2.0, "auftr_ueber5": 0, "c_anteil": NaN, "problem_ant": 3.0, "status": "—"}, {"kunde": "SUNELECTRO O", "geraete": 313, "auftraege": 4, "plomben": 6, "max_pl_au": 4, "avg_pl_au": 3.0, "auftr_ueber5": 0, "c_anteil": NaN, "problem_ant": 1.0, "status": "—"}, {"kunde": "Johny Bravo Kft.", "geraete": 53, "auftraege": 2, "plomben": 4, "max_pl_au": 4, "avg_pl_au": 4.0, "auftr_ueber5": 0, "c_anteil": 60.0, "problem_ant": 0.0, "status": "—"}, {"kunde": "Elektroshop Enny Dizdarevic Ernesa e.U.", "geraete": 170, "auftraege": 6, "plomben": 6, "max_pl_au": 3, "avg_pl_au": 2.0, "auftr_ueber5": 0, "c_anteil": 2.0, "problem_ant": 26.0, "status": "—"}, {"kunde": "Todo Cash", "geraete": 784, "auftraege": 8, "plomben": 5, "max_pl_au": 3, "avg_pl_au": 1.7, "auftr_ueber5": 0, "c_anteil": NaN, "problem_ant": 17.0, "status": "—"}, {"kunde": "HANSEVA GmbH", "geraete": 207, "auftraege": 3, "plomben": 3, "max_pl_au": 3, "avg_pl_au": 3.0, "auftr_ueber5": 0, "c_anteil": 53.0, "problem_ant": 10.0, "status": "—"}, {"kunde": "Kunde 71899", "geraete": 30, "auftraege": 1, "plomben": 3, "max_pl_au": 3, "avg_pl_au": 3.0, "auftr_ueber5": 0, "c_anteil": NaN, "problem_ant": 7.0, "status": "—"}, {"kunde": "GGY Trade s.r.o.", "geraete": 918, "auftraege": 10, "plomben": 4, "max_pl_au": 3, "avg_pl_au": 1.5, "auftr_ueber5": 0, "c_anteil": 0.0, "problem_ant": 5.0, "status": "—"}, {"kunde": "ReElectro", "geraete": 48, "auftraege": 1, "plomben": 3, "max_pl_au": 3, "avg_pl_au": 3.0, "auftr_ueber5": 0, "c_anteil": NaN, "problem_ant": 2.0, "status": "—"}, {"kunde": "IDEA EOOD", "geraete": 339, "auftraege": 5, "plomben": 4, "max_pl_au": 2, "avg_pl_au": 2.0, "auftr_ueber5": 0, "c_anteil": 0.0, "problem_ant": 30.0, "status": "—"}, {"kunde": "Emporia antalaktikon-Ilektrikon syskeuon", "geraete": 1049, "auftraege": 11, "plomben": 6, "max_pl_au": 2, "avg_pl_au": 1.2, "auftr_ueber5": 0, "c_anteil": 14.0, "problem_ant": 28.0, "status": "—"}, {"kunde": "Fortuna GmbH & Co.KG", "geraete": 76, "auftraege": 1, "plomben": 2, "max_pl_au": 2, "avg_pl_au": 2.0, "auftr_ueber5": 0, "c_anteil": 33.0, "problem_ant": 24.0, "status": "prüfen"}, {"kunde": "Nikokira Outlet", "geraete": 1343, "auftraege": 16, "plomben": 7, "max_pl_au": 2, "avg_pl_au": 1.4, "auftr_ueber5": 0, "c_anteil": 4.0, "problem_ant": 22.0, "status": "—"}, {"kunde": "Techno Planet LTD", "geraete": 1236, "auftraege": 11, "plomben": 3, "max_pl_au": 2, "avg_pl_au": 1.5, "auftr_ueber5": 0, "c_anteil": 28.0, "problem_ant": 22.0, "status": "prüfen"}, {"kunde": "Jet DP Sp z.o.o", "geraete": 242, "auftraege": 27, "plomben": 5, "max_pl_au": 2, "avg_pl_au": 1.2, "auftr_ueber5": 0, "c_anteil": 38.0, "problem_ant": 10.0, "status": "—"}, {"kunde": "Restlos GmbH", "geraete": 139, "auftraege": 2, "plomben": 2, "max_pl_au": 2, "avg_pl_au": 2.0, "auftr_ueber5": 0, "c_anteil": NaN, "problem_ant": 7.0, "status": "—"}, {"kunde": "UAB Buitikas", "geraete": 49, "auftraege": 5, "plomben": 3, "max_pl_au": 2, "avg_pl_au": 1.2, "auftr_ueber5": 0, "c_anteil": NaN, "problem_ant": 2.0, "status": "—"}, {"kunde": "Outlet Loket", "geraete": 465, "auftraege": 3, "plomben": 3, "max_pl_au": 2, "avg_pl_au": 1.5, "auftr_ueber5": 0, "c_anteil": 85.0, "problem_ant": 1.0, "status": "—"}, {"kunde": "AGILA GmbH", "geraete": 2386, "auftraege": 6, "plomben": 2, "max_pl_au": 2, "avg_pl_au": 2.0, "auftr_ueber5": 0, "c_anteil": 21.0, "problem_ant": 0.0, "status": "—"}, {"kunde": "Almost New LTD", "geraete": 118, "auftraege": 8, "plomben": 2, "max_pl_au": 2, "avg_pl_au": 2.0, "auftr_ueber5": 0, "c_anteil": 0.0, "problem_ant": 0.0, "status": "—"}, {"kunde": "PUKO Sp z.o.o.", "geraete": 119, "auftraege": 5, "plomben": 2, "max_pl_au": 2, "avg_pl_au": 1.5, "auftr_ueber5": 0, "c_anteil": 0.0, "problem_ant": 0.0, "status": "—"}, {"kunde": "Othman Hasan", "geraete": 225, "auftraege": 5, "plomben": 1, "max_pl_au": 1, "avg_pl_au": 1.0, "auftr_ueber5": 0, "c_anteil": NaN, "problem_ant": 47.0, "status": "—"}, {"kunde": "SKS-Schutzkraft Sicherheitsdienst e.K.", "geraete": 98, "auftraege": 1, "plomben": 1, "max_pl_au": 1, "avg_pl_au": 1.0, "auftr_ueber5": 0, "c_anteil": NaN, "problem_ant": 38.0, "status": "—"}, {"kunde": "Elektro Outlet Bonn", "geraete": 712, "auftraege": 10, "plomben": 2, "max_pl_au": 1, "avg_pl_au": 1.0, "auftr_ueber5": 0, "c_anteil": 41.0, "problem_ant": 26.0, "status": "prüfen"}, {"kunde": "SIOKOS DIM.GEORGIOS", "geraete": 140, "auftraege": 3, "plomben": 1, "max_pl_au": 1, "avg_pl_au": 1.0, "auftr_ueber5": 0, "c_anteil": NaN, "problem_ant": 26.0, "status": "—"}, {"kunde": "Home Discount S.R.L.", "geraete": 268, "auftraege": 3, "plomben": 1, "max_pl_au": 1, "avg_pl_au": 1.0, "auftr_ueber5": 0, "c_anteil": 0.0, "problem_ant": 25.0, "status": "—"}, {"kunde": "KAJTEK Patrycja Minkina", "geraete": 922, "auftraege": 10, "plomben": 1, "max_pl_au": 1, "avg_pl_au": 1.0, "auftr_ueber5": 0, "c_anteil": NaN, "problem_ant": 22.0, "status": "—"}, {"kunde": "Lubo Ulman", "geraete": 348, "auftraege": 8, "plomben": 2, "max_pl_au": 1, "avg_pl_au": 1.0, "auftr_ueber5": 0, "c_anteil": NaN, "problem_ant": 20.0, "status": "—"}, {"kunde": "Flevo Witgoed BV", "geraete": 523, "auftraege": 6, "plomben": 1, "max_pl_au": 1, "avg_pl_au": 1.0, "auftr_ueber5": 0, "c_anteil": NaN, "problem_ant": 17.0, "status": "—"}, {"kunde": "PRO KAL doo", "geraete": 381, "auftraege": 3, "plomben": 1, "max_pl_au": 1, "avg_pl_au": 1.0, "auftr_ueber5": 0, "c_anteil": 0.0, "problem_ant": 17.0, "status": "—"}, {"kunde": "CADS Engineering GmbH", "geraete": 179, "auftraege": 23, "plomben": 2, "max_pl_au": 1, "avg_pl_au": 1.0, "auftr_ueber5": 0, "c_anteil": 10.0, "problem_ant": 16.0, "status": "—"}, {"kunde": "TRI SUN S.R.O", "geraete": 712, "auftraege": 7, "plomben": 1, "max_pl_au": 1, "avg_pl_au": 1.0, "auftr_ueber5": 0, "c_anteil": 6.0, "problem_ant": 16.0, "status": "—"}, {"kunde": "FSMM HAUSGERTE", "geraete": 41, "auftraege": 2, "plomben": 1, "max_pl_au": 1, "avg_pl_au": 1.0, "auftr_ueber5": 0, "c_anteil": NaN, "problem_ant": 15.0, "status": "—"}, {"kunde": "I.I Emomov Artur", "geraete": 512, "auftraege": 9, "plomben": 1, "max_pl_au": 1, "avg_pl_au": 1.0, "auftr_ueber5": 0, "c_anteil": NaN, "problem_ant": 13.0, "status": "—"}, {"kunde": "SC Interm Grup SRL", "geraete": 764, "auftraege": 8, "plomben": 1, "max_pl_au": 1, "avg_pl_au": 1.0, "auftr_ueber5": 0, "c_anteil": NaN, "problem_ant": 11.0, "status": "—"}, {"kunde": "Oli Outlet Kft.", "geraete": 840, "auftraege": 6, "plomben": 1, "max_pl_au": 1, "avg_pl_au": 1.0, "auftr_ueber5": 0, "c_anteil": NaN, "problem_ant": 6.0, "status": "—"}, {"kunde": "Amigos Home B.V.", "geraete": 506, "auftraege": 19, "plomben": 1, "max_pl_au": 1, "avg_pl_au": 1.0, "auftr_ueber5": 0, "c_anteil": NaN, "problem_ant": 0.0, "status": "—"}, {"kunde": "Green Loop GmbH", "geraete": 155, "auftraege": 8, "plomben": 1, "max_pl_au": 1, "avg_pl_au": 1.0, "auftr_ueber5": 0, "c_anteil": 0.0, "problem_ant": 0.0, "status": "—"}, {"kunde": "NORMA24 Online Shop GmbH & Co. KG", "geraete": 60, "auftraege": 2, "plomben": 1, "max_pl_au": 1, "avg_pl_au": 1.0, "auftr_ueber5": 0, "c_anteil": 0.0, "problem_ant": 0.0, "status": "—"}, {"kunde": "S.C. INTERM GRUP S.R.L.", "geraete": 30, "auftraege": 1, "plomben": 1, "max_pl_au": 1, "avg_pl_au": 1.0, "auftr_ueber5": 0, "c_anteil": 0.0, "problem_ant": 0.0, "status": "—"}, {"kunde": "Trade24/7", "geraete": 59, "auftraege": 3, "plomben": 1, "max_pl_au": 1, "avg_pl_au": 1.0, "auftr_ueber5": 0, "c_anteil": NaN, "problem_ant": 0.0, "status": "—"}, {"kunde": "EURO-PLANET d.o.o.", "geraete": 183, "auftraege": 4, "plomben": 0, "max_pl_au": 0, "avg_pl_au": 0.0, "auftr_ueber5": 0, "c_anteil": NaN, "problem_ant": 50.0, "status": "—"}, {"kunde": "Listefano Outlet S.R.L", "geraete": 90, "auftraege": 1, "plomben": 0, "max_pl_au": 0, "avg_pl_au": 0.0, "auftr_ueber5": 0, "c_anteil": NaN, "problem_ant": 49.0, "status": "—"}, {"kunde": "Medix Business Consult Handelsgesellschaft HgmbH", "geraete": 80, "auftraege": 1, "plomben": 0, "max_pl_au": 0, "avg_pl_au": 0.0, "auftr_ueber5": 0, "c_anteil": NaN, "problem_ant": 42.0, "status": "—"}, {"kunde": "Techno Briz EOOD", "geraete": 51, "auftraege": 1, "plomben": 0, "max_pl_au": 0, "avg_pl_au": 0.0, "auftr_ueber5": 0, "c_anteil": NaN, "problem_ant": 41.0, "status": "—"}, {"kunde": "GS Umzugsservice", "geraete": 85, "auftraege": 1, "plomben": 0, "max_pl_au": 0, "avg_pl_au": 0.0, "auftr_ueber5": 0, "c_anteil": NaN, "problem_ant": 34.0, "status": "—"}, {"kunde": "Rhein Hausgerte und Service (Gerte-Welt)", "geraete": 316, "auftraege": 3, "plomben": 0, "max_pl_au": 0, "avg_pl_au": 0.0, "auftr_ueber5": 0, "c_anteil": NaN, "problem_ant": 32.0, "status": "—"}, {"kunde": "ZK Trading", "geraete": 134, "auftraege": 2, "plomben": 0, "max_pl_au": 0, "avg_pl_au": 0.0, "auftr_ueber5": 0, "c_anteil": NaN, "problem_ant": 30.0, "status": "—"}, {"kunde": "AN-DRI 90 Ltd", "geraete": 180, "auftraege": 2, "plomben": 0, "max_pl_au": 0, "avg_pl_au": 0.0, "auftr_ueber5": 0, "c_anteil": NaN, "problem_ant": 28.0, "status": "—"}, {"kunde": "SOS Hausgerte Radtke", "geraete": 314, "auftraege": 3, "plomben": 0, "max_pl_au": 0, "avg_pl_au": 0.0, "auftr_ueber5": 0, "c_anteil": NaN, "problem_ant": 26.0, "status": "—"}, {"kunde": "Smart EOOD", "geraete": 47, "auftraege": 1, "plomben": 0, "max_pl_au": 0, "avg_pl_au": 0.0, "auftr_ueber5": 0, "c_anteil": NaN, "problem_ant": 26.0, "status": "—"}, {"kunde": "KD Elektromes S.R.L", "geraete": 234, "auftraege": 5, "plomben": 0, "max_pl_au": 0, "avg_pl_au": 0.0, "auftr_ueber5": 0, "c_anteil": NaN, "problem_ant": 24.0, "status": "—"}, {"kunde": "Fixon Trade Kft.", "geraete": 308, "auftraege": 3, "plomben": 0, "max_pl_au": 0, "avg_pl_au": 0.0, "auftr_ueber5": 0, "c_anteil": NaN, "problem_ant": 23.0, "status": "—"}, {"kunde": "KAT - CENTAR   D.O.O", "geraete": 146, "auftraege": 2, "plomben": 0, "max_pl_au": 0, "avg_pl_au": 0.0, "auftr_ueber5": 0, "c_anteil": NaN, "problem_ant": 23.0, "status": "—"}, {"kunde": "NEO VENTO d.o.o.", "geraete": 60, "auftraege": 3, "plomben": 0, "max_pl_au": 0, "avg_pl_au": 0.0, "auftr_ueber5": 0, "c_anteil": NaN, "problem_ant": 22.0, "status": "—"}, {"kunde": "SABO 2018 LTD", "geraete": 505, "auftraege": 4, "plomben": 0, "max_pl_au": 0, "avg_pl_au": 0.0, "auftr_ueber5": 0, "c_anteil": NaN, "problem_ant": 19.0, "status": "—"}, {"kunde": "Technopower Ltd", "geraete": 207, "auftraege": 3, "plomben": 0, "max_pl_au": 0, "avg_pl_au": 0.0, "auftr_ueber5": 0, "c_anteil": NaN, "problem_ant": 19.0, "status": "—"}, {"kunde": "Lubomir Karwot Outlet AGD", "geraete": 328, "auftraege": 3, "plomben": 0, "max_pl_au": 0, "avg_pl_au": 0.0, "auftr_ueber5": 0, "c_anteil": NaN, "problem_ant": 12.0, "status": "—"}, {"kunde": "Val-Tex", "geraete": 52, "auftraege": 1, "plomben": 0, "max_pl_au": 0, "avg_pl_au": 0.0, "auftr_ueber5": 0, "c_anteil": NaN, "problem_ant": 12.0, "status": "—"}, {"kunde": "World Kitchen LLC", "geraete": 141, "auftraege": 2, "plomben": 0, "max_pl_au": 0, "avg_pl_au": 0.0, "auftr_ueber5": 0, "c_anteil": NaN, "problem_ant": 9.0, "status": "—"}, {"kunde": "Alsukar Trading", "geraete": 151, "auftraege": 1, "plomben": 0, "max_pl_au": 0, "avg_pl_au": 0.0, "auftr_ueber5": 0, "c_anteil": NaN, "problem_ant": 7.0, "status": "—"}, {"kunde": "Modern Transactions", "geraete": 136, "auftraege": 1, "plomben": 0, "max_pl_au": 0, "avg_pl_au": 0.0, "auftr_ueber5": 0, "c_anteil": NaN, "problem_ant": 7.0, "status": "—"}, {"kunde": "V.O.F. MEDIA TOK", "geraete": 63, "auftraege": 2, "plomben": 0, "max_pl_au": 0, "avg_pl_au": 0.0, "auftr_ueber5": 0, "c_anteil": NaN, "problem_ant": 5.0, "status": "—"}, {"kunde": "Masa GmbH", "geraete": 101, "auftraege": 3, "plomben": 0, "max_pl_au": 0, "avg_pl_au": 0.0, "auftr_ueber5": 0, "c_anteil": NaN, "problem_ant": 4.0, "status": "—"}, {"kunde": "Muszaki Outlet Hungary Kft.", "geraete": 47, "auftraege": 4, "plomben": 0, "max_pl_au": 0, "avg_pl_au": 0.0, "auftr_ueber5": 0, "c_anteil": NaN, "problem_ant": 4.0, "status": "—"}, {"kunde": "Alpha Elektro Outlet", "geraete": 44, "auftraege": 5, "plomben": 0, "max_pl_au": 0, "avg_pl_au": 0.0, "auftr_ueber5": 0, "c_anteil": NaN, "problem_ant": 2.0, "status": "—"}, {"kunde": "Noureddin Alasas", "geraete": 242, "auftraege": 3, "plomben": 0, "max_pl_au": 0, "avg_pl_au": 0.0, "auftr_ueber5": 0, "c_anteil": NaN, "problem_ant": 2.0, "status": "—"}, {"kunde": "HOSTELCOL SUECA S.L.U", "geraete": 108, "auftraege": 4, "plomben": 0, "max_pl_au": 0, "avg_pl_au": 0.0, "auftr_ueber5": 0, "c_anteil": NaN, "problem_ant": 1.0, "status": "—"}, {"kunde": "Elektrorefit", "geraete": 44, "auftraege": 2, "plomben": 0, "max_pl_au": 0, "avg_pl_au": 0.0, "auftr_ueber5": 0, "c_anteil": NaN, "problem_ant": 0.0, "status": "—"}, {"kunde": "Global Store GmbH", "geraete": 102, "auftraege": 3, "plomben": 0, "max_pl_au": 0, "avg_pl_au": 0.0, "auftr_ueber5": 0, "c_anteil": NaN, "problem_ant": 0.0, "status": "—"}, {"kunde": "OUTLET ELETTRODOMESTICI MERO", "geraete": 40, "auftraege": 1, "plomben": 0, "max_pl_au": 0, "avg_pl_au": 0.0, "auftr_ueber5": 0, "c_anteil": NaN, "problem_ant": 0.0, "status": "—"}, {"kunde": "Rigenerado", "geraete": 99, "auftraege": 6, "plomben": 0, "max_pl_au": 0, "avg_pl_au": 0.0, "auftr_ueber5": 0, "c_anteil": NaN, "problem_ant": 0.0, "status": "—"}, {"kunde": "Zeyad Hasoo Afdi company", "geraete": 240, "auftraege": 2, "plomben": 0, "max_pl_au": 0, "avg_pl_au": 0.0, "auftr_ueber5": 0, "c_anteil": NaN, "problem_ant": 0.0, "status": "—"}, {"kunde": "elvinci B2C Ebay (Neuware)", "geraete": 207, "auftraege": 2, "plomben": 0, "max_pl_au": 0, "avg_pl_au": 0.0, "auftr_ueber5": 0, "c_anteil": NaN, "problem_ant": 0.0, "status": "—"}], "c_med": 22.5, "p_med": 16.5, "stand": "27.08.2026", "basis": "Jan 2025 – Jun 2026 (93.885 Geräte; Juli+Aug 2025 fehlen als Export; Plomben-Abdeckung 20 %, Grade 6,7 % — Untergrenzen)"};
+const $=id=>document.getElementById(id);
+const fmt=n=>n.toLocaleString("de-DE");
+const eur=n=>n.toLocaleString("de-DE",{maximumFractionDigits:0})+" €";
+
+// ---------- Simulator ----------
+const state={zahlart:"zziel",variante:"abholung",sammler:0,paket:0,pal:10,tag:7};
+function segWire(id,key,cast){document.querySelectorAll("#"+id+" button").forEach(b=>{
+  b.onclick=()=>{document.querySelectorAll("#"+id+" button").forEach(x=>x.classList.toggle("on",x===b));
+    state[key]=cast?cast(b.dataset.v):b.dataset.v;render();};});}
+segWire("c-zahlart","zahlart");segWire("c-variante","variante");segWire("c-sammler","sammler",Number);
+$("c-paket").onchange=e=>{state.paket=+e.target.value;render();};
+$("c-pal").oninput=e=>{state.pal=Math.max(1,+e.target.value||1);render();};
+$("c-tag").oninput=e=>{state.tag=+e.target.value;$("c-tag-l").textContent=e.target.value;render();};
+
+function calc(){
+  const s=state;
+  const fenster=s.sammler?10:5;
+  const paketEnde=s.paket||0;                       // 0 = kein Paket
+  const freiBis=fenster;
+  const bezahltBis=Math.max(fenster,paketEnde);      // Paket verlängert kostenpflichtig-bezahlt
+  const paketTage=Math.max(0,paketEnde-fenster);
+  const t65=Math.max(0,Math.min(paketEnde,12)-fenster), t90=Math.max(0,paketEnde-Math.max(12,fenster));
+  const paketPreis=(t65*6.5+t90*9)*s.pal;
+  const ankuend=Math.min(Math.max(10,(paketEnde||0)-2), ersatzSafe());function ersatzSafe(){return Math.max(15,(paketEnde||0)+1)-1}
+  const ersatz=Math.max(15,(paketEnde||0)+1);
+  // Standgeld je nach tatsächlichem Abholtag
+  const t=s.tag;
+  let standgeld=0,note="";
+  if(t<=freiBis){standgeld=0;note="im kostenfreien Fenster";}
+  else if(t<=bezahltBis){standgeld=0;note="durch Standgeldpaket abgedeckt";}
+  else{standgeld=(t-bezahltBis)*9*s.pal;note=`${t-bezahltBis} Tag(e) über ${paketEnde?"Paketende":"Fenster"}`;}
+  return {fenster,paketEnde,paketTage,paketPreis,ankuend,ersatz,standgeld,note,bezahltBis};
+}
+
+function render(){
+  const s=state,c=calc();
+  const bar=s.zahlart==="bar";
+  const versand=s.variante==="versand";
+  // Ergebnis-Kacheln
+  const gesamt=c.paketPreis+c.standgeld;
+  $("results").innerHTML=[
+    ["Abholfenster",c.fenster+" WT",s.sammler?"Sammler-Flag aktiv":"Standard", c.fenster>5?"warn":"ok"],
+    ["Standgeldpaket",c.paketEnde?("bis Tag "+c.paketEnde):"—",c.paketEnde?eur(c.paketPreis)+" vorab (Rabatt 6,50 € bis Tag 12, danach 9 €)":"nicht gebucht", c.paketEnde?"warn":"ok"],
+    ["Standgeld bei Abholung Tag "+s.tag, bar?"—":(versand?"0 €":eur(c.standgeld)), bar?"greift bei Barzahlern kaum":(versand?"Versand steuern wir selbst":c.note), c.standgeld>0?"bad":"ok"],
+    ["Gesamtkosten Kunde", bar||versand?"0 €":eur(gesamt), "Paket + laufendes Standgeld", gesamt>0?"bad":"ok"]
+  ].map(k=>`<div class="res ${k[3]}"><div class="l">${k[0]}</div><div class="v">${k[1]}</div><div class="s">${k[2]}</div></div>`).join("");
+
+  // Zeitleiste 0–30 WT
+  const W=30,pct=x=>Math.min(100,Math.max(0,x/W*100));
+  let zones="";
+  zones+=`<i class="z-frei" style="width:${pct(c.fenster)}%"></i>`;
+  if(c.paketEnde>c.fenster) zones+=`<i class="z-paket" style="width:${pct(c.paketEnde-c.fenster)}%"></i>`;
+  const geldStart=c.bezahltBis, ersatzStart=Math.max(c.ersatz,geldStart);
+  zones+=`<i class="z-geld" style="width:${pct(ersatzStart-geldStart)}%"></i>`;
+  zones+=`<i class="z-ersatz" style="flex:1"></i>`;
+  $("track").innerHTML=zones+((!bar&&!versand)?`<span class="marker" style="left:${pct(s.tag)}%"></span>`:"");
+
+  // Timeline-Schritte
+  const steps=[];
+  if(s.zahlart==="vorkasse"){
+    steps.push(["Tag −X","Annahme","ok","Angebotsannahme = Rechnung sofort <span class='chip auto'>automatisch</span>","Erster Fristblock startet: 72 h (3 WT) Zahlungsfrist. Kommissioniert wird erst nach Zahlungseingang.",true]);
+    steps.push(["+72 h","Zahlung","warn","Zahlungsfrist läuft ab <span class='chip mail'>Erinnerung</span>","Ohne Zahlungseingang: letzte Frist, danach Storno/Freigabe der Ware.",true]);
+  }
+  if(s.zahlart==="zziel"){
+    steps.push(["Tag −X","Annahme","ok","Angebotsannahme — noch keine Rechnung","Rechnung entsteht erst bei Warenausgang → früher Termin = früheres Zahlungsziel. System bietet 3 Abholtage + Standgeld-Hinweis im Abschluss.",true]);
+  }
+  if(bar){
+    steps.push(["Tag 0","Abholung","ok","Barzahler / Sofort-Abholer","Auftrag entsteht i. d. R. erst im Abholmoment — Regelung greift praktisch nicht.",true]);
+  }else{
+    steps.push(["Tag 0","Kommission.","ok",`Kommissionierung abgeschlossen <span class='chip mail'>Abholbereit-Meldung</span>`,
+      versand?"Versandauftrag wird zum nächsten freien Kapa-Slot geplant (Wunschtermin möglich) — Warenausgang in unserer Hand.":
+      `Kalender-Link mit ${c.fenster} verfügbaren Abholterminen (NH5-Kapa)${s.zahlart==="vorkasse"?" — Voraussetzung: Zahlung eingegangen":""}.`,true]);
+    if(versand){
+      steps.push(["Tag "+Math.min(s.tag,c.fenster),"Versand","ok","Ware geht raus <span class='chip frei'>kein Standgeld-Fall</span>",
+        s.zahlart==="zziel"?"Warenausgang = Rechnungsstellung, Zahlungsziel beginnt.":"Versand nach Zahlungseingang.",true]);
+    }else{
+      steps.push([`Tag 1–${c.fenster}`,"Fenster","ok",`Kostenfreies Abholfenster <span class='chip frei'>0 €</span>`,
+        s.sammler?"Sammler-Flag: verlängertes Fenster (10 WT).":"5 Werktage, Termine aus dem Kalender.",true]);
+      if(c.paketEnde) steps.push([`Tag ${c.fenster+1}–${c.paketEnde}`,"Paket","warn",
+        `Standgeldpaket bis Tag ${c.paketEnde} <span class='chip geld'>${eur(c.paketPreis)} vorab</span>`,
+        "Vorbucher-Rabatt 6,50 €/Pal/Tag (bis Tag 12; Tag 13–20: 9 €) — Eskalation pausiert bis Paketende.",true]);
+      steps.push([`Tag ${c.bezahltBis+1}`,"Standgeld","warn",`Standgeld läuft <span class='chip geld'>9 €/Palette/Tag</span> <span class='chip auto'>automatisch</span>`,
+        `Bei ${s.pal} Paletten: ${eur(9*s.pal)} pro Tag. Mitteilung mit Zählerstand (Textbaustein B).`, s.tag>c.bezahltBis]);
+      steps.push([`Tag ${c.ankuend}`,"Ankündigung","pink","Ankündigung Ersatzversand <span class='chip mail'>E-Mail + Telefon</span>",
+        `Ansage: ohne Abholung bis Tag ${c.ersatz} organisiert elvinci den Versand auf Kundenkosten (Textbaustein C).`, s.tag>=c.ankuend]);
+      steps.push([`Tag ${c.ersatz}`,"Ersatzversand","bad",`Ersatzversand durch elvinci <span class='chip hart'>auf Kundenkosten</span>`,
+        s.zahlart==="vorkasse"?"Nur nach vollständigem Zahlungseingang — sonst Stufe Tag 30.":"Fracht laut Tagespreis + aufgelaufenes Standgeld. Standgeld endet mit Verladung.", s.tag>=c.ersatz]);
+      steps.push(["Tag 30","Letzte Stufe","ink","Rücktritt & Verwertung <span class='chip hart'>nur mit gesonderter Freigabe</span>",
+        "Letzte Frist (7 Tage), danach Rücktritt und freie Verwertung; Anzahlungen werden verrechnet.", s.tag>=30]);
+    }
+  }
+  steps.sort((a,b)=>{const g=x=>{const m=String(x[0]).match(/^Tag (\d+)/);return m?+m[1]:-1};const ga=g(a),gb=g(b);return (ga<0||gb<0)?0:(ga-gb);});
+  $("timeline").innerHTML=steps.map(st=>`<div class="step ${st[2]} ${st[5]?"":"off"}">
+    <div class="when"><span class="day">${st[0]}</span><span class="dl">${st[1]}</span></div>
+    <div><h3>${st[3]}</h3><p>${st[4]}</p></div></div>`).join("");
+}
+
+// ---------- Sammler-Tabelle ----------
+let sortK="max_pl_au",sortD=-1;
+function renderSammler(){
+  const f=$("s-filter").value;
+  let rows=S.rows.filter(r=>f===""?true:(f==="Kandidat"?r.status==="Kandidat":r.status!=="—"));
+  rows.sort((a,b)=>{const x=a[sortK],y=b[sortK];
+    if(x==null&&y==null)return 0; if(x==null)return 1; if(y==null)return -1;
+    return typeof x==="string"?x.localeCompare(y)*sortD:(y-x)*(sortD<0?1:-1);});
+  const cols=[["kunde","Kunde"],["status","Status"],["auftraege","Aufträge",1],["max_pl_au","Max. Plomben je Auftrag",1],
+    ["avg_pl_au","Ø Plomben je Auftrag",1],["auftr_ueber5","Aufträge > 5 Plomben",1],["c_anteil","C/D-Anteil %",1],
+    ["problem_ant","Problemware %",1],["geraete","Geräte",1]];
+  let h="<thead><tr>"+cols.map(c=>`<th class="${c[2]?"r":""}" data-k="${c[0]}">${c[1]}${c[0]===sortK?' <span class=arr>▾</span>':""}</th>`).join("")+"</tr></thead><tbody>";
+  h+=rows.map(r=>`<tr><td>${r.kunde}</td>
+    <td><span class="badge ${r.status==="Kandidat"?"kand":r.status==="prüfen"?"pruef":"no"}">${r.status}</span></td>
+    <td class="r num">${r.auftraege}</td><td class="r num"><b>${r.max_pl_au}</b></td><td class="r num">${r.avg_pl_au}</td>
+    <td class="r num">${r.auftr_ueber5}</td><td class="r num">${r.c_anteil==null?"–":r.c_anteil}</td>
+    <td class="r num">${r.problem_ant}</td><td class="r num">${fmt(r.geraete)}</td></tr>`).join("")+"</tbody>";
+  $("t-sammler").innerHTML=h;
+  $("t-sammler").querySelectorAll("th").forEach(th=>th.onclick=()=>{const k=th.dataset.k;
+    if(sortK===k)sortD*=-1;else{sortK=k;sortD=-1;}renderSammler();});
+}
+$("s-filter").onchange=renderSammler;
+$("covnote").textContent=`⚠ Datenbasis: ${S.basis}. Plomben- und Grade-Werte sind Untergrenzen (Teilabdeckung) — die Tabelle ist eine Vorschlagsliste, kein Automatismus. Referenz-Mediane: C/D-Anteil ${S.c_med} %, Problemware ${S.p_med} %.`;
+$("foot").innerHTML=`<b>Standzeiten-Cockpit · elvinci.de GmbH · Entwurf zur Abstimmung</b> — kombiniert Standzeiten-Regelung v2 (Fristen, Standgeld 9 €/Palette/Tag, Standgeldpakete, Ersatzversand) mit der Kundenanalyse (Sammler-Kriterien). Flags: Standgeld-Ausnahme nur Dustin · Sammler-Flag nur Siyad oder Johannes.`;
+render();renderSammler();
+</script>
+</body>
+</html>
