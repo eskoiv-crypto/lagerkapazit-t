@@ -3,6 +3,8 @@ data/amm/*.CSV
 data/amm/*.csv
 data/elvinci/*.xlsx
 data/elvinci/*.xls
+data/odoo/*.xlsx
+data/odoo/*.xls
 
 # Claude Code agent state (local only)
 .claude/
