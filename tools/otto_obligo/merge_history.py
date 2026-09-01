@@ -119,6 +119,8 @@ def main():
     ap.add_argument("exports", nargs="+", help="Agicap-CSV-Export(e)")
     ap.add_argument("--cockpit", required=True, help="Otto-Obligo-Cockpit.html (Basis)")
     ap.add_argument("--out", required=True, help="Zieldatei")
+    ap.add_argument("--csv-out", help="zusaetzlich den Register-Snapshot schreiben "
+                                      "(_build-kit/hist_register.csv)")
     args = ap.parse_args()
 
     html = open(args.cockpit, encoding="utf-8").read()
@@ -158,11 +160,20 @@ def main():
         mark = "  <-" if new_m[m] != old_m[m] else ""
         print(f"  {m}  {old_m[m]:4d}  {new_m[m]:4d}{mark}")
 
-    literal = json.dumps(to_csv_text(rows), ensure_ascii=False)[1:-1]
+    csv_text = to_csv_text(rows)
+    literal = json.dumps(csv_text, ensure_ascii=False)[1:-1]
     out_html = html[:lo] + literal + html[hi:]
     with open(args.out, "w", encoding="utf-8") as fh:
         fh.write(out_html)
     print(f"\ngeschrieben: {args.out} ({len(out_html):,} Zeichen)")
+
+    # Der Register-Snapshot ist die Quelle der Build-Kette im _build-kit-Ordner:
+    # hist_register.csv ersetzen, dann `node build.js`. Das gepatchte HTML oben
+    # entspricht dem, was dieser Build erzeugt - der Snapshot haelt beide gleich.
+    if args.csv_out:
+        with open(args.csv_out, "w", encoding="utf-8", newline="") as fh:
+            fh.write(csv_text)
+        print(f"geschrieben: {args.csv_out} ({len(csv_text):,} Zeichen)")
     return 0
 
 

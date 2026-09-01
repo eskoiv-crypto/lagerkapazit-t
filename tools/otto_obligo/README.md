@@ -7,14 +7,35 @@ automatisch geladen und speist das Diagramm **„Otto-Volumen je Monat"**.
 
 `merge_history.py` mischt frische Agicap-Exporte in diesen eingebetteten Stand.
 
+## Wie das Cockpit gebaut wird
+
+Im SharePoint-Ordner `Otto_Obligo_View/_build-kit/` liegt eine Build-Kette:
+
+| Datei | Rolle |
+|---|---|
+| `app_template.html` | Cockpit ohne eingebettete Libs/Historie |
+| `hist_register.csv` | Register-Snapshot — **die Quelle der Historie** |
+| `build.js` | bettet Libs **und** `hist_register.csv` ein → `Otto-Obligo-Cockpit.html` |
+| `REFRESH-Historie.md` | die monatliche Prozedur |
+
+Kanonisch ist also: **`hist_register.csv` ersetzen, dann `node build.js`.** Das
+gebaute HTML wird laut `REFRESH-Historie.md` in vier Kopien verteilt.
+
 ## Anwendung
 
 ```bash
 python3 tools/otto_obligo/merge_history.py \
     --cockpit Otto-Obligo-Cockpit.html \
     --out     Otto-Obligo-Cockpit.html \
+    --csv-out hist_register.csv \
     supplier_invoices_*.csv
 ```
+
+`--csv-out` schreibt den erweiterten Register-Snapshot für die Build-Kette.
+Beide Ausgaben sind konsistent: der Snapshot ist byte-identisch mit dem, was
+das Skript ins HTML einbettet — ein `node build.js` darüber ändert nichts mehr.
+Wer die Build-Kette zur Hand hat, nimmt `--csv-out` und baut; wer nur die
+fertige Datei ablegen will, nimmt `--out` direkt.
 
 Das Skript gibt eine Bilanz aus (neu / aktualisiert / behalten, Monatsverteilung,
 Zeitraum) und schreibt ausschließlich das `HIST_CSV`-Literal neu — der restliche
