@@ -32,3 +32,12 @@ blob-report/
 playwright/.cache/
 validation_output.txt
 validation_v2.txt
+
+# Otto-Obligo: interner Master + Agicap-Exporte (Repo ist oeffentlich!)
+Otto-Obligo-Cockpit*.html
+OttoObligoCockpit*.html
+supplier_invoices*.csv
+
+# Python
+__pycache__/
+*.pyc
