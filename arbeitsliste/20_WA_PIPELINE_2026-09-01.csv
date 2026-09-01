@@ -1,0 +1,560 @@
+??  WA_PIPELINE  ·  Versand / Aufträge;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+Gelb hinterlegte Spalten = von AMM editierbar. Lila Spalten = automatisch berechnet (nicht editieren  ·  v35: Vorkasse+Bezahlt löst 'Freigabe erteilt'-Suffix im Status aus;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+KW (auto);ID; Übermittelt an Amm (AMM);Auftragsnr. ;Kunde ;Geräte (Anzahl) ;Kommissioniertag (DUSTIN);Versandart ;Status (automatisch);Notizen (AMM);Notizen (ELVINCI) ;Anmeldedatum (AMM);Kommissionierung abgeschlossen (AMM);Paletten (gesamt) (AMM);Einweg 100x80 (AMM);Einweg 120x60 (AMM);Eur-Pal 120×80 (AMM);Einweg 120x80 (AMM);Einweg 80x80 (AMM);LDM (Lademeter) (AMM);Versand-/Abholanmeldung (JANNA);geplantes Versand-/Abholdatum (JANNA);Anlieferdatum (JANNA);Liegezeit n. Komm (Tg);Zollpapiere (JANNA);Rechnungsdatum;Zahlungsziel (JANNA);Bezahlt? (JANNA);Auftrag abgeschlossen (Ware hat das Lager verlassen) (AMM);;;Reste vorhanden NACH Verladung (AMM);Reste Lagernummern (AMM)
+14;;;AU2026040113527;GGY Trade s.r.o.;1;01.04.2026;Abholung;? Versendet & Bezahlt;Sonderfall von Nikoloz: bitte das eine Produkt dem heute abzuholenden Auftrag  AU2026032613516 hinzufügen;"Rechnungskorrektur für AU2026032613516, weil Lagernummer 900228150 nicht mehr verfügbar war. 
+Neue Rechnung für Ersatzprodukt / Guthaben der alten Rechnung dieser neuen zuweisen.";01.04.2026;;;;;;;;;;;;;;;ZZ;Ja;01.04.2026 00:00;;;;
+14;;;AU2026032513511;Nikokira Outlet;189;01.04.2026;Abholung;? Versendet & Bezahlt;;;31.03.2026;;;;;;;;;;;;;;;ZZ;Ja;07.04.2026 00:00;;;;
+14;;;AU2026032513508;IG International;137;01.04.2026;Spedition;? Versendet & Bezahlt;FIXTERMIN/Am 07.04.2026 Verladen;Wunschterminlieferung mit Ankunft Mittwoch 08.04.;31.03.2026;;;;;;;;;;;;;;;ZZ;Ja;07.04.2026 00:00;;;;
+14;;;AU2026032013497;Stock House Nikaias;212;02.04.2026;Abholung;? Versendet & Bezahlt;;;31.03.2026;;;;;;;;;;;;;;;0;Ja;07. Apr;;;;
+14;;;AU2026040113530;SADI;18;02.04.2026;Abholung;? Versendet & Bezahlt;Vollständig gezahlt;Kunde zahlt bei Abholung;01.04.2026;;;;;;;;;;;;;;;0;Ja;07. Apr;;;;
+14;;;AU2026032013499;Hermans Trading;119;02.04.2026;Abholung;? Versendet & Bezahlt;Otto und Mix;"Kunde wird ware erst in der Woche ab 07.04. oder 14.04. abholen.
+Bitte bei der Kommissionierungsplanung berücksichtigen.";25.03.2026;;;;;;;;;;;;;;;0;Ja;07. Apr;;;;
+15;;;AU2026033113526;Hanseatic Georgia LLC;214;07.04.2026;Abholung;? Versendet · Zahlung offen;100 der 214 Artikel sind Staubsauger / Auftrag kommissionieren. Dann Rückmeldung an elvinci (Nikos+Dustin), wie viel Paletten noch für einen FTL frei sind. Der Kunde bestellt dann noch weitere Artikel dazu.;;31.03.2026;;;;;;;;;;;;;;;ZZ;Nein;15.04.2026 00:00;;;;
+15;;;AU2026032413504;Kaldi Prime Kft ;64;07.04.2026;Abholung;? Versendet & Bezahlt;Hinweis vom Kunden / Nikos: Bitte bis zu 4 Produkte pro Palette, Paletten sollen 80x120cm groß.;;01.04.2026;;;;;;;;;;;;;;;0;Ja;16. Apr;;;;
+15;;;AU2026040113529;Simex D.O.O;249;08.04.2026;Abholung;? Versendet & Bezahlt;Vollständig bezahlt!;;02.04.2026;;;;;;;;;;;;;;;0;Ja;10.04.2026 00:00;;;;
+15;;;AU2026040213533;Egzoni Sh.P.K;20;08.04.2026;Abholung;? Versendet & Bezahlt;Kunde möchte die Ware zusammen mit AU2026031013467 am 13.04.2026 abholen - keine Ausgabe, wenn nicht vorher bezahlt wurde.;Kunde möchte die Ware zusammen mit AU2026031013467 am 13.04.2026 abholen - keine Ausgabe, wenn nicht vorher bezahlt wurde.;07.04.2026;;;;;;;;;;;;;;;0;Ja;14.04.2026 17:00;;;;
+15;;;AU2026033113525;TECHNO ELECTRONICS 5 Ltd;182;09.04.2026;Abholung;? Versendet & Bezahlt;Vollständig gezahlt.;;31.03.2026;;;;;;;;;;;;;;;ZZ;Ja;10.04.2026 00:00;;;;-
+15;;;AU2026040813534;Online Shopping Trade;20;09.04.2026;Spedition;? Versendet & Bezahlt;;;08.04.2026;;;;;;;;;;10.04.2026;;1;;;0;Ja;10.04.2026 17:00;;;;
+15;;;AU2026040813535;Luboš Ulman;107;09.04.2026;Spedition;? Versendet & Bezahlt;Lieferung zugestellt!!!;;08.04.2026;;;;;;;;;;;;;;;ZZ;Ja;10.04.2026 00:00;;;;
+15;;;AU2026040913538;Buy4less GmbH;185;10.04.2026;Abholung;? Versendet & Bezahlt;"Nachdem die Pipeline heute noch komplett leer ist stelle ich den Auftrag für heute zur Kommissoinierung ein.
+Wenn das Probleme macht, dann bitte Bescheid geben und wir schieben auf Montag. Im Auftrag nur 184 Stück !
+
+Bitte Auftrag mit 184 Stück kommissionieren und mir eine Liste aller Lagernummern im Auftrag schicken, damit ich die fehlende Nummer identifzieren und auf unserer Rechnung korrigieren kann. Danke!";;10.04.2026;;;;;;;;;;;;;;;ZZ;Ja;14.04.2026 17:00;;;;
+16;;;AU2026040913536;GGY Trade s.r.o.;3;13.04.2026;Abholung;? Versendet & Bezahlt;120 Staubsauger / 3 Paletten / bitte in der Früh schon zusammenstellen @Dima;Soll bei Abholung Bar bezahlt werden.;;;;;;;;;;;;;;;;0;Ja;13.04.2026 00:00;;;;
+16;;;AU2026041013542;New Returns;12;13.04.2026;Spedition;? Versendet & Bezahlt;"Es handelt sich um 15 Paletten mit Kleingeräten
+Tippfehler. 12 Paletten sind richtig.";;10.04.2026;;;;;;;;;;14.04.2026;;1;;;ZZ;Ja;14.04.2026 17:00;;;;
+16;;;AU2026041013539;SUNELECTRO OÜ;116;13.04.2026;Abholung;? Versendet & Bezahlt;Vollständig bezahlt.;;10.04.2026;;;;;;;;;;;;;;;0;Ja;17.04.2026 00:00;;;;
+16;;;AU2026031113475;Euroda Transport & Handel;156;14.04.2026;Abholung;? Versendet & Bezahlt;Ware wurde heute (10.04.) bezahlt. Kommissionierung am 14.04.;Vermutlich wird der Kunde abholen, weil er das mit seinen beiden anderen Firmen bisher auch so gemacht hat. Sollte sich der kunde anders entscheiden, bitte Rückmeldung an Mirko/Dustin;31.03.2026;;;;;;;;;;;;;;;0;Ja;15.04.2026 00:00;;;;
+16;;;AU2026041013547;M&J TRADE D.O.O.;24;14.04.2026;Abholung;? Versendet & Bezahlt;;;13.04.2026;;;;;;;;;;;;;;;0;Ja;15.04.2026 00:00;;;;
+16;;;AU2026033113526;Hanseatic Georgia LLC;104;14.04.2026;Abholung;? Versendet & Bezahlt;"Dieser Auftrag soll den Auftrag AU2026033113540 zu einer vollen LKW Ladung auffüllen. 
+Bitte vollständig kommissionieren und beide Aufträge soweit möglich zu einer LKW Ladung zusammenstellen.
+Restliche kommissionierte Ware wird dann mit dem nächsten AUftrag (folgt noch) verladen.";;10.04.2026;;;;;;;;;;;;;;;ZZ;Ja;15.04.2026 00:00;;;;
+16;;;AU2026041013544;Buy4less GmbH;65;14.04.2026;Spedition;? Versendet & Bezahlt;Input vom Kunden: bitte 4 Geräte auf Palette 80x120 .Danke/ Soll eine Palette mit 5 STK Gepackt werden oder mit 1 Skt ???;;13.04.2026;;;;;;;;;;21.04.2026;;7;;;ZZ;Ja;21.04.2026 00:00;;;;
+16;;;AU2026041013546;Banat Electrocasnice S.R.L;68;14.04.2026;Spedition;? Versendet & Bezahlt;UIT Code in der Anmeldung / Wird am 24 Verladen;;13.04.2026;;;;;;;;;;;;;;;0;Ja;24.04.2026 00:00;;;;-
+16;;;AU2026041413558;NAS ELECTROMENAGER;25;16.04.2026;Abholung;? Versendet & Bezahlt;Bitte Lose vorbereiten da der Kunde selber mit eigenem Transporter abholt;;14.04.2026;;;;;;;;;;;;;;;0;Ja;17.04.2026 00:00;;;;
+16;;;AU2026041413551;GLOBAL LIQUIDACIONES SL;208;16.04.2026;Spedition;? Versendet & Bezahlt;198 Artikel + 10 Mixpaletten. Wunsch vom Kunden: 4-5 Mixpaletten lose umladen und Platz im LKW optimal zu nutzen. Lieferung mit Wächter!!! Zustellung erfolgt am Montag oder Dienstag;;14.04.2026;;;;;;;;;;23.04.2026;;7;;;0;Ja;23.04.2026 00:00;;;;
+16;;;AU2026041013541;IG International;184;17.04.2026;Spedition;? Versendet & Bezahlt;mit Fixtermin zum 22.04;;15.04.2026;;;;;;;;;;;;;;;ZZ;Ja;21.04.2026 00:00;;;;
+16;;;AU2026041413552;SUNELECTRO OÜ;81;17.04.2026;Abholung;? Versendet & Bezahlt;;;14.04.2026;;;;;;;;;;;;;;;0;Ja;27.04.2026 00:00;;;;
+17;;;AU2026040113528;Simex Outlet;155;20.04.2026;Abholung;? Versendet & Bezahlt;Abholwunschtermin vom 21.04. - 24.04.2026;;;;;;;;;;;;;;;;;0;Ja;22.04.2026 00:00;;;;
+17;;;AU2026041413555;Marketvibe Srl;39;20.04.2026;Abholung;? Versendet & Bezahlt;Wurde am 23.04.2026 Verladen;;;;;;;;;;;;;;;;;0;Ja;23.04.2026 00:00;;;;
+17;;;AU2026041413554;Uab Stevija;137;21.04.2026;Abholung;? Versendet & Bezahlt;zusammen mit  AU2026042013574  verladen;;;;;;;;;;;;06.05.2026;;15;;;0;Ja;06.05.2026 17:00;;;;
+17;;;AU2026042013572;Elektroshop Enny Dizdarevic Ernesa e.U.;51;21.04.2026;Spedition;? Versendet & Bezahlt;Bei den Produkten handelt es sich allesamt um Kleingeräte;;20.04.2026;;;;;;;;;;06.05.2026;;15;;;0;Ja;06.05.2026 17:00;;;;
+17;;;AU2026041313549;Almost New LTD;67;21.04.2026;Abholung;? Versendet & Bezahlt;Info: 2 Mixpaletten und 2 Paletten mit Staubsauger. Wird mit TechnoPlanet zusammen beladen AU2026042413592;"Info von Nikoloz: ""wird zusammen mit Technoplanet abgeholt ( Technoplanet wird voraussichtlich in der Woche ab 20.04. bestellen)""";14.04.2026;;;;;;;;;;;;;;;0;Ja;08.05.2026 00:00;;;;
+17;;;AU2026041313550;Hanseatic Georgia LLC;99;22.04.2026;Abholung;? Versendet · Zahlung offen;bitte Lademeter an @Nikoloz weitergeben;;;;;;;;;;;;;;;;;;Nein;06.05.2026 00:00;;;;
+17;;;AU2026041613565;ELECTRO BALKAN DI BOJANIC ZELJKO;149;22.04.2026;Spedition;? Versendet & Bezahlt;AM 23.04.2026 Verladen;;21.04.2026;;;;;;;;;;;;;;;ZZ;Ja;23.04.2026 00:00;;;;
+17;;;AU2026042113580;GGY Trade s.r.o.;100;23.04.2026;Abholung;? Versendet & Bezahlt;Bei den Produkten handelt es sich um 100 Staubsauger auf 3 Paletten. BAR Zahlung vor Ort.;;22.04.2026;;;;;;;;;;;;;;;0;Ja;27.04.2026 00:00;;;;
+17;;;AU2026042013574;UAB Stevija;20;23.04.2026;Abholung;? Versendet & Bezahlt;Abholung erfolgt zusammen mit AU2026041413554;;21.04.2026;;;;;;;;;;;;;;;0;Ja;06.05.2026 00:00;;;;
+17;;;AU2026042213581;Hanseatic Georgia LLC;110;23.04.2026;Abholung;? Versendet · Zahlung offen;"Auftrag soll mit AU2026041013540#1 und AU2026041313550 zusammen zu einem FTL kommissioniert werden. 
+Bitte Ware kommissionieren und zurückmelden an Nikoloz, Dustin und Mirko ob die drei Aufträge zusammen einen vollen LKW ergeben.";;22.04.2026;;;;;;;;;;;;;;;ZZ;Nein;13.05.2026 00:00;;;;
+17;;;AU2026042113577;Schotte Sam;2;23.04.2026;Abholung;? Versendet & Bezahlt;;;;;;;;;;;;;;;;;;0;Ja;23.04.2026 00:00;;;;
+17;;;AU2026042213582;Online Shopping Trade S.R.O.;21;24.04.2026;Spedition;? Versendet & Bezahlt;;Zugestellt am 04.05;22.04.2026;;;;;;;;;;24.04.2026;;-;;;0;Ja;24.04.2026 17:00;;;;
+17;;;AU2026042013573;IG International;131;24.04.2026;Spedition;? Versendet & Bezahlt;FIXTERMIN AM 29.04.2026;;23.04.2026;;;;;;;;;;27.04.2026;;3;;;ZZ;Ja;27.04.2026 00:00;;;;
+17;;;AU2026042313587;IG International;17;24.04.2026;Spedition;? Versendet & Bezahlt;FIXTERMIN am 29.04.2026. Ware soll zusammen mit AU2026042013573 verladen werden.;;23.04.2026;;;;;;;;;;27.04.2026;;3;;;ZZ;Ja;27.04.2026 17:00;;;;
+17;;;AU2026042113576;UAB Portana;87;24.04.2026;Abholung;? Versendet & Bezahlt;;Terminwunsch für Abholung Dienstag, 28.04.;23.04.2026;;;;;;;;;;;;;;;ZZ;Ja;28.04.2026 00:00;;;;
+18;;;AU2026041413553;Sefik Saracevic;44;27.04.2026;Abholung;? Versendet & Bezahlt;Die Ware wird lose und ohne Palette abgeholt. Der Kunde zahlt bei Abholung in bar;Zahlt bar bei Abholung;23.04.2026;;;;;;;;;;;;;;;ZZ;Ja;28.04.2026 00:00;;;;
+18;;;AU2026042313585;M&J TRADE D.O.O.;32;27.04.2026;Abholung;? Versendet & Bezahlt;Hat wiederholt seinen Abholtag nicht eingehalten;;23.04.2026;;;;;;;;;;;;;;;0;Ja;15.05.2026 00:00;;;;
+18;;;AU2026042413592;Techno Planet LTD;175;28.04.2026;Abholung;? Versendet & Bezahlt;Almost New LTD AU2026041313549 bitte mit verladen bei Abholung. Vollständig bezahlt.;;;;;;;;;;;;;;;;;0;Ja;08.05.2026 00:00;;;;
+18;;;AU2026042713595;Hanseatic Georgia LLC;41;28.04.2026;Abholung;? Versendet · Zahlung offen;Auftrag ist eine Erweiterung für AU2026042213581 und soll zusammen einen LKW ergeben. Bitte Rückmeldung an Nikoloz und Dustin, ob damit ein LKW voll ist.;;27.04.2026;;;;;;;;;;;;;;;ZZ;Nein;12.05.2026 00:00;;;;
+18;;;AU2026042713596;Simex D.o.o;212;29.04.2026;Abholung;? Versendet & Bezahlt;;;27.04.2026;;;;;;;;;;;;;;;0;Ja;07.05.2026 00:00;;;;
+18;;;AU2026040913537;Herman Trading;99;30.04.2026;Abholung;? Versendet & Bezahlt;8x  AEG Kühlschränke wurden hier noch dazu beladen vom AU2026032413506;;27.04.2026;;;;;;;;;;;;;;;ZZ;Ja;04.05.2026 00:00;;;;
+18;;;AU2026042313586;TECHNO ELECTRONICS 5 Ltd;160;30.04.2026;Abholung;? Versendet & Bezahlt;900164346  nicht im Bestand. Kunde wurde darüber informiert.;;27.04.2026;;;;;;;;;;;;;;;ZZ;Ja;08.05.2026 00:00;;;;-
+19;;;AU2026042113579;Enterijer D.O.O.;158;04.05.2026;Abholung;? Versendet & Bezahlt;ABD an AMM übermittelt.;;27.04.2026;;;;;;;;;;;;;;;ZZ;Ja;05.05.2026 00:00;;;;
+19;;;AU2026042913604;Elektroshop Enny Dizdarevic Ernesa e.U.;21;04.05.2026;Spedition;? Versendet & Bezahlt;Wird zusammen mit AU2026042013572 (bereits bezahlt und komissioniert) ausgeliefert werden.;;29.04.2026;;;;;;;;;;06.05.2026;;2;;;0;Ja;06.05.2026 17:00;;;;
+19;;;AU2026042813601;Home Discount S.R.L.;1;04.05.2026;Spedition;? Versendet & Bezahlt;Bitte alles auf eine Palette laden. UIT Code übermittelt.;;29.04.2026;;;;;;;;;;;;;;;0;Ja;08.05.2026 00:00;;;;
+19;;;AU2026042813600;Hanseatic Georgia LLC;10;04.05.2026;Abholung;? Versendet · Zahlung offen;Auftrag ist die letzte Erweiterung für AU2026042213581 und AU2026042713595 und soll zusammen abgeholt werden.;;29.04.2026;;;;;;;;;;;;;;;ZZ;Nein;12.05.2026 00:00;;;;
+19;;;AU2026050413610;AMY Witgoed;15;04.05.2026;Abholung;? Versendet & Bezahlt;Vollständig bezahlt. 10 Lagernummern heute abgeholt.;;04.05.2026;;;;;;;;;ist angemeldet;16.06.2026;;43;;;0;Ja;13.05.2026 00:00;;;5 Stk;
+19;;;AU2026050413611;RU Recycling und Umweltdienst GmbH;136;05.05.2026;Spedition;? Versendet & Bezahlt;am 06.05.2026 Verladen !;;05.05.2026;;;;;;;;;;;;;;;ZZ;Ja;06.05.2026 00:00;;;;
+19;;;AU2026050513613;UAB Stevija;24;05.05.2026;Abholung;? Versendet & Bezahlt;Kombiauftrag wird zusammen mit AU2026041413554 und AU2026042013574 abgeholt.;;05.05.2026;;;;;;;;;;;;;;;0;Ja;06.05.2026 00:00;;;;
+19;;;AU2026042213581;Hanseatic Georgia;142;05.05.2026;Abholung;? Versendet & Bezahlt;besteht aus AU2026042213581, AU2026042713595 und AU2026042813600;;05.05.2026;;;;;;;;;;;;;;;0;Ja;12.05.2026 00:00;;;;
+19;;;AU2026042913603;KOUTLIANOS NIKOS;71;05.05.2026;Abholung;? Versendet & Bezahlt;bitte zusammen mit AU2026052713680 verladen;;29.04.2026;02.06.2026 00:00;;;;;;;;;;;;;;0;Ja;29.05.2026 00:00;;;;
+19;;;AU2026043013607;KAJTEK Patrycja Minkina;156;06.05.2026;Abholung;? Versendet & Bezahlt;;;30.04.2026;;;;;;;;;;;;;;;0;Ja;07.05.2026 00:00;;;;
+19;;;AU2026042913605;Outlet Mebeli Ltd;53;06.05.2026;Abholung;? Versendet & Bezahlt;zusammen mit Techno Vision AU2026050813619 verladen;;30.04.2026;;;;;;;;;;;;;;;0;Ja;19.05.2026 00:00;;;;
+19;;;AU2026042413593;Euroda Transport & Handel;238;07.05.2026;Abholung;? Versendet & Bezahlt;34 Geräte sind noch stehen geblieben.;Zahlungseingang prüfen;;;;;;;;;;;;;;;;0;Ja;15.05.2026 00:00;;;34 STK;
+19;;;AU2026050513612;Buy 24;175;08.05.2026;Spedition;? Versendet & Bezahlt;Statt Abholung doch Lieferung. Vollständig bezahlt.;;05.05.2026;;;;;;;;;;13.05.2026;;5;;;0;Ja;13.05.2026 00:00;;;;
+19;;;AU2026043013606;Elektro Outlet Sinzig GmbH I.G.;147;08.05.2026;Abholung;? Versendet & Bezahlt;Bezahlt!!!;;30.04.2026;;;;;;;;;;;;;;;0;Ja;15.05.2026 00:00;;;;
+20;;;AU2026043013608;IG International;150;11.05.2026;Spedition;? Versendet & Bezahlt;Kombiauftrag AU2026050813620 bitte mit Fixtermin zum 13.05 verladen.;;08.05.2026;;;;;;;;;;;;;;;ZZ;Ja;12.05.2026 00:00;;;;
+20;;;AU2026050813620;IG International;10;11.05.2026;Spedition;? Versendet · Zahlung offen;Kombiauftrag AU2026050813620 bitte mit Fixtermin zum 13.05 verladen.;;08.05.2026;;;;;;;;;;;;;;;ZZ;Nein;12.05.2026 00:00;;;;
+20;;;AU2026050813619;Techno Vision Group Ltd.;126;12.05.2026;Abholung;? Versendet & Bezahlt;zusammen mit Mebeli AU2026042913605 verladen;;08.05.2026;;;;;;;;;;;;;;;0;Ja;19.05.2026 00:00;;;;
+20;;;AU2026051313629;Emporia antalaktikon;134;13.05.2026;Abholung;? Versendet & Bezahlt;Kombiauftrag;;13.05.2026;;;;;;;;;;;;;;;ZZ;Ja;15.05.2026;;;;
+20;;;AU2026041413557;Emporia antalaktikon;9;13.05.2026;Abholung;? Versendet & Bezahlt;Kombiauftrag;;13.05.2026;;;;;;;;;;;;;;;ZZ;Ja;15.05.2026;;;;
+20;;;AU2026050813622;Buy4less GmbH;209;15.05.2026;Abholung;? Versendet · Zahlung offen;AM 19.05.2026 Abgeholt;;08.05.2026;;;;;;;;;;;;;;;ZZ;Nein;19.05.2026;;;;
+21;;;AU2026043013609;Rati Marti;130;18.05.2026;Abholung;? Versendet & Bezahlt;Kombiauftrag. zusammen mit AU2026051313633 verladen geplante Abholung am 20.05.2026/ Zoll angemeldet.;;30.04.2026;;;;;;;;;;;;;;;0;Ja;20.05.2026;;;;
+21;;;AU2026051313633;Rati Marti;25;18.05.2026;Abholung;? Versendet & Bezahlt;Kombiauftrag. zusammen mit AU2026043013609 verladen / geplante Abholung am 20.05.2026/ Zoll angemeldet.;;13.05.2026;;;;;;;;;;;;;;;ZZ;Ja;20.05.2026;;;;
+21;;;AU2026051213625;Nikokira Outlet;91;19.05.2026;Abholung;? Versendet & Bezahlt;wird zusammen mit Soutis AU2026051513635 verladen.;;13.05.2026;;;;;;;;;;;;;;;0;Ja;20.05.2026;;;;
+21;;;AU2026051513635;Soutis Electrics;4;19.05.2026;Abholung;? Versendet & Bezahlt;wird zusammen mit Nikokira AU2026051213625 verladen.;;15.05.2026;;;;;;;;;;;;;;;0;Ja;20.05.2026;;;;
+21;;;AU2026051813640;(Privat) Tanja Köstler;1;19.05.2026;Abholung;? Versendet & Bezahlt;Tanja Köstler, Tulpenweg 33, 90571 Schwaig. Abholung um 9 Uhr;;18.05.2026;;;;;;;;;;;;;;;0;Ja;19.05.2026;;;;
+21;;;AU2026051113624;Outlet Mebeli Ltd;113;19.05.2026;Abholung;? Versendet · Zahlung offen;Bitte zusammen mit AU2026052013652 verladen;;15.05.2026;;;;;;;;;;;;;;;ZZ;Nein;28.05.2026 00:00;;;;
+21;;übermittelt;AU2026051113623;IG International;107;19.05.2026;Spedition;? Versendet & Bezahlt;Am 21.05.2026 Verladen ( Kommissioniertag Falsch, sollte nicht 19.05.2026 sein? );;18.05.2026;20.05.2026 00:00;;;;;;;;;;;;;;ZZ;Ja;21.05.2026 00:00;;;;
+21;;;AU2026051913646;Ados Witgoed;188;20.05.2026;Spedition;? Versendet & Bezahlt;Lieferung mit Fixtermin zum 26.05;;15.05.2026;;;;;;;;;;;;;;;0;Ja;22.05.2026 00:00;;;nein;
+21;;;AU2026051313630;Todo Cash;124;20.05.2026;Spedition;? Versendet & Bezahlt;zusammen mit AU2026052113656 bladen und versenden.;;15.05.2026;;36;5;26;;13;2;;;;;;;;0;Ja;05.06.2026 00:00;;;;
+21;;;AU2026051213626;Kaldi Prime Kft;79;21.05.2026;Abholung;? Versendet & Bezahlt;Die Ware soll auf Paletten 60×120 cm platziert werden, insgesamt 14 Paletten.;;15.05.2026;;;;;;;;;;;;;;;0;Ja;28.05.2026 00:00;;;nein;
+21;;;AU2026051513634;MON-LIP ROCK KFT;145;21.05.2026;Abholung;? Versendet & Bezahlt;;;15.05.2026;;29;;26;;3;;9,80;ist angemeldet;02.06.2026;;12;;;0;Ja;02.06.2026 00:00;;;;
+21;;;AU2026051213627;Ovit Shop V.O.F.;221;22.05.2026;Abholung;? Versendet & Bezahlt;159 Geräte + Reste von der letzten Abholung. Lieferschein an AMM übermittelt zur Abholung.;;18.05.2026;;;;;;;;;;;;;;;ZZ;Ja;26. Mai;;;;
+21;;;AU2026050813618;Enno Kundendienst;31;22.05.2026;Spedition;? Versendet & Bezahlt;80x120 bis 4 Geräte;;18.05.2026;;;;;;;;;;;;;;;0;Ja;27.05.2026 00:00;;;;
+21;;;AU2026052013653;Online Shopping Trade S.R.O. Számlázási;23;22.05.2026;Spedition;? Versendet & Bezahlt;5 Paletten 120 x 80;;19.05.2026;;;;;;;;;;;;;;;0;Ja;22.05.2026 00:00;;;;
+22;;;AU2026051513638;Marketvibe Srl;77;26.05.2026;Abholung;? Versendet & Bezahlt;60x120 bis 270 hoch  /Teilgezahlt. Wurde mit Niko vereinbart.;;20.05.2026;;;;;;;;;;;;;;;0;Ja;27.05.2026 00:00;;;;
+22;;;AU2026052113658;Ovit Shop V.O.F.;170;26.05.2026;Abholung;? Versendet & Bezahlt;2.LKW bitte mit den Resten vom 1.LKW beladen. 900240353 900235531 900240459 900240455;;22.05.2026;26.05.2026 00:00;;;;;;;;;;;;;;ZZ;Ja;27.05.2026 00:00;;;;
+22;;;AU2026051913649;P&C Trading B.V.;110;26.05.2026;Abholung;? Versendet & Bezahlt;1. LKW/P&C Trading B.V. Christian Cools Weegschaalstraat 3, 5632CW Eindhoven Niederlande;;19.05.2026;;;;;;;;;;;;;;;0;Ja;28.05.2026 00:00;;;;
+22;;übermittelt;AU2026051513637;M&J TRADE D.O.O.;38;26.05.2026;Abholung;? Versendet & Bezahlt;Kombiauftrag, bitte zusammen mit AU2026052813681 verladen.;;20.05.2026;26.05.2026 00:00;20;;20;;;;6,00;ist angemeldet;03.06.2026;;8;;;0;Ja;03.06.2026 00:00;;;nein;
+22;;;AU2026052113656;Todo Cash;30;26.05.2026;Spedition;? Versendet & Bezahlt;zusammen mit AU2026051313630 beladen und versenden.;;21.05.2026;;;;;;;;;;;;;;;0;Ja;05.06.2026 00:00;;;nein;
+22;;;AU2026051913650;P&C Trading B.V.;169;27.05.2026;Abholung;? Versendet & Bezahlt;bitte zusammen mit AU2026052613674 und AU2026052213664 verladen. 2. LKW;;19.05.2026;;40;;34;;6;;;ist angemeldet;01.06.2026;;5;;;0;Ja;02.06.2026 00:00;;;;
+22;;;AU2026052213664;P&C Trading B.V.;2;27.05.2026;Abholung;? Versendet & Bezahlt;bitte  zusammen mit AU2026051913650 und AU2026052613674 beladen. 2.LKW;;22.05.2026;;;;;;;;;;;;;;;0;Ja;02.06.2026 00:00;;;;
+22;;;AU2026052013652;Outlet Mebeli Ltd;125;27.05.2026;Abholung;? Versendet · Zahlung offen;Bitte zusammen mit  AU2026051113624 verladen;;20.05.2026;11.06.2026 00:00;11;;8;;3;;3,80;;;;;;;ZZ;Nein;29.06.2026 00:00;;;;
+22;;;AU2026052613674;P&C Trading B.V.;27;28.05.2026;Abholung;? Versendet & Bezahlt;bitte zusammen mit  AU2026051913650 und AU2026052213664 zusammen beladen. 2.LKW;;22.05.2026;29.05.2026 00:00;40;;34;;6;;13,60;ist angemeldet;01.06.2026;;4;;;-;Ja;02.06.2026 00:00;;;91 für 2-te LKW;
+22;;übermittelt;AU2026052113660;Alayham Shakantana;210;28.05.2026;Abholung;? Versendet & Bezahlt;1.te LKW 119 Stück AU202605213660;210 Stück übermittelt, ist das Richtig? Meldung Spalte F sagt 175. Bitte um Prüfung;22.05.2026;05.06.2026 00:00;41;18;8;;6;9;13,50;ist angemeldet;08.06.2026;;11;;;0;Ja;10.06.2026 00:00;;;;
+22;;übermittelt;AU2026052113657;Buy24;179;28.05.2026;Lieferung;? Versendet & Bezahlt;Statt Abholung doch Lieferung.;;22.05.2026;;;;;;;;;;;;;;;0;Ja;28.05.2026 00:00;;;;
+22;;übermittelt;AU2026052713680 ;KOUTLIANOS;22;29.05.2026;Abholung;? Versendet & Bezahlt;bitte zusammen mit AU2026052813686 verladen;;08.06.2026;02.06.2026 00:00;40;3;26;;8;3;13,50;ist angemeldet;10.06.2026;;12;;;0;Ja;10.06.2026 00:00;;;7 Pal = 12 Stück;
+22;;übermittelt;AU2026051813642;IG International;59;29.05.2026;Spedition;? Versendet & Bezahlt;Ein weiterer Kombiauftrag folgt am Freitag.;AU2026051813642 + AU2026052913690;26.05.2026;01.06.2026 00:00;40;3;8;;2;;16,20;ist angemeldet;02.06.2026;;4;;;ZZ;Ja;02.06.2026 00:00;;;nein;
+22;;übermittelt;AU2026052213669;Outlet Simex D.O.O;212;29.05.2026;Abholung;? Versendet & Bezahlt;schickt einen 15,5m LKW;;26.05.2026;01.06.2026 00:00;30 + 5 Lose;1;26;;;3;16,50;ist angemeldet;03.06.2026;;5;;;ZZ;Ja;03.06.2026 00:00;;;20 Pal = 43 Stk.;
+23;;übermittelt;AU2026051913648;HermansTrading BV;64;01.06.2026;Abholung;? Versendet & Bezahlt;Bitte zusammen mit dem Rest von AU2026032413506 verladen.;;27.05.2026;01.06.2026 00:00;;;;;;;;ist angemeldet;02.06.2026;;1;;;ZZ;Ja;02.06.2026 00:00;;;nein;
+23;;übermittelt;AU2026052813681;M&J TRADE D.O.O.;2;01.06.2026;Abholung;? Versendet & Bezahlt;Kombiauftrag, bitte zusammen mit AU2026051513637 verladen.;;27.05.2026;26.05.2026 00:00;;;;;;;;ist angemeldet;03.06.2026;;2;;;-;Ja;03.06.2026 00:00;;;;
+23;;übermittelt;AU2026052713677;(Privat) Daniel Toska;8;01.06.2026;Abholung;? Versendet & Bezahlt;Auftrag falsch überspielt, Artikelnummer und Lagernummer identisch, bitte nochmal prüfen. Kundendaten fehlen.;;27.05.2026;03.06.2026 00:00;8 Lose(geräte wurden Foliert);;;;;;;ist angemeldet;05.06.2026;;4;;;-;Ja;05.06.2026 00:00;;;;
+23;;übermittelt;AU2026052813684;Nikokira Outlet;20;01.06.2026;Abholung;? Versendet & Bezahlt;;Bitte zusammen mit AU2026052213670 verladen;28.05.2026;02.06.2026 00:00;5;;;;5;;;ist angemeldet;05.06.2026;;4;;;ZZ;Ja;08.06.2026 00:00;;;nein;
+23;;übermittelt;AU2026052113663;Sefik Saracevic;54;01.06.2026;Abholung;? Versendet & Bezahlt;Bitte Lose verladen (Zahlt Bar vor Ort);;28.05.2026;01.06.2026 00:00;lose;;;;;;;ist angemeldet;01.06.2026;;-;;;-;Ja;01.06.2026 00:00;;;;
+23;;übermittelt;AU2026052813686;KOUTLIANOS;134;02.06.2026;Abholung;? Versendet & Bezahlt;bitte zusammen mit AU2026052713680 verladen.;;08.06.2026;02.06.2026 00:00;40;3;26;;8;3;13,50;ist angemeldet;10.06.2026;;8;;;-;Ja;10.06.2026 00:00;;;;
+23;;übermittelt;AU2026052213670;Markaris Petros;24;02.06.2026;Abholung;? Versendet & Bezahlt;Auftrag falsch überspielt, Artikelnummer und Lagernummer identisch, bitte nochmal prüfen. Kundendaten fehlen.;Bitte zusammen mit AU2026052813684 verladen;28.05.2026;05.06.2026 00:00;11;3;20;;3;3;3,60;ist angemeldet;05.06.2026;;3;;;ZZ;Ja;08.06.2026 00:00;;;;
+23;;übermittelt;AU2026052913691;Deland Ltd EOOD;141;02.06.2026;Abholung;? Versendet & Bezahlt;Kommi Status folgt Montag bis ca.10:00-10:30;;;08.06.2026 00:00;22;;18;;4;;7,50;ist angemeldet;11.06.2026;;9;;;-;Ja;11.06.2026 00:00;;;;
+23;;übermittelt;AU2026060113693;Online Shopping Trade S.R.O. Számlázási;28;02.06.2026;Spedition;? Versendet & Bezahlt;;;05.06.2026;03.06.2026 00:00;7;1;;;6;;2,80;ist angemeldet;08.06.2026;;6;;;-;Ja;08.06.2026 00:00;;;;
+23;;übermittelt;AU2026052613671;Hanseatic Georgia LLC;107;02.06.2026;Abholung;? Versendet · Zahlung offen;Bitte Auftrag Kommissionieren, um zu wissen wieviel Platz zur verfügung steht, wird noch erweitert.;Hier werden Paar stück Lose verladen. ;29.05.2026;02.06.2026 00:00;44;1;43;;;;13,40;ist angemeldet;08.06.2026;;6;JA;;ZZ;Nein;08.06.2026 00:00;;;nein;
+23;;übermittelt;AU2026060113692;Johannes Heller;3;02.06.2026;Abholung;? Versendet & Bezahlt;; 3 Staubsauger für Johannes, holt sie heute noch ab.;02.06.2026;02.06.2026 00:00;3 lose;;;;;;;ist angemeldet;02.06.2026;;-;;;-;Ja;02.06.2026 00:00;;;;
+23;;übermittelt;AU2026051913647;Karakitsos Stock House IKE;180;03.06.2026;Abholung;? Versendet & Bezahlt;Bitte alle Gefriertruhen ohne Paletten verladen damit drei Stück entsprechend platziert bzw. aufgestellt werden können.;;28.05.2026;03.06.2026 00:00;39;12;;;18;9;14,20;ist angemeldet;08.06.2026;;5;;;-;Ja;08.06.2026 00:00;;;;
+23;;übermittelt;AU2026052913687;Karakitsos Stock House IKE;16;03.06.2026;Abholung;? Versendet & Bezahlt;Kombiauftrag, bitte zusammen mit AU2026051913647 verladen;;28.05.2026;03.06.2026 00:00;;;;;;;;ist angemeldet;08.06.2026;;5;;;-;Ja;08.06.2026 00:00;;;;
+;;übermittelt;AU2026052613675;GGY Trade s.r.o.;100;05.06.2026;Abholung;? Versendet & Bezahlt;102 Stück übermittelt, bitte um Prüfung;AEG Kleingeräte;;08.06.2026 00:00;5;2;;;3;;2,10;ist angemeldet;30.06.2026;;25;;;-;Ja;30.06.2026 00:00;;;110 Stück für LKW 3;
+23;;übermittelt;AU2026052713678;Alayham Shakantana;214;05.06.2026;Abholung;? Versendet & Bezahlt;2.te LKW hat 91 Stück von AU2026052113660 + 104 Stück von AU2026052713678;214 Stück übermittelt, bitte um prüfung. @Igor zahlen wurden korrigiert es sind 214 Stk.;27.05.2026;05.06.2026 00:00;41;9;26;;3;3;13,50;;;;;;;-;Ja;11.06.2026 00:00;;;;
+23;;übermittelt;AU2026060213698;Nagy Szabolcs Bela;15;05.06.2026;Abholung;? Versendet & Bezahlt;;Barzahlung am Abholtag (Wunsch des Kunden lose Abholung am 05.06.2026);05.06.2026;05.06.2026 00:00;;;;;;;;ist angemeldet;09.06.2026;;4;;;-;Ja;10.06.2026 00:00;;;;
+23;;übermittelt;AU2026060213697;RU Recycling und Umweltdienst GmbH;64;05.06.2026;Spedition;? Versendet & Bezahlt;"3 Stück fehlemnge, per mail gemeldet. 
+Wird am 09.06. oder 10.06. Verladen. Genaue Info folgt";bitte kommissionieren - Lademeter werden für die Versandkostenberechnung benötigt (laut Portal 8,2 ldm);03.06.2026;08.06.2026 00:00;22;7;8;;7;;9,00;ist angemeldet;08.06.2026;;3;;;ZZ;Ja;09.06.2026 00:00;;;;
+23;;übermittelt;AU2026060213696;Buy 24;72;05.06.2026;Spedition;? Versendet & Bezahlt;;Bitte auf 80x120 umschlichten, hatte vergessen die Info hier einzutragen. Sorry :);;08.06.2026 00:00;10;;;;10;;4,20;ist angemeldet;;;;;;-;Ja;12.06.2026 00:00;;;;-
+24;;übermittelt;AU2026051913644;TECHNO ELECTRONICS 5 Ltd;224;08.06.2026;Abholung;? Versendet & Bezahlt;224 Übermittelt. Bitte um Prüfung.;Geprüft. Die RE/Auftrag beinhaltet 224 Stück.;05.06.2026;09.06.2026 00:00;42;9;20;;13;;14,90;ist angemeldet;10.06.2026;;2;;;ZZ;Ja;10.06.2026 00:00;;;;
+24;;übermittelt;AU2026060513704;M&J TRADE D.O.O.;29;08.06.2026;Abholung;? Versendet & Bezahlt;;Bitte zusammen mit AU2026060913710 und AU2026061613735 verladen.;;08.06.2026 00:00;;;;;;;kombi;ist angemeldet;18.06.2026;;10;;;-;Ja;17.06.2026 00:00;;;;
+24;;übermittelt;AU2026060513703;Sefik Saracevic;111;08.06.2026;Abholung;? Versendet & Bezahlt;;Bitte Lose verladen.;08.06.2026;09.06.2026 00:00;;;;;;;;ist angemeldet;12.06.2026;;4;;;ZZ;Ja;12.06.2026 00:00;;;;
+24;;übermittelt;AU2026060313699;Hanseatic Georgia LLC;118;08.06.2026;Abholung;? Versendet & Bezahlt;;zusammen mit AU2026061113716 verladen;;09.06.2026 00:00;30;4;18;;6;2;10,40;ist angemeldet;22.06.2026;;14;JA;;ZZ;Ja;22.06.2026 00:00;;;;
+24;;übermittelt;AU2026060913711;Warriors Cascade ;162;09.06.2026;Abholung;? Versendet & Bezahlt;;;;10.06.2026 00:00;38;3;18;;14;3;13,50;ist angemeldet;19.06.2026;;10;;;-;Ja;19.06.2026 00:00;;;;
+24;;übermittelt;AU2026060313702;Hermans Trading BV;122;10.06.2026;Abholung;? Versendet & Bezahlt;;;;10.06.2026 00:00;39;2;26;;11;;13,60;ist angemeldet;22.06.2026;;12;;;ZZ;Ja;22.06.2026 00:00;;;;
+24;;übermittelt;AU2026060213694;Gujjar Begum;75;10.06.2026;Spedition;? Versendet & Bezahlt;AU2026060213694 erhalten. Ist das Richtig?;Bitte mit AU2026061513728 verladen.;08.06.2026;10.06.2026 00:00;35;6;17;;12;;13,20;ist angemeldet;18.06.2026;;8;;;-;Ja;18.06.2026 00:00;;;;
+24;;übermittelt;AU2026052713679;AMY Witgoed;10;10.06.2026;Abholung;? Versendet & Bezahlt;;holt 5x Reste vom AU2026050413610 und 10x AU2026052713679;;10.06.2026 00:00;;;;;;;;ist angemeldet;10.06.2026;;-;;;-;Ja;16.06.2026 00:00;;;;
+24;;übermittelt;AU2026061013713;Nagy Szabolcs Bela;5;10.06.2026;Abholung;? Versendet & Bezahlt;;zusammen mit rausgeben AU2026060213698;;10.06.2026 00:00;;;;;;;;;;;;;;-;Ja;10.06.2026 00:00;;;;
+24;;übermittelt;AU2026052213668 ;UAB Stevija;83;11.06.2026;Abholung;? Versendet & Bezahlt;;Bitte zusammen mit AU2026061213721 verladen;;11.06.2026 00:00;;;;;;;;warten;03.07.2026;;22;;;-;Ja;03.07.2026;;;;
+24;;übermittelt;AU2026052013655;Simex D.O.O;309;12.06.2026;Abholung;? Versendet & Bezahlt;Simex morgen Starten, aber geht bis Montag!!;BITTE 20x Dunstabzugshaube (IGNIS) NICHT kommissionieren! Korrigierte Version folgt am Montag ;;15.06.2026 00:00;49;13;22;;14;;17,10;ist angemeldet;18.06.2026;;6;JA;;-;Ja;18.06.2026 00:00;;;;
+24;;übermittelt;AU2026060313701;IG International Trading GmbH;125;12.06.2026;Spedition;? Versendet & Bezahlt;Morgen vorziehen , da Lademeter für Spedition Anmeldung benötigt, weil 17. Anlieferung Fixtermin;;;12.06.2026 00:00;36;3;16;;17;;13,50;ist angemeldet;;17.06.2026;;;;ZZ;Ja;16.06.2026 00:00;;;;
+24;;übermittelt;AU2026061113716  ;Hanseatic Georgia LLC;30;12.06.2026;Abholung;? Versendet · Zahlung offen;Kommissioniertag morgen schaffbar;zusammen mit AU2026060313699 verladen;;12.06.2026 00:00;39;6;24;;6;3;13,50;ist angemeldet;22.06.2026;;10;JA;;ZZ;Nein;22.06.2026 00:00;;;;
+25;;übermittelt;AU2026061013715 ;Elettrodomestici Di Macchia Vito Giacomo;147;15.06.2026;Spedition;? Versendet & Bezahlt;"Kommissioniertag Montag nachmittag schaffbar; ";;;15.06.2026 00:00;38;1;18;;16;3;13,60;ist angemeldet;;;;;;-;Ja;17.06.2026 00:00;;;;
+25;;übermittelt;AU2026060913710;M&J TRADE D.O.O.;13;15.06.2026;Abholung;? Versendet & Bezahlt;;Bitte zusammen mit AU2026060513704 und AU2026061613735 verladen.;;12.06.2026 00:00;;;;;;;KOMBILADUNG;ist angemeldet;18.06.2026;;3;;;-;Ja;17.06.2026 00:00;;;;
+25;;übermittelt;AU2026060813709;Egzoni Sh.P.K;65;15.06.2026;Abholung;? Versendet & Bezahlt;;zusammen mit AU2026062913770 verladen;;15.06.2026 00:00;;;;;;;;ist angemeldet;10.07.2026;;25;JA;;-;Ja;13.07.2026 00:00;;;;
+25;;übermittelt;AU2026061213720;NAS ELECTROMENAGER;30;16.06.2026;Abholung;? Versendet & Bezahlt;;Lose Beladung.;;16.06.2026 00:00;;;;;;;;ist angemeldet;16.06.2026;;-;;;-;Ja;16.06.2026 00:00;;;;
+25;;übermittelt;AU2026061513726;Alma Trading Company;29;16.06.2026;Spedition;? Versendet & Bezahlt;;  (80x120);;16.06.2026 00:00;19;13;;;6;;7,00;ist angemeldet;;;;;;-;Ja;23.06.2026 00:00;;;;
+25;;übermittelt;AU2026061513728;Gujjar Begum;10;16.06.2026;Spedition;? Versendet & Bezahlt;;Bitte mit AU2026060213694 verladen.;;16.06.2026 00:00;;;;;;;;ist angemeldet;18.06.2026;;2;;;-;Ja;18.06.2026 00:00;;;;
+25;;übermittelt;AU2026061513727;RU Recycling und Umweltdienst GmbH;30;16.06.2026;Spedition;? Versendet · Zahlung offen;;;;16.06.2026 00:00;8;2;;;6;;3,20;ist angemeldet;17.06.2026;;1;;;ZZ;Nein;17.06.2026 00:00;;;;
+25;;übermittelt;AU2026061213724;Banat Electrocasnice S.R.L;131;17.06.2026;Abholung;? Versendet & Bezahlt;;Bitte zusammen mit  AU2026061713740 verladen ;;17.06.2026 00:00;35;6;18;;11;;12,60;;03.07.2026;;16;;;-;Ja;03.07.2026 00:00;;;;-
+25;;übermittelt;AU2026061613735;M&J TRADE D.O.O.;22;17.06.2026;Abholung;? Versendet & Bezahlt;;Bitte zusammen mit AU2026060913710 verladen;;17.06.2026 00:00;32;;32;;;;9,60;ist angemeldet;18.06.2026;;1;;;-;Ja;17.06.2026 00:00;;;;
+25;;übermittelt;AU2026061513730;J & B Express;22;17.06.2026;Spedition;? Versendet & Bezahlt;;;;17.06.2026 00:00;7;3;;;4;;2,60;ist angemeldet;;;;;;-;Ja;22.06.2026 00:00;;;;
+25;;übermittelt;AU2026061713740;Banat Electrocasnice S.R.L;13;18.06.2026;Abholung;? Versendet & Bezahlt;;Bitte zusammen mit AU2026061213724 verladen;;18.06.2026 00:00;8;2;;;;6;2,40;ist angemeldet;17.07.2026;;29;;;-;Ja;17.07.2026 00:00;;;;-
+25;;übermittelt;AU2026061613736;Outlet Simex D.O.O;142;18.06.2026;Abholung;? Versendet & Bezahlt;;;;18.06.2026 00:00;38;10;16;;11;1;13,60;ist angemeldet;25.06.2026;;7;;;-;Ja;25.06.2026 00:00;;;;
+25;;übermittelt;AU2026061113718;Enterijer D.O.O.;162;19.06.2026;Abholung;? Versendet & Bezahlt;;;;19.06.2026 00:00;40;3;28;;9;;13,60;ist angemeldet;22.06.2026;;3;JA;;ZZ;Ja;23.06.2026 00:00;;;;
+25;;übermittelt;AU2026061613739;Kaldi Prime Kft;22;19.06.2026;Abholung;? Versendet & Bezahlt;;;;19.06.2026 00:00;7;1;;;6;;2,80;ist angemeldet;09.07.2026;;20;;;-;Ja;09.07.2026 00:00;;;;
+25;;übermittelt;AU2026061813743;Buy24;159;19.06.2026;Spedition;? Versendet & Bezahlt;;;;19.06.2026 00:00;37;3;18;;13;3;13,30;ist angemeldet;;;;;;-;Ja;22.06.2026 00:00;;;;
+26;;übermittelt;AU2026061613732;Soutis Electrics;67;22.06.2026;Abholung;? Versendet & Bezahlt;;;;22.06.2026 00:00;22;2;6;;11;3;8,10;ist angemeldet;25.06.2026;;3;;;-;Ja;24.06.2026 00:00;;;;
+26;;übermittelt;AU2026061813746;Techno Vision Group Ltd.;24;22.06.2026;Abholung;? Versendet · Zahlung offen;;KombiAuftrag zusammen mit AU2026052013652 verladen;;22.06.2026 00:00;12;;12;;;;3,60;ist angemeldet;29.06.2026;;7;;;ZZ;Nein;29.06.2026 00:00;;;;
+26;;übermittelt;AU2026061213721  ;UAB Stevija;87;23.06.2026;Abholung;? Versendet & Bezahlt;;Bitte zusammen mit AU2026052213668 verladen.;;23.06.2026 00:00;34;4;16;;14;;12,50;ist angemeldet;03.07.2026;;10;;;-;Ja;03.07.2026 00:00;;;;
+26;;übermittelt;AU2026062313758;Soutis Electrics;3;23.06.2026;Abholung;? Versendet · Zahlung offen;;Kombiauftrag + AU2026061613732;;23.06.2026 00:00;;;;;;;;ist angemeldet;25.06.2026;;2;;;-;Nein;24.06.2026 00:00;;;;
+26;;übermittelt;AU2026062213755;Leader Menager;120;24.06.2026;Abholung;? Versendet & Bezahlt;;möchte nur 88 Geräte beladen beim ersten LKW @Dima;;24.06.2026 00:00;44;;44;;;;13,60;;07.07.2026;;13;;;-;Ja;08.07.2026 00:00;;;32;
+26;;übermittelt;AU2026061813747;ELECTRO BALKAN ;141;24.06.2026;Spedition;? Versendet & Bezahlt;;geht mit Walter Spedition raus;;25.06.2026 00:00;42;4;20;;15;2;14,80;ist angemeldet;29.06.2026;;5;;;-;Ja;29.06.2026 00:00;;;;
+26;;übermittelt;AU2026062313759;Outlet Loket;30;25.06.2026;Spedition;? Versendet & Bezahlt;;11 Paletten Lenovo Monitore (die 30 steht hier als Platzhalter für den Aufwand);;24.06.2026 00:00;11;;;;11;;4,40;ist angemeldet;;;;;;-;Ja;26.06.2026 00:00;;;;
+26;;übermittelt;AU2026061613737;Sefik Saracevic;71;25.06.2026;Abholung;? Versendet · Zahlung offen;;lose Beladung bei Abholung durch Kunden am 29.06.;;25.06.2026 00:00;;;;;;;;ist angemeldet;29.06.2026;;4;;;ZZ;Nein;29.06.2026 00:00;;;;
+26;;übermittelt;AU2026062413762;Online Shopping Trade S.R.O. Számlázási;26;25.06.2026;Spedition;? Versendet & Bezahlt;;;;26.06.2026 00:00;;;;;;;;;;;;;;-;Ja;02.07.2026 00:00;;;;
+27;;übermittelt;AU2026061513729;Hermans Trading BV;113;29.06.2026;;? Versendet & Bezahlt;;"Auftrag besteht aus einer JTL Bestellung und einer Odoo Bestellung ""AU..S00024"" - hier bitte die Lagernummern aus dem JTL Auftrag bevorzugt verladen, für den Fall es sollte nicht alles in den LKW passen @dima";02.07.2026;29.06.2026 00:00;40;1;20;;12;7;13,60;ist angemeldet;08.07.2026;;9;;;-;Ja;08.07.2026 00:00;;;;
+27;;übermittelt;AU2026061513725;Nikokira;28;29.06.2026;Abholung;? Versendet · Zahlung offen;;;;29.06.2026 00:00;;;;;;;;;30.06.2026;;1;;;zz;Nein;30.06.2026 00:00;;;;
+27;;übermittelt;AU2026062213756;IG;117;29.06.2026;Spedition;? Versendet & Bezahlt;;"Auftrag besteht aus einer JTL Bestellung und einer Odoo Bestellung ""S00045"" - hier bitte die Lagernummern aus dem JTL Auftrag bevorzugt verladen, für den Fall es sollte nicht alles in den LKW passen @dima FixTermin am 02.07.2026 beim Kunden eintreffend";;29.06.2026 00:00;35;5;18;;11;1;12,50;;;02.07.2026;;;;zz;Ja;01.07.2026 00:00;;;;
+27;;übermittelt;S00038/S00030;L&L Electronics Kft;108;29.06.2026;Abholung;? Versendet · Zahlung offen;;;;01.07.2026 00:00;39;11;12;;12;4;13,60;;02.07.2026;;3;;;-;Nein;01.07.2026 00:00;;;;
+27;;übermittelt;AU2026062513764;UAB Buitikas;10;30.06.2026;Abholung;? Versendet & Bezahlt;;;;01.07.2026 00:00;;;;;;;;ist angemeldet;09.07.2026;;9;;;-;Ja;09.07.2026 00:00;;;;
+27;;übermittelt;AU2026062413763;UAB Buitikas;15;01.07.2026;Abholung;? Versendet & Bezahlt;;;;01.07.2026 00:00;;;;;;;;ist angemeldet;09.07.2026;;8;;;-;Ja;09.07.2026 00:00;;;;
+27;;übermittelt;AU2026062613767;Techno Vision Group Ltd.;7;01.07.2026;Abholung;? Versendet & Bezahlt;;Abholung gerne am 29.06.2026 - Kunde bringt Zeit mit (KombiAuftrag zusammen mit AU2026052013652 + AU2026061813746 verladen;;;;;;;;;;;29.06.2026;;-2;;;-;Ja;29.06.2026 00:00;;;;
+27;;übermittelt;AU2026062413761;Ovit Shop V.O.F.;194;01.07.2026;Abholung;? Versendet & Bezahlt;;;;02.07.2026 00:00;45;11;26;;7;1;15,50;;03.07.2026;;2;;;zz;Ja;03.07.2026 00:00;;;;-
+27;;übermittelt;AU2026062613768;L&L Electronics Kft;14;01.07.2026;Abholung;? Versendet & Bezahlt;;Komiauftrag zusammen mit S00038/S00030 verladen;;01.07.2026 00:00;;;;;;;;;02.07.2026;;1;;;-;Ja;02.07.2026 00:00;;;;
+27;;übermittelt;S00051;Nikokira;48;01.07.2026;Abholung;? Versendet · Zahlung offen;;AU folgt - KombiAuftrag mit AU2026061513725;;29.06.2026 00:00;33;10;14;;3;6;10,70;;;;;;;zz;Nein;30.06.2026 00:00;;;;AB HIER
+27;;übermittelt;S00066;Bosak;110;01.07.2026;Abholung;? Versendet · Zahlung offen;;wunschtermin am 03.07.2026;;01.07.2026 00:00;45;7;27;;8;3;15,70;;03.07.2026;;2;;;-;Nein;03.07.2026 00:00;;;;-
+27;;übermittelt;AU2026061213722;Uab Portana;23;01.07.2026;Abholung;? Versendet & Bezahlt;+ 3 Paletten 120*80 von letzter Lieferung;Bitte zusammen mit S00172 verladen;;01.07.2026 00:00;11;;6;;5;;3,80;ist angemeldet;14.07 - 15.07;;;;;zz;Ja;15.07.2026 00:00;;;;-
+27;;übermittelt;AU2026062913769;Online Shopping Trade S.R.O. Számlázási;23;02.07.2026;Spedition;? Versendet & Bezahlt;;;;01.07.2026 00:00;12;;;;12;;4,80;;;;;;;-;Ja;02.07.2026 00:00;;;;-
+27;;übermittelt;AU2026062913775;Banat Electrocasnice S.R.L;17;02.07.2026;Abholung;? Versendet & Bezahlt;;;;02.07.2026 00:00;;;;;;;;ist angemeldet;17.07.2026;;15;;;-;Ja;17.07.2026 00:00;;;;-
+27;;übermittelt;AU2026062913770;Egzoni Sh.P.K;11;02.07.2026;Abholung;? Versendet & Bezahlt;;zusammen mit AU2026060813709 verladen;;02.07.2026 00:00;25;2;22;;1;;8,30;ist angemeldet;10.07.2026;;8;JA;;-;Ja;13.07.2026 00:00;;;;-
+27;;übermittelt;AU2026063013777;UAB Buitikas;3;02.07.2026;Abholung;? Versendet & Bezahlt;;"Kombiauftrag + AU2026062513764 + 
+AU2026062413763";;02.07.2026 00:00;;;;;;;;ist angemeldet;09.07.2026;;7;;;-;Ja;09.07.2026 00:00;;;;-
+27;;übermittelt;S00056;Elektro Outlet Sinzig GmbH I.G.;141;02.07.2026;Spedition;? Versendet & Bezahlt;;Bitte ohne Versicherung versenden (Kundenwunsch);;02.07.2026 00:00;39;9;18;;9;3;13,50;ist angemeldet;06.07 - 07.07;09.07.2026;;;;-;Ja;08.07.2026 00:00;;;;-
+27;;übermittelt;AU2026061613733 ;Elektro Outlet Sinzig GmbH I.G.;18;02.07.2026;Spedition;? Versendet & Bezahlt;;Bitte ohne Versicherung versenden (Kundenwunsch);;02.07.2026 00:00;;;;;;;;ist angemeldet;06.07 - 07.07;09.07.2026;;;;-;Ja;08.07.2026 00:00;;;;-
+27;;übermittelt;S00068;SC Interm Grup SRL;81;03.07.2026;Abholung;? Versendet & Bezahlt;;;;03.07.2026 00:00;40;13;8;;12;7;13,60;ist angemeldet;06.07 - 07.07;;;;;-;Ja;07.07.2026 00:00;;;;-
+28;;übermittelt;AU2026061913750;Hanseatic Georgia LLC;48;06.07.2026;Abholung;? Versendet & Bezahlt;;;;06.07.2026 00:00;;;;;;;;ist angemeldet;14.07.2026;;8;JA;;ZZ;Ja;15.07.2026 00:00;;;;-
+28;;übermittelt;S00080;Hanseatic Georgia LLC;68;06.07.2026;Abholung;? Versendet · Zahlung offen;;;;06.07.2026 00:00;17;;14;;3;;5,80;ist angemeldet;14.07.2026;;8;JA;;ZZ;Nein;15.07.2026 00:00;;;;-
+28;;übermittelt;S00071;Minkina ;153;06.07.2026;Abholung;? Versendet & Bezahlt;;;;06.07.2026 00:00;37;9;16;;9;3;13,30;ist angemeldet;09.07.2026;;3;;;-;Ja;08.07.2026 00:00;;;;-
+28;;übermittelt;S00141 ;RU Recycling;96;07.07.2026;Spedition;? Versendet · Zahlung offen;95 Pos. Email abgeschickt;;;07.07.2026 00:00;25;7;14;;4;;8,80;ist angemeldet;09.07.2026;10.07.2026;2;;;ZZ;Nein;09.07.2026 00:00;;;;-
+28;;übermittelt;S00143; UAB Buitikas;17;07.07.2026;Abholung;? Versendet & Bezahlt;;"Bitte zusammen mit AU2026063013777
+AU2026062513764  AU2026062413763 beladen";;07.06.2026 00:00;18;;14;;4;;6,30;ist angemeldet;09.07.2026;;2;;;-;Ja;09.07.2026 00:00;;;;-
+28;;übermittelt;S00112;Jume Market;131;08.07.2026;Spedition;? Versendet & Bezahlt;;Barzahlung am 09.07.2026;;08.07.2026 00:00;15;;;;15;;6,50;ist angemeldet;13.07.2026;14.07.2026;5;;;-;Ja;13.07.2026 00:00;;;;-
+28;;übermittelt;S00174;IDEA EOOD;110;08.07.2026;Abholung;? Versendet & Bezahlt;109 Colli ,900248307 sollte in die S00172;;;08.07.2026 00:00;34;6;14;;11;3;12,10;ist angemeldet;17.07.2026;;9;;;-;Ja;17.07.2026 00:00;;;;-
+28;;übermittelt;S0144;UAB Buitikas;1;08.07.2026;Abholung;? Versendet & Bezahlt;;"S00143 Kombi/Bitte zusammen mit AU2026063013777
+AU2026062513764  AU2026062413763 beladen";;08.07.2026 00:00;;;;;;;;ist angemeldet;09.07.2026;;1;;;-;Ja;09.07.2026 00:00;;;;-
+28;;übermittelt;S00171;Bastounis Anastasios;111;09.07.2026;Abholung;? Versendet & Bezahlt;;Bitte zusammen mit S00233 beladen.;;09.07.2026 00:00;30;4;16;;5;5;10,00;ist angemeldet;14.07.2026;;5;;;ZZ;Ja;13.07.2026 00:00;;;;-
+28;;übermittelt;S00172;UAB Portana;112;09.07.2026;Abholung;? Versendet · Zahlung offen;;Kombiauftrag + AU2026061213722 (Reste);;09.07.2026 00:00;36;6;22;;8;;12,60;ist angemeldet;15.07.2026;;6;;;ZZ;Nein;15.07.2026 00:00;;;10Colli;"900248545,900248530,900248495,
+900248565,900248571,900248563,
+900248543,900248531,900248532
+900248496
+
+
+
+
+"
+28;;übermittelt;S00170; Techno Planet LTD;140;10.07.2026;Abholung;? Versendet & Bezahlt;;;;10.07.2026 00:00;44;10;18;;10;6;14,20;ist angemeldet;15.07.2026;;5;;;-;Ja;15.07.2026 00:00;;;;-
+29;;übermittelt;AU2026062913773;Ovitshop ;30;13.07.2026;Abholung;? Versendet · Zahlung offen;AU2026062913776, 16 Mix Paletten ;"AU2026062913776
+S00225";;14.07.2026 00:00;;;;;;;;ist angemeldet;17.07.2026;;4;;;ZZ;Nein;17.06.2026 00:00;;;;-
+29;;übermittelt;S00236;IG International;124;13.07.2026;Spedition;? Versendet & Bezahlt;;AU Nummer wird noch ergänzt @josh ;;13.07.2026 00:00;37;8;16;;9;4;13,00;ist angemeldet;14.07.2026;15.07.2026;1;;;ZZ;Ja;14.07.2026 00:00;;;;-
+29;;übermittelt;S00233;Karakitsos Stock haus;2;13.07.2026;Abholung;? Versendet · Zahlung offen;;;;13.07.2026 00:00;;;;;;;;ist angemeldet;14.07.2026;;1;;;ZZ;Nein;13.07.2026 00:00;;;;-
+29;;übermittelt;S00216;Hermans Trading BV;101;14.07.2026;Abholung;? Versendet · Zahlung offen;;zusammen mit S00024 verladen;;14.07.2026 00:00;41;7;26;;5;3;13,60;ist angemeldet;16.07.2026;;2;;;ZZ;Nein;16.07.2026 00:00;;;;-
+29;;übermittelt;S00211;Hanseatic Georgia LLC;62;14.07.2026;Abholung;? Versendet · Zahlung offen;;KOMBI;;14.07.2026 00:00;41;3;31;;7;;13,60;ist angemeldet;14.07.2026;;-;;;ZZ;Nein;15.07.2026 00:00;;;;-
+29;;übermittelt;S00245;Almost New LTD;6;14.07.2026;Abholung;? Versendet & Bezahlt;;6 Mixpaletten / Abholung zusammen mit TechnoPlanet;;14.07.2026 00:00;6;;;;;;;ist angemeldet;15.07.2026;;1;;;-;Ja;15.07.2026 00:00;;;;-
+29;;übermittelt;S00225;Ovitshop ;69;14.07.2026;Abholung;? Versendet · Zahlung offen;;Kombiauftrag + AU2026062913773;;14.07.2026 00:00;37;10;10;;15;2;13,60;ist angemeldet;17.07.2026;;3;;;ZZ;Nein;17.07.2026 00:00;;;;-
+29;;übermittelt;S00284;Global Liquidaciones SL;41;15.07.2026;Spedition;? Versendet & Bezahlt;;Bitte 2,20 hoch.;;15.07.2026 00:00;15;1;;;14;;6,00;ist angemeldet;16.07.2026;;1;;;-;Ja;16.07.2026 00:00;;;;-
+29;;übermittelt;S00286;KOUTLIANOS NIKOS;73;16.07.2026;Abholung;? Versendet & Bezahlt;Am 22.07.2026 Rest verladen;;;16.07.2026 00:00;19;3;4;;10;2;6,90;ist angemeldet;20.07.2026;;4;;;-;Ja;20.07.2026 00:00;;;;-
+29;;übermittelt;S00277;TECHNO ELECTRONICS 5 Ltd;134;16.07.2026;Abholung;? Versendet · Zahlung offen;;bitte zusammen mit AU2026062913771 verladen;;16.07.2026 00:00;41;11;16;;10;4;14,20;ist angemeldet;20.07.2026;;4;;;ZZ;Nein;20.07.2026 00:00;;;;-
+29;;übermittelt;S00259;Enno Kundendienst;16;16.07.2026;Spedition;? Versendet & Bezahlt;;6 Paletten;;16.07.2026 00:00;6;1;;;4;1;2,50;ist angemeldet;17.07.2026;;1;;;-;Ja;17.07.2026 00:00;;;;-
+29;;übermittelt;AU2026062913771;TECHNO ELECTRONICS 5 Ltd;14;16.07.2026;Abholung;? Versendet & Bezahlt;;;;16.07.2026 00:00;;;;;;;;ist angemeldet;20.07.2026;;4;;;ZZ;Ja;20.07.2026 00:00;;;;-
+29;;übermittelt;S00337;Emporia;104;17.07.2026;Abholung;? Versendet · Zahlung offen;;Bitte zusammen mit S00582 verladen.;;17.07.2026 00:00;25;;12;;12;1;9,50;ist angemeldet;30.07.2026;;13;;;ZZ;Nein;20.07.2026 00:00;;;;-
+30;;übermittelt;S00312;Techno Vision Group Ltd.;110;20.07.2026;Abholung;? Versendet · Zahlung offen;;;;20.07.2026 00:00;24;;;;24;;10,50;ist angemeldet;21.07.2026;;1;;;ZZ;Nein;21.07.2026 00:00;;;;
+30;;übermittelt;S00354;Rati Marti;121;20.07.2026;Abholung;? Versand überfällig;;Bitte zusammen mit S00585 beladen;;20.07.2026 00:00;34;8;20;;3;3;11,00;ist angemeldet;18.08.2026;;29;;;-;Ja;;;;;-
+30;;übermittelt;S00340;Les Petits Pieds S.R.L ;111;21.07.2026;Abholung;? Versendet & Bezahlt;;;;21.07.2026 00:00;37;11;14;;6;6;12,60;ist angemeldet;23.07.2026;;2;;;-;Ja;23.07.2026 00:00;;;;-
+30;;übermittelt;S00352;SADI;13;21.07.2026;Abholung;? Versendet & Bezahlt;;Bitte zusammen mit S00509 verladen;;21.07.2026 00:00;2;;1;;1;;0,80;ist angemeldet;29.07.2026;;8;;;-;Ja;29.07.2026 00:00;;;;-
+30;;übermittelt;S00370;NOIKOKYRA E.E.;104;21.07.2026;Abholung;? Versendet · Zahlung offen;;Bitte mit den Resten von Koutlianos verladen.;;21.07.2026 00:00;30;2;12;;13;3;11,00;ist angemeldet;22.07.2026;;1;;;ZZ;Nein;22.07.2026 00:00;;;;-
+30;;übermittelt;S00388;Outlet Simex D.O.O.;176;22.07.2026;Abholung;? Versendet & Bezahlt;;;;22.07.2026 00:00;40;6;22;;9;3;13,60;ist angemeldet;28.07.2026;;6;;;-;Ja;28.07.2026 00:00;;;;-
+30;;übermittelt;S00311;W.D.S. d.o.o.;46;22.07.2026;Abholung;? Versendet & Bezahlt;;;;22.07.2026 00:00;21;;19;;2;;6,60;ist angemeldet;24.07.2026;;2;;;-;Ja;24.07.2026 00:00;;;;-
+30;;übermittelt;S00400;KOUTLIANOS NIKOS;20;22.07.2026;Abholung;? Versendet & Bezahlt;;;;22.07.2026 00:00;6;;2;;4;;2,40;ist angemeldet;20.08.2026;;29;;;-;Ja;31.07.2026 00:00;;;;-
+30;;übermittelt;S00338;Green Loop ;32;23.07.2026;Abholung;? Versendet & Bezahlt;;32 Paletten Kleingeräte;;23.07.2026 00:00;32;;;32;;;12,80;ist angemeldet;29.07.2026;;6;;;-;Ja;29.07.2026 00:00;;;;-
+30;;übermittelt;S00456;Online Shopping Trade;38;23.07.2026;Spedition;? Versendet & Bezahlt;;;;23.07.2026 00:00;9;1;;;8;;3,90;ist angemeldet;27.07.2026;;4;;;-;Ja;27.07.2026 00:00;;;;-
+30;;übermittelt;S00337;Emporia;9;23.07.2026;Abholung;? Versendet · Zahlung offen;;;;23.07.2026 00:00;1;1;;;;;;ist angemeldet;28.07.2026;;5;;;ZZ;Nein;31.07.2026 00:00;;;;-
+30;;übermittelt;S00491;UAB Stevija;139;23.07.2026;Abholung;? Versendet & Bezahlt;;Bitte zusammen mit AU2026062913774 verladen;;23.07.2026 00:00;31;7;16;;8;;10,60;ist angemeldet;04.08.2026;;12;;;-;Ja;04.08.2026 00:00;;;;
+30;;übermittelt;S00396;W.D.S. d.o.o;11;24.07.2026;Abholung;? Versendet & Bezahlt;;JOSH übermittelt nun den Auftrag nachträglich;;;;;;;;;;ist angemeldet;24.07.2026;;-;;;-;Ja;24.07.2026 00:00;;;;
+30;;übermittelt;S00494;Fortis Impex KFT ;71;24.07.2026;Abholung;? Versendet & Bezahlt;;;;24.07.2026 00:00;22;2;12;;8;;7,80;ist angemeldet;30.07.2026;;6;;;-;Ja;30.07.2026 00:00;;;;-
+30;;übermittelt;S00433;Deland Ltd ;135;24.07.2026;Abholung;? Versendet & Bezahlt;;;;24.07.2026 00:00;44;12;14;;12;6;14,70;ist angemeldet;29.07.2026;;5;;;-;Ja;29.07.2026 00:00;;;7;900251210,900251211,900251218,900251232,900251234,900251274,900251301
+30;;übermittelt;S00500;Sefik Saracevic;24;24.07.2026;Abholung;? Versendet · Zahlung offen;;Bitte lose beladen.;;24.07.2026 00:00;;;;;;;;ist angemeldet;24.07.2026;;-;;;ZZ;Nein;24.07.2026 00:00;;;;-
+30;;übermittelt;S00507;NEO VENTO ;58;24.07.2026;Abholung;? Versendet & Bezahlt;58 STK Im Auftrag !!!!!;Bitte auf 60x120 bis 2,50 hoch;;24.07.2026 00:00;17;3;4;;10;;6,60;ist angemeldet;28.07.2026;;4;;;-;Ja;28.07.2026 00:00;;;;-
+30;;übermittelt;AU2026062913774;UAB Stevija;10;24.07.2026;Abholung;? Versendet & Bezahlt;;Bitte zusammen mit S00491 verladen;;24.07.2026 00:00;;;;;;;;ist angemeldet;04.08.2026;;11;;;-;Ja;04.08.2026 00:00;;;;-
+31;;übermittelt;S00493;Bosak SP z o.o.;109;27.07.2026;Abholung;? Versendet & Bezahlt;;Bitte mit den Resten von der letzten Abholung verladen.;;27.07.2026 00:00;40;8;22;;3;7;13,00;ist angemeldet;29.07.2026;;2;;;-;Ja;29.07.2026 00:00;;;;-
+31;;übermittelt;S00511;Simex D.O.O.;147;27.07.2026;Abholung;? Versendet · Zahlung offen;;;;27.07.2026 00:00;42;12;16;;14;;15,20;ist angemeldet;30.07.2026;;3;JA;;-;Nein;30.07.2026 00:00;;;4;900251666,900251626,900251682,900251645,900251661,900251662,900251673,900251672,900251670
+31;;übermittelt;S00509;SADI;66;27.07.2026;Abholung;? Versendet & Bezahlt;;Bitte zusammen mit S00352 verladen;;27.07.2026 00:00;26;6;14;;6;;9,00;ist angemeldet;04.08.2026;;8;;;-;Ja;04.08.2026 00:00;;;;
+31;;übermittelt;S00584;Inesa Mkhitarian;1;27.07.2026;Abholung;? Versendet & Bezahlt;;;;27.07.2026 00:00;;;;;;;;ist angemeldet;27.07.2026;;-;;;-;Ja;27.07.2026 00:00;;;;
+31;;übermittelt;S00582;NOIKOKYRA;61;28.07.2026;Abholung;? Versendet · Zahlung offen;;Bitte zusammen mit S00337 verladen.;;28.07.2026 00:00;9;;6;;3;;3,20;ist angemeldet;31.07.2026;;3;;;ZZ;Nein;31.07.2026 00:00;;;;-
+31;;übermittelt;S00592;Lubomir Karwot Outlet ;145;28.07.2026;Abholung;? Versendet · Zahlung offen;;plus 2 Mixpaletten;;28.07.2026 00:00;45;15;16;;12;2;16,00;ist angemeldet;05.08.2026;;8;;;-;Nein;05.08.2026 00:00;;;;-
+31;;übermittelt;S00591;UAB Portana;37;29.07.2026;Abholung;? Versendet · Zahlung offen;;;;29.07.2026 00:00;9;;6;;3;;3,20;ist angemeldet;29.07.2026;;-;;;ZZ;Nein;29.09.2026 00:00;;;;-
+31;;übermittelt;S00624;Outlet Loket;100;29.07.2026;Spedition;? Versendet & Bezahlt;;;;29.07.2026 00:00;12;;;;12;;4,80;ist angemeldet;;;;;;-;Ja;07.08.2026 00:00;;;10 Stück;
+31;;übermittelt;S00625;IG International;138;29.07.2026;Spedition;? Versendet · Zahlung offen;138 Stück Im Auftrag !!!;Auftrag folgt mit Fixtermin zum 31.07;;29.07.2026 00:00;40;10;16;;14;;14,30;ist angemeldet;30.07.2026;31.07.2026;1;;;ZZ;Nein;30.07.2026 00:00;;;;
+31;;übermittelt;S00585;Rati Marti;12;29.07.2026;Abholung;? Versand überfällig;;Folgeauftrag, zusammen mit S00354 beladen;;29.07.2026 00:00;;;;;;;;ist angemeldet;18.08.2026;;20;NEIN;;-;Ja;;;;2;900252181 , 900252182
+31;;übermittelt;S00642;Euroda Transport & Handel;107;29.07.2026;Abholung;? Versand überfällig;"44 Stück LKW1 Rest LKW25 ( S00642.001 )
+LKW 1 - 40 Paletten - 13,6 Lademeter/Versendet am 13.08.26
+LKW 2 - 39 Paletten - 13,4 Lademeter";44 von 107 Geräten wurden bereits kommissioniert und ergibt den 1.LKW;;31.07.2026 00:00;79;46;12;;16;5;27,00;ist angemeldet;24.08.2026;;26;;;-;Ja;;;;;
+31;;übermittelt;S00627;SOS Hausgeräte Radtke ;14;30.07.2026;Spedition;? Versendet & Bezahlt;;;;30.07.2026 00:00;4;2;;;2;;1,60;ist angemeldet;;;;;;-;Ja;31.07.2026 00:00;;;;-
+31;;übermittelt;S00609;Geo Hansi LLC;126;30.07.2026;Abholung;? Versendet · Zahlung offen;;;;30.07.2026 00:00;38;11;10;;14;3;13,60;ist angemeldet;04.08.2026;;5;JA;;-;Nein;06.08.2026 00:00;;;;
+31;;übermittelt;S00622;Aurora Solar Energy DOO;37;30.07.2026;;? Verlade-Stau;;Neue Preisabfrage gestellt. Zoll muss noch geklärt werden;;30.07.2026 00:00;15;6;;;9;;5,90;;;;;;;-;Ja;;;;;
+31;;übermittelt;S00630;Marketvibe Srl;42;30.07.2026;Abholung;? Versendet & Bezahlt;;Bitte bis 2,60 hoch ;;30.07.2026 00:00;18;9;6;;3;;6,20;ist angemeldet;03.08.2026;;4;;;-;Ja;03.08.2026 00:00;;;3;900246608,900246936,900248684
+31;;übermittelt;S00578; J&B Express;13;30.07.2026;Abholung;? Versendet · Zahlung offen;;Bitte zusammen mit S00643 verladen.;;30.07.2026 00:00;7;2;;;5;;2,80;ist angemeldet;31.07.2026;;1;;;-;Nein;31.07.2026 00:00;;;;-
+31;;übermittelt;S00636;IG International;12;30.07.2026;Spedition;? Versendet · Zahlung offen;;Bitte zusammen mit S00939 verladen;;30.07.2026 00:00;38;11;10;;14;3;13,60;ist angemeldet;11.08.2026;12.08.2026;12;;;ZZ;Nein;11.08.2026 00:00;;;;
+31;;übermittelt;S003880;Outlet Simex D.O.O.;18;30.07.2026;Spedition;? Versendet · Zahlung offen;;18 Geräte nachlieferung;;30.07.2026 00:00;1;;;;1;;;ist angemeldet;29.07.2026;;-1;;;-;Nein;31.07.2026 00:00;;;;-
+31;;übermittelt;S00643;J&B Express;4;31.07.2026;Abholung;? Versendet & Bezahlt;;Bitte zusammen mit S00578 verladen.;;30.07.2026 00:00;;;;;;;;ist angemeldet;31.07.2026;;-;;;-;Ja;31.07.2026 00:00;;;;-
+ ;;übermittelt;S00668;P&C Trading B.V;148;31.07.2026;Abholung;? Versendet & Bezahlt;;;;31.07.2026 00:00;39;7;22;;10;;13,60;ist angemeldet;07.08.2026;;7;;;-;Ja;07.08.2026 00:00;;;;
+32;;übermittelt;S00288;Alma Trading;11;03.08.2026;;? Verlade-Stau;;STORNIERT!!!;;03.08.2026 00:00;7;4;;;3;;2,60;;;;;;;;;;;;;
+32;;übermittelt;S00693;SUNELECTRO OÜ;120;03.08.2026;Abholung;? Versendet & Bezahlt;;;;04.08.2026 00:00;32;5;18;;9;;11,50;ist angemeldet;07.08.2026;;4;;;-;Ja;07.08.2026 00:00;;;;
+32;;übermittelt;S00721;MON - LIP ROCK KFT;88;04.08.2026;Abholung;? Versendet & Bezahlt;;60x120 bis 2,70 hoch wenn möglich.;;04.08.2026 00:00;16;;10;;6;;5,80;ist angemeldet;07.08.2026;;3;;;-;Ja;06.08.2026 00:00;;;;
+32;;übermittelt;S00622;MBC Riv & Sanering;37;04.08.2026;Spedition;? Versendet & Bezahlt;;;;04.08.2026 00:00;15;6;;;9;;;ist angemeldet;;;;;;-;Ja;04.08.2026 00:00;;;;
+32;;übermittelt;S00755;Euroda Transport & Handel;56;04.08.2026;Abholung;? Verlade-Stau;;;;04.08.2026 00:00;20;7;10;;3;;6,90;ist angemeldet;;;;;;-;Ja;;;;;
+32;;übermittelt;S00895;UAB Stevija ;37;04.08.2026;Abholung;? Versendet & Bezahlt;Wird Lose verladen da es sehr kurzfristig mit der Abholung ist;;;04.08.2026 00:00;;;;;;;;ist angemeldet;04.08.2026;;-;;;-;Ja;04.08.2026 00:00;;;;
+32;;übermittelt;S00918;Artek Commerce LTD;5;05.08.2026;Abholung;? Versendet & Bezahlt;;;;05.08.2026 00:00;;;;;;;;ist angemeldet;06.08.2026;;1;;;-;Ja;06.08.2026 00:00;;;;
+32;;übermittelt;S00682;Artek Commerce LTD;11;05.08.2026;Abholung;? Versendet & Bezahlt;4 Paletten S00682 + S00918;;;05.08.2026 00:00;4;;;;4;;1,60;ist angemeldet;06.08.2026;;1;;;-;Ja;06.08.2026 00:00;;;;
+32;;übermittelt;S00929;S.C. INTERM GRUP S.R.L;65;05.08.2026;Abholung;? Versendet & Bezahlt;;bitte zusammen mit S00955;;05.08.2026 00:00;28;3;12;;6;7;9,30;ist angemeldet;07.08.2026;;2;JA;;-;Ja;07.08.2026 00:00;;;;
+32;;übermittelt;S00934;UAB Buitikas;33;05.08.2026;Abholung;? Versendet & Bezahlt;;bitte zusammen mit S01147 verladen;;05.08.2026 00:00;;;;;;;;ist angemeldet;13.08.2026;;8;;;-;Ja;13.08.2026 00:00;;;;
+32;;übermittelt;S00939;IG International;114;05.08.2026;Spedition;? Versendet · Zahlung offen;;Bitte zusammen mit S00636 verladen;;05.08.2026 00:00;37;13;8;;13;3;13,30;ist angemeldet;11.08.2026;12.08.2026;6;;;ZZ;Nein;11.08.2026 00:00;;;;
+32;;übermittelt;S00947;IG International ;10;06.08.2026;Spedition;? Versendet · Zahlung offen;;zusammen mit S00939 und S00636;;06.08.2026 00:00;1;;;;;;0,20;ist angemeldet;11.08.2026;12.08.2026;5;;;ZZ;Nein;11.08.2026 00:00;;;;
+32;;übermittelt;S00960;Ado´s Witgoed ;23;06.08.2026;Spedition;? Versendet & Bezahlt;;bis 2,20 hoch;;06.08.2026 00:00;10;;8;;2;;3,20;ist angemeldet;07.08.2026;;1;;;-;Ja;07.08.2026 00:00;;;;
+32;;übermittelt;S00955;S.C. INTERM GRUP S.R.L.;50;06.08.2026;Abholung;? Versendet & Bezahlt;;bitte zusammen mit S00929;;05.08.2026 00:00;;;;;;;;ist angemeldet;07.08.2026;;1;JA;;-;Ja;07.08.2026 00:00;;;;
+32;;übermittelt;S00972;Les Petits Pieds S.R.L.;105;07.08.2026;Abholung;? Versendet & Bezahlt;;;;07.08.2026 00:00;36;10;8;;17;1;13,50;ist angemeldet;14.08.2026;;7;;;-;Ja;14.08.2026 00:00;;;;
+32;;übermittelt;S00985;Atelier 404 D.O.O.;11;07.08.2026;Spedition;? Versendet & Bezahlt;;;;07.08.2026 00:00;3;;;3;;;1,20;ist angemeldet;11.08.2026;;4;;;-;Ja;11.08.2026 00:00;;;2;900250256 + 900250257
+33;;übermittelt;S01024;Bastounis ;32;10.08.2026;Abholung;? Versendet · Zahlung offen;12 Pal Inkl S01040 + S00707;bitte zusammen mit S01040 und S00707 verladen.;;10.08.2062 00:00;12;;8;;4;;5,30;ist angemeldet;11.08.2026;;1;;;ZZ;Nein;11.08.2026 00:00;;;;
+33;;übermittelt;S00300;Elektro Outlet Sinzig GmbH;14;10.08.2026;Spedition;? Versendet & Bezahlt;;;;10.08.2026 00:00;8;6;2;;;;2,60;ist angemeldet;11.08.2026;;1;;;-;Ja;11.08.2026 00:00;;;;
+33;;übermittelt;S01030;NOIKOKYRA E.E.;39;10.08.2026;Abholung;? Versendet · Zahlung offen;;Bitte zusammen mit Bastounis verladen.;;10.08.2026 00:00;6;;;;6;;2,40;ist angemeldet;11.08.2026;;1;;;ZZ;Nein;11.08.2026 00:00;;;;
+33;;übermittelt;S01040;Bastounis ;6;10.08.2026;Abholung;? Versendet · Zahlung offen;;bitte zusammen mit S01024 und S00707 verladen ;;10.08.2026 00:00;;;;;;;;ist angemeldet;11.08.2026;;1;;;ZZ;Nein;11.08.2026 00:00;;;;
+33;;übermittelt;S00707;Bastounis ;19;10.08.2026;Abholung;? Versendet · Zahlung offen;;Bitte zusammen mit S01040 und S01024 verladen;;10.08.2026 00:00;;;;;;;;ist angemeldet;11.08.2026;;1;;;ZZ;Nein;11.08.2026 00:00;;;;
+33;;übermittelt;S01028;Geo Hansi LLC;226;11.08.2026;Abholung;? Versendet · Zahlung offen;;;;12.08.2062 00:00;41;7;24;;7;3;13,60;ist angemeldet;12.08.2026;;1;;;-;Nein;12.08.2026 00:00;;;;
+33;;übermittelt;S00996;VA Tehimpex SRL;70;11.08.2026;Abholung;? Versendet & Bezahlt;;;;11.08.2026 00:00;22;5;10;;7;;8,00;ist angemeldet;17.08.2026;;6;JA;;-;Ja;18.08.2026 00:00;;;;
+33;;übermittelt;S00974;NAS ELECTOMENAGER ;25;12.08.2026;Abholung;? Versendet & Bezahlt;;Lose Verladung.;;12.08.2026 00:00;;;;;;;;ist angemeldet;12.08.2026;;-;;;-;Ja;12.08.2026 00:00;;;;
+33;;übermittelt;S01061;Techno Electronics 5 Ltd;172;12.08.2026;Abholung;? Versendet · Zahlung offen;SidebySide wurde Lose verladen daher nur 32 Paletten;;;12.08.2026 00:00;32;;20;;12;;13,60;ist angemeldet;13.08.2026;;1;;;ZZ;Nein;13.08.2026 00:00;;;;
+33;;übermittelt;S01069;Enterijer D.O.O ;141;13.08.2026;Abholung;? Versendet · Zahlung offen;;;;13.08.2026 00:00;45;9;18;;15;3;15,30;ist angemeldet;17.08.2026;;4;JA;;ZZ;Nein;17.08.2026 00:00;;;;
+33;;übermittelt;S01081;Online Shopping Trade ;59;13.08.2026;Spedition;? Versendet & Bezahlt;;;;13.08.2026 00:00;13;1;;;12;;5,60;ist angemeldet;14.08.2026;;1;;;-;Ja;14.08.2026 00:00;;;;
+33;;übermittelt;S01063;Wörndl Elektro GmbH;154;13.08.2026;Spedition;? Versendet & Bezahlt;;;;14.08.2026 00:00;19;;14;;5;;6,30;ist angemeldet;19.08.2026;;6;;;-;Ja;19.08.2026 00:00;;;6 stück;siehe mail
+33;;übermittelt;S01147;UAB Buitikas;24;13.08.2026;Abholung;? Versendet · Zahlung offen;S00934 + S01147 7,3 Lademeter;Bitte zusammen mit S00934 verladen;;13.08.2026 00:00;21;;15;;6;;7,30;ist angemeldet;13.08.2026;;-;;;-;Nein;13.08.2026 00:00;;;;
+33;;übermittelt;S01190;IG International;123;14.08.2026;Spedition;? Versendet & Bezahlt;;;;14.08.2026 00:00;29;3;16;;7;3;9,90;ist angemeldet;18.08.2026;19.08.2026;4;;;ZZ;Ja;18.08.2026 00:00;;;;
+34;;übermittelt;S01161;Buy 24;187;17.08.2026;Abholung;? Versendet & Bezahlt;;bitte zusammen mit S01116 verladen;;17.08.2026 00:00;38;1;22;;13;2;13,00;ist angemeldet;18.08.2026;;1;;;-;Ja;18.08.2026 00:00;;;;
+34;;übermittelt;S01116;Buy24;8;17.08.2026;Spedition;? Versendet & Bezahlt;;Bitte zusammen mit S01161 verladen;;17.08.2026 00:00;;;;;;;;ist angemeldet;18.08.2026;;1;;;-;Ja;18.08.2026 00:00;;;;
+34;;übermittelt;S01221;Ovit Shop;146;18.08.2026;Abholung;? Versendet · Zahlung offen;;;;18.08.2026 00:00;33;6;20;;7;;11,30;ist angemeldet;21.08.2026;;3;;;ZZ;Nein;21.08.2026 00:00;;;;
+34;;übermittelt;S01178;Simex D.O.O. ;192;18.08.2026;Abholung;? Versendet · Zahlung offen;;;;14.08.2026 00:00;42;6;18;;18;;14,70;ist angemeldet;19.08.2026;;1;JA;;-;Nein;19.08.2026 00:00;;;;
+34;;übermittelt;S01220;Enno Kundendienst;30;18.08.2026;Spedition;? Versendet & Bezahlt;;;;18.06.2026 00:00;6;;;;6;;2,40;ist angemeldet;19.08.2026;21.08.2026;1;;;-;Ja;19.08.2026 00:00;;;;
+34;;übermittelt;S01229;RU Recycling ;70;18.08.2026;Spedition;? Versendet · Zahlung offen;;;;18.08.2026 00:00;23;1;16;;6;;8,10;ist angemeldet;19.08.2026;20.08.2026;1;;;ZZ;Nein;18.08.2026 00:00;;;;
+34;;übermittelt;S01254;Rati Marti;133;18.08.2026;Abholung;? Versendet · Zahlung offen;;;;;;;;;;;;ist angemeldet;18.08.2026;;-;;;-;Nein;18.08.2026 00:00;;;;
+34;;übermittelt;S00984;Hermans Trading ;204;19.08.2026;Abholung;? Versendet & Bezahlt;;1. LKW bitte zusammen mit S00684 verladen;;19.08.2026 00:00;35;;26;;9;;11,60;ist angemeldet;20.08.2026;;1;;;ZZ;Ja;20.08.2026 00:00;;;;
+34;;übermittelt;S01148;Fortis Impex KFT;82;19.08.2026;Abholung;? Versendet & Bezahlt;;maximal Bis 2,70 hoch bitte. Bitte zusammen mit S01314 verladen.;;19.08.2026 00:00;17;;12;;5;;7,00;ist angemeldet;28.08.2026;;9;;;-;Ja;28.08.2026 00:00;;;;
+34;;übermittelt;S01189;UAB Portana;62;19.08.2026;Abholung;? Versendet · Zahlung offen;;;;20.08.2026 00:00;28;1;10;;9;8;9,80;ist angemeldet;20.08.2026;;1;;;ZZ;Nein;20.08.2026 00:00;;;;
+34;;übermittelt;S01222;Techno Electronics;32;19.08.2026;Abholung;? Versendet · Zahlung offen;17 stück versendet / 4,3 Lademeter stehen geblieben;;;20.08.2026 00:00;25;18;2;;1;4;8,30;ist angemeldet;21.08.2026;;2;;;ZZ;Nein;21.08.2026 00:00;;;ja;siehe mail
+34;;übermittelt;S01144;Marketvibe;48;20.08.2026;Abholung;? Versendet & Bezahlt;;bis 2,60 hoch. zusmamen mit S01150 verladen;;21.08.2026 00:00;15;6;4;;;5;5,00;ist angemeldet;21.08.2026;;1;;;-;Ja;21.08.2026 00:00;;;;
+34;;übermittelt;S01174;Warriors Cascade;160;20.08.2026;Abholung;? Versendet & Bezahlt;;;;21.08.2026 00:00;47;14;18;;13;2;15,50;ist angemeldet;24.08.2026;;4;;;-;Ja;24.08.2026 00:00;;;;
+34;;übermittelt;S01200;W.D.S.D.O.O;32;20.08.2026;Spedition;? Versendet · Zahlung offen;;;;21.08.2026 00:00;16;;16;;;;4,80;ist angemeldet;21.08.2026;;1;;;-;Nein;21.08.2026 00:00;;;;
+34;;übermittelt;S00565;Sefik Saracevic;55;20.08.2026;Abholung;? Versendet · Zahlung offen;;Bitte Lose verladen.;;20.08.2026 00:00;;;;;;;;ist angemeldet;28.08.2026;;8;;;ZZ;Nein;28.08.2026 00:00;;;;
+34;;übermittelt;S01330;Hermans Trading ;94;21.08.2026;Abholung;? Versendet · Zahlung offen;;;;24.08.2026 00:00;29;6;8;15;;;10,50;ist angemeldet;31.08.2026;;10;;;ZZ;Nein;31.08.2026 00:00;;;-;
+34;;übermittelt;S00944;SADI;9;21.08.2026;Abholung;? Versand überfällig;;Palettiert bitte!;;21.08.2026 00:00;;;;;;;;ist angemeldet;31.08.2026;;10;;;-;Ja;;;;;
+34;;übermittelt;S01185;Deigma Spolka Ograniczona;13;21.08.2026;;? Verlade-Stau;;Storniert!!!;;25.08.2026 00:00;5;1;;;4;;2,00;;;;;;;;;;;;;
+34;;übermittelt;S01100;Brigada BGR LTD;10;21.08.2026;Spedition;? Versendet & Bezahlt;;;;21.08.2026 00:00;3;1;;;2;;1,20;ist angemeldet;24.08.2026;;3;;;-;Ja;24.08.2026 00:00;;;ja;siehe mail
+34;;übermittelt;S00986;KOUTLIANOS;24;21.08.2026;Abholung;? Versendet · Zahlung offen;;Bitte zusammen mit S01335 verladen;;21.08.2026 00:00;4;;4;;;;1,20;ist angemeldet;31.08.2026;;10;;;ZZ;Nein;31.08.2026 00:00;;;;
+34;;übermittelt;S01296;Artek Commerce LTD;15;21.08.2026;Abholung;? Verlade-Stau;;;;24.08.2026 00:00;3;;;;3;;1,20;ist angemeldet;02.09.2026;;12;;;-;Nein;;;;;
+34;;übermittelt;S01309;Elektro Outlet Sinzig ;123;21.08.2026;Spedition;? Versendet · Zahlung offen;;;;21.08.2026 00:00;43;12;16;;10;5;14,10;ist angemeldet;25.08.2026;26.08.2026;4;;;ZZ;Nein;26.08.2026 00:00;;;;
+34;;übermittelt;S01314;Fortis Impex KFT;16;21.08.2026;Abholung;? Versendet & Bezahlt;Lademeter zusammen mit S00494;bis maximal 2,70 hoch. Bitte zusammen mit S01148 verladen;;24.08.2026 00:00;;;;;;;;ist angemeldet;28.08.2026;;7;;;-;Ja;28.08.2026 00:00;;;ja;900254965
+35;;übermittelt;S01292;Electro Catoira Outlet S.L;128;24.08.2026;Spedition;? Versand überfällig;Todo Cash;;;25.08.2026 00:00;45;8;14;;17;6;15,70;ist angemeldet;28.08.2026;;4;;;-;Nein;;;;;
+35;;übermittelt;S01318;PUKO SP z.o.o;6;28.08.2026;Spedition;? Versendet & Bezahlt;versand 28.08. SA-GUT;;;27.08.2026 00:00;6;;;6;;;;ist angemeldet;;;;;;-;Ja;28.08.2026 00:00;;;;
+35;;übermittelt;S01302;Outletstocks di Rahel;9;24.08.2026;Spedition;? Komm überfällig;warten/platzhalter/mit Janna besprochen;;;;;;;;;;;;;;;;;-;Nein;;;;;
+35;;übermittelt;S01266;Bas Commerce;4;28.08.2026;Spedition;? Versendet & Bezahlt;versand 28.08. SA-GUT;;;27.08.2026 00:00;4;;;;4;;;ist angemeldet;28.08.2026;;-;;;-;Ja;28.08.2026 00:00;;;;
+35;;übermittelt;S01356;IG International ;137;24.08.2026;Spedition;? Versendet · Zahlung offen;S01328+S01339/Leider nicht Stornierbar wegen DFÜ/LS S01328 gescannt;;;25.08.2026 00:00;35;8;14;;8;5;12,00;ist angemeldet;26.08.2026;27.08.2026;2;;;ZZ;Nein;25.08.2026 00:00;;;;
+35;;übermittelt;S01307;Outlet Simex D.O.O.;157;25.08.2026;Abholung;? Versendet & Bezahlt;;;;26.08.2026 00:00;52;9;22;;11;10;17,00;ist angemeldet;28.08.2026;;3;;;ZZ;Ja;27.08.2026 00:00;;;;
+35;;übermittelt;S01344;Bastounis;24;25.08.2026;Abholung;? Versendet · Zahlung offen;;;;25.08.2026 00:00;7;;;;6;1;;ist angemeldet;25.08.2026;;-;;;ZZ;Nein;25.08.2026 00:00;;;;
+35;;übermittelt;S01315;Geo Hansi;174;26.08.2026;Abholung;? Versendet · Zahlung offen;;Bitte priorisiern - benötigen schnellstmöglich die LDM :);;26.08.2026 00:00;40;6;20;;11;3;13,50;ist angemeldet;27.08.2026;;1;;;-;Nein;28.08.2026 00:00;;;ja;siehe mail
+35;;übermittelt;S01285;Les Petits Pieds;78;26.08.2026;Abholung;? Versand überfällig;Lademeter S01285+S01327;Bitte zusammen mit S01327 verladen;;27.08.2026 00:00;30;14;10;;6;1;10,60;ist angemeldet;28.08.2026;;2;;;-;Nein;;;;;
+35;;übermittelt;S01327;Les Petits Pieds;8;26.08.2026;Abholung;? Versand überfällig;Lademeter S01285+S01327;Bitte zusammen mit S01285 verladen;;28.08.2026 00:00;;;;;;;;ist angemeldet;28.08.2026;;2;;;-;Nein;;;;;
+35;;übermittelt;S01335;KOUTLIANOS;15;27.08.2026;Abholung;? Versendet · Zahlung offen;;Bitte zusammen mit S00986 verladen;;28.08.2026 00:00;8;;8;;;;2,40;ist angemeldet;31.08.2026;;4;;;ZZ;Nein;31.08.2026 00:00;;;;
+;;übermittelt;S01150;Marketvibe ;10;;Abholung;… Neu;Warten auf Freigabe Janna;bis 2,60 hoch. zusammen mit S01144 verladen;;;;;;;;;;warten;;;;;;-;Nein;;;;;
+35;;übermittelt;S01366;Techno Planet LTD;135;27.08.2026;Abholung;? Komm abgeschlossen;;Bitte die Reste von S00308 als erstes verladen dach den S01366;;27.08.2026 00:00;45;18;10;;14;3;15,50;ist angemeldet;03.09.2026;;7;;;-;Ja;;;;;
+35;;übermittelt;S01273;S.C. Interm Grup S.R.L.;42;27.08.2026;Abholung;? Komm abgeschlossen;;;;27.08.2026 00:00;14;2;3;;8;1;5,60;warten;;;;;;-;Nein;;;;;
+35;;übermittelt;S01359;Gujjar Begum;88;28.08.2026;Spedition;? Versendet & Bezahlt;900253847 / Nicht auffindbar;;;31.08.2026 00:00;35;;14;;21;;12,80;ist angemeldet;31.08.2026;;3;;;-;Ja;31.08.2026 00:00;;;;
+35;;übermittelt;S01345;Online Shopping Trade;22;28.08.2026;Spedition;? Versendet · Zahlung offen;;;;28.08.2026 00:00;6;;4;;1;1;2,00;ist angemeldet;;;;;;-;Nein;28.08.2026 00:00;;;;
+35;;übermittelt;S01378;Techno Power Ltd;188;28.08.2026;Abholung;? Versand heute geplant;;;;28.08.2026 00:00;50;10;22;;14;4;17,00;ist angemeldet;01.09.2026;;4;;;-;Ja;;;;;
+35;;übermittelt;S01381;UAB Buitikas;26;28.08.2026;Abholung;? Komm abgeschlossen;;;;28.08.2026 00:00;12;;10;;1;1;4,00;warten;;;;;;-;Nein;;;;;
+36;;übermittelt;S01382;P&C Trading B.V.;89;31.08.2026;Spedition;? Komm abgeschlossen;S01340 aufgelöst;;;28.08.2026 00:00;39;4;26;;9;;13,20;ist angemeldet;;;;;;-;Ja;;;;;
+36;;übermittelt;S01383;UAB Stevija;118;31.08.2026;Abholung;? Komm abgeschlossen;;;;31.08.2026 00:00;32;3;20;;6;3;11,00;warten;;;;;;-;Nein;;;;;
+35;;übermittelt;S01361;Les Petits Pieds;50;28.08.2026;Abholung;? Versand überfällig;;;;28.08.2026 00:00;25;;25;;;;7,80;ist angemeldet;31.08.2026;;3;;;ZZ;Nein;;;;;
+36;;übermittelt;S01408;Euroda Transport;147;31.08.2026;Abholung;? Versand überfällig;;;;31.08.2026 00:00;21;3;10;;8;;7,60;warten;31.08.2026;;-;;;-;Nein;;;;;
+36;;übermittelt;S01410;Almost New;2;31.08.2026;Abholung;? Komm abgeschlossen;;;;31.08.2026 00:00;2;;;;2;;0,80;warten;;;;;;-;Nein;;;;;
+36;;übermittelt;S00308;Techno Planet LTD;10;31.08.2026;Abholung;? Komm abgeschlossen;;Bitte diese Geräte zuerst verladen in den LKW  und dann  zusammen mit S01366;;27.08.2026 00:00;;;;;;;;ist angemeldet;03.09.2026;;3;;;-;Ja;;;;;
+36;;übermittelt;S01415;Deland LTD EOOD;20;31.08.2026;Abholung;? Komm abgeschlossen;;;;31.08.2026 00:00;8;;;;2;6;2,80;warten;;;;;;-;Nein;;;;;
+36;;übermittelt;S01414;Hermans Trading;112;01.09.2026;Abholung;? Komm läuft heute;;;;;;;;;;;;warten;;;;;;-;Nein;;;;;
+36;;übermittelt;S01413;Hermans Trading;95;01.09.2026;Abholung;? Komm läuft heute;;;;;;;;;;;;warten;;;;;;-;Nein;;;;;
+36;;übermittelt;S01420;Buy24;40;01.09.2026;Abholung;? Komm abgeschlossen;;;;01.09.2026 00:00;10;;;;10;;4,60;warten;;;;;;-;Nein;;;;;
+36;;übermittelt;S01422;W.D.S.d.o.o.;42;02.09.2026;Abholung;? Komm geplant;;;;;;;;;;;;warten;;;;;;-;Nein;;;;;
+35;;übermittelt;S01424;Techno Planet ;147;27.08.2026;Abholung;? Komm abgeschlossen;;Der Auftrag wurde zusammengefasst mit S01366 und S00308. Bitte die doppelten löschen.;;27.08.2026 00:00;45;18;10;;14;3;15,50;ist angemeldet;03.09.2026;;7;;;-;Ja;;;;;
+36;;übermittelt;S01429;Elektrogeräte Lärmer;21;02.09.2026;Spedition;? Komm geplant;;;;;;;;;;;;warten;;;;;;-;Ja;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;… Neu;;;;;;;;;;;;;;;;;;;;;;;;

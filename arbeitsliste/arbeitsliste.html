@@ -36,14 +36,14 @@
   --off:#8D97A1; --off-soft:#22272B;
   --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
 }
-
 *{box-sizing:border-box}
 body{margin:0; background:var(--bg); color:var(--ink);
   font-family:"Public Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
   font-size:15px; line-height:1.55; -webkit-font-smoothing:antialiased}
 .wrap{max-width:1080px; margin:0 auto; padding:0 20px 96px}
 h1,h2,h3{font-family:Archivo,"Public Sans",sans-serif; margin:0; text-wrap:balance}
-.mono{font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace; font-variant-numeric:tabular-nums}
+.mono{font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace; font-variant-numeric:tabular-nums;
+  overflow-wrap:anywhere}
 
 header.top{border-bottom:1px solid var(--rule); background:var(--surface)}
 .top-inner{max-width:1080px; margin:0 auto; padding:26px 20px 22px;
@@ -55,18 +55,12 @@ h1{font-size:clamp(26px,4.2vw,38px); font-weight:700; letter-spacing:-.02em; lin
 .stand{text-align:right; font-size:12.5px; color:var(--muted); line-height:1.7}
 .stand b{color:var(--ink); font-weight:600}
 
-.banner{display:flex; gap:14px; align-items:flex-start; padding:14px 16px; border-radius:3px;
-  border:1px solid var(--rule); border-left:4px solid var(--warn);
-  background:var(--warn-soft); margin-top:26px; font-size:13.5px; color:var(--ink)}
-.banner .bt{font-family:Archivo,sans-serif; font-weight:600; display:block; margin-bottom:2px}
-.banner.crit{border-left-color:var(--crit); background:var(--crit-soft)}
-
 .regel{background:var(--surface); border:1px solid var(--rule); border-left:4px solid var(--accent);
   border-radius:3px; padding:18px 20px; margin-top:26px; box-shadow:var(--shadow)}
 .regel h3{font-size:14px; font-weight:700; margin-bottom:8px}
 .regel code{font-family:"IBM Plex Mono",monospace; font-size:12.5px; background:var(--accent-soft);
   color:var(--accent); padding:2px 6px; border-radius:2px}
-.regel p{margin:8px 0 0; font-size:13.5px; color:var(--ink-2); max-width:76ch}
+.regel p{margin:8px 0 0; font-size:13.5px; color:var(--ink-2); max-width:78ch}
 
 .kpis{display:grid; grid-template-columns:repeat(auto-fit,minmax(158px,1fr)); gap:1px;
   background:var(--rule); border:1px solid var(--rule); border-radius:3px; overflow:hidden; margin-top:24px}
@@ -87,8 +81,7 @@ h1{font-size:clamp(26px,4.2vw,38px); font-weight:700; letter-spacing:-.02em; lin
 .chip[aria-pressed="true"]{background:var(--accent); border-color:var(--accent); color:var(--on-accent)}
 input[type=search]{flex:1; min-width:190px; font-family:"Public Sans",sans-serif; font-size:13.5px;
   padding:7px 11px; border:1px solid var(--rule); background:var(--surface); color:var(--ink); border-radius:2px}
-input[type=search]:focus-visible,.chip:focus-visible,button:focus-visible,summary:focus-visible{
-  outline:2px solid var(--accent); outline-offset:2px}
+input[type=search]:focus-visible,.chip:focus-visible,button:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
 .count{font-family:"IBM Plex Mono",monospace; font-size:12px; color:var(--muted); margin-left:auto}
 
 section.bucket{margin-top:34px}
@@ -96,15 +89,14 @@ section.bucket{margin-top:34px}
   padding-bottom:9px; border-bottom:2px solid var(--ink)}
 .bhead h2{font-size:16px; font-weight:700; letter-spacing:-.01em}
 .bhead .tot{font-family:"IBM Plex Mono",monospace; font-size:12px; color:var(--muted); margin-left:auto}
-.bnote{font-size:13px; color:var(--ink-2); margin:9px 0 0; max-width:72ch}
+.bnote{font-size:13px; color:var(--ink-2); margin:9px 0 0; max-width:74ch}
 
 .card{display:grid; grid-template-columns:26px 1fr; gap:0 14px; background:var(--surface);
   border:1px solid var(--rule); border-left:4px solid var(--sev,var(--off));
   border-radius:3px; padding:14px 16px 13px; margin-top:10px; box-shadow:var(--shadow)}
 .card[data-sev="crit"]{--sev:var(--crit)} .card[data-sev="warn"]{--sev:var(--warn)}
-.card[data-sev="ok"]{--sev:var(--ok)}   .card[data-sev="off"]{--sev:var(--off)}
-.card.done{opacity:.42}
-.card.done .kunde{text-decoration:line-through}
+.card[data-sev="off"]{--sev:var(--off)}
+.card.done{opacity:.42} .card.done .kunde{text-decoration:line-through}
 .tick{grid-row:1/99; padding-top:2px}
 .tick input{width:18px; height:18px; accent-color:var(--accent); cursor:pointer}
 .chead{display:flex; flex-wrap:wrap; align-items:baseline; gap:8px 12px}
@@ -115,15 +107,13 @@ section.bucket{margin-top:34px}
   padding:2px 7px; border-radius:2px; text-transform:uppercase; letter-spacing:.05em; margin-left:auto}
 .flag.crit{background:var(--crit-soft); color:var(--crit)}
 .flag.warn{background:var(--warn-soft); color:var(--warn)}
-.flag.ok{background:var(--ok-soft); color:var(--ok)}
 .flag.off{background:var(--off-soft); color:var(--off)}
 .aktion{margin:9px 0 0; font-size:14.5px; line-height:1.5}
-.aktion b{font-weight:600}
 .meta{display:flex; flex-wrap:wrap; gap:5px 7px; margin-top:10px}
 .tag{font-family:"IBM Plex Mono",monospace; font-size:11.5px; color:var(--ink-2);
   background:var(--surface-2); border:1px solid var(--rule-2); padding:2px 7px; border-radius:2px}
-.tag.unk{color:var(--warn); border-color:var(--warn); background:var(--warn-soft)}
-.tag.pay{color:var(--ok); border-color:var(--ok); background:var(--ok-soft)}
+.tag.pay{color:var(--ok); border-color:var(--ok); background:var(--ok-soft); font-weight:600}
+.tag.hot{color:var(--crit); border-color:var(--crit); background:var(--crit-soft); font-weight:600}
 .beleg{margin-top:10px; padding:8px 12px; border-left:2px solid var(--rule);
   background:var(--surface-2); font-size:12.5px; color:var(--ink-2); line-height:1.5}
 .beleg .q{font-style:italic}
@@ -132,7 +122,7 @@ section.bucket{margin-top:34px}
 .panel{background:var(--surface); border:1px solid var(--rule); border-radius:3px;
   padding:20px 22px; margin-top:12px; box-shadow:var(--shadow)}
 .panel h3{font-size:15px; font-weight:700}
-.panel p{font-size:14px; color:var(--ink-2); margin:8px 0 0; max-width:76ch}
+.panel p{font-size:14px; color:var(--ink-2); margin:8px 0 0; max-width:78ch}
 .tblwrap{overflow-x:auto; margin-top:14px; border:1px solid var(--rule); border-radius:3px}
 table{border-collapse:collapse; width:100%; font-size:13px; min-width:560px}
 th,td{text-align:left; padding:9px 14px; border-bottom:1px solid var(--rule-2)}
@@ -153,45 +143,33 @@ tr:last-child td{border-bottom:none}
     <div>
       <span class="eyebrow">NH5 Nürnberg · 20_WA_PIPELINE · Spalte AC</span>
       <h1>Ware noch im Lager</h1>
-      <p class="sub">Aufträge, bei denen <b>„Auftrag abgeschlossen (Ware hat das Lager verlassen)“ leer ist</b> — die einzige Spalte, die einen echten Warenausgang belegt. Termin, Status und Überfälligkeit sind nachgeordnet.</p>
+      <p class="sub">Alle Aufträge, bei denen <b>„Auftrag abgeschlossen (Ware hat das Lager verlassen)“ leer ist</b>. Vollständiges Blatt, 316 Auftragszeilen seit April. Zuerst die, bei denen bei AMM nichts angemeldet ist.</p>
     </div>
-    <div class="stand">
+    <div class="stand" id="stand">
       Stichtag <b>Di, 01.09.2026 · KW 36</b><br>
-      Sichtbarer Bereich <b>Zeilen 267–309 (KW 34–36)</b><br>
-      Zeilen 5–266 <b>ungeprüft</b>
+      Quelle <b>20_WA_PIPELINE, vollständig</b><br>
+      316 Zeilen · <b>280 raus · 36 offen</b>
     </div>
   </div>
 </header>
 
 <div class="wrap">
 
-  <div class="banner crit">
-    <div><span class="bt">Korrektur gegenüber der ersten Fassung dieser Liste.</span>
-    Die erste Version stützte sich auf die Spalte „Status (automatisch)“ eines reduzierten Exports mit nur den Spalten A–X. Die entscheidende Spalte <span class="mono">AC — Auftrag abgeschlossen (Ware hat das Lager verlassen)</span> war darin nicht enthalten. Dadurch standen <b>zwölf Aufträge als überfällig in der Liste, die längst verladen waren</b>, und mindestens <b>sechs offene Aufträge fehlten ganz</b>. Diese Fassung nutzt ausschließlich Spalte AC.</div>
-  </div>
-
   <div class="regel">
     <h3>Die Regel, nach der diese Liste gebaut ist</h3>
-    <p><code>Spalte AC leer</code> → Ware ist noch im Lager. Alles andere ist Beiwerk.<br>
-    Innerhalb dieser Menge wird sortiert nach: <code>kein Kommissioniertag</code> (nicht mal eingeplant) → <code>Anmeldung „warten“ oder leer</code> (kein Termin bei AMM) → <code>angemeldet</code> (Termin läuft).</p>
-    <p>Nicht mehr verwendet: die Spalte „Status (automatisch)“, das geplante Versanddatum und die daraus abgeleitete Überfälligkeit. Ein Auftrag kann „⚠ Versand überfällig“ anzeigen und trotzdem seit Tagen aus dem Haus sein — genau das war der Fehler.</p>
+    <p><code>Spalte AC leer</code> → Ware ist noch im Lager. Danach sortiert nach <code>Anmeldung ≠ „ist angemeldet“</code> (bei AMM ist nichts terminiert) und innerhalb dessen nach Liegezeit seit dem Kommissioniertag.</p>
+    <p>Bewusst <b>nicht</b> verwendet: die Spalte „Status (automatisch)“ und das geplante Versanddatum. Ein Auftrag kann „Versand überfällig“ anzeigen und trotzdem seit Tagen aus dem Haus sein — das war der Fehler der ersten Fassung dieser Liste, die auf einem Export ohne die Spalten AB–AG beruhte.</p>
   </div>
 
-  <div class="kpis">
-    <div class="kpi crit"><div class="n">13</div><div class="l">Aufträge mit Ware noch im Lager</div></div>
-    <div class="kpi crit"><div class="n">855<span class="u">Ger.</span></div><div class="l">gebundene Geräte darin</div></div>
-    <div class="kpi warn"><div class="n">4</div><div class="l">davon Anmeldung „warten“ oder ohne Kommitag</div></div>
-    <div class="kpi warn"><div class="n">4</div><div class="l">Restmengen nach Verladung offen</div></div>
-    <div class="kpi"><div class="n">262</div><div class="l">Zeilen oberhalb, noch nicht gegen Spalte AC geprüft</div></div>
-  </div>
+  <div class="kpis" id="kpis"></div>
 
   <div class="controls">
     <button class="chip" data-f="all" aria-pressed="true">Alle</button>
-    <button class="chip" data-f="A" aria-pressed="false">Kein Termin / kein Kommitag</button>
+    <button class="chip" data-f="A" aria-pressed="false">Kein Termin</button>
     <button class="chip" data-f="B" aria-pressed="false">Angemeldet</button>
-    <button class="chip" data-f="C" aria-pressed="false">Neu, Details fehlen</button>
-    <button class="chip" data-f="D" aria-pressed="false">Restmengen</button>
-    <button class="chip" data-f="E" aria-pressed="false">Storniert</button>
+    <button class="chip" data-f="C" aria-pressed="false">Restmengen</button>
+    <button class="chip" data-f="D" aria-pressed="false">Bereinigen</button>
+    <button class="chip" id="onlyPaid" aria-pressed="false">Nur bezahlte</button>
     <button class="chip" id="hideDone" aria-pressed="false">Erledigte ausblenden</button>
     <input type="search" id="q" placeholder="Kunde oder Auftragsnummer …" aria-label="Suche">
     <span class="count" id="count"></span>
@@ -200,72 +178,30 @@ tr:last-child td{border-bottom:none}
   <div id="list"></div>
 
   <section class="bucket" style="margin-top:44px">
-    <div class="bhead"><h2>Was aus der ersten Fassung herausfällt</h2></div>
-    <p class="bnote">Diese zwölf Aufträge standen dort als überfällig oder offen. Laut Spalte AC haben sie das Lager verlassen. Sie sind erledigt — bis auf die vier, bei denen Spalte AF eine Restmenge meldet; die stehen oben in der Gruppe „Restmengen“.</p>
-    <div class="tblwrap">
-      <table>
-        <thead><tr><th>Auftrag</th><th>Kunde</th><th class="num">Geräte</th><th>Lager verlassen am</th><th>Rest?</th></tr></thead>
-        <tbody>
-          <tr><td class="mn">S01254</td><td>Rati Marti</td><td class="num">133</td><td class="mn">18.08.2026</td><td>–</td></tr>
-          <tr><td class="mn">S01309</td><td>Elektro Outlet Sinzig</td><td class="num">123</td><td class="mn">26.08.2026</td><td>–</td></tr>
-          <tr><td class="mn">S01307</td><td>Outlet Simex D.O.O.</td><td class="num">157</td><td class="mn">27.08.2026</td><td>–</td></tr>
-          <tr><td class="mn">S00565</td><td>Sefik Saracevic</td><td class="num">55</td><td class="mn">28.08.2026</td><td>–</td></tr>
-          <tr><td class="mn">S01148</td><td>Fortis Impex KFT</td><td class="num">82</td><td class="mn">28.08.2026</td><td>–</td></tr>
-          <tr><td class="mn">S01314</td><td>Fortis Impex KFT</td><td class="num">16</td><td class="mn">28.08.2026</td><td><b>ja</b> · 900254965</td></tr>
-          <tr><td class="mn">S01315</td><td>Geo Hansi</td><td class="num">174</td><td class="mn">28.08.2026</td><td><b>ja</b> · siehe Mail</td></tr>
-          <tr><td class="mn">S01318</td><td>PUKO SP z.o.o</td><td class="num">6</td><td class="mn">28.08.2026</td><td>–</td></tr>
-          <tr><td class="mn">S01266</td><td>Bas Commerce</td><td class="num">4</td><td class="mn">28.08.2026</td><td>–</td></tr>
-          <tr><td class="mn">S01330</td><td>Hermans Trading</td><td class="num">94</td><td class="mn">31.08.2026</td><td>–</td></tr>
-          <tr><td class="mn">S00986</td><td>KOUTLIANOS</td><td class="num">24</td><td class="mn">31.08.2026</td><td>–</td></tr>
-          <tr><td class="mn">S01335</td><td>KOUTLIANOS</td><td class="num">15</td><td class="mn">31.08.2026</td><td>–</td></tr>
-        </tbody>
-      </table>
-    </div>
+    <div class="bhead"><h2>Kunden mit mehreren offenen Vorgängen</h2></div>
+    <p class="bnote">Wer mehrfach auftaucht, wird einmal angerufen — nicht dreimal. Bei Abholern lohnt es, die Ladungen zusammenzulegen.</p>
+    <div class="tblwrap"><table id="kunden">
+      <thead><tr><th>Kunde</th><th class="num">Aufträge</th><th class="num">Geräte</th><th>Auftragsnummern</th></tr></thead>
+      <tbody></tbody></table></div>
   </section>
 
   <section class="bucket">
-    <div class="bhead"><h2>Was diese Liste noch nicht abdeckt</h2></div>
+    <div class="bhead"><h2>Zwei Baustellen in der Datei selbst</h2></div>
     <div class="panel">
-      <h3>Die Zeilen 5 bis 266 sind nicht gegen Spalte AC geprüft.</h3>
-      <p>Der Ausschnitt, der ausgewertet werden konnte, beginnt bei Zeile 267 (KW 34). Alles davor — rund 262 Zeilen ab April — ist offen. Aus dem älteren Export mit Stand 26.08. stehen dort vier Vorgänge, deren Zustand jetzt ungewiss ist:</p>
-      <div class="tblwrap">
-        <table>
-          <thead><tr><th>Auftrag</th><th>Kunde</th><th class="num">Geräte</th><th>Letzter bekannter Stand</th></tr></thead>
-          <tbody>
-            <tr><td class="mn">S00622</td><td>Aurora Solar Energy DOO</td><td class="num">37</td><td>kommissioniert 30.07., kein Termin, Zoll ungeklärt</td></tr>
-            <tr><td class="mn">S00755</td><td>Euroda Transport &amp; Handel</td><td class="num">56</td><td>kommissioniert 04.08., AMM-Liefertag 31.12.2026 = Platzhalter</td></tr>
-            <tr><td class="mn">S00642</td><td>Euroda Transport &amp; Handel</td><td class="num">107</td><td>3 LKW, zwei abgeholt (13.08. / 24.08.), dritter ohne Termin</td></tr>
-            <tr><td class="mn">S00288</td><td>Alma Trading</td><td class="num">11</td><td>storniert, aber kommissioniert seit 03.08.</td></tr>
-          </tbody>
-        </table>
-      </div>
-      <p><b>Damit das vollständig wird:</b> das Blatt <span class="mono">20_WA_PIPELINE</span> einmal als CSV speichern (Datei → Exportieren, oder nur die Spalten <span class="mono">D, E, F, G, U, AB, AC, AF, AG</span>). Über den SharePoint-Zugriff bricht die Datei nach dem vierten Blatt ab — <span class="mono">20_WA_PIPELINE</span> kommt dort nie an.</p>
-    </div>
-  </section>
-
-  <section class="bucket">
-    <div class="bhead"><h2>Warum das Dashboard trotzdem „kein WA-Backlog“ meldet</h2></div>
-    <div class="panel">
-      <h3>Ein Filter auf das alte Nummernformat blendet die Warenausgangs-Seite aus.</h3>
-      <p>Dieser Befund steht unabhängig vom Fehler oben und bleibt gültig. Seit dem Odoo-Wechsel tragen alle Aufträge <span class="mono">S00xxx</span>-Nummern. Die Zählformeln in <span class="mono">00_DASHBOARD</span> und <span class="mono">05_LIVE</span> filtern weiter auf <span class="mono">LINKS(Auftragsnr;2)="AU"</span> — im August trifft das auf <b>0 von 65</b> Aufträgen zu, also zählen sie zwangsläufig null.</p>
-      <div class="tblwrap">
-        <table>
-          <thead><tr><th>Kommissioniertag</th><th class="num">Aufträge mit AU…</th><th class="num">Aufträge mit S…</th><th>Was die Formel zählt</th></tr></thead>
-          <tbody>
-            <tr><td>Juni 2026</td><td class="num">59</td><td class="num">1</td><td>fast alles</td></tr>
-            <tr><td>Juli 2026</td><td class="num">14</td><td class="num">62</td><td>18 %</td></tr>
-            <tr><td>August 2026</td><td class="num">0</td><td class="num">65</td><td>nichts</td></tr>
-          </tbody>
-        </table>
-      </div>
+      <h3>1 · Das Dashboard zählt die Warenausgangs-Seite auf null.</h3>
+      <p>Seit dem Odoo-Wechsel tragen alle Aufträge <span class="mono">S00xxx</span>-Nummern. Die Zählformeln in <span class="mono">00_DASHBOARD</span> und <span class="mono">05_LIVE</span> filtern weiter auf <span class="mono">LINKS(Auftragsnr;2)="AU"</span> — im August traf das auf 0 von 65 Aufträgen zu. Deshalb meldet das Dashboard „WA-Pipeline offen – kein Backlog“, während 27 Vorgänge im Lager stehen.</p>
       <p><b>Fix:</b> in <span class="mono">05_LIVE</span> (C12, C13, C17, C25, C26, C30, C39, C40, D25, D26, D39, D40) und <span class="mono">00_DASHBOARD</span> (C11) die Bedingung streichen oder auf <span class="mono">ODER(LINKS(…;2)="AU"; LINKS(…;1)="S")</span> erweitern.</p>
-      <p><b>Zusätzlich:</b> die Backlog-Formel auf <span class="mono">00_DASHBOARD</span> prüft bereits <span class="mono">NICHT(ISTZAHL($AD$5:$AD$542))</span> — sie fragt also die richtige Idee ab, nur eine Spalte neben AC. Beim Fix mitprüfen, ob AD oder AC gemeint ist.</p>
+    </div>
+    <div class="panel">
+      <h3>2 · Die Backlog-Formel zeigt auf eine leere Spalte.</h3>
+      <p>Die Formel auf <span class="mono">00_DASHBOARD</span> prüft <span class="mono">NICHT(ISTZAHL('20_WA_PIPELINE'!$AD$5:$AD$542))</span>. Spalte <span class="mono">AD</span> hat aber weder eine Überschrift noch in einer einzigen der 316 Zeilen einen Wert — die Bedingung ist immer wahr und filtert nichts.</p>
+      <p>Gemeint ist offensichtlich <span class="mono">AC</span>, „Auftrag abgeschlossen (Ware hat das Lager verlassen)“. <b>Fix:</b> <span class="mono">$AD$</span> durch <span class="mono">$AC$</span> ersetzen. Zusammen mit dem AU-Filter oben sind das die beiden Gründe, warum der WA-Backlog seit Wochen unsichtbar ist.</p>
     </div>
   </section>
 
   <section class="bucket">
     <div class="bhead"><h2>Wiederkehrende Handgriffe ohne Nachfolge</h2></div>
-    <p class="bnote">Unverändert gültig — diese Handgriffe hängen an einer Person, nicht an einem System.</p>
+    <p class="bnote">Diese Handgriffe hingen an einer Person, nicht an einem System. Ohne sie bleibt die Liste oben stehen, egal wie gut sie abgearbeitet wird.</p>
     <div class="tblwrap">
       <table>
         <thead><tr><th>Handgriff</th><th>Zuletzt</th><th>Wozu</th></tr></thead>
@@ -273,7 +209,7 @@ tr:last-child td{border-bottom:none}
           <tr><td>Mail „Abholung S0xxxx — bitte bereitstellen“ an AMM</td><td class="mn">31.08.</td><td>ohne sie stellt AMM nicht an die Rampe; 2–4× pro Woche fällig</td></tr>
           <tr><td>Mail „Freigabe S0xxxx“ an AMM</td><td class="mn">28.08.</td><td>Zahlung eingegangen, Ware darf raus</td></tr>
           <tr><td>Zollabfertigung / LRN an AMM</td><td class="mn">28.08.</td><td>ohne LRN keine Verladung ins Nicht-EU-Ausland</td></tr>
-          <tr><td>Pflege der Spalten mit „(JANNA)“ im Kopf</td><td class="mn">26.08.</td><td>Anmeldung, geplantes Datum, Anlieferdatum, „Bezahlt?“ — Quelle jeder Terminaussage</td></tr>
+          <tr><td>Pflege der Spalten mit „(JANNA)“ im Kopf</td><td class="mn">31.08.</td><td>Anmeldung, geplantes Datum, Zollpapiere, „Bezahlt?“ — Quelle jeder Terminaussage</td></tr>
           <tr><td>Rückfragen von AMM beantworten</td><td class="mn">—</td><td>S01150 wartet seit dem 21.08. auf Antwort</td></tr>
         </tbody>
       </table>
@@ -281,184 +217,157 @@ tr:last-child td{border-bottom:none}
   </section>
 
   <p class="foot">
-    <b>Quellen.</b> Maßgeblich: <span class="mono">NH5_Pipeline_MAX-STATUS.xlsx</span>, Blatt <span class="mono">20_WA_PIPELINE</span>, Spalten AB/AC/AF/AG, Zeilen 267–309, Stand 01.09.2026 · ergänzende Felder (Kommissioniertag, Anmeldung, Notizen) aus <span class="mono">Abhol-und_Liefertermine_Tagesaktuell.xlsx</span>, Stand 26.08.2026 — dort <b>ohne</b> die Spalten AB–AG · Belege aus dem Outlook-Verkehr mit <span class="mono">elvinci@amm-spedition.de</span> vom 16.–31.08.2026.<br><br>
-    <b>Bewusst nicht enthalten:</b> Ansprechpartner, Adressen und Telefonnummern. Für die Terminierung reichen Auftragsnummer und Firmenname; die Kontakte stehen in Odoo.
+    <b>Quelle.</b> <span class="mono">NH5_Pipeline_MAX-STATUS.xlsx</span>, Blatt <span class="mono">20_WA_PIPELINE</span>, vollständiger CSV-Export vom 01.09.2026 — 316 Auftragszeilen, alle 33 Spalten. Maßgeblich ist Spalte <span class="mono">AC</span>; ergänzend <span class="mono">AB (Bezahlt?)</span>, <span class="mono">AF/AG (Reste nach Verladung)</span> und <span class="mono">U (Versand-/Abholanmeldung)</span>. Belege in den Karten aus dem Outlook-Verkehr mit <span class="mono">elvinci@amm-spedition.de</span> und <span class="mono">proWMS@amm-spedition.de</span>, 16.–31.08.2026.<br><br>
+    <b>Bewusst nicht enthalten:</b> Ansprechpartner, Adressen und Telefonnummern. Für die Terminierung reichen Auftragsnummer und Firmenname; die Kontakte stehen in Odoo.<br><br>
+    Neu erzeugen mit <span class="mono">python3 build_arbeitsliste.py 20_WA_PIPELINE.csv --stichtag JJJJ-MM-TT</span>.
   </p>
 </div>
 
 <script>
-const ORDERS = [
- {b:"A",sev:"crit",nr:"S01150",kunde:"Marketvibe",ger:10,bez:"Nein",
-  flag:{c:"crit",t:"kein Kommitag · warten"},
-  chips:["kein Kommissioniertag","Anmeldung: warten","AMM wartet seit 21.08. auf Antwort"],
-  aktion:"<b>Der einzige Auftrag ohne jeden Kommissioniertag — und er hängt an einer unbeantworteten Mail.</b> AMM fragt seit dem 21.08., ob der Auftrag weiter zurückgehalten werden soll; die Pipeline-Notiz sagt „Warten auf Freigabe Janna“. Der Partnerauftrag S01144 ist am 21.08. raus. Diese Mail zuerst beantworten, dann Kommissioniertag setzen.",
-  beleg:{q:"Soll der Auftrag S01150 noch zurückgehalten werden?",src:"Igor Vujica, AMM · 21.08.2026 · „AW: Abholung S01144“ — unbeantwortet"}},
-
- {b:"A",sev:"crit",nr:"S01292",kunde:"Electro Catoira Outlet S.L",ger:128,bez:"Nein",
-  flag:{c:"crit",t:"warten · nicht bezahlt"},
-  chips:["Anmeldung: warten","kommissioniert 24.08., fertig 25.08.","Notiz AMM: „Todo Cash“","Spedition"],
-  aktion:"<b>Größter Posten ohne Anmeldung: 128 Geräte.</b> Fertig kommissioniert seit dem 25.08., Anmeldung steht auf „warten“, Spalte „Bezahlt?“ auf Nein. AMM hat den Auftrag als Barzahler markiert. Erst Zahlung klären, dann Freigabe an AMM, dann Termin.",
-  beleg:{q:"… bereitstellen: Kunde: Electro Catoira Outlet S.L S01292",src:"J. Baranowski → AMM · 26.08.2026 · „Abholung S01292“"}},
-
- {b:"A",sev:"warn",nr:"S01302",kunde:"Outletstocks di Rahel",ger:9,bez:"Nein",
-  flag:{c:"warn",t:"warten · keine Fertigmeldung"},
-  chips:["Anmeldung: warten","Kommissioniertag 24.08., nicht fertiggemeldet","Notiz AMM: „warten/platzhalter/mit Janna besprochen“","Spedition"],
-  aktion:"<b>Platzhalter, dessen Absprache nur Janna kannte.</b> Von den drei am 24.08. gleich angelegten Platzhaltern ist dieser als einziger noch im Lager — S01318 und S01266 sind am 28.08. raus. Mit AMM klären, was hier vereinbart war.",
-  beleg:{q:"warten/platzhalter/mit Janna besprochen",src:"Notiz AMM in der WA-Pipeline · 24.08.2026"}},
-
- {b:"A",sev:"warn",nr:"S01296",kunde:"Artek Commerce LTD",ger:15,bez:"Nein",
-  flag:{c:"warn",t:"warten"},
-  chips:["Anmeldung: warten","kommissioniert 21.08., fertig 24.08.","am 27.08. bereitgestellt"],
-  aktion:"<b>Bereitgestellt, aber nie angemeldet.</b> Janna hat am 27.08. die Bereitstellung angefordert, die Versandanmeldung steht trotzdem auf „warten“. Kleiner Auftrag — Termin abfragen und Anmeldung nachziehen.",
-  beleg:{q:"… bereitstellen: Kunde: Artek Commerce LTD S01296",src:"J. Baranowski → AMM · 27.08.2026 · „Abholung S01296“"}},
-
- {b:"B",sev:"warn",nr:"S00944",kunde:"SADI",ger:9,bez:"Ja",
-  flag:{c:"warn",t:"angemeldet · bezahlt"},
-  chips:["Anmeldung: ist angemeldet","bezahlt","kommissioniert und fertig 21.08.","am 31.08. erneut bereitgestellt","palettiert"],
-  aktion:"<b>Alles erledigt außer der Abholung selbst.</b> Bezahlt, kommissioniert, angemeldet — Janna hat am 31.08., an ihrem letzten Tag, noch einmal die Bereitstellung angefordert. Es fehlt nur der Kunde. Verbindlichen Abholtag holen.",
-  beleg:{q:"… bereitstellen: Kunde: SADI S00944",src:"J. Baranowski → AMM · 31.08.2026 · „Abholung S00944“"}},
-
- {b:"B",sev:"warn",nr:"S01285 + S01327",kunde:"Les Petits Pieds",ger:86,bez:"Nein",
-  flag:{c:"warn",t:"angemeldet · keine Fertigmeldung"},
-  chips:["Anmeldung: ist angemeldet","Kommissioniertag 26.08., nicht fertiggemeldet","zusammen verladen","78 + 8 Geräte"],
-  aktion:"<b>Angemeldet, aber die Kommissionierung ist nicht fertiggemeldet.</b> Beide Aufträge sollen auf einen LKW. Bei AMM den Kommissionierstand abfragen; danach gemeinsam terminieren. Achtung: unter <span class=\"mono\">S01361</span> steht eine weitere Zeile für denselben Kunden mit 50 Geräten — prüfen, ob die dazugehört.",
-  beleg:{q:"… bereitstellen: Kunde: Les Petits Pieds S01327 S01285",src:"J. Baranowski → AMM · 25.08.2026 · „Abholung S01327 und S01285“"}},
-
- {b:"C",sev:"crit",nr:"S01378",kunde:"Techno Power Ltd",ger:188,bez:"Nein",
-  flag:{c:"crit",t:"neu · Details fehlen"},
-  chips:["nicht bezahlt","Kommissioniertag unbekannt","Anmeldung unbekannt"],
-  aktion:"<b>Größter offener Posten im sichtbaren Bereich — und in der ersten Fassung gar nicht enthalten.</b> Der Auftrag liegt hinter dem Datenstand vom 26.08., deshalb fehlen Kommissioniertag, Anmeldung und Notizen. Zuerst in der Pipeline nachsehen, dann einordnen."},
-
- {b:"C",sev:"crit",nr:"S01366",kunde:"Techno Planet LTD",ger:135,bez:"Ja",
-  flag:{c:"crit",t:"neu · bezahlt"},
-  chips:["bezahlt","Kommissioniertag unbekannt","Anmeldung unbekannt"],
-  aktion:"<b>Bezahlt und trotzdem im Lager — das ist der teuerste Zustand.</b> Der Kunde hat geliefert, wir nicht. Vorrang vor allen unbezahlten Vorgängen. Kommissionierstand prüfen und sofort terminieren."},
-
- {b:"C",sev:"crit",nr:"S01383",kunde:"UAB Stevija",ger:118,bez:"Nein",
-  flag:{c:"crit",t:"neu · Details fehlen"},
-  chips:["nicht bezahlt","Kommissioniertag unbekannt","Stammkunde: Ø 11 Tage bis Abholung"],
-  aktion:"<b>Neu und groß.</b> UAB Stevija braucht historisch im Schnitt 11 Tage zwischen Fertigmeldung und Abholung, im Extremfall 22 — hier früh einen festen Tag vereinbaren, nicht auf Zuruf warten."},
-
- {b:"C",sev:"warn",nr:"S01382",kunde:"P&C Trading B.V.",ger:89,bez:"Ja",
-  flag:{c:"warn",t:"neu · bezahlt · Dublette"},
-  chips:["bezahlt","doppelte Lagernummern mit S01340","Kommissioniertag unbekannt"],
-  aktion:"<b>Bezahlt, aber der Auftrag ist datenseitig kaputt.</b> Janna hat am 27.08. gemeldet, dass S01340 nachträglich zusammengeführt wurde und Lagernummern doppelt mit S01382 führt. In der Pipeline steht jetzt S01382 mit 89 Geräten — vermutlich der Nachfolger von S01340 (40 Geräte). Erst die Dublette in Odoo auflösen, dann terminieren.",
-  beleg:{q:"Der Auftrag S01340 — P&C Trading wurde im Nachgang zusammengefügt und beinhaltet nun doppelte Lagernummern in diesem Auftrag – S01382.",src:"J. Baranowski · 27.08.2026 · „S01340“"}},
-
- {b:"C",sev:"warn",nr:"S01273",kunde:"S.C. Interm Grup S.R.L.",ger:42,bez:"Nein",
-  flag:{c:"warn",t:"neu · Details fehlen"},
-  chips:["nicht bezahlt","Kommissioniertag unbekannt","Anmeldung unbekannt"],
-  aktion:"<b>Neu im sichtbaren Bereich.</b> Kommissionierstand und Anmeldung in der Pipeline nachsehen, dann terminieren."},
-
- {b:"C",sev:"warn",nr:"S01381",kunde:"UAB Buitikas",ger:26,bez:"Nein",
-  flag:{c:"warn",t:"neu · Details fehlen"},
-  chips:["nicht bezahlt","Kommissioniertag unbekannt","Stammkunde: Ø 9 Tage, max 32"],
-  aktion:"<b>Neu im sichtbaren Bereich.</b> UAB Buitikas hat über sieben Aufträge im Schnitt 9 Tage bis zur Abholung gebraucht, einmal 32 — früh terminieren."},
-
- {b:"D",sev:"warn",nr:"S01315",kunde:"Geo Hansi LLC",ger:174,bez:"Nein",
-  flag:{c:"warn",t:"Rest im Lager"},
-  chips:["Lager verlassen 28.08.","Reste vorhanden: ja","Reste-Lagernummern: siehe Mail","Zoll: LRN am 28.08. verschickt"],
-  aktion:"<b>Hauptladung raus, Rest liegt noch da.</b> AMM hat am 26.08. gemeldet, dass mangels Platz im LKW zurückgelagert wurde, und führt in Spalte AF „ja“. Die Lagernummern stehen nur in der Mail. Restmenge als eigenen Vorgang anlegen und nachterminieren.",
-  beleg:{q:"Folgendes wird zurückgelagert da kein Platz im LKW: 900255466 900255485 900255401 900255392 …",src:"AMM Spedition · 26.08.2026 · „AW: Abholung S01315“"}},
-
- {b:"D",sev:"warn",nr:"S01314",kunde:"Fortis Impex KFT",ger:16,bez:"Ja",
-  flag:{c:"warn",t:"Rest im Lager"},
-  chips:["Lager verlassen 28.08.","Reste vorhanden: ja","Rest-Lagernummer: 900254965"],
-  aktion:"<b>Ein einzelnes Gerät ist stehen geblieben.</b> Lagernummer 900254965 steht sauber in Spalte AG. Mit dem Kunden klären, ob es nachgeliefert oder gutgeschrieben wird — sonst bleibt es liegen."},
-
- {b:"D",sev:"warn",nr:"S01222",kunde:"Techno Electronics",ger:32,bez:"Nein",
-  flag:{c:"warn",t:"Rest im Lager"},
-  chips:["Lager verlassen 21.08.","Reste vorhanden: ja","Reste-Lagernummern: siehe Mail","17 Stück versendet, 4,3 LDM geblieben"],
-  aktion:"<b>Ältester offener Rest: seit dem 21.08.</b> Die Notiz in der Pipeline sagt „17 Stück versendet / 4,3 Lademeter stehen geblieben“. Das sind gut vier Lademeter, die seit elf Tagen ohne Vorgang dastehen.",
-  beleg:{q:"17 stück versendet / 4,3 Lademeter stehen geblieben",src:"Notiz AMM in der WA-Pipeline"}},
-
- {b:"D",sev:"warn",nr:"S01100",kunde:"Brigada BGR LTD",ger:10,bez:"Ja",
-  flag:{c:"warn",t:"Rest im Lager"},
-  chips:["Lager verlassen 24.08.","Reste vorhanden: ja","Reste-Lagernummern: siehe Mail"],
-  aktion:"<b>Rest seit dem 24.08. offen.</b> Auftrag ist bezahlt und verladen, Spalte AF meldet trotzdem eine Restmenge. Lagernummern aus der AMM-Mail holen und entscheiden: Nachverladung oder Gutschrift."},
-
- {b:"E",sev:"off",nr:"S01185",kunde:"Deigma Spolka Ograniczona",ger:13,bez:"—",
-  flag:{c:"off",t:"storniert"},
-  chips:["in der Pipeline rot markiert","Kommissionierung am 25.08. fertiggemeldet","Ware noch im Lager"],
-  aktion:"<b>Storniert, aber kommissioniert und noch da.</b> Die Fertigmeldung kam am 25.08., nach der Stornierung. Rücklagerung bei AMM veranlassen, sonst bleibt die Ware unbemerkt gebunden.",
-  beleg:{q:"Storniert!!!",src:"Notiz ELVINCI in der WA-Pipeline"}}
-];
+/* DATA-START */
+const DATA = {"stichtag": "2026-09-01", "buckets": {"A": [{"nr": "S01150", "kunde": "Marketvibe", "ger": 10, "pal": 0, "ldm": "", "komm": "", "liegt": null, "anm": "warten", "bezahlt": "Nein", "art": "Abholung", "ac": "", "reste": "", "geist": null, "notiz": ["<b>Der einzige Auftrag ganz ohne Kommissioniertag — und er hängt an einer unbeantworteten Mail.</b> AMM fragt seit dem 21.08., ob der Auftrag weiter zurückgehalten werden soll. Der Partnerauftrag S01144 ist am 21.08. raus.", "Soll der Auftrag S01150 noch zurückgehalten werden?", "Igor Vujica, AMM · 21.08.2026 · „AW: Abholung S01144“ — unbeantwortet"]}, {"nr": "S00622", "kunde": "Aurora Solar Energy DOO", "ger": 37, "pal": 15, "ldm": "5,90", "komm": "30.07.2026", "liegt": 33, "anm": "", "bezahlt": "Ja", "art": "", "ac": "", "reste": "", "geist": null, "notiz": ["<b>Ältester Vorgang ohne jede Anmeldung.</b> Notiz: neue Preisabfrage gestellt, Zoll noch ungeklärt. Beides muss entschieden werden, sonst stehen 15 Paletten unbegrenzt. Wenn der Zoll nicht klärbar ist: zurücklagern.", "Neue Preisabfrage gestellt. Zoll muss noch geklärt werden.", "Notiz ELVINCI in der WA-Pipeline"]}, {"nr": "S01302", "kunde": "Outletstocks di Rahel", "ger": 9, "pal": 0, "ldm": "", "komm": "24.08.2026", "liegt": 8, "anm": "", "bezahlt": "Nein", "art": "Spedition", "ac": "", "reste": "", "geist": null, "notiz": ["<b>Platzhalter, dessen Absprache nur Janna kannte.</b> Von den drei am 24.08. gleich angelegten Platzhaltern ist dieser als einziger noch im Lager — S01318 und S01266 sind am 28.08. raus. Mit AMM klären, was vereinbart war.", "warten/platzhalter/mit Janna besprochen", "Notiz AMM in der WA-Pipeline · 24.08.2026"]}, {"nr": "S01273", "kunde": "S.C. Interm Grup S.R.L.", "ger": 42, "pal": 14, "ldm": "5,60", "komm": "27.08.2026", "liegt": 5, "anm": "warten", "bezahlt": "Nein", "art": "Abholung", "ac": "", "reste": "", "geist": null, "notiz": null}, {"nr": "S01381", "kunde": "UAB Buitikas", "ger": 26, "pal": 12, "ldm": "4,00", "komm": "28.08.2026", "liegt": 4, "anm": "warten", "bezahlt": "Nein", "art": "Abholung", "ac": "", "reste": "", "geist": null, "notiz": null}, {"nr": "S01408", "kunde": "Euroda Transport", "ger": 147, "pal": 21, "ldm": "7,60", "komm": "31.08.2026", "liegt": 1, "anm": "warten", "bezahlt": "Nein", "art": "Abholung", "ac": "", "reste": "", "geist": null, "notiz": null}, {"nr": "S01383", "kunde": "UAB Stevija", "ger": 118, "pal": 32, "ldm": "11,00", "komm": "31.08.2026", "liegt": 1, "anm": "warten", "bezahlt": "Nein", "art": "Abholung", "ac": "", "reste": "", "geist": null, "notiz": null}, {"nr": "S01415", "kunde": "Deland LTD EOOD", "ger": 20, "pal": 8, "ldm": "2,80", "komm": "31.08.2026", "liegt": 1, "anm": "warten", "bezahlt": "Nein", "art": "Abholung", "ac": "", "reste": "", "geist": null, "notiz": null}, {"nr": "S01410", "kunde": "Almost New", "ger": 2, "pal": 2, "ldm": "0,80", "komm": "31.08.2026", "liegt": 1, "anm": "warten", "bezahlt": "Nein", "art": "Abholung", "ac": "", "reste": "", "geist": null, "notiz": null}, {"nr": "S01414", "kunde": "Hermans Trading", "ger": 112, "pal": 0, "ldm": "", "komm": "01.09.2026", "liegt": 0, "anm": "warten", "bezahlt": "Nein", "art": "Abholung", "ac": "", "reste": "", "geist": null, "notiz": null}, {"nr": "S01413", "kunde": "Hermans Trading", "ger": 95, "pal": 0, "ldm": "", "komm": "01.09.2026", "liegt": 0, "anm": "warten", "bezahlt": "Nein", "art": "Abholung", "ac": "", "reste": "", "geist": null, "notiz": null}, {"nr": "S01420", "kunde": "Buy24", "ger": 40, "pal": 10, "ldm": "4,60", "komm": "01.09.2026", "liegt": 0, "anm": "warten", "bezahlt": "Nein", "art": "Abholung", "ac": "", "reste": "", "geist": null, "notiz": null}, {"nr": "S01422", "kunde": "W.D.S.d.o.o.", "ger": 42, "pal": 0, "ldm": "", "komm": "02.09.2026", "liegt": -1, "anm": "warten", "bezahlt": "Nein", "art": "Abholung", "ac": "", "reste": "", "geist": null, "notiz": null}, {"nr": "S01429", "kunde": "Elektrogeräte Lärmer", "ger": 21, "pal": 0, "ldm": "", "komm": "02.09.2026", "liegt": -1, "anm": "warten", "bezahlt": "Ja", "art": "Spedition", "ac": "", "reste": "", "geist": null, "notiz": null}], "B": [{"nr": "S00642", "kunde": "Euroda Transport & Handel", "ger": 107, "pal": 79, "ldm": "27,00", "komm": "29.07.2026", "liegt": 34, "anm": "ist angemeldet", "bezahlt": "Ja", "art": "Abholung", "ac": "", "reste": "", "geist": null, "notiz": ["<b>Dritter LKW hat keinen Termin.</b> Der Auftrag wurde auf drei Ladungen geteilt, zwei sind abgeholt (13.08. und 24.08.), AMM wartet seit dem 24.08. auf eine Rückmeldung für die dritte.", "Dieser Auftrag wurde geteilt in 3 LKW's. Erster LKW wurde bereits abgeholt, die anderen 2 noch nicht, hier warten wir auch auf eine Rückmeldung, wann die …", "Igor Vujica, AMM · 24.08.2026 · „AW: Rückmeldung“"]}, {"nr": "S00755", "kunde": "Euroda Transport & Handel", "ger": 56, "pal": 20, "ldm": "6,90", "komm": "04.08.2026", "liegt": 28, "anm": "ist angemeldet", "bezahlt": "Ja", "art": "Abholung", "ac": "", "reste": "", "geist": null, "notiz": ["<b>Im AMM-System steht ein Platzhalter-Datum.</b> Der Auftragsstand führt als Liefertag den 31.12.2026. Gleicher Kunde wie S00642 und S01408 — alle drei in einem Gespräch klären.", "S00755 AT QU 31.12.2026 0:00:00 Euroda Transport & Handel … ABHOLER 05 56 0 0 56", "proWMS AMM · Auftragsstand 18.08.2026"]}, {"nr": "S01296", "kunde": "Artek Commerce LTD", "ger": 15, "pal": 3, "ldm": "1,20", "komm": "21.08.2026", "liegt": 11, "anm": "ist angemeldet", "bezahlt": "Nein", "art": "Abholung", "ac": "", "reste": "", "geist": null, "notiz": ["<b>Bereitgestellt am 27.08., seitdem nichts.</b> Kleiner Auftrag, schnell erledigt: verbindlichen Abholtag holen.", "… bereitstellen: Kunde: Artek Commerce LTD S01296", "J. Baranowski → AMM · 27.08.2026 · „Abholung S01296“"]}, {"nr": "S00944", "kunde": "SADI", "ger": 9, "pal": 0, "ldm": "", "komm": "21.08.2026", "liegt": 11, "anm": "ist angemeldet", "bezahlt": "Ja", "art": "Abholung", "ac": "", "reste": "", "geist": null, "notiz": ["<b>Alles erledigt ausser der Abholung selbst.</b> Bezahlt, kommissioniert, angemeldet — am 31.08. wurde die Bereitstellung noch einmal angefordert. Es fehlt nur der Kunde.", "… bereitstellen: Kunde: SADI S00944", "J. Baranowski → AMM · 31.08.2026 · „Abholung S00944“"]}, {"nr": "S01292", "kunde": "Electro Catoira Outlet S.L", "ger": 128, "pal": 45, "ldm": "15,70", "komm": "24.08.2026", "liegt": 8, "anm": "ist angemeldet", "bezahlt": "Nein", "art": "Spedition", "ac": "", "reste": "", "geist": null, "notiz": ["<b>Barzahler — erst Zahlung, dann Termin.</b> AMM hat den Auftrag mit „Todo Cash“ markiert, Spalte „Bezahlt?“ steht auf Nein. Zahlungsstatus klären, dann Freigabe an AMM.", "Todo Cash", "Notiz AMM in der WA-Pipeline"]}, {"nr": "S01285", "kunde": "Les Petits Pieds", "ger": 78, "pal": 30, "ldm": "10,60", "komm": "26.08.2026", "liegt": 6, "anm": "ist angemeldet", "bezahlt": "Nein", "art": "Abholung", "ac": "", "reste": "", "geist": null, "notiz": ["<b>Angemeldet, zusammen mit S01327 zu verladen.</b> Achtung: derselbe Kunde hat mit S01361 eine dritte offene Zeile — prüfen, ob alle drei auf einen LKW gehen.", "… bereitstellen: Kunde: Les Petits Pieds S01327 S01285", "J. Baranowski → AMM · 25.08.2026 · „Abholung S01327 und S01285“"]}, {"nr": "S01327", "kunde": "Les Petits Pieds", "ger": 8, "pal": 0, "ldm": "", "komm": "26.08.2026", "liegt": 6, "anm": "ist angemeldet", "bezahlt": "Nein", "art": "Abholung", "ac": "", "reste": "", "geist": null, "notiz": null}, {"nr": "S01424", "kunde": "Techno Planet", "ger": 147, "pal": 45, "ldm": "15,50", "komm": "27.08.2026", "liegt": 5, "anm": "ist angemeldet", "bezahlt": "Ja", "art": "Abholung", "ac": "", "reste": "", "geist": null, "notiz": null}, {"nr": "S01366", "kunde": "Techno Planet LTD", "ger": 135, "pal": 45, "ldm": "15,50", "komm": "27.08.2026", "liegt": 5, "anm": "ist angemeldet", "bezahlt": "Ja", "art": "Abholung", "ac": "", "reste": "", "geist": null, "notiz": null}, {"nr": "S01378", "kunde": "Techno Power Ltd", "ger": 188, "pal": 50, "ldm": "17,00", "komm": "28.08.2026", "liegt": 4, "anm": "ist angemeldet", "bezahlt": "Ja", "art": "Abholung", "ac": "", "reste": "", "geist": null, "notiz": null}, {"nr": "S01361", "kunde": "Les Petits Pieds", "ger": 50, "pal": 25, "ldm": "7,80", "komm": "28.08.2026", "liegt": 4, "anm": "ist angemeldet", "bezahlt": "Nein", "art": "Abholung", "ac": "", "reste": "", "geist": null, "notiz": null}, {"nr": "S01382", "kunde": "P&C Trading B.V.", "ger": 89, "pal": 39, "ldm": "13,20", "komm": "31.08.2026", "liegt": 1, "anm": "ist angemeldet", "bezahlt": "Ja", "art": "Spedition", "ac": "", "reste": "", "geist": null, "notiz": ["<b>Bezahlt, aber datenseitig kaputt.</b> Der Vorgängerauftrag S01340 wurde nachträglich zusammengeführt und führt Lagernummern doppelt mit S01382. Erst die Dublette in Odoo auflösen, dann terminieren.", "Der Auftrag S01340 — P&C Trading wurde im Nachgang zusammengefügt und beinhaltet nun doppelte Lagernummern in diesem Auftrag – S01382.", "J. Baranowski · 27.08.2026 · „S01340“"]}, {"nr": "S00308", "kunde": "Techno Planet LTD", "ger": 10, "pal": 0, "ldm": "", "komm": "31.08.2026", "liegt": 1, "anm": "ist angemeldet", "bezahlt": "Ja", "art": "Abholung", "ac": "", "reste": "", "geist": null, "notiz": null}], "C": [{"nr": "S01222", "kunde": "Techno Electronics", "ger": 32, "pal": 25, "ldm": "8,30", "komm": "19.08.2026", "liegt": 13, "anm": "ist angemeldet", "bezahlt": "Nein", "art": "Abholung", "ac": "21.08.2026 00:00", "reste": "siehe mail", "geist": null, "notiz": ["<b>Ältester offener Rest.</b> Notiz: „17 Stück versendet / 4,3 Lademeter stehen geblieben“. Gut vier Lademeter ohne eigenen Vorgang.", null, null]}, {"nr": "S01314", "kunde": "Fortis Impex KFT", "ger": 16, "pal": 0, "ldm": "", "komm": "21.08.2026", "liegt": 11, "anm": "ist angemeldet", "bezahlt": "Ja", "art": "Abholung", "ac": "28.08.2026 00:00", "reste": "900254965", "geist": null, "notiz": ["<b>Ein einzelnes Gerät ist stehen geblieben.</b> Lagernummer 900254965 steht sauber in Spalte AG. Mit dem Kunden klären: nachliefern oder gutschreiben.", null, null]}, {"nr": "S01100", "kunde": "Brigada BGR LTD", "ger": 10, "pal": 3, "ldm": "1,20", "komm": "21.08.2026", "liegt": 11, "anm": "ist angemeldet", "bezahlt": "Ja", "art": "Spedition", "ac": "24.08.2026 00:00", "reste": "siehe mail", "geist": null, "notiz": ["<b>Rest seit dem 24.08. offen.</b> Auftrag ist bezahlt und verladen, Spalte AF meldet trotzdem eine Restmenge. Lagernummern aus der AMM-Mail holen.", null, null]}, {"nr": "S01315", "kunde": "Geo Hansi", "ger": 174, "pal": 40, "ldm": "13,50", "komm": "26.08.2026", "liegt": 6, "anm": "ist angemeldet", "bezahlt": "Nein", "art": "Abholung", "ac": "28.08.2026 00:00", "reste": "siehe mail", "geist": null, "notiz": ["<b>Hauptladung raus, Rest zurückgelagert.</b> AMM hat am 26.08. gemeldet, dass mangels Platz im LKW zurückgelagert wurde. Die Lagernummern stehen nur in der Mail.", "Folgendes wird zurückgelagert da kein Platz im LKW: 900255466 900255485 900255401 …", "AMM Spedition · 26.08.2026 · „AW: Abholung S01315“"]}], "D": [{"nr": "S00354", "kunde": "Rati Marti", "ger": 121, "pal": 34, "ldm": "11,00", "komm": "20.07.2026", "liegt": 43, "anm": "ist angemeldet", "bezahlt": "Ja", "art": "Abholung", "ac": "", "reste": "-", "geist": "AMM hat den Auftrag am 17.08. storniert und mit S00585 zu S01254 zusammengefasst. S01254 hat das Lager am 18.08. verlassen.", "notiz": null}, {"nr": "S00585", "kunde": "Rati Marti", "ger": 12, "pal": 0, "ldm": "", "komm": "29.07.2026", "liegt": 34, "anm": "ist angemeldet", "bezahlt": "Ja", "art": "Abholung", "ac": "", "reste": "900252181 , 900252182", "geist": "AMM hat den Auftrag am 17.08. storniert und mit S00354 zu S01254 zusammengefasst. S01254 hat das Lager am 18.08. verlassen.", "notiz": null}, {"nr": "S00288", "kunde": "Alma Trading", "ger": 11, "pal": 7, "ldm": "2,60", "komm": "03.08.2026", "liegt": 29, "anm": "", "bezahlt": "", "art": "", "ac": "", "reste": "", "geist": null, "notiz": null}, {"nr": "S01185", "kunde": "Deigma Spolka Ograniczona", "ger": 13, "pal": 5, "ldm": "2,00", "komm": "21.08.2026", "liegt": 11, "anm": "", "bezahlt": "", "art": "", "ac": "", "reste": "", "geist": null, "notiz": null}], "E": [{"nr": "AU2026032013497", "kunde": "Stock House Nikaias", "ger": 212, "pal": 0, "ldm": "", "komm": "02.04.2026", "liegt": 152, "anm": "", "bezahlt": "Ja", "art": "Abholung", "ac": "07. Apr", "reste": "", "geist": null, "notiz": null}, {"nr": "AU2026032013499", "kunde": "Hermans Trading", "ger": 119, "pal": 0, "ldm": "", "komm": "02.04.2026", "liegt": 152, "anm": "", "bezahlt": "Ja", "art": "Abholung", "ac": "07. Apr", "reste": "", "geist": null, "notiz": null}, {"nr": "AU2026040113530", "kunde": "SADI", "ger": 18, "pal": 0, "ldm": "", "komm": "02.04.2026", "liegt": 152, "anm": "", "bezahlt": "Ja", "art": "Abholung", "ac": "07. Apr", "reste": "", "geist": null, "notiz": null}, {"nr": "AU2026032413504", "kunde": "Kaldi Prime Kft", "ger": 64, "pal": 0, "ldm": "", "komm": "07.04.2026", "liegt": 147, "anm": "", "bezahlt": "Ja", "art": "Abholung", "ac": "16. Apr", "reste": "", "geist": null, "notiz": null}, {"nr": "AU2026051213627", "kunde": "Ovit Shop V.O.F.", "ger": 221, "pal": 0, "ldm": "", "komm": "22.05.2026", "liegt": 102, "anm": "", "bezahlt": "Ja", "art": "Abholung", "ac": "26. Mai", "reste": "", "geist": null, "notiz": null}]}};
+/* DATA-END */
 
 const BUCKETS = {
-  A:{t:"Kein Termin — Anmeldung „warten“ oder kein Kommissioniertag",
-     n:"Genau die Menge, nach der du gefragt hast: Ware noch im Lager, und bei AMM ist nichts angemeldet. Hier passiert von allein gar nichts."},
-  B:{t:"Angemeldet, Ware trotzdem noch da",
-     n:"Bei AMM angemeldet, aber nicht abgeholt oder nicht fertiggemeldet. Nachfassen genügt meist."},
-  C:{t:"Nach dem 26.08. dazugekommen — Details fehlen",
-     n:"Diese Aufträge stehen in der Pipeline mit leerer Spalte AC, liegen aber hinter meinem Datenstand. Kommissioniertag, Anmeldung und Notizen konnte ich nicht lesen — sie müssen in der Datei nachgesehen werden."},
-  D:{t:"Ware raus, Restmenge geblieben",
-     n:"Spalte AF meldet „Reste vorhanden nach Verladung“. Diese Mengen haben keinen eigenen Vorgang und keinen Termin — sie fallen sonst durch."},
-  E:{t:"Storniert, Ware trotzdem im Lager",
-     n:"Rücklagerung veranlassen, damit die Fläche frei wird."}
+  A:{t:"Kein Termin bei AMM — Anmeldung „warten“ oder leer",
+     n:"Ware im Lager, und bei AMM ist nichts angemeldet. Hier passiert von allein gar nichts: erst Termin mit dem Kunden, dann Anmeldung an AMM."},
+  B:{t:"Angemeldet, Ware trotzdem noch im Lager",
+     n:"Bei AMM angemeldet, aber nicht abgeholt oder nicht fertig kommissioniert. Nachfassen genügt meist — außer bei den obersten, die schon Wochen liegen."},
+  C:{t:"Ware raus, Restmenge geblieben",
+     n:"Spalte AF meldet „Reste vorhanden nach Verladung“. Diese Mengen haben keinen eigenen Auftrag und keinen Termin — sie fallen sonst durch."},
+  D:{t:"Zeilen bereinigen — keine Ware, nur Karteileichen",
+     n:"Storniert oder von AMM durch einen anderen Auftrag ersetzt. Solange sie offen stehen, verfälschen sie jede Backlog-Zahl."},
+  E:{t:"Altzeilen vor Juni — Spalte AC nie gepflegt",
+     n:"April und Mai, alle bezahlt und im Status „versendet“, ohne Anlieferdatum und ohne Rechnungsdatum. Das ist eine Pflegelücke aus der Zeit vor Einführung der Spalte, keine Ware im Lager. Spalte AC nachtragen, damit die Zahlen stimmen."}
 };
 
 const list = document.getElementById("list");
-const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-function store(){ try{ return JSON.parse(localStorage.getItem("nh5-wa-offen")||"{}"); }catch(e){ return {}; } }
-function save(o){ try{ localStorage.setItem("nh5-wa-offen", JSON.stringify(o)); }catch(e){} }
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const store = () => { try{ return JSON.parse(localStorage.getItem("nh5-wa-ac")||"{}"); }catch(e){ return {}; } };
+const save = o => { try{ localStorage.setItem("nh5-wa-ac", JSON.stringify(o)); }catch(e){} };
+const ALL = ["A","B","C","D","E"].flatMap(k => DATA.buckets[k].map(o => ({...o, b:k})));
+
+function sev(o){
+  if(o.b === "D" || o.b === "E") return "off";
+  if(o.b === "C") return "warn";
+  if(o.bezahlt === "Ja") return "crit";
+  return (o.liegt !== null && o.liegt >= 14) ? "crit" : "warn";
+}
+function flag(o){
+  if(o.b === "E") return {c:"off", t:"AC nachtragen"};
+  if(o.b === "D") return {c:"off", t:"schließen"};
+  if(o.b === "C") return {c:"warn", t:"Rest im Lager"};
+  if(o.liegt === null) return {c:"crit", t:"kein Kommitag"};
+  return {c:(o.liegt >= 14 ? "crit" : "warn"), t:o.liegt + (o.liegt === 1 ? " Tag" : " Tage") + " im Lager"};
+}
+function fallback(o){
+  if(o.b === "C") return "<b>Restmenge ohne Vorgang.</b> Die Hauptladung hat das Lager verlassen, Spalte AF meldet einen Rest. Lagernummern bei AMM abfragen und entscheiden: nachverladen oder gutschreiben.";
+  if(o.b === "D") return "<b>Karteileiche.</b> " + esc(o.geist || "Storniert, Ware nicht mehr im Vorgang. Zeile schließen, damit der Backlog stimmt.");
+  if(o.b === "E") return "<b>Pflegelücke, keine Ware im Lager.</b> Bezahlt, Status „versendet“, aber Spalte AC leer geblieben. Datum nachtragen.";
+  const teil = [];
+  if(o.anm === "warten") teil.push("Die Versandanmeldung steht auf „warten“ — bei AMM ist kein Termin hinterlegt.");
+  else if(!o.anm) teil.push("Es gibt keine Versandanmeldung — bei AMM ist kein Termin hinterlegt.");
+  else teil.push("Bei AMM angemeldet, die Ware steht trotzdem noch da.");
+  if(o.bezahlt === "Ja") teil.push("<b>Der Auftrag ist bezahlt</b> — der Kunde hat geliefert, wir nicht.");
+  if(o.liegt !== null && o.liegt >= 14) teil.push("Liegt seit " + o.liegt + " Tagen.");
+  return teil.join(" ");
+}
 
 function render(){
   const done = store();
   const q = document.getElementById("q").value.trim().toLowerCase();
   const f = document.querySelector(".chip[data-f][aria-pressed='true']")?.dataset.f || "all";
   const hide = document.getElementById("hideDone").getAttribute("aria-pressed") === "true";
+  const paid = document.getElementById("onlyPaid").getAttribute("aria-pressed") === "true";
   let shown = 0;
   list.innerHTML = "";
 
   for(const key of ["A","B","C","D","E"]){
     if(f !== "all" && f !== key) continue;
-    const rows = ORDERS.filter(o => o.b === key)
-      .filter(o => !q || (o.kunde+" "+o.nr).toLowerCase().includes(q))
+    const rows = DATA.buckets[key]
+      .filter(o => !q || (o.kunde + " " + o.nr).toLowerCase().includes(q))
+      .filter(o => !(paid && o.bezahlt !== "Ja"))
       .filter(o => !(hide && done[o.nr]));
     if(!rows.length) continue;
 
     const sec = document.createElement("section");
     sec.className = "bucket";
-    const ger = rows.reduce((s,o)=>s+o.ger,0);
     sec.innerHTML = `<div class="bhead"><h2>${esc(BUCKETS[key].t)}</h2>
-        <span class="tot">${rows.length} ${rows.length===1?"Vorgang":"Vorgänge"} · ${ger.toLocaleString("de-DE")} Geräte</span></div>
+        <span class="tot">${rows.length} ${rows.length===1?"Vorgang":"Vorgänge"} · ${rows.reduce((s,o)=>s+o.ger,0).toLocaleString("de-DE")} Geräte</span></div>
       <p class="bnote">${BUCKETS[key].n}</p>`;
 
     for(const o of rows){
       shown++;
+      const o2 = {...o, b:key};
+      const fl = flag(o2);
+      const note = o.notiz ? o.notiz[0] : fallback(o2);
+      const beleg = o.notiz && o.notiz[1]
+        ? `<div class="beleg"><span class="q">„${esc(o.notiz[1])}“</span><span class="src">${esc(o.notiz[2])}</span></div>` : "";
+      const chips = [
+        `<span class="tag">${o.ger} Geräte</span>`,
+        o.pal ? `<span class="tag">${o.pal} Paletten</span>` : "",
+        o.ldm ? `<span class="tag">${esc(o.ldm)} LDM</span>` : "",
+        o.art ? `<span class="tag">${esc(o.art)}</span>` : "",
+        o.komm ? `<span class="tag">Komm ${esc(o.komm)}</span>` : `<span class="tag hot">kein Kommissioniertag</span>`,
+        `<span class="tag">Anmeldung: ${esc(o.anm || "leer")}</span>`,
+        o.bezahlt === "Ja" ? `<span class="tag pay">bezahlt</span>` : (o.bezahlt === "Nein" ? `<span class="tag">nicht bezahlt</span>` : ""),
+        o.ac ? `<span class="tag">Lager verlassen ${esc(o.ac.split(" ")[0])}</span>` : "",
+        o.reste ? `<span class="tag hot">Rest: ${esc(o.reste)}</span>` : ""
+      ].filter(Boolean).join("");
+
       const card = document.createElement("article");
       card.className = "card" + (done[o.nr] ? " done" : "");
-      card.dataset.sev = o.sev;
-      const bezTag = o.bez === "Ja" ? `<span class="tag pay">bezahlt</span>`
-                   : o.bez === "Nein" ? `<span class="tag">nicht bezahlt</span>` : "";
+      card.dataset.sev = sev(o2);
       card.innerHTML = `
         <div class="tick"><input type="checkbox" id="c-${esc(o.nr)}" ${done[o.nr]?"checked":""}
              aria-label="${esc(o.kunde)} erledigt"></div>
         <div>
-          <div class="chead">
-            <span class="auf">${esc(o.nr)}</span>
+          <div class="chead"><span class="auf">${esc(o.nr)}</span>
             <span class="kunde">${esc(o.kunde)}</span>
-            <span class="flag ${o.flag.c}">${esc(o.flag.t)}</span>
-          </div>
-          <p class="aktion">${o.aktion}</p>
-          <div class="meta">
-            <span class="tag">${o.ger} Geräte</span>
-            ${o.chips.map(c=>`<span class="tag${/unbekannt/i.test(c)?" unk":""}">${esc(c)}</span>`).join("")}
-          </div>
-          ${o.beleg ? `<div class="beleg"><span class="q">„${esc(o.beleg.q)}“</span>
-             <span class="src">${esc(o.beleg.src)}</span></div>` : ""}
+            <span class="flag ${fl.c}">${esc(fl.t)}</span></div>
+          <p class="aktion">${note}</p>
+          <div class="meta">${chips}</div>
+          ${beleg}
         </div>`;
       sec.appendChild(card);
     }
     list.appendChild(sec);
   }
-  document.getElementById("count").textContent = shown + " von " + ORDERS.length + " sichtbar";
+  document.getElementById("count").textContent = shown + " von " + ALL.length + " sichtbar";
+}
+
+function kennzahlen(){
+  const imLager = [...DATA.buckets.A, ...DATA.buckets.B];
+  const ger = imLager.reduce((s,o)=>s+o.ger,0);
+  const pal = imLager.reduce((s,o)=>s+o.pal,0);
+  const bez = imLager.filter(o=>o.bezahlt==="Ja");
+  const alt = imLager.reduce((m,o)=> Math.max(m, o.liegt ?? 0), 0);
+  document.getElementById("kpis").innerHTML = `
+    <div class="kpi crit"><div class="n">${imLager.length}</div><div class="l">Vorgänge mit Ware im Lager</div></div>
+    <div class="kpi crit"><div class="n">${ger.toLocaleString("de-DE")}<span class="u">Ger.</span></div><div class="l">gebundene Geräte auf ${pal} Paletten</div></div>
+    <div class="kpi warn"><div class="n">${DATA.buckets.A.length}</div><div class="l">davon ohne Anmeldung bei AMM</div></div>
+    <div class="kpi ok"><div class="n">${bez.reduce((s,o)=>s+o.ger,0)}<span class="u">Ger.</span></div><div class="l">bezahlt und trotzdem im Lager (${bez.length} Vorgänge)</div></div>
+    <div class="kpi"><div class="n">${alt}<span class="u">Tg</span></div><div class="l">längste Liegezeit seit Kommissionierung</div></div>`;
+}
+
+function kundenTabelle(){
+  const imLager = [...DATA.buckets.A, ...DATA.buckets.B];
+  const norm = s => s.trim().toLowerCase().replace(/[.\s]+$/,"")
+      .replace(/^euroda transport$/,"euroda transport & handel")
+      .replace(/^techno planet$/,"techno planet ltd");
+  const g = {};
+  for(const o of imLager) (g[norm(o.kunde)] ||= []).push(o);
+  const rows = Object.values(g).filter(v => v.length > 1)
+      .sort((a,b) => b.reduce((s,o)=>s+o.ger,0) - a.reduce((s,o)=>s+o.ger,0));
+  document.querySelector("#kunden tbody").innerHTML = rows.map(v => `<tr>
+      <td>${esc(v[0].kunde.trim())}</td><td class="num">${v.length}</td>
+      <td class="num">${v.reduce((s,o)=>s+o.ger,0)}</td>
+      <td class="mn">${v.map(o=>esc(o.nr)).join(", ")}</td></tr>`).join("");
 }
 
 list.addEventListener("change", e => {
   if(e.target.type !== "checkbox") return;
-  const nr = e.target.id.slice(2);
-  const d = store();
+  const nr = e.target.id.slice(2), d = store();
   if(e.target.checked) d[nr] = 1; else delete d[nr];
   save(d);
   e.target.closest(".card").classList.toggle("done", e.target.checked);
@@ -466,14 +375,12 @@ list.addEventListener("change", e => {
 });
 document.querySelectorAll(".chip[data-f]").forEach(btn => btn.addEventListener("click", () => {
   document.querySelectorAll(".chip[data-f]").forEach(b => b.setAttribute("aria-pressed","false"));
-  btn.setAttribute("aria-pressed","true");
-  render();
+  btn.setAttribute("aria-pressed","true"); render();
 }));
-document.getElementById("hideDone").addEventListener("click", e => {
+["hideDone","onlyPaid"].forEach(id => document.getElementById(id).addEventListener("click", e => {
   const on = e.currentTarget.getAttribute("aria-pressed") === "true";
-  e.currentTarget.setAttribute("aria-pressed", on ? "false" : "true");
-  render();
-});
+  e.currentTarget.setAttribute("aria-pressed", on ? "false" : "true"); render();
+}));
 document.getElementById("q").addEventListener("input", render);
-render();
+kennzahlen(); kundenTabelle(); render();
 </script>

@@ -1,105 +1,92 @@
-# Terminierung & Kommissionierplanung — Abarbeitungsliste
+# Ware noch im Lager — Terminierung & Kommissionierplanung
 
-Entstanden am 01.09.2026, nachdem Janna Baranowski (Backoffice & Fulfillment) das
-Unternehmen verlassen hat. Ihre Aufgaben — Termine mit Kunden, Bereitstellungs- und
-Freigabemeldungen an AMM, Pflege der WA-Pipeline — müssen aufgefangen werden.
+Entstanden am 01.09.2026, nachdem die zuständige Kollegin im Backoffice das Unternehmen
+verlassen hat. Terminierung, Bereitstellungs- und Freigabemeldungen an AMM und die Pflege
+der WA-Pipeline müssen aufgefangen werden.
 
-**Interaktive Liste:** `arbeitsliste.html` (im Browser öffnen, Haken bleiben lokal gespeichert)
+**Interaktive Liste:** `arbeitsliste.html` — im Browser öffnen, Haken bleiben lokal gespeichert.
 
----
+## Das maßgebliche Kriterium
 
-## Datenlage
+Im Blatt `20_WA_PIPELINE` gibt es die Spalte
 
-| Quelle | Stand | Verwendung |
-|---|---|---|
-| `Abhol-und_Liefertermine_Tagesaktuell.xlsx` (SharePoint, ODOO_dashboard) | 26.08.2026 | WA-Pipeline, 298 Aufträge seit April |
-| `NH5_Pipeline_MAX-STATUS.xlsx`, Blätter `00_DASHBOARD` / `05_LIVE` | 01.09.2026 | Live-Kennzahlen, Formelprüfung |
-| Outlook: `elvinci@amm-spedition.de`, `proWMS@amm-spedition.de` | 16.–31.08.2026 | Abgleich je Auftrag |
+> **`AC — Auftrag abgeschlossen (Ware hat das Lager verlassen) (AMM)`**
 
-> **Lücke:** Das Master-Sheet liefert über den SharePoint-Zugriff nur die ersten vier
-> Blätter; `20_WA_PIPELINE` wird abgeschnitten. Die auswertbare WA-Pipeline ist deshalb
-> sechs Tage alt. Aufträge, die zwischen dem **27.08. und heute** neu dazugekommen sind,
-> fehlen in dieser Liste. Alles darin wurde gegen die Mails bis zum 31.08. geprüft.
+Steht dort ein Datum, ist die Ware raus. **Das ist der einzige verlässliche Beleg für einen
+Warenausgang.** Die Spalte `I — Status (automatisch)` ist davon abgeleitet und taugt nicht
+als Ersatz: ein Auftrag kann „Versand überfällig“ anzeigen und trotzdem seit Tagen aus dem
+Haus sein.
 
-## Maßgebliches Kriterium: Spalte AC
+> **Korrekturhinweis.** Die erste Fassung dieser Auswertung beruhte auf dem reduzierten
+> Export `Abhol-und_Liefertermine_Tagesaktuell.xlsx`, der nur die Spalten A:X enthält —
+> ohne `AB`, `AC`, `AF`, `AG`. Sie stufte deshalb zwölf bereits verladene Aufträge als
+> überfällig ein und übersah sechs offene. Seit dem CSV-Export des vollständigen Blatts
+> ist das behoben.
 
-Im Blatt `20_WA_PIPELINE` gibt es die Spalte **`AC — Auftrag abgeschlossen (Ware hat das
-Lager verlassen) (AMM)`**. Steht dort ein Datum, ist die Ware raus. Das ist der einzige
-verlässliche Beleg für einen Warenausgang.
+## Stand 01.09.2026
 
-> **Korrektur vom 01.09.2026.** Die erste Fassung dieser Auswertung stützte sich auf die
-> Spalte „Status (automatisch)“ aus dem reduzierten Export `Abhol-und_Liefertermine_
-> Tagesaktuell.xlsx`, der nur die Spalten A:X enthält — **ohne AB, AC, AF, AG**. Ergebnis:
-> zwölf Aufträge standen als überfällig in der Liste, obwohl sie laut Spalte AC zwischen
-> dem 18.08. und dem 31.08. verladen wurden, und mindestens sechs offene Aufträge fehlten.
-> Der Status ist abgeleitet und im Export nur eine Momentaufnahme — er ist kein Ersatz für AC.
+316 Auftragszeilen seit April · 280 mit gefüllter Spalte AC · 36 ohne.
 
-Fehlende Spalten im reduzierten Export:
-
-| Spalte | Bedeutung |
-|---|---|
-| `AB` | Bezahlt? (JANNA) |
-| `AC` | **Auftrag abgeschlossen — Ware hat das Lager verlassen (AMM)** |
-| `AF` | Reste vorhanden NACH Verladung (AMM) |
-| `AG` | Reste Lagernummern (AMM) |
-
-## Stand am 01.09.2026 (Zeilen 267–309, KW 34–36)
-
-| | Aufträge | Geräte |
+| Gruppe | Vorgänge | Geräte |
 |---|---:|---:|
-| Ware noch im Lager (`AC` leer) | 13 | 855 |
-| davon ohne Anmeldung oder ohne Kommissioniertag | 4 | 162 |
-| davon nach dem 26.08. dazugekommen, Details fehlen | 6 | 598 |
-| Restmengen nach Verladung offen (`AF` = ja) | 4 | — |
-| Storniert, Ware trotzdem da | 1 | 13 |
+| **A · Kein Termin bei AMM** (Anmeldung „warten“ oder leer) | 14 | 721 |
+| **B · Angemeldet, Ware trotzdem im Lager** | 13 | 1.020 |
+| **Ware im Lager gesamt** | **27** | **1.741** |
+| C · Ware raus, Restmenge geblieben (Spalte `AF`) | 4 | — |
+| D · Karteileichen (storniert / von AMM ersetzt) | 4 | 157 |
+| E · Altzeilen vor Juni, Spalte AC nie gepflegt | 5 | 634 |
 
-**Zeilen 5–266 sind nicht gegen Spalte AC geprüft.** Ohne Export des Blatts fehlt der
-Zugriff — über SharePoint bricht die Datei nach dem vierten Blatt ab, `20_WA_PIPELINE`
-kommt dort nie an. Offen aus dem älteren Stand: `S00622` (Aurora Solar), `S00755` und
-`S00642` (Euroda), `S00288` (Alma Trading, storniert).
+Auf 495 Paletten. **10 Vorgänge mit 799 Geräten sind bezahlt und liegen trotzdem im Lager.**
+Längste Liegezeit seit Kommissionierung: 34 Tage (`S00642`, Euroda).
 
-Um das zu vervollständigen: Blatt `20_WA_PIPELINE` als CSV speichern, mindestens die
-Spalten `D, E, F, G, U, AB, AC, AF, AG`.
+Nur ein Auftrag hat gar keinen Kommissioniertag: `S01150` (Marketvibe) — dort wartet AMM
+seit dem 21.08. auf eine Antwort.
 
-## Drei Befunde, die nicht in der Liste stehen
+## Zwei Baustellen in der Datei selbst
 
-1. **Das Dashboard meldet fälschlich „kein WA-Backlog“.** Seit dem Odoo-Wechsel tragen
-   alle Aufträge `S00xxx`-Nummern. Die Zählformeln in `00_DASHBOARD` und `05_LIVE`
-   filtern weiter auf `LINKS(Auftragsnr;2)="AU"` — im August trifft das auf **0 von 65**
-   Aufträgen zu. Betroffen: `05_LIVE` C12, C13, C17, C25, C26, C30, C39, C40, D25, D26,
-   D39, D40 und `00_DASHBOARD` C11. Fix: Bedingung streichen oder auf
+1. **Der AU-Filter.** Seit dem Odoo-Wechsel tragen alle Aufträge `S00xxx`-Nummern. Die
+   Zählformeln filtern weiter auf `LINKS(Auftragsnr;2)="AU"` — im August traf das auf
+   0 von 65 Aufträgen zu. Betroffen: `05_LIVE` C12, C13, C17, C25, C26, C30, C39, C40,
+   D25, D26, D39, D40 und `00_DASHBOARD` C11. Fix: Bedingung streichen oder auf
    `ODER(LINKS(…;2)="AU"; LINKS(…;1)="S")` erweitern.
 
-2. **Restmengen aus Teilverladungen haben eine eigene Spalte, aber keinen Vorgang.** Die
-   Spalten `AF`/`AG` erfassen sie, es entsteht daraus aber kein terminierbarer Auftrag.
-   Aktuell offen: `S01222`, `S01100`, `S01314`, `S01315`.
+2. **Die Backlog-Formel zeigt ins Leere.** `00_DASHBOARD` prüft
+   `NICHT(ISTZAHL('20_WA_PIPELINE'!$AD$5:$AD$542))`. Spalte `AD` hat weder Überschrift
+   noch in einer der 316 Zeilen einen Wert — die Bedingung ist immer wahr. Gemeint ist
+   `AC`. Fix: `$AD$` durch `$AC$` ersetzen.
 
-3. **Eine Rückfrage von AMM ist seit dem 21.08. unbeantwortet:** „Soll der Auftrag S01150
-   noch zurückgehalten werden?“ Die Pipeline-Notiz dazu lautet „Warten auf Freigabe Janna“.
+Zusammen erklären die beiden, warum das Dashboard „WA-Pipeline offen – kein Backlog“
+meldet, während 27 Vorgänge im Lager stehen.
 
-## Wiederkehrende Handgriffe, die jetzt niemand macht
+## Wiederkehrende Handgriffe ohne Nachfolge
 
 | Handgriff | Zuletzt | Wozu |
 |---|---|---|
-| Mail „Abholung S0xxxx — bitte bereitstellen“ an AMM | 31.08. (S00944) | ohne sie stellt AMM nicht an die Rampe; 2–4×/Woche fällig |
-| Mail „Freigabe S0xxxx“ an AMM | 28.08. (S00565) | Zahlung eingegangen, Ware darf raus |
-| Zollabfertigung / LRN an AMM | 28.08. (Geo Hansi) | ohne LRN keine Verladung ins Nicht-EU-Ausland |
-| Pflege der Spalten `Versand-/Abholanmeldung`, `geplantes Versand-/Abholdatum`, `Anlieferdatum` | 26.08. | in der Pipeline mit „(JANNA)“ überschrieben — Quelle jeder Terminaussage |
-| Rückfragen von AMM beantworten | — | siehe S01150 |
+| Mail „Abholung S0xxxx — bitte bereitstellen“ an AMM | 31.08. | ohne sie stellt AMM nicht an die Rampe; 2–4× pro Woche fällig |
+| Mail „Freigabe S0xxxx“ an AMM | 28.08. | Zahlung eingegangen, Ware darf raus |
+| Zollabfertigung / LRN an AMM | 28.08. | ohne LRN keine Verladung ins Nicht-EU-Ausland |
+| Pflege der Spalten mit „(JANNA)“ im Kopf | 31.08. | Anmeldung, geplantes Datum, Zollpapiere, „Bezahlt?“ |
+| Rückfragen von AMM beantworten | — | `S01150` wartet seit dem 21.08. |
 
-## Auswertung reproduzieren
+## Liste neu erzeugen
+
+Blatt `20_WA_PIPELINE` als CSV speichern (Semikolon, Windows-1252), dann:
 
 ```bash
-# Text-Export der WA-Pipeline (SharePoint -> read_resource) als Eingabe
-python3 parse_wa_pipeline.py <export.txt> --stichtag 2026-09-01 --csv offene.csv
+python3 build_arbeitsliste.py 20_WA_PIPELINE.csv --stichtag 2026-09-01
 ```
 
-Das Skript kippt die offenen Vorgänge in die Buckets A–F, erkennt Sammelverladungen aus
-den Notizspalten und warnt, sobald der `LEFT(...)="AU"`-Filter greift.
+Das Skript liest alle 33 Spalten, gruppiert nach Spalte AC und schreibt den Datenblock
+direkt in `arbeitsliste.html` (zwischen den Markern `/* DATA-START */` und `/* DATA-END */`).
+Verifizierte Zusatzinfos aus dem AMM-Mailverkehr stehen im Dict `NOTIZ`.
 
-* `parse_wa_pipeline.py` — Parser und Bucket-Logik
-* `wa_offene_auftraege_2026-08-26.csv` — Export der 26 offenen Vorgänge (Semikolon, UTF-8-BOM, Excel-tauglich)
-* `arbeitsliste.html` — die Abarbeitungsliste
+| Datei | Inhalt |
+|---|---|
+| `build_arbeitsliste.py` | Parser, Gruppierung, HTML-Injektion |
+| `arbeitsliste.html` | die Liste |
+| `arbeitsliste.data.json` | erzeugter Datenstand |
+| `20_WA_PIPELINE_2026-09-01.csv` | Quellexport |
+| `parse_wa_pipeline.py` | älterer Parser für den reduzierten A:X-Export |
 
 Kundenkontaktdaten sind bewusst nicht enthalten; für die Terminierung reichen
 Auftragsnummer und Firmenname, die Kontakte stehen in Odoo.
