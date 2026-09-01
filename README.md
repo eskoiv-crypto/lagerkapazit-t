@@ -75,6 +75,14 @@ Gesamt NH5     = 7781 + 2350 = 10131
 C:\Users\DustinEskofier\Projekt\lagerkapazität
 ```
 
+## Warenwert / Lagerwert (Monatsreihe)
+
+- `warenwert_stichtag.py` — Warenwert (EK) zum Stichtag; schreibt die Reihe
+  "Warenwert zum Monatsende" fort. Selbsttest:
+  `python3 tests/test_warenwert_stichtag.py`
+- `warenwert_monatsende.csv` — bestätigte Historie Sep-2025 … Jul-2026
+- `WARENWERT_31-08-2026.md` — Methodik, Datenlage und offene Punkte zum Stichtag 31.08.2026
+
 ## Project Documents
 
 - `CLAUDE_CODE_HANDOFF_2026-04-20.md` — full project manifest (architecture, state model, data flow)
