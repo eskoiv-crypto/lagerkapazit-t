@@ -1,7 +1,8 @@
 # Warenwert zum Stichtag 31.08.2026
 
-**Status: nicht berechenbar — es fehlen die Daten zum Stichtag.**
-Stand der Recherche: 01.09.2026.
+**Status: gerechnet.** Die beiden fehlenden Exporte wurden am 01.09.2026
+nachgeliefert; der Wert liegt als Einseiter `Warenwert_31-08-2026.pdf` vor
+(bleibt lokal, siehe Hinweis unten).
 
 > **Hinweis:** Dieses Repository ist öffentlich. Konkrete Einkaufswerte,
 > Stückzahlen und Zitate aus internen Abstimmungen stehen deshalb **nicht** in
@@ -16,19 +17,14 @@ Stand der Recherche: 01.09.2026.
 
 | | |
 |---|---|
-| Warenwert 31.08.2026 | **nicht berechenbar** — keine Datenquelle mit Stand 31.08.2026 |
-| Letzter bestätigter Wert | 31.07.2026 (Reihe „Warenwert zum Monatsende", intern) |
-| Jüngste AMM-Bestandsliste | **18.08.2026** (`BESTAND134_20260818_1600.CSV`) |
-| Jüngster Odoo-Export | **25.08.2026** (`LosSerie (stock.lot) (6).xlsx`, ODOO_dashboard) |
-| Fehlt für den Stichtag | Bestandsliste **31.08.2026** + Odoo-Export **≥ 31.08.2026** |
+| Stichtag | 31.08.2026 |
+| Mengengerüst | `BESTAND134_20260831_1700.CSV` (AMM, Stand 31.08.2026 17:00) |
+| Preise | `LosSerie (stock.lot)`-Export, gezogen am 01.09.2026 |
+| Ergebnis | `Warenwert_31-08-2026.pdf` + `warenwert_facts_2026-08-31.json` — **lokal**, nicht im Repo |
+| Zweite Sicht | `--umfang freiverkaeuflich` (nur AMM-Status QE) als eigener Einseiter |
 
-Aus den vorhandenen Ständen (18.08. / 25.08.) ließe sich eine Zahl erzeugen — sie
-wäre aber weder stichtagsrein noch gegenüber der Steuerkanzlei vertretbar und
-würde sich nicht in die Monatsreihe einreihen. Deshalb hier keine Zahl, sondern
-der fertige Rechenweg (Abschnitt 4) und die zwei fehlenden Handgriffe
-(Abschnitt 5).
-
----
+Der Reihenwert ist damit fortgeschrieben. Vorbehalte und Gegenproben stehen in
+Abschnitt 3.
 
 ## 2. Was „wie zuletzt immer berechnet" konkret heißt
 
@@ -70,44 +66,53 @@ Angekündigt ist, die Auswertung direkt aus der Datenbank ins Cockpit zu ziehen
 
 ---
 
-## 3. Datenlage am 01.09.2026 — warum die Zahl fehlt
+## 3. Belastbarkeit und Vorbehalte
 
-### 3.1 Die AMM-Bestandsmails sind seit dem 18.08.2026 abgerissen 🔴
+### 3.1 Gegenproben zum Lauf vom 01.09.2026
+
+| Prüfung | Ergebnis |
+|---|---|
+| Doppelte Lager-Nrn im AMM-Bestand | keine |
+| Anteil Geräte mit belegtem Einkaufspreis aus Odoo | rund 88 % |
+| Rest ohne Preis | teils in Odoo ohne EK, überwiegend gar nicht in Odoo geführt (Klassifizierungs-Rückstand: Einbaugeräte, Mikrowellen, Set-Artikel) |
+| Anteil des Ø-geschätzten Werts am Gesamtwert | rund 13 % (engere QE-Sicht: rund 10 %) |
+| Gegenprobe gegen Odoos eigenen Vorrat | Odoo führt etwas weniger Lose als die AMM-Liste; die Differenz erklärt sich aus dem Klassifizierungs-Rückstand einerseits und Zugängen nach dem Stichtag andererseits |
+
+Die Ø-Schätzung ist der einzige echte Unsicherheitsblock. Bei ±10 % darauf
+bewegt sich der Gesamtwert um gut ein Prozent.
+
+### 3.2 Zwei offene Punkte
+
+1. **Stichtagsschärfe.** Die Bestandsliste ist vom 31.08. 17:00 Uhr, nicht vom
+   Monatsletzten 24:00 Uhr; der Preis-Export stammt vom 01.09. Der angekündigte
+   Datenbank-Weg (Monatsletzter, 00:00 Uhr) räumt das aus.
+2. **Schrottware.** Die Korrektur „echter EK 0 €, kein Ø-Fill" greift im
+   aktuellen Export **nicht**: weder Lieferant, Lieferantentyp,
+   Produktkategorie noch Produktbezeichnung enthalten eine Schrott-Kennzeichnung,
+   und die AMM-Bezeichner ebenso wenig. Solange es kein Kennzeichen gibt, ist
+   der Ø-Fill für diese Ware zu hoch. Nötig ist ein Merkmal in Odoo (oder eine
+   Liste der betroffenen Lieferantentypen), dann greift `--ek0-muster`.
+
+### 3.3 Der Datenfluss ist unterbrochen 🔴
 
 `proWMS@amm-spedition.de` liefert normalerweise **täglich** um ~21:34 Uhr
-„Bestand (Elvinci.de GmbH) im Lager AMM vom …". Die letzte Mail kam am
-**18.08.2026** (an dem Tag ungewöhnlich um 13:04 / 14:04 / 15:04 Uhr).
-Seither: nichts — weder im Postfach noch im SharePoint-Ordner
-`01 TÄGLICH HOCHLADEN / 02 AMM BESTAND134` (letzte Datei
-`BESTAND134_20260818_1600.CSV`). Auch „Eingänge", „Ausgänge" und
-„Auftragsstand" enden am 18.08.2026.
+„Bestand (Elvinci.de GmbH) im Lager AMM vom …". Die letzte automatische Mail kam
+am **18.08.2026**; seither weder im Postfach noch im SharePoint-Ordner
+`01 TÄGLICH HOCHLADEN / 02 AMM BESTAND134` etwas Neues. Auch „Eingänge",
+„Ausgänge" und „Auftragsstand" enden dort. Die Liste zum Stichtag musste
+deshalb von Hand beschafft werden.
 
-Das ist unabhängig vom Warenwert ein Problem: dem Cockpit fehlen seit zwei
-Wochen die täglichen Bestandsdaten. **Bitte bei AMM nachfassen.**
+Das ist unabhängig vom Warenwert zu klären — dem Cockpit fehlen seit zwei
+Wochen die täglichen Bestandsdaten.
 
-### 3.2 Odoo-Export endet am 25.08.2026
-
-| Ort | Datei | Stand |
-|---|---|---|
-| `01 TÄGLICH HOCHLADEN / 01 Odoo (stock.lot)` | `LosSerie (stock.lot)19082026.xlsx` | 19.08.2026 |
-| `KI-Tools / ODOO_dashboard` | `LosSerie (stock.lot) (6).xlsx` | 25.08.2026 |
-
-Ein Export mit Stand **≥ 31.08.2026** existiert nirgends.
-
-### 3.3 Das Portal ist tot
+### 3.4 Das Portal ist tot
 
 Laut `_LIESMICH - ORDNERSTRUKTUR.txt` (Stand 24.07.2026) ist das Portal seit
 **03.07.2026** endgültig abgeschaltet; die Exporte vom 02.07.2026
-(Stock-Analysis, All-Sold) sind der Endstand. Sie bleiben als **EK-Quelle für
-Altbestand** relevant, liefern aber kein Mengengerüst mehr.
-
-### 3.4 Warum die Zahl nicht per Connector zu holen ist
-
-Der Microsoft-365-Connector gibt Tabellen nur bis ~400 Zeilen zurück; der
-Odoo-Export hat gut 12.600. Die Einkaufspreise sind darüber nicht auslesbar.
-Deshalb der Weg über das Skript, das lokal auf den echten Dateien läuft.
-
----
+(Stock-Analysis, All-Sold) sind der Endstand. Sie bleiben über
+`--stock-analysis` als **EK-Quelle für Altbestand** nutzbar und könnten einen
+Teil der heute unbepreisten Geräte abdecken — im Lauf vom 01.09.2026 wurden sie
+nicht herangezogen.
 
 ## 4. Der Rechenweg: `warenwert_stichtag.py`
 
@@ -120,11 +125,14 @@ Testdaten, keine echten Bestände).
 ```bash
 python3 warenwert_stichtag.py \
     --stichtag 2026-08-31 \
-    --bestand "data/amm/BESTAND134_20260831_2330.CSV" \
-    --odoo    "data/odoo/LosSerie (stock.lot)01092026.xlsx" \
+    --bestand "data/amm/BESTAND134_20260831_1700.CSV" \
+    --odoo    "data/odoo/LosSerie (stock.lot)_2026-09-01.xlsx" \
     --stock-analysis "data/elvinci/Stock-Analysis-2026-07-02.xlsx" \
     --serie   warenwert_monatsende.csv \
     --json    warenwert_facts_2026-08-31.json
+
+python3 warenwert_pdf.py --json warenwert_facts_2026-08-31.json \
+    --serie warenwert_monatsende.csv --out Warenwert_31-08-2026.pdf
 ```
 
 Das Skript **bricht ab**, wenn die Bestandsliste nicht vom Stichtag ist
@@ -144,21 +152,14 @@ Buchhaltung korrigiert; die ältere Fassung der Datei trägt noch den alten Wert
 
 ---
 
-## 5. Was noch fehlt (2 Handgriffe)
+## 5. Offen
 
-1. **AMM-Bestandsliste zum 31.08.2026 beschaffen.**
-   Die tägliche `proWMS`-Mail ist seit 18.08. abgerissen → bei AMM anfordern:
-   Bestand Elvinci.de GmbH, Standort NH5, Stand 31.08.2026 23:59.
-   Ablegen als `data/amm/BESTAND134_20260831_2330.CSV`.
-   *(Und die tägliche Zustellung wieder in Gang bringen — sie fehlt dem
-   gesamten Cockpit seit zwei Wochen.)*
-
-2. **Odoo-Export ziehen** (Lager → Los/Seriennummern → Export, Feld
-   *Einkaufspreis* enthalten), Stand ab 31.08.2026 — ein Export von heute
-   genügt, solange die Bestandsliste den Stichtag setzt.
-   Ablegen als `data/odoo/LosSerie (stock.lot)01092026.xlsx`.
-
-Danach den Befehl aus Abschnitt 4 laufen lassen.
+1. **Tägliche AMM-Zustellung wieder in Gang bringen** (siehe 3.3) — ohne sie
+   muss die Bestandsliste jeden Monat von Hand angefordert werden.
+2. **Schrottware kennzeichnen** (siehe 3.2), damit der Ø-Fill sie nicht
+   überzeichnet.
+3. **Datenbank-Weg** für den Monatsletzten 00:00 Uhr — macht die manuelle
+   Beschaffung und die Stichtags-Unschärfe überflüssig.
 
 ---
 
@@ -169,5 +170,6 @@ Repo `lagerkapazit-t` · SharePoint `KI-Tools / Lager_Sales Dashboard`
 `KI-Tools / ODOO_dashboard` · OneDrive Teams-Chatdateien · die Teams-Threads zur
 Monatsreihe · Outlook (`proWMS@amm-spedition.de`).
 
-Nirgends existiert ein Bestands- oder Odoo-Stand zum 31.08.2026, und für
-August 2026 wurde bislang kein Warenwert gerechnet oder kommuniziert.
+In keiner dieser Quellen lag ein Bestands- oder Odoo-Stand zum 31.08.2026; für
+August 2026 war bis dahin kein Warenwert gerechnet oder kommuniziert. Beide
+Exporte wurden am 01.09.2026 manuell nachgeliefert.

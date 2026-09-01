@@ -10,6 +10,7 @@ data/odoo/*.xls
 # oeffentliche Repository committen (nur Skripte, keine Daten)
 warenwert_monatsende.csv
 warenwert_facts_*.json
+Warenwert_*.pdf
 
 # Claude Code agent state (local only)
 .claude/
