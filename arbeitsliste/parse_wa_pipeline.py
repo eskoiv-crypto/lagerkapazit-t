@@ -12,6 +12,26 @@ Vorgaenge in Buckets, die man abarbeiten kann:
   D  Kommissionierung offen/ueberfaellig
   E  storniert                            -> aus der Pipeline nehmen
 
+!! WICHTIG -- Grenze dieses Skripts !!
+Der reduzierte Export 'Abhol-und_Liefertermine_Tagesaktuell.xlsx' enthaelt nur die
+Spalten A:X. Die massgebliche Spalte des Master-Sheets fehlt darin:
+
+  AC  "Auftrag abgeschlossen (Ware hat das Lager verlassen) (AMM)"
+
+DAS ist der einzige verlaessliche Beleg fuer einen Warenausgang: steht dort ein
+Datum, ist die Ware raus. Die hier benutzte Spalte I "Status (automatisch)" ist
+davon abgeleitet und im Export nur eine Momentaufnahme -- ein Auftrag kann
+"Versand ueberfaellig" zeigen und trotzdem laengst verladen sein.
+
+Ebenfalls nicht im Export, aber gebraucht:
+  AB  "Bezahlt? (JANNA)"
+  AF  "Reste vorhanden NACH Verladung (AMM)"   <- Restmengen nach Teilverladung
+  AG  "Reste Lagernummern (AMM)"
+
+Solange der Export ohne AB..AG kommt, sind die Buckets unten NUR eine Vorsortierung
+und muessen gegen Spalte AC gegengeprueft werden. Sobald AC/AB/AF im Export ist:
+is_open() auf "AC ist leer" umstellen -- siehe is_open_ac().
+
 Der Export ist tab-separiert; Notizen laufen ueber Folgezeilen ohne
 Auftragsnummer, die hier an den Vorgaenger angehaengt werden.
 
@@ -109,8 +129,18 @@ def load(path):
     return records
 
 
+def is_open_ac(row):
+    """Massgeblich, sobald Spalte AC im Export ist: leer = Ware noch im Lager."""
+    return not (row.get("AuftragAbgeschlossenAC") or "").strip()
+
+
 def is_open(row):
-    """Status faengt mit ● / ◐ an = bereits versendet."""
+    """Ersatzkriterium ohne Spalte AC: Status faengt mit ● / ◐ an = versendet.
+
+    NUR eine Naeherung. Gegen Spalte AC gegenpruefen -- siehe Modul-Docstring.
+    """
+    if "AuftragAbgeschlossenAC" in row:
+        return is_open_ac(row)
     return not row["Status"].startswith(("●", "◐"))
 
 
