@@ -1,0 +1,519 @@
+<title>Kommissionier-Backlog NH5</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Public+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+<style>
+:root{
+  --bg:#EFF1EE; --surface:#FFFFFF; --surface-2:#F7F8F6;
+  --ink:#14171A; --ink-2:#3E464F; --muted:#6B747E;
+  --rule:#D8DCD8; --rule-2:#E9ECE8;
+  --accent:#1B4B73; --accent-soft:#E4EDF5; --on-accent:#FFFFFF;
+  --crit:#A62119; --crit-soft:#FAE7E5;
+  --warn:#8A5205; --warn-soft:#FBEEDC;
+  --ok:#1C6440; --ok-soft:#E2F0E8;
+  --off:#6B747E; --off-soft:#ECEEEB;
+  --shadow:0 1px 2px rgba(20,23,26,.06), 0 8px 24px -16px rgba(20,23,26,.28);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#111417; --surface:#191D21; --surface-2:#20252A;
+    --ink:#E7EAE6; --ink-2:#BEC5CC; --muted:#8D97A1;
+    --rule:#2C3238; --rule-2:#242A2F;
+    --accent:#89B6DF; --accent-soft:#1B2B39; --on-accent:#111417;
+    --crit:#F08A80; --crit-soft:#37211F;
+    --warn:#E0AC64; --warn-soft:#332619;
+    --ok:#79C79C; --ok-soft:#182A21;
+    --off:#8D97A1; --off-soft:#22272B;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#111417; --surface:#191D21; --surface-2:#20252A;
+  --ink:#E7EAE6; --ink-2:#BEC5CC; --muted:#8D97A1;
+  --rule:#2C3238; --rule-2:#242A2F;
+  --accent:#89B6DF; --accent-soft:#1B2B39; --on-accent:#111417;
+  --crit:#F08A80; --crit-soft:#37211F;
+  --warn:#E0AC64; --warn-soft:#332619;
+  --ok:#79C79C; --ok-soft:#182A21;
+  --off:#8D97A1; --off-soft:#22272B;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--bg); color:var(--ink);
+  font-family:"Public Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:15px; line-height:1.55; -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1080px; margin:0 auto; padding:0 20px 96px}
+h1,h2,h3{font-family:Archivo,"Public Sans",sans-serif; margin:0; text-wrap:balance}
+.mono{font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace; font-variant-numeric:tabular-nums}
+
+/* ── Kopf ────────────────────────────────────────────── */
+header.top{border-bottom:1px solid var(--rule); background:var(--surface)}
+.top-inner{max-width:1080px; margin:0 auto; padding:26px 20px 22px;
+  display:flex; flex-wrap:wrap; gap:18px; align-items:flex-end; justify-content:space-between}
+.eyebrow{font-family:"IBM Plex Mono",monospace; font-size:11.5px; letter-spacing:.14em;
+  text-transform:uppercase; color:var(--muted)}
+h1{font-size:clamp(26px,4.2vw,38px); font-weight:700; letter-spacing:-.02em; line-height:1.1; margin-top:6px}
+.sub{color:var(--ink-2); max-width:56ch; margin-top:8px; font-size:14.5px}
+.stand{text-align:right; font-size:12.5px; color:var(--muted); line-height:1.7}
+.stand b{color:var(--ink); font-weight:600}
+
+/* ── Warnbanner ──────────────────────────────────────── */
+.banner{display:flex; gap:14px; align-items:flex-start; padding:14px 16px; border-radius:3px;
+  border:1px solid var(--rule); border-left:4px solid var(--warn);
+  background:var(--warn-soft); margin-top:26px; font-size:13.5px; color:var(--ink)}
+.banner .bt{font-family:Archivo,sans-serif; font-weight:600; letter-spacing:.01em; display:block; margin-bottom:2px}
+.banner.crit{border-left-color:var(--crit); background:var(--crit-soft)}
+
+/* ── Kennzahlen ──────────────────────────────────────── */
+.kpis{display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:1px;
+  background:var(--rule); border:1px solid var(--rule); border-radius:3px; overflow:hidden; margin-top:26px}
+.kpi{background:var(--surface); padding:16px 18px}
+.kpi .n{font-family:Archivo,sans-serif; font-weight:700; font-size:30px; letter-spacing:-.02em;
+  font-variant-numeric:tabular-nums; line-height:1.05}
+.kpi .l{font-size:12px; color:var(--muted); margin-top:5px; line-height:1.35}
+.kpi .u{font-family:"IBM Plex Mono",monospace; font-size:12px; color:var(--muted); margin-left:4px; font-weight:400}
+.kpi.crit .n{color:var(--crit)} .kpi.warn .n{color:var(--warn)} .kpi.ok .n{color:var(--ok)}
+
+/* ── Steuerung ───────────────────────────────────────── */
+.controls{display:flex; flex-wrap:wrap; gap:8px; align-items:center;
+  margin:30px 0 4px; position:sticky; top:0; z-index:20;
+  background:var(--bg); padding:10px 0 12px; border-bottom:1px solid var(--rule)}
+.chip{font-family:"IBM Plex Mono",monospace; font-size:12px; letter-spacing:.02em;
+  padding:6px 11px; border:1px solid var(--rule); background:var(--surface); color:var(--ink-2);
+  border-radius:2px; cursor:pointer; transition:background .12s,border-color .12s}
+.chip:hover{border-color:var(--accent)}
+.chip[aria-pressed="true"]{background:var(--accent); border-color:var(--accent); color:var(--on-accent)}
+input[type=search]{flex:1; min-width:190px; font-family:"Public Sans",sans-serif; font-size:13.5px;
+  padding:7px 11px; border:1px solid var(--rule); background:var(--surface); color:var(--ink); border-radius:2px}
+input[type=search]:focus-visible,.chip:focus-visible,button:focus-visible,summary:focus-visible{
+  outline:2px solid var(--accent); outline-offset:2px}
+.count{font-family:"IBM Plex Mono",monospace; font-size:12px; color:var(--muted); margin-left:auto}
+
+/* ── Abschnitte ──────────────────────────────────────── */
+section.bucket{margin-top:34px}
+.bhead{display:flex; align-items:baseline; gap:12px; flex-wrap:wrap;
+  padding-bottom:9px; border-bottom:2px solid var(--ink)}
+.bhead h2{font-size:16px; font-weight:700; letter-spacing:-.01em}
+.bhead .tot{font-family:"IBM Plex Mono",monospace; font-size:12px; color:var(--muted); margin-left:auto}
+.bnote{font-size:13px; color:var(--ink-2); margin:9px 0 0; max-width:70ch}
+
+/* ── Auftragskarte ───────────────────────────────────── */
+.card{display:grid; grid-template-columns:26px 1fr; gap:0 14px; background:var(--surface);
+  border:1px solid var(--rule); border-left:4px solid var(--sev,var(--off));
+  border-radius:3px; padding:14px 16px 13px; margin-top:10px; box-shadow:var(--shadow)}
+.card[data-sev="crit"]{--sev:var(--crit)} .card[data-sev="warn"]{--sev:var(--warn)}
+.card[data-sev="ok"]{--sev:var(--ok)}   .card[data-sev="off"]{--sev:var(--off)}
+.card.done{opacity:.42}
+.card.done .kunde{text-decoration:line-through}
+.tick{grid-row:1/99; padding-top:2px}
+.tick input{width:18px; height:18px; accent-color:var(--accent); cursor:pointer}
+.chead{display:flex; flex-wrap:wrap; align-items:baseline; gap:8px 12px}
+.auf{font-family:"IBM Plex Mono",monospace; font-weight:600; font-size:13px; color:var(--accent);
+  background:var(--accent-soft); padding:2px 7px; border-radius:2px; letter-spacing:.01em}
+.kunde{font-family:Archivo,sans-serif; font-weight:600; font-size:17px; letter-spacing:-.01em}
+.verzug{font-family:"IBM Plex Mono",monospace; font-size:11.5px; font-weight:600;
+  padding:2px 7px; border-radius:2px; text-transform:uppercase; letter-spacing:.05em; margin-left:auto}
+.verzug.crit{background:var(--crit-soft); color:var(--crit)}
+.verzug.warn{background:var(--warn-soft); color:var(--warn)}
+.verzug.ok{background:var(--ok-soft); color:var(--ok)}
+.verzug.off{background:var(--off-soft); color:var(--off)}
+.aktion{margin:9px 0 0; font-size:14.5px; line-height:1.5}
+.aktion b{font-weight:600}
+.meta{display:flex; flex-wrap:wrap; gap:5px 7px; margin-top:10px}
+.tag{font-family:"IBM Plex Mono",monospace; font-size:11.5px; color:var(--ink-2);
+  background:var(--surface-2); border:1px solid var(--rule-2); padding:2px 7px; border-radius:2px}
+.tag.link{color:var(--accent)}
+.beleg{margin-top:10px; padding:8px 12px; border-left:2px solid var(--rule);
+  background:var(--surface-2); font-size:12.5px; color:var(--ink-2); line-height:1.5}
+.beleg .q{font-style:italic}
+.beleg .src{font-family:"IBM Plex Mono",monospace; font-size:11px; color:var(--muted); display:block; margin-top:3px}
+details.draft{margin-top:10px}
+details.draft summary{font-family:"IBM Plex Mono",monospace; font-size:11.5px; color:var(--accent);
+  cursor:pointer; list-style:none; display:inline-block; border:1px solid var(--rule);
+  padding:3px 9px; border-radius:2px; background:var(--surface-2)}
+details.draft summary::-webkit-details-marker{display:none}
+details.draft summary:hover{border-color:var(--accent)}
+details.draft textarea{width:100%; margin-top:8px; min-height:112px; font-family:"IBM Plex Mono",monospace;
+  font-size:12px; line-height:1.6; padding:10px; border:1px solid var(--rule); border-radius:2px;
+  background:var(--surface-2); color:var(--ink); resize:vertical}
+.copy{margin-top:6px; font-family:"IBM Plex Mono",monospace; font-size:11.5px; cursor:pointer;
+  border:1px solid var(--rule); background:var(--surface); color:var(--ink-2); padding:4px 10px; border-radius:2px}
+.copy:hover{border-color:var(--accent); color:var(--accent)}
+
+/* ── Prozess-/Befund-Blöcke ──────────────────────────── */
+.panel{background:var(--surface); border:1px solid var(--rule); border-radius:3px;
+  padding:20px 22px; margin-top:12px; box-shadow:var(--shadow)}
+.panel h3{font-size:15px; font-weight:700; margin-bottom:2px}
+.panel p{font-size:14px; color:var(--ink-2); margin:8px 0 0; max-width:74ch}
+.gaps{list-style:none; padding:0; margin:14px 0 0; display:grid; gap:1px; background:var(--rule);
+  border:1px solid var(--rule); border-radius:3px; overflow:hidden}
+.gaps li{background:var(--surface); padding:12px 15px; display:grid;
+  grid-template-columns:minmax(0,190px) 1fr; gap:4px 18px; font-size:13.5px}
+.gaps .who{font-family:"IBM Plex Mono",monospace; font-size:12px; color:var(--accent); font-weight:500}
+.gaps .what{color:var(--ink-2)}
+@media(max-width:620px){.gaps li{grid-template-columns:1fr}}
+.tblwrap{overflow-x:auto; margin-top:14px; border:1px solid var(--rule); border-radius:3px}
+table{border-collapse:collapse; width:100%; font-size:13px; min-width:520px}
+th,td{text-align:left; padding:9px 14px; border-bottom:1px solid var(--rule-2)}
+th{font-family:Archivo,sans-serif; font-size:11.5px; text-transform:uppercase; letter-spacing:.07em;
+  color:var(--muted); background:var(--surface-2); font-weight:600}
+td.num{font-family:"IBM Plex Mono",monospace; text-align:right; font-variant-numeric:tabular-nums}
+tr:last-child td{border-bottom:none}
+.foot{margin-top:44px; padding-top:18px; border-top:1px solid var(--rule);
+  font-size:12.5px; color:var(--muted); max-width:78ch}
+.foot b{color:var(--ink-2); font-weight:600}
+@media (prefers-reduced-motion:reduce){*{transition:none!important; animation:none!important}}
+@media print{
+  .controls,details.draft,.tick{display:none}
+  body{background:#fff} .card{break-inside:avoid; box-shadow:none}
+}
+</style>
+
+<header class="top">
+  <div class="top-inner">
+    <div>
+      <span class="eyebrow">NH5 Nürnberg · WA-Pipeline · Übergabe Backoffice</span>
+      <h1>Kommissionier-Backlog</h1>
+      <p class="sub">Alle offenen Aufträge, sortiert nach dem, was zuerst weh tut: Termin verstrichen, kein Termin, Kommissionierung offen. Abhaken bleibt im Browser gespeichert.</p>
+    </div>
+    <div class="stand">
+      Stichtag <b>Di, 01.09.2026 · KW 36</b><br>
+      Datenstand WA-Pipeline <b>26.08.2026</b><br>
+      Mail-Abgleich bis <b>31.08.2026</b>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <div class="banner crit">
+    <div><span class="bt">Die Pipeline-Datei ist 6 Tage alt — die letzten Zeilen fehlen.</span>
+    Auswertbar war der Stand vom 26.08. aus <span class="mono">Abhol-und_Liefertermine_Tagesaktuell.xlsx</span>; das Master-Sheet <span class="mono">NH5_Pipeline_MAX-STATUS.xlsx</span> ließ sich nur bis Blatt <span class="mono">10_WE_PIPELINE</span> lesen. Aufträge, die zwischen <b>27.08. und heute</b> neu in die WA-Pipeline gekommen sind, stehen unten <b>nicht</b> drin. Jede Karte wurde gegen die Mails bis 31.08. gegengeprüft — die Belege stehen dabei.</div>
+  </div>
+
+  <div class="kpis">
+    <div class="kpi crit"><div class="n">11</div><div class="l">Aufträge mit verstrichenem Termin<br>+ 1 Prüffall</div></div>
+    <div class="kpi warn"><div class="n">4</div><div class="l">kommissioniert, aber ohne Termin</div></div>
+    <div class="kpi"><div class="n">7</div><div class="l">Kommissionierung offen oder Restmenge</div></div>
+    <div class="kpi ok"><div class="n">1.247<span class="u">Ger.</span></div><div class="l">gebundene Geräte in 22 offenen Aufträgen</div></div>
+    <div class="kpi"><div class="n">33<span class="u">Tg</span></div><div class="l">ältester Vorgang ohne Termin</div></div>
+  </div>
+
+  <div class="controls">
+    <button class="chip" data-f="all" aria-pressed="true">Alle</button>
+    <button class="chip" data-f="A" aria-pressed="false">Termin verstrichen</button>
+    <button class="chip" data-f="B" aria-pressed="false">Kein Termin</button>
+    <button class="chip" data-f="D" aria-pressed="false">Komm offen</button>
+    <button class="chip" data-f="E" aria-pressed="false">Aufräumen</button>
+    <button class="chip" id="hideDone" aria-pressed="false">Erledigte ausblenden</button>
+    <input type="search" id="q" placeholder="Kunde oder Auftragsnummer …" aria-label="Suche">
+    <span class="count" id="count"></span>
+  </div>
+
+  <div id="list"></div>
+
+  <section class="bucket" style="margin-top:44px">
+    <div class="bhead"><h2>Was Janna gemacht hat — und was seit dem 26.08. niemand macht</h2></div>
+    <p class="bnote">Diese Handgriffe stehen in keinem System. Sie sind aus den Mails der letzten vier Wochen rekonstruiert. Ohne sie steht die Pipeline still, egal wie gut die Liste oben abgearbeitet wird.</p>
+    <ul class="gaps">
+      <li><span class="who">Bereitstellungs-Mail</span><span class="what">„Abholung S0xxxx — bitte bereitstellen“ an <span class="mono">elvinci@amm-spedition.de</span>. Ohne diese Mail stellt AMM den Auftrag nicht an die Rampe. Zuletzt am <b>31.08.</b> für S00944. Etwa 2–4× pro Woche fällig.</span></li>
+      <li><span class="who">Freigabe-Mail</span><span class="what">„Freigabe S0xxxx“ — sagt AMM, dass bezahlt wurde und die Ware raus darf. Zuletzt am <b>28.08.</b> für S00565.</span></li>
+      <li><span class="who">Zollabfertigung</span><span class="what">LRN beschaffen und an AMM schicken, für alle Nicht-EU-Abholungen (Rati Marti/GE, Geo Hansi/GE). Ohne LRN keine Verladung.</span></li>
+      <li><span class="who">Rückfragen an AMM</span><span class="what">AMM fragt aktiv nach und wartet. <b>Seit dem 21.08. unbeantwortet:</b> „Soll der Auftrag S01150 noch zurückgehalten werden?“</span></li>
+      <li><span class="who">Pipeline-Pflege</span><span class="what">Die Spalten <span class="mono">Versand-/Abholanmeldung</span>, <span class="mono">geplantes Versand-/Abholdatum</span> und <span class="mono">Anlieferdatum</span> sind mit „(JANNA)“ überschrieben. Sie sind seit dem 26.08. leer — genau die drei Spalten, aus denen jede Terminaussage kommt.</span></li>
+      <li><span class="who">Restmengen nachfassen</span><span class="what">Wenn ein LKW nicht alles fasst, meldet AMM die zurückgelagerten Lagernummern per Mail. Diese Reste tauchen in keiner Zeile der Pipeline auf — sie müssen von Hand nachterminiert werden. Aktuell betroffen: <span class="mono">S01307</span>, <span class="mono">S01315</span>.</span></li>
+    </ul>
+  </section>
+
+  <section class="bucket">
+    <div class="bhead"><h2>Warum das Dashboard „kein WA-Backlog“ meldet</h2></div>
+    <div class="panel">
+      <h3>Ein Filter auf das alte Nummernformat blendet die komplette Warenausgangs-Seite aus.</h3>
+      <p>Seit dem Wechsel auf Odoo tragen alle Aufträge <span class="mono">S00xxx</span>-Nummern statt <span class="mono">AU2026…</span>. Die Zählformeln in <span class="mono">00_DASHBOARD</span> und <span class="mono">05_LIVE</span> filtern aber weiterhin auf <span class="mono">LINKS(Auftragsnr;2)="AU"</span>. Ab August trifft das auf keine einzige Zeile mehr zu — jede so gefilterte Zahl ist zwangsläufig null.</p>
+      <div class="tblwrap">
+        <table>
+          <thead><tr><th>Kommissioniertag</th><th class="num">Aufträge mit AU…</th><th class="num">Aufträge mit S…</th><th>Was die Formel zählt</th></tr></thead>
+          <tbody>
+            <tr><td>Juni 2026</td><td class="num">59</td><td class="num">1</td><td>fast alles</td></tr>
+            <tr><td>Juli 2026</td><td class="num">14</td><td class="num">62</td><td>18 %</td></tr>
+            <tr><td>August 2026</td><td class="num">0</td><td class="num">65</td><td>nichts</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Konkret betroffen: <span class="mono">00_DASHBOARD</span> „WA-Pipeline offen“ zeigt <b>„– kein Backlog“</b>, obwohl 22 Vorgänge mit 1.247 Geräten offen sind. In <span class="mono">05_LIVE</span> stehen „WA Kommissioniert KW“ und „WA Versendet KW“ auf <b>0 %</b>, und die Prognose auf <span class="mono">00_DASHBOARD</span> rechnet mit einem Versand-Backlog von null.</p>
+      <p><b>Fix:</b> In den Formeln von <span class="mono">05_LIVE</span> (C12, C13, C17, C25, C26, C30, C39, C40, D25, D26, D39, D40) und <span class="mono">00_DASHBOARD</span> (C11) die Bedingung <span class="mono">LINKS(…;2)="AU"</span> entweder streichen oder auf <span class="mono">ODER(LINKS(…;2)="AU"; LINKS(…;1)="S")</span> erweitern. Die Summen ohne AU-Filter stimmen bereits — nur die Zähler und die Wochenwerte sind blind.</p>
+    </div>
+  </section>
+
+  <section class="bucket">
+    <div class="bhead"><h2>Wie zuverlässig welcher Kunde abholt</h2></div>
+    <p class="bnote">Tage zwischen Fertigmeldung der Kommissionierung und geplantem Abhol-/Versanddatum, über 159 abgeschlossene Aufträge seit April. Der Median liegt bei <b>3 Tagen</b> — wer deutlich darüber liegt, braucht beim Terminieren einen festen Tag statt einer Zusage.</p>
+    <div class="tblwrap">
+      <table>
+        <thead><tr><th>Kunde</th><th class="num">Ø Tage</th><th class="num">längster Fall</th><th class="num">Aufträge</th></tr></thead>
+        <tbody>
+          <tr><td>Enno Kundendienst</td><td class="num">31,5</td><td class="num">62</td><td class="num">2</td></tr>
+          <tr><td>Banat Electrocasnice S.R.L</td><td class="num">20,0</td><td class="num">29</td><td class="num">3</td></tr>
+          <tr><td>KOUTLIANOS NIKOS</td><td class="num">16,5</td><td class="num">29</td><td class="num">2</td></tr>
+          <tr><td>Egzoni Sh.P.K</td><td class="num">16,5</td><td class="num">25</td><td class="num">2</td></tr>
+          <tr><td>UAB Stevija</td><td class="num">11,0</td><td class="num">22</td><td class="num">5</td></tr>
+          <tr><td>UAB Buitikas</td><td class="num">9,1</td><td class="num">32</td><td class="num">7</td></tr>
+          <tr><td>Hanseatic Georgia LLC</td><td class="num">7,5</td><td class="num">13</td><td class="num">6</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <p class="foot">
+    <b>Quellen.</b> WA-Pipeline: <span class="mono">Abhol-und_Liefertermine_Tagesaktuell.xlsx</span> (SharePoint, Stand 26.08.2026, 298 Aufträge seit April) · Live-Kennzahlen und Formelprüfung: <span class="mono">NH5_Pipeline_MAX-STATUS.xlsx</span>, Blätter <span class="mono">00_DASHBOARD</span> und <span class="mono">05_LIVE</span> (Stand 01.09.2026) · Belege je Karte: Outlook-Verkehr mit <span class="mono">elvinci@amm-spedition.de</span> und <span class="mono">proWMS@amm-spedition.de</span> vom 16.–31.08.2026.<br><br>
+    <b>Bewusst nicht enthalten:</b> Ansprechpartner, Adressen und Telefonnummern der Kunden. Für die Terminierung reichen Auftragsnummer und Firmenname; die Kontaktdaten stehen in Odoo.
+  </p>
+</div>
+
+<script>
+const ORDERS = [
+ {b:"A",sev:"crit",nr:"S01254",kunde:"Rati Marti",ger:133,tage:14,art:"Abholung",land:"GE",
+  chips:["Termin war 18.08.","Sammelauftrag aus S00354 + S00585","dieselbe Ware wie die beiden Altzeilen — nicht doppelt zählen","Zoll: LRN liegt vor"],
+  aktion:"<b>Erst prüfen, dann anrufen.</b> AMM hat S00354 und S00585 am 17.08. storniert und die 133 Geräte in <b>S01254</b> zusammengefasst. Die Pipeline führt die beiden alten Zeilen weiter als überfällig, S01254 selbst steht dort auf „versendet“. Bei AMM den Ist-Stand abfragen: raus oder nicht? Danach die zwei Altzeilen schließen.",
+  beleg:{q:"Ich habe die 2 Aufträge storniert. Ihr solltet bereits Rückmeldung erhalten haben. Die 133 Geräte sind jetzt in einem Auftrag kommissioniert.",src:"AMM Spedition · 17.08.2026 · „AW: Abholung S00354 und S00585“"},
+  mail:"Betreff: Statusabfrage S01254 (Rati Marti)\n\nHallo zusammen,\n\nkurze Rückfrage zum Sammelauftrag S01254 (133 Geräte, entstanden aus S00354 + S00585):\nIst die Ware inzwischen abgeholt worden? Falls nein — steht sie noch bereit und was fehlt uns für die Verladung?\n\nHintergrund: Janna hat das Unternehmen verlassen, wir übernehmen die Terminierung und gleichen gerade den Ist-Stand ab.\n\nVielen Dank und viele Grüße"},
+
+ {b:"A",sev:"crit",nr:"S00642",kunde:"Euroda Transport & Handel",ger:107,tage:8,art:"Abholung",land:"AT",
+  chips:["Termin war 24.08.","3 LKW geplant","LKW 1 raus 13.08.","LKW 2 raus 24.08."],
+  aktion:"<b>LKW 3 hat keinen Termin.</b> Zwei der drei Ladungen sind abgeholt, AMM wartet seit dem 24.08. auf eine Rückmeldung, wann die restlichen kommen. Beim Kunden einen verbindlichen Tag holen und an AMM durchgeben.",
+  beleg:{q:"Dieser Auftrag wurde geteilt in 3 LKW's. Erster LKW wurde bereits abgeholt, die anderen 2 noch nicht, hier warten wir auch auf eine Rückmeldung, wann die …",src:"Igor Vujica, AMM · 24.08.2026 · „AW: Rückmeldung“"},
+  mail:"Betreff: Abholtermin 3. LKW — S00642\n\nGuten Tag,\n\nvon Ihrem Auftrag S00642 sind zwei LKW abgeholt (13.08. und 24.08.). Für die restliche Ladung fehlt uns noch ein Abholtermin.\n\nBitte nennen Sie uns einen konkreten Tag, damit wir die Bereitstellung bei unserer Spedition anmelden können. Die Ware ist kommissioniert und belegt aktuell Lagerfläche.\n\nVielen Dank und viele Grüße"},
+
+ {b:"A",sev:"crit",nr:"S00944",kunde:"SADI",ger:9,tage:7,art:"Abholung",land:"DE",
+  chips:["Termin war 25.08.","am 31.08. neu bereitgestellt","palettiert"],
+  aktion:"<b>Bereitstellung läuft, Termin fehlt.</b> Janna hat am 31.08. — an ihrem letzten Tag — noch einmal die Bereitstellung bei AMM angefordert. Die Ware steht also. Beim Kunden einen festen Abholtag holen, sonst steht sie in einer Woche immer noch da.",
+  beleg:{q:"… bereitstellen: Kunde: SADI S00944",src:"J. Baranowski → AMM · 31.08.2026 · „Abholung S00944“"},
+  mail:"Betreff: Abholtermin S00944\n\nGuten Tag,\n\nIhr Auftrag S00944 (9 Geräte) ist kommissioniert und steht zur Abholung bereit. Der ursprünglich vorgesehene Termin am 25.08. ist verstrichen.\n\nBitte nennen Sie uns einen verbindlichen Abholtag.\n\nVielen Dank und viele Grüße"},
+
+ {b:"A",sev:"crit",nr:"S01309",kunde:"Elektro Outlet Sinzig GmbH",ger:123,tage:7,art:"Spedition",land:"DE",
+  chips:["Termin war 25.08.","AMM: Verladung 26.08. angekündigt","8 Paletten"],
+  aktion:"<b>Wahrscheinlich schon raus — nur nicht eingetragen.</b> AMM hat am 24.08. angekündigt, „am Mittwoch“ zu laden, also am 26.08. Das ist genau der Tag, an dem die Pipeline stehen geblieben ist. Bei AMM bestätigen lassen und die Zeile schließen, statt den Kunden unnötig anzurufen.",
+  beleg:{q:"Wird am Mittwoch voraussichtlich geladen.",src:"Igor Vujica, AMM · 24.08.2026 · „AW: Versand S01309“"},
+  mail:"Betreff: Verladebestätigung S01309\n\nHallo zusammen,\n\nist S01308/S01309 (Elektro Outlet Sinzig, 123 Geräte) am 26.08. wie angekündigt verladen worden? Wir brauchen die Bestätigung, um die Pipeline sauber nachzutragen.\n\nVielen Dank und viele Grüße"},
+
+ {b:"A",sev:"crit",nr:"S00565",kunde:"Sefik Saracevic",ger:55,tage:6,art:"Abholung",land:"DE",
+  chips:["Termin war 26.08.","3. Anlauf","lose Verladung","20.08. nicht erschienen"],
+  aktion:"<b>Chronischer No-Show — hier eskalieren, nicht wieder terminieren.</b> Dritter Anlauf: am 20.08. nicht abgeholt, am 26.08. erneut bereitgestellt, am 28.08. noch die Freigabe hinterher. 55 Geräte binden seit dem 20.08. Fläche. Verbindlichen Termin nur noch gegen Zusage geben, sonst zurücklagern.",
+  beleg:{q:"Zu Info, diese Sendung wurde nicht abgeholt. Abholtermin war heute.",src:"Igor Vujica, AMM · 20.08.2026 (zu S01144, gleiches Muster) — dazu Bereitstellung S00565 am 20.08., 26.08. und Freigabe am 28.08."},
+  mail:"Betreff: Letzte Terminabstimmung S00565\n\nGuten Tag,\n\nIhr Auftrag S00565 (55 Geräte) steht seit dem 20.08. abholbereit. Zwei vereinbarte Abholtermine sind ohne Abholung verstrichen.\n\nBitte nennen Sie uns bis Ende dieser Woche einen verbindlichen Termin. Andernfalls müssen wir die Ware zurücklagern.\n\nVielen Dank und viele Grüße"},
+
+ {b:"A",sev:"crit",nr:"S01292",kunde:"Electro Catoira Outlet S.L",ger:128,tage:5,art:"Spedition",land:"ES",
+  chips:["Termin war 27.08.","Zahlung: „Todo Cash“","am 26.08. bereitgestellt","Anmeldung steht auf „warten“"],
+  aktion:"<b>Zahlung klären, dann terminieren.</b> AMM hat den Auftrag als Barzahler markiert; die Versandanmeldung steht deshalb auf „warten“. Erst Zahlungsstatus prüfen, dann Freigabe an AMM und Termin mit dem Kunden.",
+  beleg:{q:"… bereitstellen: Kunde: Electro Catoira Outlet S.L S01292",src:"J. Baranowski → AMM · 26.08.2026 · „Abholung S01292“"},
+  mail:"Betreff: Zahlung und Verladetermin S01292\n\nGuten Tag,\n\nIhr Auftrag S01292 (128 Geräte) ist kommissioniert. Vor der Verladung benötigen wir den Zahlungseingang bzw. die Bestätigung der Barzahlung bei Abholung.\n\nBitte bestätigen Sie uns außerdem den gewünschten Verladetermin.\n\nVielen Dank und viele Grüße"},
+
+ {b:"A",sev:"crit",nr:"S01148 + S01314",kunde:"Fortis Impex KFT",ger:98,tage:4,art:"Abholung",land:"HU",
+  chips:["Termin war 28.08.","zusammen verladen","max. 2,70 m Höhe","am 28.08. bereitgestellt"],
+  aktion:"<b>Beide Aufträge gehen auf einen LKW — nur einer hat einen Termin.</b> S01148 stand auf dem 28.08., S01314 hat gar keinen. Janna hat am 28.08. beide gemeinsam bei AMM angemeldet. Einen gemeinsamen Termin holen und beide Zeilen gleich pflegen.",
+  beleg:{q:"… bereitstellen: Kunde: Fortis Impex KFT S01148 S01314",src:"J. Baranowski → AMM · 28.08.2026 · „Abholung S01148 und S01314“"},
+  mail:"Betreff: Gemeinsamer Abholtermin S01148 + S01314\n\nGuten Tag,\n\nIhre Aufträge S01148 (82 Geräte) und S01314 (16 Geräte) sind kommissioniert und für eine gemeinsame Verladung vorgesehen (Ladehöhe max. 2,70 m).\n\nBitte nennen Sie uns einen verbindlichen Abholtag für beide Aufträge.\n\nVielen Dank und viele Grüße"},
+
+ {b:"A",sev:"crit",nr:"S01296",kunde:"Artek Commerce LTD",ger:15,tage:4,art:"Abholung",land:"—",
+  chips:["Termin war 28.08.","am 27.08. bereitgestellt","Anmeldung steht auf „warten“"],
+  aktion:"<b>Bereitgestellt, Anmeldung offen.</b> Kleiner Auftrag, schnell erledigt: Termin beim Kunden abfragen und die Versandanmeldung bei AMM von „warten“ auf angemeldet setzen.",
+  beleg:{q:"… bereitstellen: Kunde: Artek Commerce LTD S01296",src:"J. Baranowski → AMM · 27.08.2026 · „Abholung S01296“"},
+  mail:"Betreff: Abholtermin S01296\n\nGuten Tag,\n\nIhr Auftrag S01296 (15 Geräte) steht abholbereit. Bitte nennen Sie uns einen verbindlichen Abholtag.\n\nVielen Dank und viele Grüße"},
+
+ {b:"A",sev:"warn",nr:"S01330",kunde:"Hermans Trading",ger:94,tage:1,art:"Abholung",land:"NL",
+  chips:["Termin war gestern, 31.08.","29 Paletten · 10,5 LDM","angemeldet"],
+  aktion:"<b>Gestern fällig — als Erstes bei AMM nachfragen.</b> Alles war vorbereitet: kommissioniert, 29 Paletten, angemeldet. Wenn die Abholung gestern nicht stattgefunden hat, sofort neu terminieren.",
+  beleg:{q:"… bereitstellen: Kunde: Hermans Trading S01330",src:"J. Baranowski → AMM · 24.08.2026 · „Abholung S01330“"},
+  mail:"Betreff: Abholung S01330 am 31.08. — Rückmeldung erbeten\n\nHallo zusammen,\n\nfür S01330 (Hermans Trading, 94 Geräte, 29 Paletten) war der 31.08. als Abholtag hinterlegt. Hat die Abholung stattgefunden?\n\nFalls nicht, terminieren wir neu.\n\nVielen Dank und viele Grüße"},
+
+ {b:"A",sev:"warn",nr:"S00986 + S01335",kunde:"KOUTLIANOS",ger:39,tage:1,art:"Abholung",land:"GR",
+  chips:["Termin war gestern, 31.08.","zusammen verladen","S01335: Komm nicht fertiggemeldet"],
+  aktion:"<b>Zwei Aufträge, ein LKW — die Hälfte ist nicht fertig.</b> S00986 ist seit 21.08. kommissioniert, für S01335 fehlt die Fertigmeldung von AMM. Ohne S01335 kann der gemeinsame Termin nicht halten. Erst Kommissionierstand bei AMM klären, dann neu terminieren.",
+  beleg:{q:"… bereitstellen: Kunde: Koutlianos S00986",src:"J. Baranowski → AMM · 24.08.2026 · „Abholung S00986“"},
+  mail:"Betreff: Kommissionierstand S01335 (Verladung mit S00986)\n\nHallo zusammen,\n\nS00986 und S01335 (Koutlianos) sollen zusammen verladen werden. Für S01335 fehlt uns noch die Fertigmeldung der Kommissionierung.\n\nWann ist S01335 fertig? Danach stimmen wir einen gemeinsamen Abholtermin ab.\n\nVielen Dank und viele Grüße"},
+
+ {b:"B",sev:"crit",nr:"S00622",kunde:"Aurora Solar Energy DOO",ger:37,tage:33,art:"—",land:"—",
+  chips:["kommissioniert seit 30.07.","15 Paletten · 5,9 LDM","kein Termin, keine Anmeldung"],
+  aktion:"<b>Ältester Blockierer: 33 Tage kommissioniert, kein Termin.</b> Notiz: neue Preisabfrage gestellt, Zoll noch ungeklärt. Beides muss entschieden werden — sonst stehen 15 Paletten unbegrenzt. Wenn der Zoll nicht klärbar ist: zurücklagern statt weiter blockieren.",
+  beleg:{q:"Neue Preisabfrage gestellt. Zoll muss noch geklärt werden.",src:"Notiz ELVINCI in der WA-Pipeline"},
+  mail:"Betreff: Klärung Zoll und Preis — S00622\n\nGuten Tag,\n\nIhr Auftrag S00622 (37 Geräte, 15 Paletten) ist seit dem 30.07. kommissioniert und wartet auf die Klärung der Zollabwicklung sowie auf Ihre Rückmeldung zur Preisabfrage.\n\nBitte geben Sie uns bis Ende dieser Woche eine Rückmeldung. Andernfalls lagern wir die Ware zurück und terminieren neu, sobald beides geklärt ist.\n\nVielen Dank und viele Grüße"},
+
+ {b:"B",sev:"crit",nr:"S00755",kunde:"Euroda Transport & Handel",ger:56,tage:28,art:"Abholung",land:"AT",
+  chips:["kommissioniert seit 04.08.","20 Paletten · 6,9 LDM","AMM-Liefertag: 31.12.2026 = Platzhalter"],
+  aktion:"<b>Kein echter Termin — im AMM-System steht ein Dummy-Datum.</b> Der Auftragsstand von AMM führt als Liefertag den 31.12.2026, die Versandanmeldung steht auf „warten“. Gleicher Kunde wie S00642: beides in einem Gespräch klären und, wenn möglich, gemeinsam verladen.",
+  beleg:{q:"S00755 AT QU 31.12.2026 0:00:00 Euroda Transport & Handel … ABHOLER 05 56 0 0 56",src:"proWMS AMM · Auftragsstand 18.08.2026"},
+  mail:"Betreff: Abholtermin S00755 (ggf. zusammen mit S00642)\n\nGuten Tag,\n\nIhr Auftrag S00755 (56 Geräte, 20 Paletten) ist seit dem 04.08. kommissioniert, ein Abholtermin liegt uns nicht vor.\n\nDa auch von S00642 noch eine Ladung offen ist: Möchten Sie beides zusammen abholen? Bitte nennen Sie uns einen verbindlichen Tag.\n\nVielen Dank und viele Grüße"},
+
+ {b:"B",sev:"crit",nr:"S01150",kunde:"Marketvibe",ger:10,tage:11,art:"Abholung",land:"IT",
+  chips:["AMM wartet seit 21.08. auf Antwort","Notiz: „Warten auf Freigabe Janna“","sollte mit S01144 verladen werden"],
+  aktion:"<b>Hier hängt eine offene Frage an AMM — seit elf Tagen.</b> AMM fragt, ob der Auftrag weiter zurückgehalten werden soll. Die Notiz in der Pipeline sagt „Warten auf Freigabe Janna“. S01144, der Partnerauftrag, ist längst raus. Diese Mail zuerst beantworten — sie kostet zwei Minuten und blockiert alles Weitere.",
+  beleg:{q:"Soll der Auftrag S01150 noch zurückgehalten werden?",src:"Igor Vujica, AMM · 21.08.2026 · „AW: Abholung S01144“ — unbeantwortet"},
+  mail:"Betreff: AW: S01150 — Freigabe\n\nHallo Herr Vujica,\n\nentschuldigen Sie die späte Rückmeldung: Janna hat das Unternehmen verlassen, wir übernehmen die Terminierung.\n\nZu Ihrer Frage vom 21.08.: S01150 (Marketvibe, 10 Geräte) bitte [freigeben / weiter zurückhalten]. S01144 ist bereits verladen.\n\nBitte melden Sie uns den aktuellen Stand der Ware.\n\nVielen Dank und viele Grüße"},
+
+ {b:"B",sev:"warn",nr:"S01340",kunde:"P&C Trading B.V.",ger:40,tage:6,art:"Spedition",land:"NL",
+  chips:["Datenfehler: doppelte Lagernummern","Zusammenführung mit S01382","Anmeldung: „warten“"],
+  aktion:"<b>Erst den Auftrag reparieren, dann terminieren.</b> Der Auftrag wurde nachträglich zusammengeführt und enthält jetzt Lagernummern doppelt — die auch in S01382 stehen. So kann AMM nicht kommissionieren. Dublette in Odoo auflösen, dann Termin machen.",
+  beleg:{q:"Der Auftrag S01340 — P&C Trading wurde im Nachgang zusammengefügt und beinhaltet nun doppelte Lagernummern in diesem Auftrag – S01382.",src:"J. Baranowski · 27.08.2026 · „S01340“"},
+  mail:"Betreff: S01340 — doppelte Lagernummern klären\n\nHallo zusammen,\n\nS01340 (P&C Trading) wurde nachträglich zusammengeführt und enthält Lagernummern, die auch in S01382 stehen.\n\nBitte um Abstimmung, welche Positionen in welchem Auftrag bleiben. Danach melden wir die Bereitstellung an und terminieren.\n\nVielen Dank und viele Grüße"},
+
+ {b:"D",sev:"crit",nr:"S01307",kunde:"Outlet Simex D.O.O.",ger:157,tage:6,art:"Abholung",land:"RS",
+  chips:["Termin war 26.08.","teilweise verladen","Rest zurückgelagert (Platzmangel)"],
+  aktion:"<b>Restmenge hat keinen Termin und steht in keiner Zeile.</b> Der LKW hat nicht alles gefasst; AMM hat die übrigen Lagernummern zurückgelagert und am 27.08. gemeldet. Diese Reste tauchen in der Pipeline nirgends auf. Restmenge bei AMM abfragen, als eigenen Vorgang anlegen und terminieren.",
+  beleg:{q:"Folgendes ist aus Platzmangel stehen geblieben und zurückgelagert: 900254610 900255026 900255028 900255030 …",src:"AMM Spedition · 27.08.2026 · „AW: Abholung S01307“"},
+  mail:"Betreff: Restmenge S01307 — Nachverladung\n\nHallo zusammen,\n\nvon S01307 (Outlet Simex) ist am 26./27.08. ein Teil aus Platzmangel zurückgelagert worden.\n\nBitte senden Sie uns die vollständige Liste der zurückgelagerten Lagernummern mit Palettenzahl und Lademetern, damit wir die Nachverladung mit dem Kunden terminieren können.\n\nVielen Dank und viele Grüße"},
+
+ {b:"D",sev:"crit",nr:"S01315",kunde:"Geo Hansi LLC",ger:174,tage:5,art:"Abholung",land:"GE",
+  chips:["Termin war 27.08.","teilweise verladen","Rest zurückgelagert","Zoll: LRN am 28.08. verschickt"],
+  aktion:"<b>Zweite Restmenge ohne Termin.</b> Gleiches Muster wie S01307: kein Platz im LKW, Rest zurückgelagert (Meldung am 26.08.). Die Zollabfertigung ist am 28.08. rausgegangen, also läuft der Vorgang weiter. Restmenge bei AMM abfragen und Nachverladung terminieren.",
+  beleg:{q:"Folgendes wird zurückgelagert da kein Platz im LKW: 900255466 900255485 900255401 900255392 …",src:"AMM Spedition · 26.08.2026 · „AW: Abholung S01315“"},
+  mail:"Betreff: Restmenge S01315 — Nachverladung\n\nHallo zusammen,\n\nvon S01315 (Geo Hansi) wurde am 26.08. ein Teil mangels Platz im LKW zurückgelagert.\n\nBitte senden Sie uns die Liste der zurückgelagerten Lagernummern mit Paletten und Lademetern. Die Zollabfertigung für Geo Hansi ist am 28.08. verschickt worden.\n\nVielen Dank und viele Grüße"},
+
+ {b:"D",sev:"crit",nr:"S01285 + S01327",kunde:"Les Petits Pieds S.R.L.",ger:86,tage:4,art:"Abholung",land:"RO",
+  chips:["Termin war 28.08.","zusammen verladen","am 25.08. bereitgestellt","keine Fertigmeldung"],
+  aktion:"<b>Bereitgestellt, aber keine Fertigmeldung — Termin verstrichen.</b> Beide Aufträge sollen zusammen auf einen LKW. Bei AMM den Kommissionierstand abfragen; wenn fertig, sofort gemeinsam neu terminieren.",
+  beleg:{q:"… bereitstellen: Kunde: Les Petits Pieds S01327 S01285",src:"J. Baranowski → AMM · 25.08.2026 · „Abholung S01327 und S01285“"},
+  mail:"Betreff: Kommissionierstand S01285 + S01327\n\nHallo zusammen,\n\nfür Les Petits Pieds (S01285, 78 Geräte / S01327, 8 Geräte, gemeinsame Verladung) fehlt uns die Fertigmeldung der Kommissionierung. Der vorgesehene Termin am 28.08. ist verstrichen.\n\nBitte um kurzen Statusbericht, dann terminieren wir neu.\n\nVielen Dank und viele Grüße"},
+
+ {b:"D",sev:"warn",nr:"S01318 · S01302 · S01266",kunde:"PUKO · Outletstocks di Rahel · Bas Commerce",ger:19,tage:8,art:"Spedition",land:"—",
+  chips:["3 Aufträge","alle: „warten/platzhalter/mit Janna besprochen“","kein Termin, keine Fertigmeldung"],
+  aktion:"<b>Drei Platzhalter, deren Absprache nur Janna kannte.</b> Alle drei sind am 24.08. als Platzhalter angelegt worden, mit derselben AMM-Notiz. Was dahinter vereinbart war, steht nirgends. Mit AMM einmal gemeinsam durchgehen und entscheiden: kommissionieren, terminieren oder schließen.",
+  beleg:{q:"warten/platzhalter/mit Janna besprochen",src:"Notiz AMM in der WA-Pipeline, identisch bei allen drei Aufträgen · 24.08.2026"},
+  mail:"Betreff: Platzhalter-Aufträge S01318, S01302, S01266\n\nHallo zusammen,\n\ndie drei Aufträge S01318 (PUKO), S01302 (Outletstocks di Rahel) und S01266 (Bas Commerce) tragen bei Ihnen die Notiz „warten/platzhalter/mit Janna besprochen“.\n\nJanna hat das Unternehmen verlassen. Können wir kurz durchgehen, was jeweils vereinbart war und wie wir weiter verfahren?\n\nVielen Dank und viele Grüße"},
+
+ {b:"E",sev:"off",nr:"S00288",kunde:"Alma Trading",ger:11,tage:29,art:"—",land:"—",
+  chips:["STORNIERT","kommissioniert am 03.08.","7 Paletten · 2,6 LDM"],
+  aktion:"<b>Storniert, aber noch kommissioniert.</b> Die Ware liegt seit dem 03.08. auf 7 Paletten fertig gepackt und blockiert Fläche. Rücklagerung bei AMM veranlassen und die Zeile schließen.",
+  beleg:{q:"STORNIERT!!!",src:"Notiz ELVINCI in der WA-Pipeline"},
+  mail:"Betreff: Rücklagerung S00288 (storniert)\n\nHallo zusammen,\n\nS00288 (Alma Trading, 11 Geräte, 7 Paletten) ist storniert, die Ware ist aber seit dem 03.08. kommissioniert.\n\nBitte lagern Sie die Positionen zurück und bestätigen Sie uns das kurz.\n\nVielen Dank und viele Grüße"},
+
+ {b:"E",sev:"off",nr:"S01185",kunde:"Deigma Spolka Ograniczona",ger:13,tage:7,art:"—",land:"PL",
+  chips:["Storniert","Kommissionierung am 25.08. fertiggemeldet"],
+  aktion:"<b>Storniert, trotzdem fertig kommissioniert.</b> Die Fertigmeldung kam am 25.08. — nach der Stornierung. Rücklagerung veranlassen und Zeile schließen.",
+  beleg:{q:"Storniert!!!",src:"Notiz ELVINCI in der WA-Pipeline"},
+  mail:"Betreff: Rücklagerung S01185 (storniert)\n\nHallo zusammen,\n\nS01185 (Deigma, 13 Geräte) ist storniert, die Kommissionierung wurde jedoch am 25.08. fertiggemeldet.\n\nBitte lagern Sie die Positionen zurück und bestätigen Sie uns das kurz.\n\nVielen Dank und viele Grüße"},
+
+ {b:"E",sev:"off",nr:"S00354 + S00585",kunde:"Rati Marti — Altzeilen",ger:133,tage:14,art:"Abholung",land:"GE",
+  chips:["von AMM am 17.08. storniert","ersetzt durch S01254","stehen weiter als überfällig in der Pipeline"],
+  aktion:"<b>Geisterzeilen — nur schließen, nicht bearbeiten.</b> Diese beiden Zeilen erzeugen 133 doppelt gezählte Geräte im Backlog. Der echte Vorgang ist S01254 (oben in der ersten Gruppe). Zeilen als storniert markieren.",
+  beleg:{q:"Beide Aufträge von Rati Marti wurden zusammengefasst. S00354 S00585 — Der zusammengefasste Auftrag läuft nun über S01254 – 133",src:"J. Baranowski · 17.08.2026 · „AW: Abholung S00354 und S00585“"},
+  mail:""}
+];
+
+const BUCKETS = {
+  A:{t:"Termin verstrichen — Kunde hat nicht abgeholt",
+     n:"Kommissioniert und angemeldet, aber der vereinbarte Abhol- oder Versandtag ist vorbei. Reihenfolge: älteste Überfälligkeit zuerst, außer wo ein Mailbeleg etwas anderes nahelegt."},
+  B:{t:"Kommissioniert, aber ohne Termin",
+     n:"Ware ist fertig gepackt und bindet Fläche, es existiert kein Abhol- oder Versanddatum. Das sind die teuersten Vorgänge, weil niemand auf sie schaut."},
+  D:{t:"Kommissionierung offen oder Restmenge unklar",
+     n:"Kein Fertigmeldung von AMM, oder der LKW hat nicht alles gefasst. Restmengen aus Teilverladungen stehen in keiner Pipeline-Zeile — sie müssen einzeln bei AMM abgefragt werden."},
+  E:{t:"Aufräumen — aus der Pipeline nehmen",
+     n:"Storniert oder durch einen anderen Auftrag ersetzt. Diese Zeilen verfälschen jede Backlog-Zahl, solange sie offen stehen."}
+};
+
+const list = document.getElementById("list");
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+function store(){ try{ return JSON.parse(localStorage.getItem("nh5-backlog")||"{}"); }catch(e){ return {}; } }
+function save(o){ try{ localStorage.setItem("nh5-backlog", JSON.stringify(o)); }catch(e){} }
+
+function verzugLabel(o){
+  if(o.b==="E") return {c:"off", t:"schließen"};
+  if(o.b==="B") return {c:o.tage>=14?"crit":"warn", t:o.tage+" Tage ohne Termin"};
+  if(o.tage<=1) return {c:"warn", t:o.tage===1?"seit gestern":"heute fällig"};
+  return {c:o.tage>=7?"crit":"warn", t:o.tage+" Tage überfällig"};
+}
+
+function render(){
+  const done = store();
+  const q = document.getElementById("q").value.trim().toLowerCase();
+  const f = document.querySelector(".chip[data-f][aria-pressed='true']")?.dataset.f || "all";
+  const hide = document.getElementById("hideDone").getAttribute("aria-pressed") === "true";
+  let shown = 0;
+  list.innerHTML = "";
+
+  for(const key of ["A","B","D","E"]){
+    if(f !== "all" && f !== key) continue;
+    const rows = ORDERS.filter(o => o.b === key)
+      .filter(o => !q || (o.kunde+" "+o.nr).toLowerCase().includes(q))
+      .filter(o => !(hide && done[o.nr]));
+    if(!rows.length) continue;
+
+    const sec = document.createElement("section");
+    sec.className = "bucket";
+    const ger = rows.reduce((s,o)=>s+o.ger,0);
+    sec.innerHTML = `<div class="bhead"><h2>${esc(BUCKETS[key].t)}</h2>
+        <span class="tot">${rows.length} Vorgänge · ${ger.toLocaleString("de-DE")} Geräte</span></div>
+      <p class="bnote">${BUCKETS[key].n}</p>`;
+
+    for(const o of rows){
+      shown++;
+      const v = verzugLabel(o);
+      const card = document.createElement("article");
+      card.className = "card" + (done[o.nr] ? " done" : "");
+      card.dataset.sev = o.sev;
+      card.innerHTML = `
+        <div class="tick"><input type="checkbox" id="c-${esc(o.nr)}" ${done[o.nr]?"checked":""}
+             aria-label="${esc(o.kunde)} erledigt"></div>
+        <div>
+          <div class="chead">
+            <span class="auf">${esc(o.nr)}</span>
+            <span class="kunde">${esc(o.kunde)}</span>
+            <span class="verzug ${v.c}">${esc(v.t)}</span>
+          </div>
+          <p class="aktion">${o.aktion}</p>
+          <div class="meta">
+            <span class="tag">${o.ger} Geräte</span>
+            ${o.art!=="—" ? `<span class="tag">${esc(o.art)}</span>` : ""}
+            ${o.land!=="—" ? `<span class="tag">${esc(o.land)}</span>` : ""}
+            ${o.chips.map(c=>`<span class="tag">${esc(c)}</span>`).join("")}
+          </div>
+          ${o.beleg ? `<div class="beleg"><span class="q">„${esc(o.beleg.q)}“</span>
+             <span class="src">${esc(o.beleg.src)}</span></div>` : ""}
+          ${o.mail ? `<details class="draft"><summary>Mailentwurf</summary>
+             <textarea readonly>${esc(o.mail)}</textarea>
+             <button class="copy" type="button">In die Zwischenablage</button></details>` : ""}
+        </div>`;
+      sec.appendChild(card);
+    }
+    list.appendChild(sec);
+  }
+  document.getElementById("count").textContent = shown + " von " + ORDERS.length + " sichtbar";
+}
+
+list.addEventListener("change", e => {
+  if(e.target.type !== "checkbox") return;
+  const nr = e.target.id.slice(2);
+  const d = store();
+  if(e.target.checked) d[nr] = 1; else delete d[nr];
+  save(d);
+  e.target.closest(".card").classList.toggle("done", e.target.checked);
+  if(document.getElementById("hideDone").getAttribute("aria-pressed") === "true") render();
+});
+
+list.addEventListener("click", async e => {
+  if(!e.target.classList.contains("copy")) return;
+  const ta = e.target.closest("details").querySelector("textarea");
+  try{
+    await navigator.clipboard.writeText(ta.value);
+    e.target.textContent = "Kopiert";
+  }catch(err){
+    ta.focus(); ta.select();
+    e.target.textContent = "Text markiert — mit Strg+C kopieren";
+  }
+  setTimeout(()=>{ e.target.textContent = "In die Zwischenablage"; }, 2600);
+});
+
+document.querySelectorAll(".chip[data-f]").forEach(btn => btn.addEventListener("click", () => {
+  document.querySelectorAll(".chip[data-f]").forEach(b => b.setAttribute("aria-pressed","false"));
+  btn.setAttribute("aria-pressed","true");
+  render();
+}));
+document.getElementById("hideDone").addEventListener("click", e => {
+  const on = e.currentTarget.getAttribute("aria-pressed") === "true";
+  e.currentTarget.setAttribute("aria-pressed", on ? "false" : "true");
+  render();
+});
+document.getElementById("q").addEventListener("input", render);
+render();
+</script>

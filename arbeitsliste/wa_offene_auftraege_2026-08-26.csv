@@ -1,0 +1,27 @@
+﻿Bucket;Auftragsnr;Kunde;Geraete;Paletten;LDM;Versandart;Kommissioniertag;KommFertig;Termin;TageUeberfaellig;Anmeldung;Sammelverladung;NotizAMM;NotizELVINCI;StatusSheet
+A;S00354;Rati Marti;121;34;11.0;Abholung;20.07.2026;20.07.2026 00:00;18.08.2026;14;ist angemeldet;S00585;;Bitte zusammen mit S00585 beladen;⚠ Versand überfällig
+A;S00585;Rati Marti;12;0;0.0;Abholung;29.07.2026;29.07.2026 00:00;18.08.2026;14;ist angemeldet;S00354;;Folgeauftrag, zusammen mit S00354 beladen;⚠ Versand überfällig
+A;S00642;Euroda Transport & Handel;107;79;27.0;Abholung;29.07.2026;31.07.2026 00:00;24.08.2026;8;ist angemeldet;;44 Stück LKW1 Rest LKW25 ( S00642.001 );44 von 107 Geräten wurden bereits kommissioniert und ergibt den 1.LKW | LKW 1 - 40 Paletten - 13,6 Lademeter/Versendet am 13.08.26 | LKW 2 - 39 Paletten - 13,4 Lademeter;⚠ Versand überfällig
+A;S00944;SADI;9;0;0.0;Abholung;21.08.2026;21.08.2026 00:00;25.08.2026;7;ist angemeldet;;;Palettiert bitte!;⚠ Versand überfällig
+A;S01309;Elektro Outlet Sinzig;123;43;14.1;Spedition;21.08.2026;21.08.2026 00:00;25.08.2026;7;ist angemeldet;;;;⚠ Versand überfällig
+A;S00565;Sefik Saracevic;55;0;0.0;Abholung;20.08.2026;20.08.2026 00:00;26.08.2026;6;ist angemeldet;;;Bitte Lose verladen.;▶ Versand heute geplant
+A;S01292;Electro Catoira Outlet S.L;128;45;15.7;Spedition;24.08.2026;25.08.2026 00:00;27.08.2026;5;warten;;Todo Cash;;✓ Komm abgeschlossen
+A;S01148;Fortis Impex KFT;82;17;7.0;Abholung;19.08.2026;19.08.2026 00:00;28.08.2026;4;warten;S01314;;maximal Bis 2,70 hoch bitte. Bitte zusammen mit S01314 verladen.;⚠ Verlade-Stau
+A;S01296;Artek Commerce LTD;15;3;1.2;Abholung;21.08.2026;24.08.2026 00:00;28.08.2026;4;warten;;;;✓ Komm abgeschlossen
+A;S01330;Hermans Trading;94;29;10.5;Abholung;21.08.2026;24.08.2026 00:00;31.08.2026;1;ist angemeldet;;;;✓ Komm abgeschlossen
+A;S00986;KOUTLIANOS;24;4;1.2;Abholung;21.08.2026;21.08.2026 00:00;31.08.2026;1;ist angemeldet;S01335;;Bitte zusammen mit S01335 verladen;✓ Komm abgeschlossen
+B;S00622;Aurora Solar Energy DOO;37;15;5.9;;30.07.2026;30.07.2026 00:00;;;;;;Neue Preisabfrage gestellt. Zoll muss noch geklärt werden;⚠ Verlade-Stau
+B;S00755;Euroda Transport & Handel;56;20;6.9;Abholung;04.08.2026;04.08.2026 00:00;;;warten;;;;⚠ Verlade-Stau
+B;S01314;Fortis Impex KFT;16;0;0.0;Abholung;21.08.2026;24.08.2026 00:00;;;warten;S00494, S01148;Lademeter zusammen mit S00494;bis maximal 2,70 hoch. Bitte zusammen mit S01148 verladen;✓ Komm abgeschlossen
+D;S01307;Outlet Simex D.O.O.;157;0;0.0;Abholung;25.08.2026;;26.08.2026;6;ist angemeldet;;;;▶ Versand heute geplant
+D;S01315;Geo Hansi;174;0;0.0;Abholung;26.08.2026;;27.08.2026;5;ist angemeldet;;;;▶ Komm läuft heute
+D;S01285;Les Petits Pieds;78;0;0.0;Abholung;26.08.2026;;28.08.2026;4;ist angemeldet;S01327;;Bitte zusammen mit S01327 verladen;▶ Komm läuft heute
+D;S01327;Les Petits Pieds;8;0;0.0;Abholung;26.08.2026;;28.08.2026;4;ist angemeldet;S01285;;Bitte zusammen mit S01285 verladen;▶ Komm läuft heute
+D;S01335;KOUTLIANOS;15;0;0.0;Abholung;27.08.2026;;31.08.2026;1;ist angemeldet;S00986;;Bitte zusammen mit S00986 verladen;○ Komm geplant
+D;S01318;PUKO SP z.o.o;6;0;0.0;Spedition;24.08.2026;;;;warten;;warten/platzhalter/mit Janna besprochen;;⚠ Komm überfällig
+D;S01302;Outletstocks di Rahel;9;0;0.0;Spedition;24.08.2026;;;;warten;;warten/platzhalter/mit Janna besprochen;;⚠ Komm überfällig
+D;S01266;Bas Commerce;4;0;0.0;Spedition;24.08.2026;;;;warten;;warten/platzhalter/mit Janna besprochen;;⚠ Komm überfällig
+D;S01340;P&C Trading B.V.;40;0;0.0;Spedition;26.08.2026;;;;warten;;;;▶ Komm läuft heute
+E;S00288;Alma Trading;11;7;2.6;;03.08.2026;03.08.2026 00:00;;;;;;STORNIERT!!!;⚠ Verlade-Stau
+E;S01185;Deigma Spolka Ograniczona;13;5;2.0;;21.08.2026;25.08.2026 00:00;;;warten;;;Storniert!!!;✓ Komm abgeschlossen
+F;S01150;Marketvibe;10;0;0.0;Abholung;;;;;warten;S01144;Warten auf Freigabe Janna;bis 2,60 hoch. zusammen mit S01144 verladen;… Neu
