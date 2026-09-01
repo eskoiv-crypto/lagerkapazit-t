@@ -73,3 +73,29 @@ Das Cockpit ist ein **interner Master** (Einkaufsvolumen, Lieferantenkonditionen
 Kreditlinie, IBAN) — dieses Repository ist **öffentlich**. Die gemergte HTML-Datei
 und die Agicap-Exporte gehören nach SharePoint, nicht in den Git-Verlauf.
 `.gitignore` hält die üblichen Dateinamen fern; beim Umbenennen selbst mitdenken.
+
+## Monatliches Auffrischen (lokal)
+
+`refresh_local.py` fasst die ganze Prozedur zu einem Kommando zusammen:
+
+```bash
+python3 tools/otto_obligo/refresh_local.py --dry-run supplier_invoices_*.csv   # erst zeigen
+python3 tools/otto_obligo/refresh_local.py          supplier_invoices_*.csv   # dann machen
+```
+
+Es findet `_build-kit` selbst unter OneDrive, mischt in `hist_register.csv`
+(Backup mit Zeitstempel daneben), ruft `node build.js`, **prüft das Ergebnis**
+und verteilt erst danach in die Zielkopien aus `REFRESH-Historie.md`. Ohne Node
+greift der Direkt-Patch des Literals — nachweislich dasselbe Ergebnis.
+
+Geprüft wird vor dem Verteilen: Zeilenzahl, keine doppelten Rechnungsnummern,
+`</html>` am Ende, genau eine `HIST_CSV`-Deklaration und **ein `;` direkt hinter
+dem Literal**. Der letzte Punkt fängt einen Build ab, der das alte Literal nicht
+sauber ersetzt: die Historie decodiert dann zwar korrekt, dahinter steht aber
+Datenmüll im Skript. Schlägt eine Prüfung fehl, wird **nichts** verteilt.
+
+Damit eine lokale Claude-Code-Sitzung das von selbst kann, liegt der Ablauf als
+Skill unter `.claude/skills/otto-historie/`. Auslöser: „Otto-Historie auffrischen".
+
+**Nur lokal.** In einer Cloud-Sitzung existiert der OneDrive-Ordner nicht — dort
+mergt `merge_history.py`, und die Dateien werden zurückgegeben.

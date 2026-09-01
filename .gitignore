@@ -4,8 +4,10 @@ data/amm/*.csv
 data/elvinci/*.xlsx
 data/elvinci/*.xls
 
-# Claude Code agent state (local only)
-.claude/
+# Claude Code agent state (local only) - Skills sind Projektinhalt und bleiben drin
+.claude/*
+!.claude/skills/
+!.claude/skills/**
 
 # OS
 .DS_Store
