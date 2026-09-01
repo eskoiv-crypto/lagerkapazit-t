@@ -3,13 +3,10 @@
 """
 Warenwert (EK) zum Stichtag — Fortschreibung der Reihe "Warenwert zum Monatsende".
 
-Definition (festgelegt im Teams-Thread Vasiadis / Eskofier / Schneider, 13.-14.08.2026,
-Anlass: Abstimmung mit der Steuerkanzlei)
-
-    "Warenbestaende fuer jeden Monat [...] anhand der Waren die wir tatsaechlich
-     im Lager haben (inklusive Waren die an die Kunden verkauft sind) - das waere
-     der grosse Wert der bei ODOO KPIs erscheint und nicht nur die freiverkaeufliche
-     Ware."                                    - K. Vasiadis, 13.08.2026
+Definition (intern festgelegt am 13./14.08.2026, Anlass: Abstimmung mit der
+Steuerkanzlei): bewertet wird die Ware, die tatsaechlich im Lager liegt -
+einschliesslich bereits an Kunden verkaufter, aber noch nicht ausgelieferter
+Ware; nicht nur die freiverkaeufliche.
 
   => Warenwert(S) = SUMME Einkaufspreis ALLER Geraete, die am Stichtag S physisch
                     im Lager NH5 lagen - unabhaengig davon, ob bereits verkauft.
@@ -21,9 +18,9 @@ Anlass: Abstimmung mit der Steuerkanzlei)
   fehlender EK        = Durchschnitts-EK (Produktkategorie > Marke > Bezeichner >
                         global) - so wie bisher gerechnet
   Schrott-Ware        = echter EK 0 EUR, KEIN Durchschnitts-Fill
-                        (Korrektur D. Schneider, 14.08.2026)
+                        (interne Korrektur vom 14.08.2026)
 
-Bekannte Unschaerfen (D. Schneider, 14.08.2026)
+Bekannte Unschaerfen (intern festgehalten am 14.08.2026)
   * Ein manuell gezogener Export ist nicht der Mitternachtsstand des Monatsletzten.
   * Der Durchschnitts-Fill ueberzeichnet AEG-Schrottware, deren EK echt 0 ist.
 
@@ -41,6 +38,8 @@ Aufruf
 
   Engere Sicht (nur freiverkaeufliche Ware, wie im Vertriebs-Cockpit-Einseiter):
       --umfang freiverkaeuflich
+
+Ergebnisdateien (Reihe, Faktendatei) bleiben lokal - siehe .gitignore.
 """
 
 from __future__ import annotations

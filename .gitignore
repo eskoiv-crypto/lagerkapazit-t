@@ -6,6 +6,11 @@ data/elvinci/*.xls
 data/odoo/*.xlsx
 data/odoo/*.xls
 
+# Auswertungsergebnisse mit Einkaufswerten - NICHT in dieses
+# oeffentliche Repository committen (nur Skripte, keine Daten)
+warenwert_monatsende.csv
+warenwert_facts_*.json
+
 # Claude Code agent state (local only)
 .claude/
 

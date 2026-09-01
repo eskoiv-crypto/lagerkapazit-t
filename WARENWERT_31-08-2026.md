@@ -1,7 +1,14 @@
 # Warenwert zum Stichtag 31.08.2026
 
-**Status: keine belastbare Zahl berechenbar — die Stichtagsdaten fehlen.**
-Stand der Recherche: 01.09.2026 (Repo, SharePoint/OneDrive, Teams-Chats, Outlook).
+**Status: nicht berechenbar — es fehlen die Daten zum Stichtag.**
+Stand der Recherche: 01.09.2026.
+
+> **Hinweis:** Dieses Repository ist öffentlich. Konkrete Einkaufswerte,
+> Stückzahlen und Zitate aus internen Abstimmungen stehen deshalb **nicht** in
+> dieser Datei. Die Zahlen selbst gehören in die interne Ablage
+> (`Warenwert zum Monatsende …xlsx` in Teams/OneDrive) — hier steht nur der
+> Rechenweg. `warenwert_monatsende.csv` und `warenwert_facts_*.json` sind aus
+> demselben Grund per `.gitignore` ausgeschlossen.
 
 ---
 
@@ -9,37 +16,33 @@ Stand der Recherche: 01.09.2026 (Repo, SharePoint/OneDrive, Teams-Chats, Outlook
 
 | | |
 |---|---|
-| **Warenwert 31.08.2026** | **nicht berechenbar** — es existiert keine Datenquelle mit Stand 31.08.2026 |
-| Letzter bestätigter Wert | **31.07.2026 · 5.719 Geräte · 690.125 €** |
-| Vorletzter Wert | 30.06.2026 · 5.433 Geräte · 661.584 € |
-| Jüngste AMM-Bestandsliste | **18.08.2026** (5.468 Geräte: QE 4.162 · VS 926 · AA 380) |
+| Warenwert 31.08.2026 | **nicht berechenbar** — keine Datenquelle mit Stand 31.08.2026 |
+| Letzter bestätigter Wert | 31.07.2026 (Reihe „Warenwert zum Monatsende", intern) |
+| Jüngste AMM-Bestandsliste | **18.08.2026** (`BESTAND134_20260818_1600.CSV`) |
 | Jüngster Odoo-Export | **25.08.2026** (`LosSerie (stock.lot) (6).xlsx`, ODOO_dashboard) |
 | Fehlt für den Stichtag | Bestandsliste **31.08.2026** + Odoo-Export **≥ 31.08.2026** |
 
-Es wäre möglich gewesen, aus den vorhandenen Ständen (18.08. / 25.08.) eine Zahl
-zu erzeugen — sie wäre aber weder stichtagsrein noch gegenüber der Steuerkanzlei
-vertretbar und hätte sich nicht in die Monatsreihe eingereiht. Deshalb steht hier
-keine Zahl, sondern der fertige Rechenweg (Abschnitt 4) und die zwei Handgriffe,
-die noch fehlen (Abschnitt 5).
+Aus den vorhandenen Ständen (18.08. / 25.08.) ließe sich eine Zahl erzeugen — sie
+wäre aber weder stichtagsrein noch gegenüber der Steuerkanzlei vertretbar und
+würde sich nicht in die Monatsreihe einreihen. Deshalb hier keine Zahl, sondern
+der fertige Rechenweg (Abschnitt 4) und die zwei fehlenden Handgriffe
+(Abschnitt 5).
 
 ---
 
 ## 2. Was „wie zuletzt immer berechnet" konkret heißt
 
-Die Definition wurde am **13./14.08.2026** im Teams-Thread (Vasiadis · Eskofier ·
-Schneider) für die Abstimmung mit der Steuerkanzlei festgelegt:
-
-> „ich benötige die Warenbestände für jeden Monat seit September 2025 anhand der
-> Waren die wir **tatsächlich im Lager** haben (**inklusive Waren die an die Kunden
-> verkauft sind**) — das wäre der **große Wert der bei ODOO KPIs erscheint** und
-> **nicht nur die freiverkäufliche Ware**."  — K. Vasiadis, 13.08.2026
-
-Daraus:
+Die Definition wurde am **13./14.08.2026** intern für die Abstimmung mit der
+Steuerkanzlei festgelegt:
 
 ```
 Warenwert(S) = Σ Einkaufspreis aller Geräte, die am Stichtag S
                physisch im Lager NH5 standen — unabhängig vom Verkaufsstatus
 ```
+
+Bewertet wird also alles, was **tatsächlich im Lager liegt**, einschließlich
+bereits an Kunden verkaufter, aber noch nicht ausgelieferter Ware — nicht nur die
+freiverkäufliche. Das entspricht dem großen Wert aus den Odoo-KPIs.
 
 | Baustein | Regel | Quelle |
 |---|---|---|
@@ -47,23 +50,23 @@ Warenwert(S) = Σ Einkaufspreis aller Geräte, die am Stichtag S
 | Preis | Einkaufspreis je Lager-Nr | Odoo `stock.lot` |
 | Preis (Altbestand) | `Buying_Price` je Lager-Nr | Portal Stock-Analysis, **Endstand 02.07.2026** |
 | fehlender EK | Ø-EK: Produktkategorie → Marke → Bezeichner → global | aus demselben Stichtag |
-| Schrottware | echter EK **0 €**, kein Ø-Fill | Korrektur D. Schneider, 14.08.2026 |
+| Schrottware | echter EK **0 €**, kein Ø-Fill | interne Korrektur vom 14.08.2026 |
 
 **Abgrenzung — nicht verwechseln:** Der Einseiter `Warenwert_30-06-2026.pdf`
-(226.987 € / 3.171 Geräte) ist die **engere** Sicht „nur freiverkäufliche Ware,
-nur mit belegtem EK". Das ist *nicht* der Reihenwert. Der Reihenwert für denselben
-Stichtag lautet 661.584 € / 5.433 Geräte. Das Skript kann beides
-(`--umfang gesamt` bzw. `--umfang freiverkaeuflich`).
+zeigt die **engere** Sicht „nur freiverkäufliche Ware, nur mit belegtem EK" und
+liegt deutlich unter dem Reihenwert desselben Stichtags. Das Skript kann beides:
+`--umfang gesamt` (Reihenwert) bzw. `--umfang freiverkaeuflich`.
 
-### Bekannte Unschärfen (D. Schneider, 14.08.2026, von allen akzeptiert)
+### Bekannte Unschärfen (intern festgehalten am 14.08.2026)
 
 1. Ein **manuell gezogener** Export ist nicht der Mitternachtsstand des
    Monatsletzten — im Juli waren das zwei Tage Differenz.
 2. Wo kein EK hinterlegt ist, wird mit **Durchschnittswerten** gerechnet.
    Herausgerechnet gehört die **AEG-Schrottware**, deren EK tatsächlich 0 ist.
 
-> „Nach dem Urlaub baue ich das ins Cockpit rein, damit wir nicht mehr
-> rückrechnen müssen." — D. Schneider, 14.08.2026
+Angekündigt ist, die Auswertung direkt aus der Datenbank ins Cockpit zu ziehen
+(Monatsletzter, 00:00 Uhr); das erledigt Unschärfe 1 und macht die Rückrechnung
+überflüssig.
 
 ---
 
@@ -74,7 +77,7 @@ Stichtag lautet 661.584 € / 5.433 Geräte. Das Skript kann beides
 `proWMS@amm-spedition.de` liefert normalerweise **täglich** um ~21:34 Uhr
 „Bestand (Elvinci.de GmbH) im Lager AMM vom …". Die letzte Mail kam am
 **18.08.2026** (an dem Tag ungewöhnlich um 13:04 / 14:04 / 15:04 Uhr).
-Seither: **nichts** — weder im Postfach noch im SharePoint-Ordner
+Seither: nichts — weder im Postfach noch im SharePoint-Ordner
 `01 TÄGLICH HOCHLADEN / 02 AMM BESTAND134` (letzte Datei
 `BESTAND134_20260818_1600.CSV`). Auch „Eingänge", „Ausgänge" und
 „Auftragsstand" enden am 18.08.2026.
@@ -98,36 +101,21 @@ Laut `_LIESMICH - ORDNERSTRUKTUR.txt` (Stand 24.07.2026) ist das Portal seit
 (Stock-Analysis, All-Sold) sind der Endstand. Sie bleiben als **EK-Quelle für
 Altbestand** relevant, liefern aber kein Mengengerüst mehr.
 
-### 3.4 Was ich als Anhaltspunkt messen konnte
+### 3.4 Warum die Zahl nicht per Connector zu holen ist
 
-Aus der jüngsten vorhandenen Bestandsliste, **BESTAND134_20260818_1600.CSV**:
-
-| Status | Bedeutung | Geräte |
-|---|---|---|
-| QE | klassifiziert, freiverkäuflich | 4.162 |
-| VS | Versandpipeline (verkauft, noch im Lager) | 926 |
-| AA | auftragsgebunden | 380 |
-| **Σ** | **Mengengerüst Reihenwert** | **5.468** |
-
-Keine doppelten Lager-Nrn (5.468 Zeilen = 5.468 eindeutige Nummern).
-Zum Vergleich: 30.06.2026 → 5.374 · 28.07.2026 → 5.837 AMM-Zeilen, gegenüber
-5.433 bzw. 5.719 Stück in der Reihe. Die AMM-Zeilenzahl trägt das Mengengerüst,
-weicht aber je nach Exportzeitpunkt um 1–2 % vom Odoo-KPI ab.
-
-**Eine EK-Summe daraus ist nicht möglich**: Der Microsoft-365-Connector gibt
-Tabellen nur bis ~400 Zeilen zurück (der Odoo-Export hat 12.632), die
-Einkaufspreise sind darüber nicht auslesbar. Deshalb der Weg über das Skript,
-das lokal auf den echten Dateien läuft.
+Der Microsoft-365-Connector gibt Tabellen nur bis ~400 Zeilen zurück; der
+Odoo-Export hat gut 12.600. Die Einkaufspreise sind darüber nicht auslesbar.
+Deshalb der Weg über das Skript, das lokal auf den echten Dateien läuft.
 
 ---
 
-## 4. Der fertige Rechenweg: `warenwert_stichtag.py`
+## 4. Der Rechenweg: `warenwert_stichtag.py`
 
-Neu in diesem Branch. Das Skript setzt die Definition aus Abschnitt 2 exakt um
-und schreibt die Monatsreihe fort. Selbsttest:
-`python3 tests/test_warenwert_stichtag.py` (prüft beide Umfänge,
+Setzt die Definition aus Abschnitt 2 um und schreibt die Monatsreihe fort.
+Selbsttest: `python3 tests/test_warenwert_stichtag.py` — prüft beide Umfänge,
 Dubletten-Entfernung, Schrott-Regel, Ø-Fill-Kaskade, Stichtags-Wächter und
-Reihen-Fortschreibung gegen von Hand nachgerechnete Sollwerte).
+Reihen-Fortschreibung gegen von Hand nachgerechnete Sollwerte (synthetische
+Testdaten, keine echten Bestände).
 
 ```bash
 python3 warenwert_stichtag.py \
@@ -145,13 +133,14 @@ sonst still eine nicht stichtagsreine Zahl in die Steuer-Reihe schreibt.
 
 Ausgabe: Warenwert, Gerätezahl, Aufteilung nach Preisquelle (Odoo / Portal /
 Ø-Schätzung / Schrott), AMM-Statusverteilung und alle Vorbehalte als Hinweise.
+Die Ergebnisdateien bleiben lokal (siehe `.gitignore`).
 
-Die bestätigte Historie liegt als `warenwert_monatsende.csv` im Repo
-(Sep-2025 … Jul-2026, aus `Warenwert zum Monatsende Sep25-Jul26 1.xlsx`).
-Hinweis: Der Wert für 31.08.2025 wurde nachträglich von 538.297 € auf
-**558.695 €** korrigiert (Abgleich mit der Zahl aus der Buchhaltung,
-„3980 Bestand Waren 558.695,00 zum 31.08.2025"); im Repo steht die korrigierte
-Fassung.
+Die bestätigte Historie Sep-2025 … Jul-2026 steht in der internen Datei
+`Warenwert zum Monatsende Sep25-Jul26 1.xlsx` (Teams/OneDrive). Als Startpunkt
+für `--serie` daraus eine CSV mit den Spalten `Monatsende;Stück;EK-Wert`
+(Datumsformat `TT.MM.JJJJ`, Semikolon) anlegen — sie bleibt lokal.
+Hinweis: Der Wert für 31.08.2025 wurde nachträglich gegen die Zahl aus der
+Buchhaltung korrigiert; die ältere Fassung der Datei trägt noch den alten Wert.
 
 ---
 
@@ -169,27 +158,16 @@ Fassung.
    genügt, solange die Bestandsliste den Stichtag setzt.
    Ablegen als `data/odoo/LosSerie (stock.lot)01092026.xlsx`.
 
-Danach den Befehl aus Abschnitt 4 laufen lassen; die Zahl steht in der Konsole,
-in `warenwert_facts_2026-08-31.json` und als neue Zeile in
-`warenwert_monatsende.csv`.
-
-**Sauberer für die Zukunft:** Daniels angekündigter Datenbank-Weg
-(Monatsletzter, 00:00 Uhr, direkt aus Odoo) macht die Rückrechnung überflüssig
-und behebt Unschärfe 1 aus Abschnitt 2.
+Danach den Befehl aus Abschnitt 4 laufen lassen.
 
 ---
 
-## 6. Wo ich gesucht habe
+## 6. Wo gesucht wurde
 
-| Quelle | Ergebnis |
-|---|---|
-| Repo `lagerkapazit-t` | `lagerwert_pdf.py` + `lagerwert_facts.json` (Methodik Stichtag 29.05.2026), Vertriebs-Cockpit |
-| SharePoint `KI-Tools / Lager_Sales Dashboard` | Ordnerstruktur + `_LIESMICH`, `_INFO`-Dateien, Tagesordner AMM/Odoo |
-| SharePoint `KI-Tools / ODOO_dashboard` | jüngster Odoo-Export (25.08.2026), Marge-/4-Ebenen-Dashboards |
-| OneDrive (Teams-Chatdateien) | `Warenwert zum Monatsende Sep25-Jul26 (1).xlsx`, `Warenwert_30-06-2026.pdf`, `Lagerwert_29-05-2026.pdf` |
-| Teams-Chat (Gruppe Finanzen) | Definition + Freigabe der Reihe, 13./14.08.2026 |
-| Teams-Chat 1:1 | monatliche Übergabe der Lagerwert-/Warenwert-Auswertungen |
-| Outlook | `proWMS@amm-spedition.de` — Bestand/Eingänge/Ausgänge, letzte Mail 18.08.2026 |
+Repo `lagerkapazit-t` · SharePoint `KI-Tools / Lager_Sales Dashboard`
+(inkl. `_LIESMICH` und den `_INFO`-Dateien der Tagesordner) · SharePoint
+`KI-Tools / ODOO_dashboard` · OneDrive Teams-Chatdateien · die Teams-Threads zur
+Monatsreihe · Outlook (`proWMS@amm-spedition.de`).
 
 Nirgends existiert ein Bestands- oder Odoo-Stand zum 31.08.2026, und für
 August 2026 wurde bislang kein Warenwert gerechnet oder kommuniziert.
