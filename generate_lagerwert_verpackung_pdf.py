@@ -15,7 +15,7 @@ POSITIONEN = [
     # Bezeichnung, Artikel, Menge, ME, Preis, Preisbasis
     ("Einwegpaletten, alle Formate", "—",      1170, "Stk",   10.25,
      "ZELSEN, Preisliste ab 26.03.2026"),
-    ("Wellpappe-Zuschnitte 1180 x 780 mm", "268144", 19400, "Stk", 0.2878,
+    ("Wellpappe-Zuschnitte 1180 x 780 mm", "268144", 19403, "Stk", 0.2878,
      "Prodinger AB 20097713, 287,80 €/1.000 Stk"),
     ("Handstretchfolie transparent", "—",        40, "Ro.",    4.99,
      "Ahrbach Süd AN2602363"),

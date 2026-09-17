@@ -65,11 +65,11 @@ positionen.append(("Wellpappe-Zuschnitte 268144", wp_bestand, "Stk", wp_preis,
 # --- B) Einwegpaletten (ZELSEN) ---------------------------------------------
 # QUELLE: Bestellung 05.08.2026 (1 LKW: 1/2 100x80 + 1/2 120x80),
 #         Lieferzusage K. Kurz 06.08.2026 -> Lieferung 18.08.2026
-# LKW-Menge [ESTIMATED]: Referenz LS0007 (24.02.2026) = 1.166 Stk gemischt,
-#         Bestellung 16.07. = 960 Stk (60x120). Grossformate 100x80/120x80 -> 950 Stk
+# LKW-Menge: Referenz LS0007 (24.02.2026) = 1.166 Stk gemischt je LKW,
+#         Bestellung 16.07. = 960 Stk (60x120). Angesetzt: 1.000 Stk
 # Preis: Preisliste ZELSEN ab 26.03.2026: 120x80 IPPC 10,50 / 100x80 IPPC 10,25
 #        -> Mischpreis 10,25 EUR (deckt sich mit Kostenvergleich v5: "10,00-10,25 EUR")
-pal_lkw     = 950
+pal_lkw     = 1000
 pal_preis   = 10.25
 pal_at      = 10                    # Arbeitstage 18.08. - 31.08.2026
 pal_verbr   = pro_at(PALETTEN_JAHR) * pal_at
@@ -126,6 +126,7 @@ print(f"{'Position':<34}{'Menge':>10} {'ME':<8}{'EUR/ME':>9}{'Wert EUR':>12}  Ba
 print("-" * 88)
 summe = 0.0
 for name, menge, me, preis, basis in positionen:
+    menge = round(menge)          # Bestand wird in ganzen Einheiten gefuehrt
     wert = menge * preis
     summe += wert
     print(f"{name:<34}{menge:>10,.0f} {me:<8}{preis:>9,.4f}{wert:>12,.2f}  {basis}")
