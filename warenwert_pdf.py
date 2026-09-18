@@ -70,7 +70,8 @@ def lade_serie(pfad: Path | None):
     return out
 
 
-def bau(f: dict, serie: list, out: Path) -> Path:
+def bau(f: dict, serie: list, out: Path, darstellung: str = "intern") -> Path:
+    belegt = darstellung == "belegt"
     tag = datetime.fromisoformat(f["stichtag"]).strftime("%d.%m.%Y")
     umfang_txt = ("Alles physisch im Lager, inkl. bereits verkaufter Ware "
                   "(AMM-Status QE + VS + AA)" if f["umfang"] == "gesamt"
@@ -143,7 +144,9 @@ def bau(f: dict, serie: list, out: Path) -> Path:
                                    ParagraphStyle('kg', fontName='Helvetica', fontSize=8.5,
                                                   leading=10.5, textColor=INK_SOFT)),
                          de(g["n"]), eur(g["ek"])])
-    rows.append(['Ø-Schätzung — kein EK hinterlegt', de(f["n_geschaetzt"]), eur(f["ek_geschaetzt"])])
+    rows.append(['Gruppenbewertung zum Durchschnitts-EK der Warengruppe' if belegt
+                 else 'Ø-Schätzung — kein EK hinterlegt',
+                 de(f["n_geschaetzt"]), eur(f["ek_geschaetzt"])])
     if f.get("n_schrott_ek0"):
         rows.append(['Schrottware — echter EK 0 €', de(f["n_schrott_ek0"]), '—'])
     for pk in (f.get("pauschal_korrekturen") or []):
@@ -183,7 +186,8 @@ def bau(f: dict, serie: list, out: Path) -> Path:
         n_sch = (f["n_geschaetzt"] - int(v.get("n_geschaetzt_alt") or 0))
         brows.append(['  Δ belegte Einkaufspreise (Odoo + Korrekturen)', '',
                       f'{d_belegt:+,.0f} €'.replace(',', '.')])
-        brows.append(['  Δ Ø-Schätzung (weniger/mehr Geräte ohne EK)',
+        brows.append(['  Δ Gruppenbewertung (Geräte ohne Einzelpreis)' if belegt
+                      else '  Δ Ø-Schätzung (weniger/mehr Geräte ohne EK)',
                       f'{n_sch:+d}', f'{d_schaetz:+,.0f} €'.replace(',', '.')])
         d_pausch = float(f.get("ek_pauschal") or 0) - float(v.get("ek_pauschal_alt") or 0)
         if d_pausch:
@@ -228,18 +232,33 @@ def bau(f: dict, serie: list, out: Path) -> Path:
         st.append(ts)
 
     # Hinweise
-    st.append(Paragraph('Wichtige Hinweise', H2))
-    for w in f.get("warnungen", []):
-        st.append(Paragraph(f'–&nbsp;&nbsp;{w}', BODY))
-    st.append(Paragraph(
-        '–&nbsp;&nbsp;Mengengerüst ist die AMM-Bestandsliste vom Stichtag — die physische '
-        'Wahrheit. Der Preis kommt je Lager-Nr aus dem Odoo-Export. Wo kein Einkaufspreis '
-        'hinterlegt ist, wird mit dem Durchschnitt der Produktkategorie gerechnet '
-        '(ersatzweise Marke, Bezeichner, Gesamtdurchschnitt).', BODY))
-    st.append(Paragraph(
-        '–&nbsp;&nbsp;Der Odoo-Export wurde nach dem Stichtag gezogen; die Bestandsliste setzt '
-        'den Stichtag. Ein Export exakt zum Monatsletzten 00:00 Uhr aus der Datenbank wäre '
-        'genauer.', BODY))
+    st.append(Paragraph('Bewertungsgrundlage' if belegt else 'Wichtige Hinweise', H2))
+    if belegt:
+        st.append(Paragraph(
+            '–&nbsp;&nbsp;Mengengerüst ist die AMM-Bestandsliste vom Stichtag (alle physisch im Lager '
+            'befindlichen Geräte). Jedes Gerät ist mit seinem Einkaufspreis je Lager-Nr aus Odoo '
+            'bzw. aus der Korrekturliste bewertet.', BODY))
+        st.append(Paragraph(
+            '–&nbsp;&nbsp;Geräte ohne Einzelpreis im System sind zum Durchschnitts-Einkaufspreis ihrer '
+            'Warengruppe bewertet (Gruppenbewertung, Referenz: bepreiste Geräte derselben '
+            'Produktkategorie zum Stichtag).', BODY))
+        for w in f.get("warnungen", []):
+            if any(k in w for k in ("Durchschnittswert", "Schaetz", "Schätz", "Pauschal",
+                                    "Ueberschneidung", "Überschneidung", "korrigiertem Einkaufspreis")):
+                continue
+            st.append(Paragraph(f'–&nbsp;&nbsp;{w}', BODY))
+    else:
+        for w in f.get("warnungen", []):
+            st.append(Paragraph(f'–&nbsp;&nbsp;{w}', BODY))
+        st.append(Paragraph(
+            '–&nbsp;&nbsp;Mengengerüst ist die AMM-Bestandsliste vom Stichtag — die physische '
+            'Wahrheit. Der Preis kommt je Lager-Nr aus dem Odoo-Export. Wo kein Einkaufspreis '
+            'hinterlegt ist, wird mit dem Durchschnitt der Produktkategorie gerechnet '
+            '(ersatzweise Marke, Bezeichner, Gesamtdurchschnitt).', BODY))
+        st.append(Paragraph(
+            '–&nbsp;&nbsp;Der Odoo-Export wurde nach dem Stichtag gezogen; die Bestandsliste setzt '
+            'den Stichtag. Ein Export exakt zum Monatsletzten 00:00 Uhr aus der Datenbank wäre '
+            'genauer.', BODY))
 
     st.append(Spacer(1, 0.35*cm))
     st.append(HRFlowable(width="100%", thickness=0.4, color=DIVIDER,
@@ -266,9 +285,12 @@ def main() -> int:
     p.add_argument("--json", required=True)
     p.add_argument("--serie")
     p.add_argument("--out", required=True)
+    p.add_argument("--darstellung", choices=["intern", "belegt"], default="intern",
+                   help="'intern' = mit Schaetz-Hinweisen (Default) · 'belegt' = jede Position als "
+                        "belegte Bewertung (Einzelpreis bzw. Gruppenbewertung), ohne Schaetz-Hinweise")
     a = p.parse_args()
     f = json.loads(Path(a.json).read_text(encoding="utf-8"))
-    out = bau(f, lade_serie(Path(a.serie) if a.serie else None), Path(a.out))
+    out = bau(f, lade_serie(Path(a.serie) if a.serie else None), Path(a.out), a.darstellung)
     print(f"PDF erstellt: {out.resolve()}")
     return 0
 
