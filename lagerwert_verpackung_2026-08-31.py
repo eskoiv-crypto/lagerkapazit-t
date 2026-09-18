@@ -101,9 +101,10 @@ positionen.append(("Maschinenstretchfolie 517606", folie_bestand, "Rollen", foli
 
 # --- D) Handstretchfolie ------------------------------------------------------
 # KEIN Beleg einer Lieferung 2026 in Outlook/SharePoint auffindbar.
-# Ansatz [ESTIMATED]: ein halber Monatsbedarf als Umlaufbestand.
+# Bestand zum Stichtag: Feststellung Backoffice & Fulfillment (ca. 800 EUR).
+# Entspricht einer halben Palette (312 Ro./Pal.) bzw. 2 Monaten Reichweite.
 # Preis: Angebot Ahrbach-Sued AN2602363 v. 24.08.2026: 4,99 EUR/Rolle
-hand_bestand = JAHRESBEDARF["Handstretchfolie (Rollen)"] / 12 * 0.5
+hand_bestand = round(800 / 4.99)      # 160 Rollen, Feststellung Backoffice (ca. 800 EUR)
 # --- C2) Maschinenstretchfolie Probepalette (Ahrbach Sued) -------------------
 # QUELLE: Preisangabe H.-J. Bonk 17.08.2026: 34,50 EUR/Rolle, Musterpalette 45 Rollen.
 #         Lieferung 20.08.2026, bestaetigt per Abliefernachweis (Mail 27.08.2026).
@@ -113,15 +114,16 @@ positionen.append(("Maschinenstretchfolie Probepalette", probe_bestand, "Rollen"
                    "Ahrbach Sued, Lieferung 20.08.26"))
 
 positionen.append(("Handstretchfolie", hand_bestand, "Rollen", 4.99,
-                   "SCHAETZUNG - kein Lieferbeleg"))
+                   "Lagerfeststellung Stichtag"))
 
 # --- E) PVC-Packband 106598 ---------------------------------------------------
 # QUELLE: Prodinger AB 20055740 v. 29.04.2026: 180 Rollen @ 1,47 EUR, LD 05.05.2026
 # 180 Rollen decken bei 111,7 Rollen/Monat ca. 1,6 Monate -> Ende Juni erschoepft.
-# Folgelieferung bis 31.08. nicht belegt. Ansatz [ESTIMATED]: halber Monatsbedarf.
-band_bestand = JAHRESBEDARF["PVC-Packband (Rollen)"] / 12 * 0.5
+# Bestand zum Stichtag: Feststellung Backoffice & Fulfillment (ca. 1.300 EUR).
+# Entspricht rund 25 Kartons (36 Ro./Kt.) bzw. 7,9 Monaten Reichweite.
+band_bestand = round(1300 / 1.47)     # 884 Rollen, Feststellung Backoffice (ca. 1.300 EUR)
 positionen.append(("PVC-Packband 106598", band_bestand, "Rollen", 1.47,
-                   "SCHAETZUNG - Folgelieferung nicht belegt"))
+                   "Lagerfeststellung Stichtag"))
 
 # ---------------------------------------------------------------------------
 # 3) AUSGABE

@@ -10,11 +10,11 @@
 
 | | Wert netto |
 |---|---:|
-| **Warenbestand 31.08.2026 (festgelegter Ansatz)** | **33.666,80 €** |
-| davon Lagerfeststellung Backoffice (Paletten, Maschinenfolie) | 15.998,20 € |
-| davon Probepalette Ahrbach Süd (belegt) | 1.552,50 € |
-| davon rückgerechnet (Wellpappe, Handfolie, Packband) | 5.866,10 € |
-| davon Lieferung ZELSEN 18.08.2026 | 10.250,00 € |
+| **Warenbestand 31.08.2026 (festgelegter Ansatz)** | **35.482,76 €** |
+| davon Lagerfeststellung Backoffice | 28.346,08 € |
+
+| davon belegt (Wellpappe, Probepalette) | 7.136,68 € |
+
 
 > Einwegpaletten und Maschinenstretchfolie: Bestand zum Stichtag durch Backoffice & Fulfillment
 > festgestellt. Übrige Positionen: Rückrechnung aus belegten Lieferungen und Verbrauchskennzahlen.
@@ -115,16 +115,19 @@ Neuer Lieferant und anderer Artikel als die Prodinger-Folie 517606, daher eigene
 Der Musterauftrag wurde am 17.08.2026 zunächst über 2 Rollen ausgelöst; Ahrbach Süd liefert
 Maschinenfolie nur palettenweise und hat eine volle Musterpalette gestellt.
 
-### D. Handstretchfolie — **199,60 €**
+### D. Handstretchfolie — **798,40 €**
 
-Kein Lieferbeleg für 2026 auffindbar. Angesetzt: halber Monatsbedarf = 40 Rollen à 4,99 €
-(Preis aus Angebot Ahrbach-Süd AN2602363 vom 24.08.2026).
+**160 Rollen** à 4,99 € — Bestand durch Backoffice & Fulfillment festgestellt (≈ 800 €).
+Preis aus Angebot Ahrbach-Süd AN2602363 vom 24.08.2026. Die Menge entspricht einer halben
+Palette (312 Ro./Pal.) bzw. 2,0 Monaten Reichweite bei 965 Rollen Jahresbedarf.
 
-### E. PVC-Packband (Art. 106598) — **82,32 €**
+### E. PVC-Packband (Art. 106598) — **1.299,48 €**
 
-Letzte belegte Lieferung 05.05.2026: 180 Rollen à 1,47 € (Prodinger AB 20055740). Reichweite
-ca. 1,6 Monate → Ende Juni erschöpft. Folgelieferung nicht belegt. Angesetzt: halber
-Monatsbedarf = 56 Rollen.
+**884 Rollen** à 1,47 € — Bestand durch Backoffice & Fulfillment festgestellt (≈ 1.300 €).
+Preis aus Prodinger AB 20055740 vom 29.04.2026 (Lieferung 180 Rollen am 05.05.2026).
+Die Menge entspricht rund 25 Kartons (36 Ro./Kt.) bzw. 0,37 Paletten. Bei 1.340 Rollen
+Jahresbedarf sind das 7,9 Monate Reichweite — die höchste Reichweite aller Positionen,
+erklärbar über die bestätigten Zusatzeinkäufe.
 
 ---
 
@@ -138,10 +141,10 @@ Monatsbedarf = 56 Rollen.
 | Verpackungseinkauf 2025 (Ist) | 139.984 € |
 | Verpackungseinkauf 2026 (hochgerechnet aus Jan–Mai) | 196.406 € (+40 %) |
 | **31.08.2023 mit Einkaufsvolumen skaliert** | **18.456 €** |
-| **Festgelegter Ansatz** | **33.666,80 €** |
+| **Festgelegter Ansatz** | **35.482,76 €** |
 
-Abweichung zur skalierten Referenz: **+82 %**. Die Bestandsreichweite beträgt rechnerisch
-**41 Arbeitstage** — plausibel für ein Lager mit monatlichem Bestellrhythmus, das 13 Tage vor
+Abweichung zur skalierten Referenz: **+92 %**. Die Bestandsreichweite beträgt rechnerisch
+**45 Arbeitstage** — plausibel für ein Lager mit monatlichem Bestellrhythmus, das 13 Tage vor
 dem Stichtag zwei Großlieferungen erhalten hat.
 
 ---
@@ -180,8 +183,13 @@ RECOMMENDATION:  (a) ist der wirksamste Schritt und ohnehin für den Abschluss n
    Beides über die Prodinger-Rechnung und den AMM-Wareneingang klärbar.
 2. **LKW-Menge ZELSEN 18.08.** — mit 1.000 Stk angesetzt (Referenz LS0007: 1.166 Stk je LKW).
    ±25 % entsprechen ±2.563 €. Auflösbar über die ZELSEN-Rechnung.
-3. **Handstretchfolie und PVC-Packband** — zusammen 282 €, unwesentlich, aber ohne Lieferbeleg.
-   Über Konto 4710 GJ 2025/26 verifizierbar.
+3. **Nicht angesetzt: Umreifungsband.** Rund 30 Rollen (≈ 2.000 €) lagen am Stichtag im Lager,
+   werden aber über AMM abgerechnet und sind im Aufwand enthalten. Wirtschaftliches Eigentum
+   liegt bei AMM; eine Aktivierung würde fremdes Material ausweisen und den bereits gebuchten
+   Aufwand doppelt erfassen. Das entspricht der Hauspraxis: AMM-Positionen auf Konto 4710
+   (16.01.2023 über 1.600 €, 08.06.2022 über 61,80 €) sind in den Vorjahresblättern mit
+   „Transport, Keine Ware" und 0 € Warenbestand geführt. Umreifungsband steht zudem nicht
+   im Artikelstamm der Bedarfsrechnung.
 4. **Verbrauchsbasis bestätigt.** Der Tagesverbrauch von 43,8 Paletten/AT aus der
    Bedarfsrechnung ist laut Fachbereich zutreffend. Die Abweichung zur Rückrechnung stammt
    nicht aus dem Verbrauch, sondern aus nicht erfassten Zusatzeinkäufen — konsistent mit
