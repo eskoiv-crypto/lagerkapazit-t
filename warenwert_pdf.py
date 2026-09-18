@@ -138,7 +138,12 @@ def bau(f: dict, serie: list, out: Path, darstellung: str = "intern") -> Path:
     if f.get("n_portal"):
         rows.append(['Portal-Restbestand (belegt)', de(f["n_portal"]), eur(f["ek_portal"])])
     if f.get("n_korrektur") and belegt:
-        rows.append(['Einkaufspreis aus Korrekturliste (belegt)', de(f["n_korrektur"]), eur(f["ek_korrektur"])])
+        # jede Korrekturgruppe als eigene belegte Position, ohne Sammelzeile
+        for grund, g in (f.get("korrektur_gruende") or {}).items():
+            rows.append([Paragraph(f'{grund} (belegt)',
+                                   ParagraphStyle('kb', fontName='Helvetica', fontSize=9.5,
+                                                  leading=12, textColor=INK_SOFT)),
+                         de(g["n"]), eur(g["ek"])])
     elif f.get("n_korrektur"):
         rows.append(['Nachträglich korrigierter EK (belegt)', de(f["n_korrektur"]), eur(f["ek_korrektur"])])
         for grund, g in (f.get("korrektur_gruende") or {}).items():
