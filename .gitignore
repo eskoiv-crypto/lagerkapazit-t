@@ -3,6 +3,16 @@ data/amm/*.CSV
 data/amm/*.csv
 data/elvinci/*.xlsx
 data/elvinci/*.xls
+data/odoo/*.xlsx
+data/odoo/*.xls
+
+# Auswertungsergebnisse mit Einkaufswerten - NICHT in dieses
+# oeffentliche Repository committen (nur Skripte, keine Daten)
+warenwert_monatsende.csv
+warenwert_facts_*.json
+Warenwert_*.pdf
+korrekturen_*.csv
+korrekturen_*.xlsx
 
 # Claude Code agent state (local only)
 .claude/
@@ -32,3 +42,7 @@ blob-report/
 playwright/.cache/
 validation_output.txt
 validation_v2.txt
+
+# Python
+__pycache__/
+*.pyc
