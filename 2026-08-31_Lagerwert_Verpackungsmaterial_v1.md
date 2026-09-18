@@ -10,8 +10,9 @@
 
 | | Wert netto |
 |---|---:|
-| **Warenbestand 31.08.2026 (festgelegter Ansatz)** | **32.114,30 €** |
+| **Warenbestand 31.08.2026 (festgelegter Ansatz)** | **33.666,80 €** |
 | davon Lagerfeststellung Backoffice (Paletten, Maschinenfolie) | 15.998,20 € |
+| davon Probepalette Ahrbach Süd (belegt) | 1.552,50 € |
 | davon rückgerechnet (Wellpappe, Handfolie, Packband) | 5.866,10 € |
 | davon Lieferung ZELSEN 18.08.2026 | 10.250,00 € |
 
@@ -102,6 +103,18 @@ Die Menge entspricht gut 4 Paletten. Die Rückrechnung allein hätte 0 Rollen er
 nur die Lieferung vom 22.07.2026 (2 Paletten = 60 Rollen) kannte; die Bestellung vom 03.08.2026
 wurde demnach noch vor dem Stichtag geliefert.
 
+### C2. Maschinenstretchfolie Probepalette, Ahrbach Süd — **1.552,50 €**
+
+| | |
+|---|---|
+| Menge | 45 Rollen (eine Musterpalette) |
+| Preis | **34,50 €/Rolle** — Preisangabe H.-J. Bonk vom 17.08.2026 |
+| Lieferung | **20.08.2026**, bestätigt per Abliefernachweis (Mail Bonk 27.08.2026) |
+
+Neuer Lieferant und anderer Artikel als die Prodinger-Folie 517606, daher eigene Position.
+Der Musterauftrag wurde am 17.08.2026 zunächst über 2 Rollen ausgelöst; Ahrbach Süd liefert
+Maschinenfolie nur palettenweise und hat eine volle Musterpalette gestellt.
+
 ### D. Handstretchfolie — **199,60 €**
 
 Kein Lieferbeleg für 2026 auffindbar. Angesetzt: halber Monatsbedarf = 40 Rollen à 4,99 €
@@ -125,9 +138,9 @@ Monatsbedarf = 56 Rollen.
 | Verpackungseinkauf 2025 (Ist) | 139.984 € |
 | Verpackungseinkauf 2026 (hochgerechnet aus Jan–Mai) | 196.406 € (+40 %) |
 | **31.08.2023 mit Einkaufsvolumen skaliert** | **18.456 €** |
-| **Festgelegter Ansatz** | **32.114,30 €** |
+| **Festgelegter Ansatz** | **33.666,80 €** |
 
-Abweichung zur skalierten Referenz: **+74 %**. Die Bestandsreichweite beträgt rechnerisch
+Abweichung zur skalierten Referenz: **+82 %**. Die Bestandsreichweite beträgt rechnerisch
 **41 Arbeitstage** — plausibel für ein Lager mit monatlichem Bestellrhythmus, das 13 Tage vor
 dem Stichtag zwei Großlieferungen erhalten hat.
 

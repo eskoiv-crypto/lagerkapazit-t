@@ -17,6 +17,8 @@ POSITIONEN = [
      "ZELSEN, Preisliste ab 26.03.2026"),
     ("Maschinenstretchfolie 500 x 0,023 mm", "517606", 123, "Ro.", 56.90,
      "Prodinger AB 20055740"),
+    ("Maschinenstretchfolie Probepalette", "Ahrbach", 45, "Ro.", 34.50,
+     "Ahrbach Süd, Preis 17.08.2026, Lieferung 20.08.2026"),
     ("Wellpappe-Zuschnitte 1180 x 780 mm", "268144", 19403, "Stk", 0.2878,
      "Prodinger AB 20097713, 287,80 €/1.000 Stk"),
     ("Handstretchfolie transparent", "—",        40, "Ro.",    4.99,
@@ -174,6 +176,7 @@ tfoot td {{ background: #fafafa; border-top: 1.5px solid var(--grey-3); font-siz
       <div class="row"><div class="doc">Prodinger AB 20087796</div><div class="what">Maschinenstretchfolie 2 Paletten, Lieferung 22.07.2026</div></div>
       <div class="row"><div class="doc">Prodinger AB 20055740</div><div class="what">PVC-Packband 180 Rollen à 1,47 €, Lieferung 05.05.2026</div></div>
       <div class="row"><div class="doc">Bedarfsrechnung 15.07.2026</div><div class="what">Jahresbedarf je Artikel — Verbrauchsbasis</div></div>
+      <div class="row"><div class="doc">Ahrbach Süd, Abliefernachweis</div><div class="what">Probepalette Maschinenfolie, 45 Rollen à 34,50 €, im Hause seit 20.08.2026</div></div>
       <div class="row"><div class="doc">Lagerfeststellung Backoffice</div><div class="what">Vormonatsbestand 31.08.2026: Paletten 878 Stk · Maschinenstretchfolie 123 Rollen</div></div>
     </div>
   </div>

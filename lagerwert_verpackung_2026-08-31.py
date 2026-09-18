@@ -104,6 +104,14 @@ positionen.append(("Maschinenstretchfolie 517606", folie_bestand, "Rollen", foli
 # Ansatz [ESTIMATED]: ein halber Monatsbedarf als Umlaufbestand.
 # Preis: Angebot Ahrbach-Sued AN2602363 v. 24.08.2026: 4,99 EUR/Rolle
 hand_bestand = JAHRESBEDARF["Handstretchfolie (Rollen)"] / 12 * 0.5
+# --- C2) Maschinenstretchfolie Probepalette (Ahrbach Sued) -------------------
+# QUELLE: Preisangabe H.-J. Bonk 17.08.2026: 34,50 EUR/Rolle, Musterpalette 45 Rollen.
+#         Lieferung 20.08.2026, bestaetigt per Abliefernachweis (Mail 27.08.2026).
+#         Neuer Lieferant, anderer Artikel als Prodinger 517606 -> eigene Position.
+probe_bestand = 45
+positionen.append(("Maschinenstretchfolie Probepalette", probe_bestand, "Rollen", 34.50,
+                   "Ahrbach Sued, Lieferung 20.08.26"))
+
 positionen.append(("Handstretchfolie", hand_bestand, "Rollen", 4.99,
                    "SCHAETZUNG - kein Lieferbeleg"))
 
