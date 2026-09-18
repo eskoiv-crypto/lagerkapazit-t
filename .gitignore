@@ -40,3 +40,7 @@ blob-report/
 playwright/.cache/
 validation_output.txt
 validation_v2.txt
+
+# Python
+__pycache__/
+*.pyc
