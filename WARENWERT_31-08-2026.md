@@ -1,8 +1,8 @@
 # Warenwert zum Stichtag 31.08.2026
 
-**Status: gerechnet.** Die beiden fehlenden Exporte wurden am 01.09.2026
-nachgeliefert; der Wert liegt als Einseiter `Warenwert_31-08-2026.pdf` vor
-(bleibt lokal, siehe Hinweis unten).
+**Status: Erstfassung gerechnet (01.09.2026), Fassung 2 mit EK-Korrekturen in
+Arbeit (siehe Abschnitt 4a).** Der Wert liegt als Einseiter
+`Warenwert_31-08-2026.pdf` vor (bleibt lokal, siehe Hinweis unten).
 
 > **Hinweis:** Dieses Repository ist öffentlich. Konkrete Einkaufswerte,
 > Stückzahlen und Zitate aus internen Abstimmungen stehen deshalb **nicht** in
@@ -151,6 +151,61 @@ Hinweis: Der Wert für 31.08.2025 wurde nachträglich gegen die Zahl aus der
 Buchhaltung korrigiert; die ältere Fassung der Datei trägt noch den alten Wert.
 
 ---
+
+## 4a. Fassung 2 (in Arbeit, 18.09.2026): Korrekturen zum 31.08.2026
+
+Nach der Erstfassung vom 01.09.2026 wurden zwei Fehler im Preisgerüst bekannt.
+Das Mengengerüst (AMM-Bestandsliste vom 31.08.2026, 17:00) bleibt unverändert;
+korrigiert wird ausschließlich der Preis je Lager-Nr:
+
+| # | Befund | Wirkung in der Erstfassung | Korrektur |
+|---|---|---|---|
+| 1 | AEG-Electrolux-Ware war in Odoo falsch klassifiziert (Lieferantentyp), dadurch zu niedriger Einkaufspreis | Geräte zählten mit dem zu niedrigen Odoo-EK als „belegt" | echter EK je Lager-Nr (Odoo nach Neuklassifizierung bzw. Korrekturliste) |
+| 2 | Ware ohne Einkaufspreis (EK 0 €) wegen Problemen der Online-Preisrecherche | Geräte fielen in den Ø-Fill (Durchschnitt der Produktkategorie) | echter EK je Lager-Nr nach nachgezogener Preisrecherche |
+
+Der Rechenweg ist derselbe wie in Abschnitt 2. Neu im Skript:
+
+```bash
+python3 warenwert_stichtag.py \
+    --stichtag 2026-08-31 \
+    --bestand "data/amm/BESTAND134_20260831_1700.CSV" \
+    --odoo    "data/odoo/LosSerie (stock.lot)_<frischer Export>.xlsx" \
+    --ek-korrektur korrekturen_2026-08-31.csv \
+    --vergleich warenwert_facts_2026-08-31_v1.json \
+    --fassung "2 (korrigiert TT.MM.2026)" \
+    --geraete-liste Warenwert_31-08-2026_Geraeteliste.xlsx \
+    --serie warenwert_monatsende.csv \
+    --json  warenwert_facts_2026-08-31_v2.json
+```
+
+* `--ek-korrektur` — Liste `Lager-Nr;EK;Grund` mit lot-genauen Einkaufspreisen.
+  Sie ersetzt Odoo-Preis **und** Ø-Fill und wird im Einseiter getrennt nach
+  Grund ausgewiesen. EK 0 in der Liste heißt „echter EK 0", kein Ø-Fill.
+  Lager-Nrn, die nicht im Bestand vom Stichtag stehen, werden nur gemeldet.
+* `--vergleich` — Faktendatei der Erstfassung; der Einseiter zeigt die Brücke
+  alt → neu (Δ belegte Preise, Δ Ø-Schätzung, Gesamt-Δ). Ein abweichender
+  Stichtag oder Umfang bricht ab.
+* `--geraete-liste` — eine Zeile je Lager-Nr (AMM-Status, Odoo-Kategorie,
+  Lieferantentyp, EK Odoo/Portal/Korrektur, Preisquelle, Fill-Regel, bewerteter
+  EK) als Prüfpfad, insbesondere für die AEG-Lose und die vormals EK-0-Lose.
+* `--fassung` — Kennung, die in Einseiter und Faktendatei erscheint.
+
+Zwei Wege, die Korrekturen einzuspielen (beide über die Lager-Nr):
+
+1. **Frischer Odoo-Export** (bevorzugt): Enthält Odoo nach Neuklassifizierung
+   und Preisrecherche die richtigen Einkaufspreise, reicht ein neuer
+   `LosSerie (stock.lot)`-Export **mit Spalte Einkaufspreis** gegen die
+   unveränderte Bestandsliste vom 31.08. Achtung: nicht jeder Export trägt die
+   Spalte — die Tagesexporte im Cockpit-Ordner haben sie nicht.
+2. **Korrekturliste**: Liegen die richtigen EKs nur als Liste vor, per
+   `--ek-korrektur` einspielen; der Grund je Zeile wird im Einseiter ausgewiesen.
+
+Gegenproben für Fassung 2 (KILLCRITIC): Gerätezahl muss exakt der Erstfassung
+entsprechen (gleiche Bestandsliste); die Summe der Korrektur-Δ muss die
+Größenordnung der bekannten Fehler treffen; jede korrigierte Lager-Nr muss im
+Bestand vom Stichtag stehen; kein Ø-Fill mehr für Lose, die einen echten EK
+bekommen haben. Die Erstfassung selbst muss mit dem Export vom 01.09.2026
+reproduzierbar sein, bevor die Brücke gezogen wird.
 
 ## 5. Offen
 

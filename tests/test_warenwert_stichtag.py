@@ -148,6 +148,58 @@ def main() -> int:
         if r3.returncode == 0 or "ABBRUCH" not in (r3.stdout + r3.stderr):
             fehler.append("Stichtags-Wächter greift nicht bei abweichender Bestandsliste")
 
+        # --- EK-Korrekturliste + Brücke zur Erstfassung + Geräteliste ---
+        #   900000002: Odoo 300 -> echter EK 350 (Neuklassifizierung)
+        #   900000005: Odoo 0 (vorher Ø Kategorie 500) -> nachgezogener EK 120
+        #   900000099: steht nicht im Bestand -> nur Warnung, nicht bewertet
+        korr = ordner / "korrektur.csv"
+        korr.write_text("Lager-Nr;EK;Grund\n900000002;350;AEG-Neuklassifizierung\n"
+                        "900000005;120,00;Preisrecherche nachgezogen\n900000099;10;Test\n",
+                        encoding="utf-8")
+        j4 = ordner / "korr.json"
+        liste = ordner / "geraete.xlsx"
+        r4 = subprocess.run(
+            [sys.executable, str(SKRIPT), "--stichtag", STICHTAG,
+             "--bestand", str(bestand), "--odoo", str(odoo), "--stock-analysis", str(portal),
+             "--ek-korrektur", str(korr), "--vergleich", str(j1),
+             "--fassung", "2 (Test)", "--geraete-liste", str(liste), "--json", str(j4)],
+            capture_output=True, text=True)
+        if r4.returncode != 0:
+            print(r4.stdout); print(r4.stderr, file=sys.stderr)
+            return 1
+        f4 = json.loads(j4.read_text(encoding="utf-8"))
+        # Soll: Odoo 200+500=700 | Portal 150 | Korrektur 350+120=470 | belegt 1320
+        #       Ø-Fill nur 900000007 -> Ø Bezeichner Kühlschrank = (200+350+150)/3
+        soll_korr = {"geraete": 7, "ek_odoo": 700.0, "ek_portal": 150.0, "ek_korrektur": 470.0,
+                     "n_korrektur": 2, "n_korrektur_nicht_im_bestand": 1,
+                     "ek_belegt": 1320.0, "ek_geschaetzt": 700.0 / 3, "n_geschaetzt": 1,
+                     "n_schrott_ek0": 1}
+        soll_korr["ek_gesamt"] = soll_korr["ek_belegt"] + soll_korr["ek_geschaetzt"]
+        pruefe(f4, soll_korr, "korrektur", fehler)
+        g = f4["korrektur_gruende"]
+        if (g.get("AEG-Neuklassifizierung", {}).get("ek_vorher_odoo") != 300.0
+                or g.get("Preisrecherche nachgezogen", {}).get("n_vorher_ohne_ek") != 1):
+            fehler.append(f"Korrektur-Gründe falsch aufgeschlüsselt: {g}")
+        v = f4["vergleich"]
+        if abs(v["delta_ek_gesamt"] - (soll_korr["ek_gesamt"] - SOLL_GESAMT["ek_gesamt"])) > 0.01:
+            fehler.append(f"Brücke alt/neu falsch: {v}")
+        if f4["fassung"] != "2 (Test)":
+            fehler.append("Fassung nicht übernommen")
+        gl = pd.read_excel(liste)
+        if len(gl) != 7 or abs(gl["EK bewertet"].sum() - soll_korr["ek_gesamt"]) > 0.01:
+            fehler.append(f"Geräteliste inkonsistent: {len(gl)} Zeilen, Σ {gl['EK bewertet'].sum():.2f}")
+        if set(gl["Preisquelle"]) != {"odoo", "portal", "korrektur", "schaetzung", "schrott"}:
+            fehler.append(f"Preisquellen in Geräteliste unvollständig: {set(gl['Preisquelle'])}")
+        # falscher Stichtag im Vergleich muss abbrechen
+        j_falsch = ordner / "falsch.json"
+        j_falsch.write_text(json.dumps({"stichtag": "2026-07-31", "umfang": "gesamt", "ek_gesamt": 1}),
+                            encoding="utf-8")
+        r5 = subprocess.run(
+            [sys.executable, str(SKRIPT), "--stichtag", STICHTAG, "--bestand", str(bestand),
+             "--odoo", str(odoo), "--vergleich", str(j_falsch)], capture_output=True, text=True)
+        if r5.returncode == 0:
+            fehler.append("--vergleich mit fremdem Stichtag wurde nicht abgelehnt")
+
     if fehler:
         print("FEHLGESCHLAGEN:")
         for x in fehler:
@@ -156,7 +208,7 @@ def main() -> int:
     print(f"✓ Alle Prüfungen bestanden "
           f"(gesamt: {SOLL_GESAMT['geraete']} Geräte / {SOLL_GESAMT['ek_gesamt']:.2f} € · "
           f"freiverkäuflich: {SOLL_FREI['geraete']} / {SOLL_FREI['ek_gesamt']:.2f} € · "
-          f"Dublette, Schrott, Ø-Fill, Reihe, Wächter ok)")
+          f"Dublette, Schrott, Ø-Fill, Reihe, Wächter, Korrekturliste, Brücke, Geräteliste ok)")
     return 0
 
 

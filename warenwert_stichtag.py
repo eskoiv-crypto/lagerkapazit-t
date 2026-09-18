@@ -163,8 +163,19 @@ class Ergebnis:
     n_geschaetzt: int = 0
     n_schrott_ek0: int = 0
 
-    ek_belegt: float = 0.0           # Odoo + Portal (echte Preise)
+    ek_belegt: float = 0.0           # Odoo + Portal + Korrektur (echte Preise)
     ek_gesamt: float = 0.0           # Reihenwert
+
+    # Nachtraegliche EK-Korrekturen je Lager-Nr (--ek-korrektur), z. B. AEG-
+    # Neuklassifizierung oder nachgezogene Einkaufspreise nach Preisrecherche
+    fassung: str | None = None
+    quelle_korrektur: str | None = None
+    n_korrektur: int = 0
+    ek_korrektur: float = 0.0
+    n_korrektur_nicht_im_bestand: int = 0
+    korrektur_gruende: dict = field(default_factory=dict)   # Grund -> {n, ek, ek_vorher}
+    # Bruecke zu einer frueheren Fassung desselben Stichtags (--vergleich)
+    vergleich: dict | None = None
 
     warnungen: list[str] = field(default_factory=list)
 
@@ -223,6 +234,40 @@ def lade_odoo_preise(pfad: Path) -> tuple[dict, dict, dict, dict]:
                        if col[k])
         schrott[nr] = txt
     return ek, kat, marke, schrott
+
+
+KORREKTUR_SPALTEN = {
+    "lagernr": ["Lager-Nr", "Lager-Nr.", "Lager Nr.", "Lager-Code", "Lagernummer", "lagernr"],
+    "ek":      ["EK", "Einkaufspreis", "EK neu", "EK_neu"],
+    "grund":   ["Grund", "Kommentar", "Bemerkung", "Quelle"],
+}
+
+
+def lade_korrekturen(pfad: Path) -> dict[str, tuple[float, str]]:
+    """Lot-genaue EK-Korrekturen: CSV (Semikolon oder Komma) oder XLSX mit den
+    Spalten Lager-Nr;EK;Grund. -> {lagernr: (ek, grund)}. Der EK darf 0 sein
+    (echter EK 0, z. B. Schrott) - dann wird NICHT mit dem Durchschnitt gefuellt."""
+    if pfad.suffix.lower() in {".xlsx", ".xls"}:
+        df = pd.read_excel(pfad, engine="openpyxl")
+    else:
+        text = pfad.read_text(encoding="utf-8-sig")
+        sep = ";" if text.splitlines()[0].count(";") >= text.splitlines()[0].count(",") else ","
+        df = pd.read_csv(pfad, sep=sep, dtype=str, encoding="utf-8-sig")
+    col = {k: finde_spalte(df, v) for k, v in KORREKTUR_SPALTEN.items()}
+    if col["lagernr"] is None or col["ek"] is None:
+        raise SystemExit(f"FEHLER: In {pfad.name} fehlt 'Lager-Nr' oder 'EK'. "
+                         f"Gefunden: {list(df.columns)}")
+    out: dict[str, tuple[float, str]] = {}
+    for _, r in df.iterrows():
+        nr = lagernr(r[col["lagernr"]])
+        if not nr or nr.lower() in {"nan", "none"}:
+            continue
+        grund = str(r[col["grund"]]).strip() if col["grund"] and str(r[col["grund"]]) not in {"nan", "None"} else "Korrektur"
+        if nr in out:
+            raise SystemExit(f"FEHLER: Lager-Nr {nr} steht doppelt in {pfad.name} - "
+                             f"bitte bereinigen, sonst ist die Korrektur nicht eindeutig.")
+        out[nr] = (zu_zahl(r[col["ek"]]), grund)
+    return out
 
 
 def lade_portal_preise(pfad: Path) -> dict:
@@ -298,27 +343,60 @@ def berechne(args) -> Ergebnis:
     if not ek_odoo and not ek_portal:
         raise SystemExit("FEHLER: Keine Preisquelle angegeben (--odoo und/oder --stock-analysis).")
 
+    korr: dict[str, tuple[float, str]] = {}
+    if args.ek_korrektur:
+        print(f"→ EK-Korrekturen: {Path(args.ek_korrektur).name}")
+        korr = lade_korrekturen(Path(args.ek_korrektur))
+        erg.quelle_korrektur = Path(args.ek_korrektur).name
+    erg.fassung = args.fassung
+
     rx_schrott = re.compile(args.ek0_muster, re.IGNORECASE) if args.ek0_muster else None
 
     preis: dict[str, float] = {}
     quelle: dict[str, str] = {}
     offen: list[str] = []
+    im_bestand = set(lager["lagernr"])
     for nr in lager["lagernr"]:
-        w = ek_odoo.get(nr, 0.0)
+        if nr in korr:                     # 1. nachtraegliche Korrektur = echter EK
+            w, grund = korr[nr]
+            preis[nr], quelle[nr] = w, "korrektur"
+            g = erg.korrektur_gruende.setdefault(grund, {"n": 0, "ek": 0.0, "ek_vorher_odoo": 0.0,
+                                                          "n_vorher_ohne_ek": 0})
+            g["n"] += 1
+            g["ek"] += w
+            vorher = ek_odoo.get(nr, 0.0) or ek_portal.get(nr, 0.0)
+            g["ek_vorher_odoo"] += vorher
+            if vorher <= 0:
+                g["n_vorher_ohne_ek"] += 1
+            continue
+        w = ek_odoo.get(nr, 0.0)           # 2. Odoo
         if w > 0:
             preis[nr], quelle[nr] = w, "odoo"
             continue
-        w = ek_portal.get(nr, 0.0)
+        w = ek_portal.get(nr, 0.0)         # 3. Portal-Restbestand
         if w > 0:
             preis[nr], quelle[nr] = w, "portal"
             continue
-        offen.append(nr)
+        offen.append(nr)                   # 4. Durchschnitts-Fill / Schrott
+
+    erg.n_korrektur_nicht_im_bestand = sum(1 for nr in korr if nr not in im_bestand)
+    if erg.n_korrektur_nicht_im_bestand:
+        erg.warnungen.append(
+            f"{erg.n_korrektur_nicht_im_bestand} Lager-Nrn aus der Korrekturliste stehen nicht im "
+            f"AMM-Bestand vom Stichtag (Umfang '{args.umfang}') und wurden nicht bewertet.")
 
     erg.n_odoo = sum(1 for q in quelle.values() if q == "odoo")
     erg.n_portal = sum(1 for q in quelle.values() if q == "portal")
+    erg.n_korrektur = sum(1 for q in quelle.values() if q == "korrektur")
     erg.ek_odoo = sum(v for k, v in preis.items() if quelle[k] == "odoo")
     erg.ek_portal = sum(v for k, v in preis.items() if quelle[k] == "portal")
-    erg.ek_belegt = erg.ek_odoo + erg.ek_portal
+    erg.ek_korrektur = sum(v for k, v in preis.items() if quelle[k] == "korrektur")
+    erg.ek_belegt = erg.ek_odoo + erg.ek_portal + erg.ek_korrektur
+    if erg.n_korrektur:
+        erg.warnungen.append(
+            f"{erg.n_korrektur} Geraete mit nachtraeglich korrigiertem Einkaufspreis "
+            f"(Σ {eur(erg.ek_korrektur)}) aus {erg.quelle_korrektur}; die Korrektur ersetzt "
+            f"Odoo-Preis bzw. Durchschnittswert.")
 
     # ---------------- Durchschnitts-Fill ----------------
     bez_map = dict(zip(lager["lagernr"], lager["bezeichner"]))
@@ -326,6 +404,8 @@ def berechne(args) -> Ergebnis:
     def mittelwerte(keymap: dict) -> dict:
         summe: dict[str, list[float]] = {}
         for nr, w in preis.items():
+            if w <= 0:                      # echte 0-EKs (Schrott-Korrektur) ziehen keinen Ø nach unten
+                continue
             k = keymap.get(nr)
             if k:
                 summe.setdefault(k, []).append(w)
@@ -334,20 +414,73 @@ def berechne(args) -> Ergebnis:
     m_kat = mittelwerte(kat_map)
     m_marke = mittelwerte(marke_map)
     m_bez = mittelwerte(bez_map)
-    m_global = (sum(preis.values()) / len(preis)) if preis else 0.0
+    positiv = [w for w in preis.values() if w > 0]
+    m_global = (sum(positiv) / len(positiv)) if positiv else 0.0
 
+    fill_quelle: dict[str, str] = {}
     for nr in offen:
         txt = schrott_txt.get(nr, "") + " " + bez_map.get(nr, "")
         if rx_schrott and rx_schrott.search(txt):
             erg.n_schrott_ek0 += 1            # echter EK 0, kein Fill
+            preis[nr], quelle[nr] = 0.0, "schrott"
             continue
-        w = (m_kat.get(kat_map.get(nr, "")) or m_marke.get(marke_map.get(nr, ""))
-             or m_bez.get(bez_map.get(nr, "")) or m_global)
+        if m_kat.get(kat_map.get(nr, "")):
+            w, q = m_kat[kat_map[nr]], "Ø Kategorie"
+        elif m_marke.get(marke_map.get(nr, "")):
+            w, q = m_marke[marke_map[nr]], "Ø Marke"
+        elif m_bez.get(bez_map.get(nr, "")):
+            w, q = m_bez[bez_map[nr]], "Ø Bezeichner"
+        else:
+            w, q = m_global, "Ø global"
         if w and w > 0:
             erg.ek_geschaetzt += float(w)
             erg.n_geschaetzt += 1
+            preis[nr], quelle[nr], fill_quelle[nr] = float(w), "schaetzung", q
 
     erg.ek_gesamt = erg.ek_belegt + erg.ek_geschaetzt
+
+    # ---------------- Geraeteliste (Pruefpfad je Lager-Nr) ----------------
+    if args.geraete_liste:
+        zeilen = []
+        for _, r in lager.iterrows():
+            nr = r["lagernr"]
+            zeilen.append({
+                "Lager-Nr": nr, "AMM-Status": r["status"], "Bezeichner (AMM)": r["bezeichner"],
+                "Menge": r["menge"],
+                "Produktkategorie (Odoo)": kat_map.get(nr, ""), "Marke (Odoo)": marke_map.get(nr, ""),
+                "Lieferant/-typ (Odoo)": schrott_txt.get(nr, ""),
+                "EK Odoo": ek_odoo.get(nr, ""), "EK Portal": ek_portal.get(nr, ""),
+                "EK Korrektur": korr[nr][0] if nr in korr else "",
+                "Korrektur-Grund": korr[nr][1] if nr in korr else "",
+                "Preisquelle": quelle.get(nr, "ohne"), "Fill-Regel": fill_quelle.get(nr, ""),
+                "EK bewertet": preis.get(nr, 0.0),
+            })
+        out = Path(args.geraete_liste)
+        pd.DataFrame(zeilen).to_excel(out, index=False)
+        print(f"  → {out} (Geraeteliste, {len(zeilen)} Zeilen)")
+
+    # ---------------- Bruecke zu einer frueheren Fassung ----------------
+    if args.vergleich:
+        alt = json.loads(Path(args.vergleich).read_text(encoding="utf-8"))
+        if alt.get("stichtag") != erg.stichtag or alt.get("umfang", "gesamt") != erg.umfang:
+            raise SystemExit(f"FEHLER: --vergleich {Path(args.vergleich).name} gehoert zu Stichtag "
+                             f"{alt.get('stichtag')} / Umfang {alt.get('umfang')}, nicht zu "
+                             f"{erg.stichtag} / {erg.umfang}.")
+        erg.vergleich = {
+            "quelle": Path(args.vergleich).name,
+            "fassung_alt": alt.get("fassung"),
+            "geraete_alt": alt.get("geraete"),
+            "ek_gesamt_alt": alt.get("ek_gesamt"),
+            "ek_belegt_alt": alt.get("ek_belegt"),
+            "n_geschaetzt_alt": alt.get("n_geschaetzt"),
+            "ek_geschaetzt_alt": alt.get("ek_geschaetzt"),
+            "delta_ek_gesamt": erg.ek_gesamt - float(alt.get("ek_gesamt") or 0),
+            "delta_geraete": erg.geraete - int(alt.get("geraete") or 0),
+        }
+        if erg.vergleich["delta_geraete"]:
+            erg.warnungen.append(
+                f"Geraetezahl weicht von der Vergleichsfassung ab ({erg.vergleich['delta_geraete']:+d}) - "
+                f"bei gleicher Bestandsliste darf das nicht sein; bitte Quellen pruefen.")
 
     if erg.n_geschaetzt:
         anteil = erg.ek_geschaetzt / erg.ek_gesamt * 100 if erg.ek_gesamt else 0
@@ -368,15 +501,29 @@ def drucke(erg: Ergebnis) -> None:
     umf = ("alles physisch im Lager, inkl. verkaufter Ware"
            if erg.umfang == "gesamt" else "nur freiverkaeufliche Ware (QE)")
     print(f"\n{b}\n  WARENWERT ZUM {tag} · EINKAUF (EK)\n  {umf}\n{b}")
+    if erg.fassung:
+        print(f"  Fassung: {erg.fassung}")
     print(f"  Warenwert                  {eur(erg.ek_gesamt):>20}")
     print(f"  Geräte                     {de(erg.geraete):>20}")
     print(b)
     print(f"  EK aus Odoo                {eur(erg.ek_odoo):>20}   {de(erg.n_odoo)} Geräte")
     if erg.quelle_portal:
         print(f"  EK aus Portal (Restbest.)  {eur(erg.ek_portal):>20}   {de(erg.n_portal)} Geräte")
+    if erg.quelle_korrektur:
+        print(f"  EK korrigiert (Liste)      {eur(erg.ek_korrektur):>20}   {de(erg.n_korrektur)} Geräte")
+        for grund, g in erg.korrektur_gruende.items():
+            print(f"     · {grund[:40]:<40} {de(g['n']):>5} Ger. · neu {eur(g['ek'])} · "
+                  f"vorher Odoo {eur(g['ek_vorher_odoo'])} ({g['n_vorher_ohne_ek']} ohne EK)")
     print(f"  Ø-Schätzung (ohne EK)      {eur(erg.ek_geschaetzt):>20}   {de(erg.n_geschaetzt)} Geräte")
     print(f"  Schrottware (echt 0 €)     {'—':>20}   {de(erg.n_schrott_ek0)} Geräte")
     print(b)
+    if erg.vergleich:
+        v = erg.vergleich
+        print(f"  BRÜCKE zur Fassung '{v.get('fassung_alt') or v['quelle']}'")
+        print(f"    Warenwert alt            {eur(v['ek_gesamt_alt'] or 0):>20}   {de(v['geraete_alt'] or 0)} Geräte")
+        print(f"    Warenwert neu            {eur(erg.ek_gesamt):>20}   {de(erg.geraete)} Geräte")
+        print(f"    Δ                        {v['delta_ek_gesamt']:>+20,.0f} €".replace(",", "."))
+        print(b)
     print(f"  AMM-Bestand gesamt         {de(erg.bestand_zeilen_gesamt)} Zeilen · "
           f"{', '.join(f'{k} {de(v)}' for k, v in sorted(erg.status_verteilung.items()))}")
     print(f"  Quelle Bestand             {erg.quelle_bestand}")
@@ -422,6 +569,15 @@ def main(argv=None) -> int:
     p.add_argument("--json", dest="json_out", help="Pfad fuer die Faktendatei")
     p.add_argument("--ek0-muster", default=r"schrott",
                    help="Regex fuer Ware mit echtem EK 0 (Default: 'schrott')")
+    p.add_argument("--ek-korrektur",
+                   help="CSV/XLSX 'Lager-Nr;EK;Grund' - lot-genaue EK-Korrekturen, die Odoo-Preis "
+                        "und Durchschnitts-Fill ersetzen (z. B. AEG-Neuklassifizierung, "
+                        "nachgezogene Preise nach Preisrecherche)")
+    p.add_argument("--fassung", help="Kennung der Fassung, z. B. '2 (korrigiert 18.09.2026)'")
+    p.add_argument("--vergleich",
+                   help="Faktendatei einer frueheren Fassung desselben Stichtags -> Bruecke alt/neu")
+    p.add_argument("--geraete-liste",
+                   help="XLSX mit einer Zeile je Lager-Nr (Preisquelle, EK, Korrektur) als Pruefpfad")
     p.add_argument("--erlaube-abweichenden-stand", action="store_true",
                    help="Auch rechnen, wenn die Bestandsliste nicht vom Stichtag ist")
     args = p.parse_args(argv)

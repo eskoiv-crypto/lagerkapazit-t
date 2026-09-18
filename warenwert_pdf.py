@@ -97,7 +97,10 @@ def bau(f: dict, serie: list, out: Path) -> Path:
     doc = SimpleDocTemplate(str(out), pagesize=A4, leftMargin=2*cm, rightMargin=2*cm,
                             topMargin=2.2*cm, bottomMargin=2*cm)
     st = []
-    st.append(Paragraph(f'MONATSREIHE · STICHTAG {tag}', EYEBROW))
+    eyebrow = f'MONATSREIHE · STICHTAG {tag}'
+    if f.get("fassung"):
+        eyebrow += f' · FASSUNG {f["fassung"]}'
+    st.append(Paragraph(eyebrow.upper(), EYEBROW))
     st.append(Paragraph('Warenwert', TITLE))
     st.append(Paragraph(umfang_txt, SUB))
     st.append(Spacer(1, 0.5*cm))
@@ -133,6 +136,10 @@ def bau(f: dict, serie: list, out: Path) -> Path:
     rows.append(['Einkaufspreis aus Odoo (belegt)', de(f["n_odoo"]), eur(f["ek_odoo"])])
     if f.get("n_portal"):
         rows.append(['Portal-Restbestand (belegt)', de(f["n_portal"]), eur(f["ek_portal"])])
+    if f.get("n_korrektur"):
+        rows.append(['Nachträglich korrigierter EK (belegt)', de(f["n_korrektur"]), eur(f["ek_korrektur"])])
+        for grund, g in (f.get("korrektur_gruende") or {}).items():
+            rows.append([f'      · {grund}', de(g["n"]), eur(g["ek"])])
     rows.append(['Ø-Schätzung — kein EK hinterlegt', de(f["n_geschaetzt"]), eur(f["ek_geschaetzt"])])
     if f.get("n_schrott_ek0"):
         rows.append(['Schrottware — echter EK 0 €', de(f["n_schrott_ek0"]), '—'])
@@ -151,6 +158,40 @@ def bau(f: dict, serie: list, out: Path) -> Path:
         ('TOPPADDING', (0,0), (-1,-1), 7), ('BOTTOMPADDING', (0,0), (-1,-1), 7),
         ('VALIGN', (0,0), (-1,-1), 'MIDDLE')]))
     st.append(t)
+
+    # Brücke zur früheren Fassung desselben Stichtags
+    v = f.get("vergleich")
+    if v:
+        st.append(Paragraph('Brücke zur Erstfassung', H2))
+        alt_lbl = f'Fassung {v["fassung_alt"]}' if v.get("fassung_alt") else v["quelle"]
+        alt_lbl = alt_lbl.split(",")[0]
+        neu_lbl = f'Fassung {f["fassung"]}' if f.get("fassung") else 'diese Fassung'
+        brows = [['', 'Geräte', 'EK-Wert'],
+                 [alt_lbl, de(v["geraete_alt"] or 0), eur(v["ek_gesamt_alt"] or 0)]]
+        # Bewegungen: belegte Preise, Schätzung
+        d_belegt = (f["ek_belegt"] - float(v.get("ek_belegt_alt") or 0))
+        d_schaetz = (f["ek_geschaetzt"] - float(v.get("ek_geschaetzt_alt") or 0))
+        n_sch = (f["n_geschaetzt"] - int(v.get("n_geschaetzt_alt") or 0))
+        brows.append(['  Δ belegte Einkaufspreise (Odoo + Korrekturen)', '',
+                      f'{d_belegt:+,.0f} €'.replace(',', '.')])
+        brows.append(['  Δ Ø-Schätzung (weniger/mehr Geräte ohne EK)',
+                      f'{n_sch:+d}', f'{d_schaetz:+,.0f} €'.replace(',', '.')])
+        brows.append([neu_lbl, de(f["geraete"]), eur(f["ek_gesamt"])])
+        bt = Table(brows, colWidths=[9.6*cm, 3*cm, 4*cm])
+        bt.setStyle(TableStyle([
+            ('BACKGROUND', (0,0), (-1,0), INK), ('TEXTCOLOR', (0,0), (-1,0), colors.white),
+            ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'), ('FONTSIZE', (0,0), (-1,0), 8),
+            ('FONTSIZE', (0,1), (-1,-1), 9.5), ('TEXTCOLOR', (0,1), (-1,-1), INK_SOFT),
+            ('ALIGN', (1,0), (-1,-1), 'RIGHT'),
+            ('FONTNAME', (0,-1), (-1,-1), 'Helvetica-Bold'), ('TEXTCOLOR', (0,-1), (-1,-1), INK),
+            ('BACKGROUND', (0,-1), (-1,-1), BLUE_BG),
+            ('LINEBELOW', (0,0), (-1,-1), 0.4, DIVIDER),
+            ('LEFTPADDING', (0,0), (-1,-1), 10), ('RIGHTPADDING', (0,0), (-1,-1), 10),
+            ('TOPPADDING', (0,0), (-1,-1), 6), ('BOTTOMPADDING', (0,0), (-1,-1), 6)]))
+        st.append(bt)
+        st.append(Paragraph(
+            f'Gesamtveränderung gegenüber der Erstfassung: <b>{v["delta_ek_gesamt"]:+,.0f} €</b>'
+            .replace(',', '.') + ' bei unverändertem Mengengerüst (dieselbe AMM-Bestandsliste).', BODY))
 
     # Monatsreihe
     if serie:
@@ -195,6 +236,8 @@ def bau(f: dict, serie: list, out: Path) -> Path:
         quellen += f' · {f["quelle_odoo"]}'
     if f.get("quelle_portal"):
         quellen += f' · {f["quelle_portal"]}'
+    if f.get("quelle_korrektur"):
+        quellen += f' · Korrekturliste {f["quelle_korrektur"]}'
     st.append(Paragraph(
         quellen + f' · verknüpft über die Lager-Nr · AMM-Bestand '
         f'{de(f["bestand_zeilen_gesamt"])} Zeilen '
