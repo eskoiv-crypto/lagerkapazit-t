@@ -10,12 +10,13 @@
 
 | | Wert netto |
 |---|---:|
-| **Warenbestand 31.08.2026 (festgelegter Ansatz)** | **17.858,60 €** |
-| Untergrenze (pessimistisches Szenario) | 9.277 € |
-| Obergrenze (optimistisches Szenario) | 22.563 € |
+| **Warenbestand 31.08.2026 (festgelegter Ansatz)** | **32.114,30 €** |
+| davon Lagerfeststellung Backoffice (Paletten, Maschinenfolie) | 15.998,20 € |
+| davon rückgerechnet (Wellpappe, Handfolie, Packband) | 5.866,10 € |
+| davon Lieferung ZELSEN 18.08.2026 | 10.250,00 € |
 
-> Alle Werte `[ESTIMATED]`. Keine körperliche Inventur zum Stichtag verfügbar — die Bewertung
-> ist eine Rückrechnung aus belegten Lieferungen und Verbrauchskennzahlen.
+> Einwegpaletten und Maschinenstretchfolie: Bestand zum Stichtag durch Backoffice & Fulfillment
+> festgestellt. Übrige Positionen: Rückrechnung aus belegten Lieferungen und Verbrauchskennzahlen.
 
 ---
 
@@ -70,16 +71,16 @@ also gegen Null.
 
 **Preisentwicklung:** 259,00 € → 287,80 €/1.000 Stk = **+11,1 %** innerhalb von 5 Monaten.
 
-### B. Einwegpaletten (ZELSEN) — **11.992,50 €**
+### B. Einwegpaletten (ZELSEN) — **19.249,50 €**
 
 | | |
 |---|---|
 | Letzte Lieferung | **18.08.2026** (Zusage K. Kurz vom 06.08.2026) |
 | Menge | 1 LKW: ½ à 100×80, ½ à 120×80 → **1.000 Stk** |
 | Preis | **10,25 €/Stk** (Mischpreis) |
-| Restbestand Vorlieferungen | 874 Stk (09.07.) + 960 Stk (22.07.) − 28 AT × 43,8 = 607 Stk |
-| Verbrauch 18.–31.08. | 10 AT × 43,8 = 438 Stk |
-| **Restmenge 31.08.** | **1.170 Stk** |
+| Vormonatsrest zum Stichtag | **878 Stk** — Feststellung Backoffice & Fulfillment (≈ 9.000 €) |
+| Verbrauch 18.–31.08. | nach FIFO aus der älteren Charge, im Vormonatsrest bereits enthalten |
+| **Restmenge 31.08.** | **1.878 Stk** (878 Vormonat + 1.000 Lieferung) |
 
 *Preisquelle:* ZELSEN-Preisanpassung vom 26.03.2026 — 120×80 IPPC 10,50 € / 100×80 IPPC 10,25 € /
 80×80 IPPC 9,90 € / 120×60 IPPC 10,25 €. Deckt sich mit dem verifizierten Kostenvergleich v5
@@ -90,26 +91,23 @@ also gegen Null.
 Bestellung vom 16.07.2026 mit 960 Stk. Da die Lieferung vom 18.08. ausschließlich Großformate
 enthielt, wurden 1.000 Stk angesetzt.
 
-### C. Maschinenstretchfolie (Art. 517606) — **0 €**
+### C. Maschinenstretchfolie (Art. 517606) — **6.998,70 €**
 
 | | |
 |---|---|
-| Letzte belegte Lieferung | 22.07.2026 (AB 20087796), 2 Paletten = 60 Rollen |
 | Preis | 56,90 €/Rolle = 1.707 €/Palette |
-| Verbrauch 22.07.–31.08. | 29 AT × 2,24 = 65 Rollen |
-| **Restmenge 31.08.** | **0 Rollen** (rechnerisch aufgebraucht) |
+| **Bestand 31.08.** | **123 Rollen** — Feststellung Backoffice & Fulfillment (≈ 7.000 €) |
 
-Die Bestellung vom 03.08.2026 (2 Paletten) ist als Lieferung **bis zum 31.08. nicht belegt**.
-Die Prodinger-Historie zeigt für diesen Artikel lange Vorlaufzeiten (AB 20055740: Bestellung
-29.04. → geplantes Lieferdatum 29.07.). Der rechnerische Nullbestand ist konsistent mit der
-dringenden Nachbestellung Anfang August.
+Die Menge entspricht gut 4 Paletten. Die Rückrechnung allein hätte 0 Rollen ergeben, weil sie
+nur die Lieferung vom 22.07.2026 (2 Paletten = 60 Rollen) kannte; die Bestellung vom 03.08.2026
+wurde demnach noch vor dem Stichtag geliefert.
 
-### D. Handstretchfolie — **199,60 €** (schwach belegt)
+### D. Handstretchfolie — **199,60 €**
 
 Kein Lieferbeleg für 2026 auffindbar. Angesetzt: halber Monatsbedarf = 40 Rollen à 4,99 €
 (Preis aus Angebot Ahrbach-Süd AN2602363 vom 24.08.2026).
 
-### E. PVC-Packband (Art. 106598) — **82,32 €** (schwach belegt)
+### E. PVC-Packband (Art. 106598) — **82,32 €**
 
 Letzte belegte Lieferung 05.05.2026: 180 Rollen à 1,47 € (Prodinger AB 20055740). Reichweite
 ca. 1,6 Monate → Ende Juni erschöpft. Folgelieferung nicht belegt. Angesetzt: halber
@@ -127,10 +125,10 @@ Monatsbedarf = 56 Rollen.
 | Verpackungseinkauf 2025 (Ist) | 139.984 € |
 | Verpackungseinkauf 2026 (hochgerechnet aus Jan–Mai) | 196.406 € (+40 %) |
 | **31.08.2023 mit Einkaufsvolumen skaliert** | **18.456 €** |
-| **Festgelegter Ansatz** | **17.858,60 €** |
+| **Festgelegter Ansatz** | **32.114,30 €** |
 
-Abweichung zur skalierten Referenz: **−3 %**. Die Bestandsreichweite beträgt rechnerisch
-**23 Arbeitstage** — plausibel für ein Lager mit monatlichem Bestellrhythmus, das 13 Tage vor
+Abweichung zur skalierten Referenz: **+74 %**. Die Bestandsreichweite beträgt rechnerisch
+**41 Arbeitstage** — plausibel für ein Lager mit monatlichem Bestellrhythmus, das 13 Tage vor
 dem Stichtag zwei Großlieferungen erhalten hat.
 
 ---
@@ -138,42 +136,49 @@ dem Stichtag zwei Großlieferungen erhalten hat.
 ## 5. ⚠️ Offene Punkte
 
 ```
-⚠️ CONCERN: Zwei Lieferungen unmittelbar vor dem Stichtag dominieren das Ergebnis
-WHAT:            94 % des Bestandswerts stammen aus zwei Lieferungen (18.08. Paletten,
-                 19.08. Wellpappe) innerhalb von 13 Tagen vor dem Stichtag. Für beide
-                 liegt kein abgezeichneter Wareneingangsbeleg vor — die Wellpappe-Lieferung
-                 ist nur ein "geplantes Lieferdatum" der Auftragsbestätigung (Prodinger
-                 vermerkt dort ausdrücklich Unverbindlichkeit und "LZ ca. 3-4 Wochen",
-                 was auf Ende August bis Anfang September deuten würde).
-WHY IT MATTERS:  Verschiebt sich die Wellpappe-Lieferung um wenige Tage über den Stichtag,
-                 sinkt der Bestandswert um 5.584 € (−31 %). Die Bandbreite von
-                 9.277 € bis 22.563 € ist zu weit für einen Jahresabschlusswert.
-ALTERNATIVE:     (a) Lieferscheine/Wareneingänge bei AMM (Hr. Meyer / Hr. Pusankov,
-                     Rampe 20) für den Zeitraum 15.–31.08.2026 anfordern;
-                 (b) ZELSEN-Rechnung zur Lieferung 18.08. bei rechnung@zelsen.de bzw.
-                     im Rechnungseingang re@elvinci.de ziehen — sie enthält die exakte
-                     Stückzahl und Preise;
-                 (c) Prodinger-Rechnung zu AB 20097713 auf das tatsächliche Lieferdatum prüfen.
-RECOMMENDATION:  (a)–(c) vor Weitergabe an Steuerberater/GF abarbeiten. Das ersetzt die
-                 beiden größten Schätzgrößen (LKW-Menge und Wellpappe-Lieferdatum) durch
-                 Belege und verengt die Bandbreite auf ca. ±5 %.
+⚠️ CONCERN: Zwei der fünf Positionen stützen sich nicht auf Belege, sondern auf Feststellung
+WHAT:            Einwegpaletten (Vormonatsanteil 9.000 €) und Maschinenstretchfolie
+                 (7.000 €) beruhen auf der Bestandsfeststellung des Fachbereichs, nicht
+                 auf Lieferscheinen. Zusammen sind das 15.998 € = 50 % des Gesamtwerts.
+                 Grund: Die Rückrechnung kennt nur die per Mail belegten Lieferungen und
+                 hat beide Positionen deutlich zu niedrig ausgewiesen (Paletten 608 statt
+                 878 Stk Vormonatsrest, Maschinenfolie 0 statt 123 Rollen). Es gab
+                 Zusatzeinkäufe, die im Mailverkehr nicht auftauchen.
+WHY IT MATTERS:  Ein Prüfer, der die Herleitung nachvollzieht, kommt für diese beiden
+                 Positionen auf andere Zahlen als das Dokument ausweist. Ohne
+                 Belegunterlage lässt sich die Differenz nicht auflösen.
+ALTERNATIVE:     (a) Konto 4710 für GJ 2025/26 aus DATEV ziehen — darin sind sämtliche
+                     Einkäufe erfasst, auch die im Mailverkehr fehlenden;
+                 (b) Wareneingänge bei AMM (Hr. Meyer / Hr. Pusankov, Rampe 20) für
+                     15.–31.08.2026 anfordern;
+                 (c) ZELSEN- und Prodinger-Rechnungen aus dem Rechnungseingang re@elvinci.de.
+RECOMMENDATION:  (a) ist der wirksamste Schritt und ohnehin für den Abschluss nötig. Damit
+                 wird die Bewertung vollständig belegbasiert statt teils rückgerechnet,
+                 teils festgestellt.
 ```
 
-**Weitere Unsicherheiten, nach Wesentlichkeit:**
+**Weitere Punkte, nach Wesentlichkeit:**
 
-1. **LKW-Menge ZELSEN 18.08.** — ±25 % entsprechen ±2.998 €. Auflösbar über die Rechnung.
-2. **Handstretchfolie und PVC-Packband** — zusammen 282 €, also unwesentlich, aber ohne
-   Lieferbeleg reine Annahme. Bei Bedarf über Konto 4710 GJ 2025/26 verifizierbar.
-3. **Verbrauchsbasis** — es wurde der geplante Jahresbedarf verwendet, nicht der Ist-Verbrauch.
-   Der Kostenvergleich v5 weist für Jan–Mai 2026 einen Paletten-*Einkauf* von 7.538 Stk aus
-   (≈ 18.091 Stk/Jahr hochgerechnet) gegenüber 10.950 Stk geplantem Jahresbedarf. Ein Teil
-   davon ist ausgewiesene Bevorratung (Jan-Aktionskauf 1.360 IPPC à 8,10 €, Vorkauf vor der
-   ZELSEN-Preiserhöhung am 26.03.), ein Teil aber möglicherweise echter Mehrverbrauch. Läge
-   der Ist-Verbrauch höher, wäre der Stichtagsbestand entsprechend niedriger.
-4. **Konto 4710 für GJ 2025/26 liegt nicht vor.** Für die Vorjahre existieren DATEV-Auswertungen
-   in SharePoint (2021/22, 2022/23); für 2023/24 und 2024/25 fehlen sie ebenfalls. Mit der
-   aktuellen Auswertung ließe sich die Bewertung vollständig belegbasiert statt rückgerechnet
-   aufbauen.
+1. **Wellpappe-Zuschnitte (5.584 €)** — angesetzt ist die Lieferung vom 19.08.2026. Das ist
+   das *geplante* Lieferdatum der Auftragsbestätigung; Prodinger vermerkt dort ausdrücklich
+   Unverbindlichkeit und „LZ ca. 3–4 Wochen", was auf Ende August bis Anfang September
+   deuten würde. Ein Restbestand aus der März-Charge ist mit 0 angesetzt — angesichts der
+   bestätigten Zusatzeinkäufe bei anderen Artikeln ist auch hier ein Restbestand denkbar.
+   Beides über die Prodinger-Rechnung und den AMM-Wareneingang klärbar.
+2. **LKW-Menge ZELSEN 18.08.** — mit 1.000 Stk angesetzt (Referenz LS0007: 1.166 Stk je LKW).
+   ±25 % entsprechen ±2.563 €. Auflösbar über die ZELSEN-Rechnung.
+3. **Handstretchfolie und PVC-Packband** — zusammen 282 €, unwesentlich, aber ohne Lieferbeleg.
+   Über Konto 4710 GJ 2025/26 verifizierbar.
+4. **Verbrauchsbasis bestätigt.** Der Tagesverbrauch von 43,8 Paletten/AT aus der
+   Bedarfsrechnung ist laut Fachbereich zutreffend. Die Abweichung zur Rückrechnung stammt
+   nicht aus dem Verbrauch, sondern aus nicht erfassten Zusatzeinkäufen — konsistent mit
+   dem Kostenvergleich v5, der für Jan–Mai 2026 einen Paletten-Einkauf von 7.538 Stk
+   ausweist (≈ 18.100 Stk/Jahr) gegenüber 10.950 Stk Jahresbedarf.
+5. **Verhältnis zum Vorjahr.** Der Wert liegt 74 % über dem mit dem Einkaufsvolumen
+   skalierten Referenzwert (18.456 €) und entspricht 41 Arbeitstagen Reichweite statt
+   der 22–23 Tage früherer Stichtage. Das ist die Folge der Bevorratung vor der
+   ZELSEN-Preiserhöhung und der Zusatzeinkäufe, sollte gegenüber dem Steuerberater
+   aber erklärbar hinterlegt sein.
 
 ---
 

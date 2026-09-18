@@ -69,17 +69,20 @@ positionen.append(("Wellpappe-Zuschnitte 268144", wp_bestand, "Stk", wp_preis,
 #         Bestellung 16.07. = 960 Stk (60x120). Angesetzt: 1.000 Stk
 # Preis: Preisliste ZELSEN ab 26.03.2026: 120x80 IPPC 10,50 / 100x80 IPPC 10,25
 #        -> Mischpreis 10,25 EUR (deckt sich mit Kostenvergleich v5: "10,00-10,25 EUR")
-pal_lkw     = 1000
-pal_preis   = 10.25
-pal_at      = 10                    # Arbeitstage 18.08. - 31.08.2026
-pal_verbr   = pro_at(PALETTEN_JAHR) * pal_at
-# Restbestand vor der 18.08.-Lieferung:
-#   Zugaenge 09.07. (874 Stk, Bestellung 23.06.) + 22.07. (960 Stk, Bestellung 16.07.)
-#   abzgl. Verbrauch 09.07.-17.08. (28 AT)
-pal_rest_alt = 874 + 960 - pro_at(PALETTEN_JAHR) * 28
-pal_bestand  = pal_lkw - pal_verbr + max(pal_rest_alt, 0)
+pal_lkw      = 1000
+pal_preis    = 10.25
+# Vormonatsrest zum Stichtag: Feststellung Backoffice & Fulfillment (ca. 9.000 EUR).
+# Die Modell-Rueckrechnung ergab nur 608 Stk, weil sie ausschliesslich die per Mail
+# belegten Juli-Lieferungen (874 + 960 Stk) kennt. Laut Fachbereich gab es darueber
+# hinaus Zusatzeinkaeufe - gestuetzt durch Kostenvergleich v5: 7.538 Stk Einkauf
+# Jan-Mai 2026, hochgerechnet ~18.100 Stk/Jahr gegenueber 10.950 Stk Jahresbedarf.
+# Der Tagesverbrauch von 43,8 Stk/AT bleibt unveraendert gueltig.
+pal_vormonat = round(9000 / pal_preis)     # 878 Stk
+# Die Lieferung vom 18.08. ist zum Stichtag unangetastet (Verbrauch nach FIFO aus
+# der aelteren Charge, die im Vormonatsrest bereits beruecksichtigt ist).
+pal_bestand  = pal_vormonat + pal_lkw
 positionen.append(("Einwegpaletten (alle Formate)", pal_bestand, "Stk", pal_preis,
-                   "ZELSEN Lieferung 18.08.26"))
+                   "Vormonatsrest + Lieferung 18.08.26"))
 
 # --- C) Maschinenstretchfolie 517606 ----------------------------------------
 # QUELLE: Prodinger AB 20055740: 56,90 EUR/Rolle; 30 Rollen/Palette
@@ -87,13 +90,14 @@ positionen.append(("Einwegpaletten (alle Formate)", pal_bestand, "Stk", pal_prei
 #          = 1.706,99 netto / 30 = 56,90 EUR/Rolle)
 #         Letzte gesicherte Lieferung: 22.07.2026 (AB 20087796), 2 Paletten = 60 Rollen
 #         Bestellung 03.08.2026 (2 Pal.) - Lieferung bis 31.08. NICHT belegt
-folie_zug   = 60
-folie_preis = 56.90
-folie_at    = 29                    # Arbeitstage 22.07. - 31.08.2026
-folie_verbr = pro_at(JAHRESBEDARF["Maschinenstretchfolie (Rollen)"]) * folie_at
-folie_bestand = max(folie_zug - folie_verbr, 0)
+folie_preis   = 56.90
+# Bestand zum Stichtag: Feststellung Backoffice & Fulfillment (ca. 7.000 EUR).
+# Die Modell-Rueckrechnung ergab 0 Rollen, weil sie nur die Lieferung vom 22.07.
+# (2 Paletten = 60 Rollen) kannte. Die Menge entspricht gut 4 Paletten, d. h. die
+# Bestellung vom 03.08. wurde vor dem Stichtag geliefert.
+folie_bestand = round(7000 / folie_preis)  # 123 Rollen
 positionen.append(("Maschinenstretchfolie 517606", folie_bestand, "Rollen", folie_preis,
-                   "Lieferung 22.07.26, 2 Pal."))
+                   "Lagerfeststellung Stichtag"))
 
 # --- D) Handstretchfolie ------------------------------------------------------
 # KEIN Beleg einer Lieferung 2026 in Outlook/SharePoint auffindbar.

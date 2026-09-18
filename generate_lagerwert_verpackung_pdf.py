@@ -13,16 +13,16 @@ OUT = Path(__file__).parent / '2026-08-31_Bestandsbewertung_Verpackungsmaterial_
 # --- Positionen: Menge x Nettopreis der letzten Lieferung -------------------
 POSITIONEN = [
     # Bezeichnung, Artikel, Menge, ME, Preis, Preisbasis
-    ("Einwegpaletten, alle Formate", "—",      1170, "Stk",   10.25,
+    ("Einwegpaletten, alle Formate", "—",      1878, "Stk",   10.25,
      "ZELSEN, Preisliste ab 26.03.2026"),
+    ("Maschinenstretchfolie 500 x 0,023 mm", "517606", 123, "Ro.", 56.90,
+     "Prodinger AB 20055740"),
     ("Wellpappe-Zuschnitte 1180 x 780 mm", "268144", 19403, "Stk", 0.2878,
      "Prodinger AB 20097713, 287,80 €/1.000 Stk"),
     ("Handstretchfolie transparent", "—",        40, "Ro.",    4.99,
      "Ahrbach Süd AN2602363"),
     ("PVC-Packband 50 mm x 66 m", "106598",      56, "Ro.",    1.47,
      "Prodinger AB 20055740"),
-    ("Maschinenstretchfolie 500 x 0,023 mm", "517606", 0, "Ro.", 56.90,
-     "Prodinger AB 20087796"),
 ]
 SUMME = sum(m * p for _, _, m, _, p, _ in POSITIONEN)
 
@@ -156,7 +156,9 @@ tfoot td {{ background: #fafafa; border-top: 1.5px solid var(--grey-3); font-siz
       <p>Fortführung der in den Vorjahren angewandten Methode: Der Bestand je Artikel wird aus den
       Zugängen des Geschäftsjahres und dem Materialverbrauch bis zum Stichtag fortgeschrieben und
       mit dem Nettopreis der jeweils letzten Lieferung bewertet. Verbrauchsbasis ist die
-      Bedarfsrechnung vom 15.07.2026 mit 250 Arbeitstagen im Jahr.</p>
+      Bedarfsrechnung vom 15.07.2026 mit 250 Arbeitstagen im Jahr. Bei Einwegpaletten und
+      Maschinenstretchfolie ist der zum Stichtag vorhandene Bestand aus Vormonatseinkäufen
+      durch Backoffice &amp; Fulfillment festgestellt und in den Ansatz übernommen.</p>
       <div class="formula">Bestand = letzte Lieferung + Restbestand Vorlieferungen − Verbrauch/AT × AT bis Stichtag</div>
     </div>
   </div>
@@ -172,6 +174,7 @@ tfoot td {{ background: #fafafa; border-top: 1.5px solid var(--grey-3); font-siz
       <div class="row"><div class="doc">Prodinger AB 20087796</div><div class="what">Maschinenstretchfolie 2 Paletten, Lieferung 22.07.2026</div></div>
       <div class="row"><div class="doc">Prodinger AB 20055740</div><div class="what">PVC-Packband 180 Rollen à 1,47 €, Lieferung 05.05.2026</div></div>
       <div class="row"><div class="doc">Bedarfsrechnung 15.07.2026</div><div class="what">Jahresbedarf je Artikel — Verbrauchsbasis</div></div>
+      <div class="row"><div class="doc">Lagerfeststellung Backoffice</div><div class="what">Vormonatsbestand 31.08.2026: Paletten 878 Stk · Maschinenstretchfolie 123 Rollen</div></div>
     </div>
   </div>
 
