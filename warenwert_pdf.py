@@ -139,7 +139,10 @@ def bau(f: dict, serie: list, out: Path) -> Path:
     if f.get("n_korrektur"):
         rows.append(['Nachträglich korrigierter EK (belegt)', de(f["n_korrektur"]), eur(f["ek_korrektur"])])
         for grund, g in (f.get("korrektur_gruende") or {}).items():
-            rows.append([f'      · {grund}', de(g["n"]), eur(g["ek"])])
+            rows.append([Paragraph(f'&nbsp;&nbsp;&nbsp;&nbsp;· {grund}',
+                                   ParagraphStyle('kg', fontName='Helvetica', fontSize=8.5,
+                                                  leading=10.5, textColor=INK_SOFT)),
+                         de(g["n"]), eur(g["ek"])])
     rows.append(['Ø-Schätzung — kein EK hinterlegt', de(f["n_geschaetzt"]), eur(f["ek_geschaetzt"])])
     if f.get("n_schrott_ek0"):
         rows.append(['Schrottware — echter EK 0 €', de(f["n_schrott_ek0"]), '—'])

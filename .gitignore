@@ -11,6 +11,8 @@ data/odoo/*.xls
 warenwert_monatsende.csv
 warenwert_facts_*.json
 Warenwert_*.pdf
+korrekturen_*.csv
+korrekturen_*.xlsx
 
 # Claude Code agent state (local only)
 .claude/

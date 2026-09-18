@@ -190,16 +190,23 @@ python3 warenwert_stichtag.py \
   EK) als Prüfpfad, insbesondere für die AEG-Lose und die vormals EK-0-Lose.
 * `--fassung` — Kennung, die in Einseiter und Faktendatei erscheint.
 
-**Umsetzung am 18.09.2026:** Ein frischer `LosSerie (stock.lot)`-Export (18.09.)
-enthielt für die Lose vom 31.08. keine geänderten Preise (Abweichung zur
-Erstfassung im Promillebereich, gleiche Gerätezahl). Die beiden Korrekturen
-wurden deshalb auf Anweisung des Backoffice als **Pauschalkorrekturen ohne
-Los-Bezug** (`--pauschal-korrektur "BETRAG;GRUND"`) eingerechnet und im
-Einseiter als eigene Zeilen samt Grund ausgewiesen. Der Einseiter trägt den
-Hinweis, dass eine Überschneidung mit der Ø-Schätzung nicht ausgeschlossen ist.
-Sobald die Preise lot-genau in Odoo stehen, ersetzt ein neuer Export bzw. eine
-Korrekturliste (`--ek-korrektur`) die Pauschalen; die Brücke (`--vergleich`)
-zeigt dann die Differenz.
+**Umsetzung am 18.09.2026 (Fassung 2):** Ein frischer `LosSerie (stock.lot)`-Export
+(18.09.) enthielt für die Lose vom 31.08. keine geänderten Preise (Abweichung zur
+Erstfassung im Promillebereich, gleiche Gerätezahl). Die AEG-Electrolux-Ware wurde
+deshalb lot-genau über die AMM-Bestellnummer (`…_AEG_IT`, `…_AEG_ZW`) und den
+Odoo-Lieferanten identifiziert und in zwei Gruppen per `--ek-korrektur` bewertet:
+
+| Gruppe | Erkennung | Bewertung |
+|---|---|---|
+| AEG-Ware mit EK 0 im System | AEG-Lose vom 31.08., die in Odoo EK 0 haben oder gar nicht in Odoo geführt sind | Summe laut Backoffice, gleichverteilt je Gerät; ersetzt den Ø-Fill |
+| AEG-Ware falsch klassifiziert | AMM-Bestellnummer AEG, in Odoo aber unter „Migration Altbestand" ohne Lieferantentyp | Odoo-EK plus Aufschlag je Gerät, Summe laut Backoffice |
+
+Beide Summen stammen aus der Aussage des Backoffice vom 18.09.2026, nicht aus
+Odoo; die Verteilung auf die Lose ist im Einseiter als Grund je Gruppe
+ausgewiesen und in der Geräteliste je Lager-Nr nachvollziehbar. Sobald die Preise
+lot-genau in Odoo stehen, ersetzt ein neuer Export die Korrekturliste; die Brücke
+(`--vergleich`) zeigt dann die Differenz. Plausibilitätsanker: beide Gruppen landen
+bei rund 215 bis 225 € je Gerät (überwiegend Einbau-Kühlgeräte).
 
 Drei Wege, die Korrekturen einzuspielen:
 
