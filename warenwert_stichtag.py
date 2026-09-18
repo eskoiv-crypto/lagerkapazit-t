@@ -139,6 +139,11 @@ def de(n: int) -> str:
     return f"{n:,}".replace(",", ".")
 
 
+def de_betrag(x: float) -> str:
+    """Vorzeichenbehafteter Betrag ohne Nachkommastellen, deutsch gruppiert: +12.000"""
+    return f"{x:+,.0f}".replace(",", ".")
+
+
 # --------------------------------------------------------------------------
 @dataclass
 class Ergebnis:
@@ -454,7 +459,7 @@ def berechne(args) -> Ergebnis:
     if erg.pauschal_korrekturen:
         erg.warnungen.append(
             f"{len(erg.pauschal_korrekturen)} Pauschalkorrektur(en) ohne Los-Bezug, Σ {eur(erg.ek_pauschal)}: "
-            + " · ".join(f"{p['grund']} ({p['betrag']:+,.0f} €)".replace(",", ".")
+            + " · ".join(f"{p['grund']} ({de_betrag(p['betrag'])} €)"
                          for p in erg.pauschal_korrekturen)
             + ". Nicht je Lager-Nr belegt; Ueberschneidung mit der Ø-Schaetzung ist nicht ausgeschlossen.")
 
@@ -539,7 +544,7 @@ def drucke(erg: Ergebnis) -> None:
     print(f"  Ø-Schätzung (ohne EK)      {eur(erg.ek_geschaetzt):>20}   {de(erg.n_geschaetzt)} Geräte")
     print(f"  Schrottware (echt 0 €)     {'—':>20}   {de(erg.n_schrott_ek0)} Geräte")
     for pk in erg.pauschal_korrekturen:
-        print(f"  Pauschal: {pk['grund'][:48]:<48} {pk['betrag']:>+12,.0f} €".replace(",", "."))
+        print(f"  Pauschal: {pk['grund'][:48]:<48} {de_betrag(pk['betrag']):>12} €")
     print(b)
     if erg.vergleich:
         v = erg.vergleich
