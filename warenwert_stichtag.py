@@ -174,6 +174,10 @@ class Ergebnis:
     ek_korrektur: float = 0.0
     n_korrektur_nicht_im_bestand: int = 0
     korrektur_gruende: dict = field(default_factory=dict)   # Grund -> {n, ek, ek_vorher}
+    # Pauschale Korrekturen ohne Los-Bezug (--pauschal-korrektur), z. B. eine
+    # vom Backoffice benannte Summe; werden getrennt ausgewiesen
+    pauschal_korrekturen: list = field(default_factory=list)   # [{grund, betrag}]
+    ek_pauschal: float = 0.0
     # Bruecke zu einer frueheren Fassung desselben Stichtags (--vergleich)
     vergleich: dict | None = None
 
@@ -437,7 +441,24 @@ def berechne(args) -> Ergebnis:
             erg.n_geschaetzt += 1
             preis[nr], quelle[nr], fill_quelle[nr] = float(w), "schaetzung", q
 
-    erg.ek_gesamt = erg.ek_belegt + erg.ek_geschaetzt
+    # ---------------- Pauschale Korrekturen (ohne Los-Bezug) ----------------
+    for eintrag in (args.pauschal_korrektur or []):
+        if ";" not in eintrag:
+            raise SystemExit(f"FEHLER: --pauschal-korrektur erwartet 'Betrag;Grund', bekommen: {eintrag!r}")
+        betrag_s, grund = eintrag.split(";", 1)
+        betrag = zu_zahl(betrag_s)
+        if not grund.strip():
+            raise SystemExit("FEHLER: --pauschal-korrektur ohne Grund ist nicht zulaessig.")
+        erg.pauschal_korrekturen.append({"grund": grund.strip(), "betrag": betrag})
+        erg.ek_pauschal += betrag
+    if erg.pauschal_korrekturen:
+        erg.warnungen.append(
+            f"{len(erg.pauschal_korrekturen)} Pauschalkorrektur(en) ohne Los-Bezug, Σ {eur(erg.ek_pauschal)}: "
+            + " · ".join(f"{p['grund']} ({p['betrag']:+,.0f} €)".replace(",", ".")
+                         for p in erg.pauschal_korrekturen)
+            + ". Nicht je Lager-Nr belegt; Ueberschneidung mit der Ø-Schaetzung ist nicht ausgeschlossen.")
+
+    erg.ek_gesamt = erg.ek_belegt + erg.ek_geschaetzt + erg.ek_pauschal
 
     # ---------------- Geraeteliste (Pruefpfad je Lager-Nr) ----------------
     if args.geraete_liste:
@@ -474,6 +495,7 @@ def berechne(args) -> Ergebnis:
             "ek_belegt_alt": alt.get("ek_belegt"),
             "n_geschaetzt_alt": alt.get("n_geschaetzt"),
             "ek_geschaetzt_alt": alt.get("ek_geschaetzt"),
+            "ek_pauschal_alt": alt.get("ek_pauschal", 0.0),
             "delta_ek_gesamt": erg.ek_gesamt - float(alt.get("ek_gesamt") or 0),
             "delta_geraete": erg.geraete - int(alt.get("geraete") or 0),
         }
@@ -516,6 +538,8 @@ def drucke(erg: Ergebnis) -> None:
                   f"vorher Odoo {eur(g['ek_vorher_odoo'])} ({g['n_vorher_ohne_ek']} ohne EK)")
     print(f"  Ø-Schätzung (ohne EK)      {eur(erg.ek_geschaetzt):>20}   {de(erg.n_geschaetzt)} Geräte")
     print(f"  Schrottware (echt 0 €)     {'—':>20}   {de(erg.n_schrott_ek0)} Geräte")
+    for pk in erg.pauschal_korrekturen:
+        print(f"  Pauschal: {pk['grund'][:48]:<48} {pk['betrag']:>+12,.0f} €".replace(",", "."))
     print(b)
     if erg.vergleich:
         v = erg.vergleich
@@ -573,6 +597,10 @@ def main(argv=None) -> int:
                    help="CSV/XLSX 'Lager-Nr;EK;Grund' - lot-genaue EK-Korrekturen, die Odoo-Preis "
                         "und Durchschnitts-Fill ersetzen (z. B. AEG-Neuklassifizierung, "
                         "nachgezogene Preise nach Preisrecherche)")
+    p.add_argument("--pauschal-korrektur", action="append", metavar="BETRAG;GRUND",
+                   help="Pauschale Korrektur ohne Los-Bezug, mehrfach moeglich, z. B. "
+                        "'12000;AEG Electrolux echter EK (Aussage Backoffice)'. Wird getrennt "
+                        "ausgewiesen und geht in den Warenwert ein.")
     p.add_argument("--fassung", help="Kennung der Fassung, z. B. '2 (korrigiert 18.09.2026)'")
     p.add_argument("--vergleich",
                    help="Faktendatei einer frueheren Fassung desselben Stichtags -> Bruecke alt/neu")

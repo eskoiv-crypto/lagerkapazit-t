@@ -190,6 +190,29 @@ def main() -> int:
             fehler.append(f"Geräteliste inkonsistent: {len(gl)} Zeilen, Σ {gl['EK bewertet'].sum():.2f}")
         if set(gl["Preisquelle"]) != {"odoo", "portal", "korrektur", "schaetzung", "schrott"}:
             fehler.append(f"Preisquellen in Geräteliste unvollständig: {set(gl['Preisquelle'])}")
+        # --- Pauschalkorrekturen ohne Los-Bezug (getrennt ausgewiesen, im Gesamtwert) ---
+        j6 = ordner / "pauschal.json"
+        r6 = subprocess.run(
+            [sys.executable, str(SKRIPT), "--stichtag", STICHTAG, "--bestand", str(bestand),
+             "--odoo", str(odoo), "--stock-analysis", str(portal),
+             "--pauschal-korrektur", "100;Grund A", "--pauschal-korrektur", "-25,50;Grund B",
+             "--vergleich", str(j1), "--json", str(j6)], capture_output=True, text=True)
+        if r6.returncode != 0:
+            print(r6.stdout); print(r6.stderr, file=sys.stderr)
+            return 1
+        f6 = json.loads(j6.read_text(encoding="utf-8"))
+        if abs(f6["ek_pauschal"] - 74.5) > 0.01 or len(f6["pauschal_korrekturen"]) != 2:
+            fehler.append(f"Pauschalkorrekturen falsch: {f6['pauschal_korrekturen']} Σ {f6['ek_pauschal']}")
+        if abs(f6["ek_gesamt"] - (SOLL_GESAMT["ek_gesamt"] + 74.5)) > 0.01:
+            fehler.append(f"Pauschal nicht im Gesamtwert: {f6['ek_gesamt']}")
+        if abs(f6["vergleich"]["delta_ek_gesamt"] - 74.5) > 0.01:
+            fehler.append("Brücke berücksichtigt Pauschal nicht")
+        r7 = subprocess.run(
+            [sys.executable, str(SKRIPT), "--stichtag", STICHTAG, "--bestand", str(bestand),
+             "--odoo", str(odoo), "--pauschal-korrektur", "100"], capture_output=True, text=True)
+        if r7.returncode == 0:
+            fehler.append("Pauschalkorrektur ohne Grund wurde nicht abgelehnt")
+
         # falscher Stichtag im Vergleich muss abbrechen
         j_falsch = ordner / "falsch.json"
         j_falsch.write_text(json.dumps({"stichtag": "2026-07-31", "umfang": "gesamt", "ek_gesamt": 1}),
@@ -208,7 +231,7 @@ def main() -> int:
     print(f"✓ Alle Prüfungen bestanden "
           f"(gesamt: {SOLL_GESAMT['geraete']} Geräte / {SOLL_GESAMT['ek_gesamt']:.2f} € · "
           f"freiverkäuflich: {SOLL_FREI['geraete']} / {SOLL_FREI['ek_gesamt']:.2f} € · "
-          f"Dublette, Schrott, Ø-Fill, Reihe, Wächter, Korrekturliste, Brücke, Geräteliste ok)")
+          f"Dublette, Schrott, Ø-Fill, Reihe, Wächter, Korrekturliste, Brücke, Geräteliste, Pauschal ok)")
     return 0
 
 

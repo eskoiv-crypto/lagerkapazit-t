@@ -1,7 +1,7 @@
 # Warenwert zum Stichtag 31.08.2026
 
-**Status: Erstfassung gerechnet (01.09.2026), Fassung 2 mit EK-Korrekturen in
-Arbeit (siehe Abschnitt 4a).** Der Wert liegt als Einseiter
+**Status: Erstfassung gerechnet (01.09.2026), Fassung 2 mit EK-Korrekturen
+gerechnet (18.09.2026, siehe Abschnitt 4a).** Der Wert liegt als Einseiter
 `Warenwert_31-08-2026.pdf` vor (bleibt lokal, siehe Hinweis unten).
 
 > **Hinweis:** Dieses Repository ist öffentlich. Konkrete Einkaufswerte,
@@ -190,7 +190,18 @@ python3 warenwert_stichtag.py \
   EK) als Prüfpfad, insbesondere für die AEG-Lose und die vormals EK-0-Lose.
 * `--fassung` — Kennung, die in Einseiter und Faktendatei erscheint.
 
-Zwei Wege, die Korrekturen einzuspielen (beide über die Lager-Nr):
+**Umsetzung am 18.09.2026:** Ein frischer `LosSerie (stock.lot)`-Export (18.09.)
+enthielt für die Lose vom 31.08. keine geänderten Preise (Abweichung zur
+Erstfassung im Promillebereich, gleiche Gerätezahl). Die beiden Korrekturen
+wurden deshalb auf Anweisung des Backoffice als **Pauschalkorrekturen ohne
+Los-Bezug** (`--pauschal-korrektur "BETRAG;GRUND"`) eingerechnet und im
+Einseiter als eigene Zeilen samt Grund ausgewiesen. Der Einseiter trägt den
+Hinweis, dass eine Überschneidung mit der Ø-Schätzung nicht ausgeschlossen ist.
+Sobald die Preise lot-genau in Odoo stehen, ersetzt ein neuer Export bzw. eine
+Korrekturliste (`--ek-korrektur`) die Pauschalen; die Brücke (`--vergleich`)
+zeigt dann die Differenz.
+
+Drei Wege, die Korrekturen einzuspielen:
 
 1. **Frischer Odoo-Export** (bevorzugt): Enthält Odoo nach Neuklassifizierung
    und Preisrecherche die richtigen Einkaufspreise, reicht ein neuer
@@ -199,6 +210,9 @@ Zwei Wege, die Korrekturen einzuspielen (beide über die Lager-Nr):
    Spalte — die Tagesexporte im Cockpit-Ordner haben sie nicht.
 2. **Korrekturliste**: Liegen die richtigen EKs nur als Liste vor, per
    `--ek-korrektur` einspielen; der Grund je Zeile wird im Einseiter ausgewiesen.
+3. **Pauschalkorrektur**: Liegt nur eine Summe vor, per `--pauschal-korrektur`
+   mit Grund einspielen. Getrennt ausgewiesen, nicht je Lager-Nr belegt; als
+   Übergangslösung gedacht, bis 1. oder 2. möglich ist.
 
 Gegenproben für Fassung 2 (KILLCRITIC): Gerätezahl muss exakt der Erstfassung
 entsprechen (gleiche Bestandsliste); die Summe der Korrektur-Δ muss die

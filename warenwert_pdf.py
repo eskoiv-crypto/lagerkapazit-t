@@ -143,9 +143,15 @@ def bau(f: dict, serie: list, out: Path) -> Path:
     rows.append(['Ø-Schätzung — kein EK hinterlegt', de(f["n_geschaetzt"]), eur(f["ek_geschaetzt"])])
     if f.get("n_schrott_ek0"):
         rows.append(['Schrottware — echter EK 0 €', de(f["n_schrott_ek0"]), '—'])
+    for pk in (f.get("pauschal_korrekturen") or []):
+        rows.append([Paragraph(f'Pauschalkorrektur: {pk["grund"]}',
+                               ParagraphStyle('pk', fontName='Helvetica', fontSize=9,
+                                              leading=11, textColor=INK_SOFT)),
+                     '—', f'{pk["betrag"]:+,.0f} €'.replace(',', '.')])
     rows.append(['Summe', de(f["geraete"]), eur(f["ek_gesamt"])])
     t = Table(rows, colWidths=[9.6*cm, 3*cm, 4*cm])
     t.setStyle(TableStyle([
+        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
         ('BACKGROUND', (0,0), (-1,0), INK), ('TEXTCOLOR', (0,0), (-1,0), colors.white),
         ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'), ('FONTSIZE', (0,0), (-1,0), 8),
         ('FONTSIZE', (0,1), (-1,-1), 9.5), ('TEXTCOLOR', (0,1), (-1,-1), INK_SOFT),
@@ -176,6 +182,10 @@ def bau(f: dict, serie: list, out: Path) -> Path:
                       f'{d_belegt:+,.0f} €'.replace(',', '.')])
         brows.append(['  Δ Ø-Schätzung (weniger/mehr Geräte ohne EK)',
                       f'{n_sch:+d}', f'{d_schaetz:+,.0f} €'.replace(',', '.')])
+        d_pausch = float(f.get("ek_pauschal") or 0) - float(v.get("ek_pauschal_alt") or 0)
+        if d_pausch:
+            brows.append(['  Δ Pauschalkorrekturen (ohne Los-Bezug)', '',
+                          f'{d_pausch:+,.0f} €'.replace(',', '.')])
         brows.append([neu_lbl, de(f["geraete"]), eur(f["ek_gesamt"])])
         bt = Table(brows, colWidths=[9.6*cm, 3*cm, 4*cm])
         bt.setStyle(TableStyle([
