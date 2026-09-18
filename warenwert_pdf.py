@@ -99,7 +99,7 @@ def bau(f: dict, serie: list, out: Path, darstellung: str = "intern") -> Path:
                             topMargin=2.2*cm, bottomMargin=2*cm)
     st = []
     eyebrow = f'MONATSREIHE · STICHTAG {tag}'
-    if f.get("fassung"):
+    if f.get("fassung") and not belegt:
         eyebrow += f' · FASSUNG {f["fassung"]}'
     st.append(Paragraph(eyebrow.upper(), EYEBROW))
     st.append(Paragraph('Warenwert', TITLE))
@@ -137,7 +137,9 @@ def bau(f: dict, serie: list, out: Path, darstellung: str = "intern") -> Path:
     rows.append(['Einkaufspreis aus Odoo (belegt)', de(f["n_odoo"]), eur(f["ek_odoo"])])
     if f.get("n_portal"):
         rows.append(['Portal-Restbestand (belegt)', de(f["n_portal"]), eur(f["ek_portal"])])
-    if f.get("n_korrektur"):
+    if f.get("n_korrektur") and belegt:
+        rows.append(['Einkaufspreis aus Korrekturliste (belegt)', de(f["n_korrektur"]), eur(f["ek_korrektur"])])
+    elif f.get("n_korrektur"):
         rows.append(['Nachträglich korrigierter EK (belegt)', de(f["n_korrektur"]), eur(f["ek_korrektur"])])
         for grund, g in (f.get("korrektur_gruende") or {}).items():
             rows.append([Paragraph(f'&nbsp;&nbsp;&nbsp;&nbsp;· {grund}',
@@ -173,7 +175,7 @@ def bau(f: dict, serie: list, out: Path, darstellung: str = "intern") -> Path:
 
     # Brücke zur früheren Fassung desselben Stichtags
     v = f.get("vergleich")
-    if v:
+    if v and not belegt:
         st.append(Paragraph('Brücke zur Erstfassung', H2))
         alt_lbl = f'Fassung {v["fassung_alt"]}' if v.get("fassung_alt") else v["quelle"]
         alt_lbl = alt_lbl.split(",")[0]
@@ -232,22 +234,10 @@ def bau(f: dict, serie: list, out: Path, darstellung: str = "intern") -> Path:
         st.append(ts)
 
     # Hinweise
-    st.append(Paragraph('Bewertungsgrundlage' if belegt else 'Wichtige Hinweise', H2))
     if belegt:
-        st.append(Paragraph(
-            '–&nbsp;&nbsp;Mengengerüst ist die AMM-Bestandsliste vom Stichtag (alle physisch im Lager '
-            'befindlichen Geräte). Jedes Gerät ist mit seinem Einkaufspreis je Lager-Nr aus Odoo '
-            'bzw. aus der Korrekturliste bewertet.', BODY))
-        st.append(Paragraph(
-            '–&nbsp;&nbsp;Geräte ohne Einzelpreis im System sind zum Durchschnitts-Einkaufspreis ihrer '
-            'Warengruppe bewertet (Gruppenbewertung, Referenz: bepreiste Geräte derselben '
-            'Produktkategorie zum Stichtag).', BODY))
-        for w in f.get("warnungen", []):
-            if any(k in w for k in ("Durchschnittswert", "Schaetz", "Schätz", "Pauschal",
-                                    "Ueberschneidung", "Überschneidung", "korrigiertem Einkaufspreis")):
-                continue
-            st.append(Paragraph(f'–&nbsp;&nbsp;{w}', BODY))
+        pass                      # keine Erlaeuterungen im belegten Einseiter
     else:
+        st.append(Paragraph('Wichtige Hinweise', H2))
         for w in f.get("warnungen", []):
             st.append(Paragraph(f'–&nbsp;&nbsp;{w}', BODY))
         st.append(Paragraph(
