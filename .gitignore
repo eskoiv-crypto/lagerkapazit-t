@@ -32,3 +32,8 @@ blob-report/
 playwright/.cache/
 validation_output.txt
 validation_v2.txt
+
+# Otto-Obligo-Cockpit: vertrauliche Build-Eingaben (Agicap-Register mit Otto-Konditionen, lokales Passwort) und lokale Builds
+otto-obligo/_build-kit/hist_register.csv
+otto-obligo/_build-kit/local.config.json
+otto-obligo/dist/
