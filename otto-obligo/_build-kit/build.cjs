@@ -18,9 +18,11 @@ const argOf = k => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : nu
 const OUT = path.resolve(argOf("--out") || path.join(KIT, "..", "dist", "Otto-Obligo-Cockpit.html"));
 const NO_HIST = args.includes("--no-hist");
 
+// Bibliotheken: zuerst _build-kit/vendor/ (SharePoint-Kit ohne node_modules), sonst node_modules im Repo-Root.
 function lib(rel) {
-  const p = path.join(ROOT, "node_modules", rel);
-  if (!fs.existsSync(p)) { console.error("Bibliothek fehlt: " + p + "\n-> im Repo-Root `npm install` ausführen."); process.exit(1); }
+  const cands = [path.join(KIT, "vendor", path.basename(rel)), path.join(ROOT, "node_modules", rel)];
+  const p = cands.find(f => fs.existsSync(f));
+  if (!p) { console.error("Bibliothek fehlt: " + cands.join(" | ") + "\n-> im Repo-Root `npm install` ausführen oder vendor/ befüllen."); process.exit(1); }
   return fs.readFileSync(p, "utf8");
 }
 const T = fs.readFileSync(path.join(KIT, "app_template.html"), "utf8");
