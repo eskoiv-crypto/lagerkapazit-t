@@ -1,13 +1,34 @@
 # Otto-Obligo-Cockpit · Build-Kit (Repo-Kopie)
 
-**Stand:** 2026-09-18 · **Version:** v2.1 (PDF-Import) · Sprache: Deutsch
+**Stand:** 2026-09-20 · **Version:** v2.2 (PDF-Import + CID-Text + Betrags-Gegenprobe) · Sprache: Deutsch
 
 Das Otto-Obligo-Cockpit ist eine Single-File-HTML-App (offline, keine Server), die das tatsächliche
 Obligo gegenüber Otto gegen das Kreditlimit zeigt. **Quelle der Wahrheit für den Betrieb** bleibt SharePoint:
 `PlattformenTeams › Tools und Automatisieren › KI-Tools › Otto_Obligo_View` (Cockpit + `_build-kit`).
 Dieses Verzeichnis ist die versionierte Kopie des Build-Kits, damit Änderungen nachvollziehbar und getestet sind.
 
-## Was ist neu in v2.1 (2026-09-18)
+## Was ist neu in v2.2 (2026-09-20)
+
+Ausgelöst durch die Otto-Retourenrechnung `1001EO26005148` (11 Seiten: Rechnung + Mailverlauf + Artikel-Aufstellung):
+
+- **CID-/Identity-H-Text wird gelesen.** In diesem Beleg liegen **1695 von 1764 Textstücken** in CID-Fonts —
+  bisher konnte das Tool nur die erste Seite lesen. Der Extraktor löst jetzt je Seite die **ToUnicode-CMap** jedes
+  Fonts auf. Die Byte-Breite kommt aus `/Encoding /Identity-H` und wird **nicht** aus den Code-Werten geraten
+  (10 von 15 Fonts dieses Belegs haben nur Codes < 256 und würden sonst byteweise falsch dekodiert).
+- **Betrags-Gegenprobe.** Zusätzlich zum Anker „Gesamt Rechnungsbetrag“ liest das Tool Zwischensumme,
+  Retourenvergütung, Nettobetrag und Umsatzsteuer und prüft `netto + USt = brutto`. Ergebnis steht im Lade-Protokoll
+  (`Gegenprobe ✓` bzw. 🚨 bei Abweichung).
+- **Retourenvergütung wird ausgewiesen.** Bei Retourenbelegen zeigt das Protokoll Satz und Betrag der Vergütung
+  sowie die Zwischensumme — so ist nachvollziehbar, warum aus 61.003,48 € Zwischensumme 13.429,91 € Rechnungsbetrag werden.
+- **Rückfall entschärft.** Ohne Anker wird der Brutto-Betrag aus netto + USt rekonstruiert; erst danach greift
+  „letzter Betrag“ — und zwar **nur auf Seite 1**. Der letzte Betrag des ganzen Dokuments wäre in diesem Beleg
+  **767.003,48 €** statt 13.429,91 € gewesen.
+- **Mehrere Rechnungen in einer Datei** (zusammengefasstes Mail-PDF) werden erkannt und **abgewiesen**, statt still
+  nur die erste zu zählen.
+- **Rechnungsdatum** kommt bevorzugt aus dem Ort-Datum-Kopf („Hamburg, 08. September 2026“); sonst gewönne ein
+  Datum aus dem eingebetteten Mailverlauf.
+
+## Was war neu in v2.1 (2026-09-18)
 
 - **Einzelne Otto-Rechnungs-PDFs** können direkt in die Kachel „Agicap / Rechnungen“ gezogen werden
   (z. B. eine Rechnung aus dem Posteingang, bevor sie in Agicap ist). Bisher gingen PDFs nur verpackt in der Agicap-„Zu prüfen“-ZIP.
@@ -66,5 +87,11 @@ Rechnungsdaten. Echte Belege werden nicht ins Repo gelegt (Otto-Konditionen, per
 
 Obligo heute = alle offenen Agicap-Rechnungen (Geprüft + Zu prüfen + Posteingang, jetzt auch Einzel-PDFs)
 + LKW mit Lieferschein, aber noch keiner Rechnung (Odoo „Blockiert“). Doppelzählungsschutz: Plombe-Abgleich, dann 100 %-Cent-Alarm.
-Je PDF-Beleg: Brutto = erster Betrag nach „Gesamt Rechnungsbetrag“ (Rückfall: letzter Betrag im PDF, dann ⚠️),
-Rechnungsdatum aus „DD. Monat JJJJ“, Fälligkeit intern = Rechnungsdatum + 30 Tage, Plombe = 7 Ziffern nach „Plombe“.
+Je PDF-Beleg (Kaskade, erste greifende Regel gewinnt):
+1. erster Betrag nach **„Gesamt Rechnungsbetrag“**
+2. anderer Brutto-Anker („Rechnungsbetrag (brutto)“, „Gesamtbetrag“, „Rechnungsendbetrag“)
+3. **netto + USt** rekonstruiert (⚠️ markiert)
+4. letzter Betrag **auf Seite 1** (⚠️ markiert)
+
+Dazu Gegenprobe `netto + USt = brutto`, Rechnungsdatum bevorzugt aus dem Ort-Datum-Kopf,
+Fälligkeit intern = Rechnungsdatum + 30 Tage, Plombe = 7 Ziffern nach „Plombe“.

@@ -7,24 +7,51 @@ const OUT = __dirname;
 
 function pdfStr(s) { return "(" + s.replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(/\)/g, "\\)") + ")"; }
 // lines: [{x,y,size,text}] oder {x,y,size,tj:[...]} für TJ-Arrays
-function makePdf(pages) {
+// cidMap: baut aus dem Text eines CID-Laufs eine Subset-Codetabelle (Code 1..n, wie bei echten Subset-Fonts,
+// also bewusst alle Codes < 256 — damit prüft die Fixture, dass die Byte-Breite aus /Encoding kommt und nicht geraten wird).
+function buildCidTable(texts) {
+  const order = [], code = {};
+  for (const t of texts) for (const ch of t) if (code[ch] === undefined) { order.push(ch); code[ch] = order.length; }
+  return { code, order };
+}
+function cidHex(t, code) { let h = ""; for (const ch of t) h += Number(code[ch] ?? 0).toString(16).padStart(4, "0"); return h; }
+function toUnicodeCMap(tab) {
+  const lines = Object.entries(tab.code).map(([ch, c]) =>
+    "<" + c.toString(16).padStart(4, "0") + "> <" + ch.charCodeAt(0).toString(16).padStart(4, "0") + ">");
+  return "/CIDInit /ProcSet findresource begin\n12 dict begin\nbegincmap\n/CMapName /Test-H def\n/CMapType 2 def\n" +
+    "1 begincodespacerange\n<0000> <FFFF>\nendcodespacerange\n" +
+    lines.map((l, i) => (i % 100 === 0 ? "\n" + Math.min(100, lines.length - i) + " beginbfchar\n" : "") + l +
+      ((i % 100 === 99 || i === lines.length - 1) ? "\nendbfchar" : "")).join("\n") +
+    "\nendcmap\nCMapName currentdict /CMap defineresource pop\nend\nend";
+}
+function makePdf(pages, cidTab) {
   const objs = [];
   const add = o => (objs.push(o), objs.length);
   const fontH = add("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>");
   const fontB = add("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>");
+  let fontC = null;
+  if (cidTab) {                       // Type0 / Identity-H mit ToUnicode — kein eingebetteter Glyphensatz nötig,
+    const cm = Buffer.from(toUnicodeCMap(cidTab), "latin1");   // die Fixture prüft ausschließlich die Textextraktion.
+    const comp = zlib.deflateSync(cm);
+    const cmId = add(Buffer.concat([Buffer.from("<< /Length " + comp.length + " /Filter /FlateDecode >>\nstream\n", "latin1"), comp, Buffer.from("\nendstream", "latin1")]));
+    const fd = add("<< /Type /FontDescriptor /FontName /AAAAAA+TestCID /Flags 4 /FontBBox [0 -200 1000 900] /ItalicAngle 0 /Ascent 800 /Descent -200 /CapHeight 700 /StemV 80 >>");
+    const cidFont = add("<< /Type /Font /Subtype /CIDFontType2 /BaseFont /AAAAAA+TestCID /CIDSystemInfo << /Registry (Adobe) /Ordering (Identity) /Supplement 0 >> /FontDescriptor " + fd + " 0 R /DW 600 >>");
+    fontC = add("<< /Type /Font /Subtype /Type0 /BaseFont /AAAAAA+TestCID /Encoding /Identity-H /DescendantFonts [" + cidFont + " 0 R] /ToUnicode " + cmId + " 0 R >>");
+  }
   const pageIds = [];
-  const pagesId = objs.length + 1 + pages.length * 2; // wird unten befüllt
+  const pagesId = objs.length + 1 + pages.length * 2; // Kids-Objekte folgen: je Seite Content + Page
   for (const lines of pages) {
     let cs = "BT\n";
     for (const l of lines) {
-      cs += "/" + (l.bold ? "F2" : "F1") + " " + (l.size || 9) + " Tf\n1 0 0 1 " + l.x + " " + l.y + " Tm\n";
-      if (l.tj) cs += "[" + l.tj.map(p => typeof p === "number" ? p : pdfStr(p)).join(" ") + "] TJ\n";
+      cs += "/" + (l.cid ? "F3" : l.bold ? "F2" : "F1") + " " + (l.size || 9) + " Tf\n1 0 0 1 " + l.x + " " + l.y + " Tm\n";
+      if (l.cid) cs += "<" + cidHex(l.text, cidTab.code) + "> Tj\n";
+      else if (l.tj) cs += "[" + l.tj.map(p => typeof p === "number" ? p : pdfStr(p)).join(" ") + "] TJ\n";
       else cs += pdfStr(l.text) + " Tj\n";
     }
     cs += "ET";
     const comp = zlib.deflateSync(Buffer.from(cs, "latin1"));
     const contId = add(Buffer.concat([Buffer.from("<< /Length " + comp.length + " /Filter /FlateDecode >>\nstream\n", "latin1"), comp, Buffer.from("\nendstream", "latin1")]));
-    pageIds.push(add("<< /Type /Page /Parent " + pagesId + " 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 " + fontH + " 0 R /F2 " + fontB + " 0 R >> >> /Contents " + contId + " 0 R >>"));
+    pageIds.push(add("<< /Type /Page /Parent " + pagesId + " 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 " + fontH + " 0 R /F2 " + fontB + " 0 R" + (fontC ? " /F3 " + fontC + " 0 R" : "") + " >> >> /Contents " + contId + " 0 R >>"));
   }
   const realPagesId = add("<< /Type /Pages /Kids [" + pageIds.map(i => i + " 0 R").join(" ") + "] /Count " + pageIds.length + " >>");
   if (realPagesId !== pagesId) throw new Error("Pages-Id-Rechnung falsch");
@@ -43,7 +70,7 @@ function makePdf(pages) {
 }
 
 // Layout wie ein Otto-Beleg: Kopf, Datum, Rechnungsnummer, Positionen, Summenblock mit "Gesamt Rechnungsbetrag (brutto)".
-function ottoInvoice({ nr, datum, netto, brutto, ust, plombe, extraPages = 0, anchor = true }) {
+function ottoInvoice({ nr, datum, netto, brutto, ust, plombe, extraPages = 0, anchor = true, bigTail = false }) {
   const p1 = [
     { x: 40, y: 800, size: 7, text: "Otto GmbH & Co. KGaA \x95 Werner-Otto-Stra\xDFe 1-7 \x95 22179 Hamburg \x95 A member of the otto group \x95 www.otto.com" },
     { x: 40, y: 760, size: 9, text: "Hamburg, " + datum },
@@ -62,9 +89,10 @@ function ottoInvoice({ nr, datum, netto, brutto, ust, plombe, extraPages = 0, an
     { x: 40, y: 560, size: 9, text: "Die Zahlung ist sofort nach Rechnungserhalt ohne Abzug f\xE4llig. Verwendungszweck \"" + nr + "/10041799/081755\"." },
   ];
   const pages = [p1];
-  for (let k = 0; k < extraPages; k++) {           // Anlage-Seiten mit Artikelliste (kleinere Beträge NACH der Summe -> "letzter Betrag" wäre falsch)
+  for (let k = 0; k < extraPages; k++) {           // Anlage-Seiten: Beträge NACH dem Summenblock -> "letzter Betrag im Dokument" wäre falsch
     const rows = [{ x: 40, y: 800, size: 8, text: "Paletten-Nr LS-Datum LS-Nummer Kanal Artikel Collo Menge Artikel-Bez Einzel-VKP Gesamt-VKP" }];
     for (let r = 0; r < 25; r++) rows.push({ x: 40, y: 780 - r * 14, size: 8, text: (250 + k) + " 27.08.2026 26022 Fundgrube 6738090" + r + " 1 1 Testartikel " + r + " 17,99 17,99 \x80" });
+    if (bigTail) rows.push({ x: 40, y: 60, size: 8, text: "Summe Aufstellung 767.003,48 \x80" });   // groesser als der Rechnungsbetrag
     rows.push({ x: 40, y: 30, size: 7, text: "Referenznummer: " + nr });
     pages.push(rows);
   }
@@ -93,7 +121,7 @@ function makeZip(entries) {
 // --- Fixtures ---
 const A = ottoInvoice({ nr: "1001EO26990001", datum: "08. September 2026", netto: "1.037,74", ust: "197,17", brutto: "1.234,91", extraPages: 2 });   // Einzel-PDF mit Anlage
 const B = ottoInvoice({ nr: "1001EO26990002", datum: "01. September 2026", netto: "8.403,36", ust: "1.596,64", brutto: "10.000,00", plombe: "4473125" }); // mit Plombe
-const C = ottoInvoice({ nr: "1001EO26990003", datum: "02. September 2026", netto: "420,17", ust: "79,83", brutto: "500,00", anchor: false });          // ohne Anker -> Rückfall "letzter Betrag"
+const C = ottoInvoice({ nr: "1001EO26990003", datum: "02. September 2026", netto: "420,17", ust: "79,83", brutto: "500,00", anchor: false, extraPages: 1, bigTail: true }); // ohne Anker + Anlage mit groesserem Betrag -> Rueckfall darf nur Seite 1 ansehen
 fs.writeFileSync(path.join(OUT, "otto_test_invoice.pdf"), A);
 fs.writeFileSync(path.join(OUT, "otto_test_invoice_plombe.pdf"), B);
 fs.writeFileSync(path.join(OUT, "otto_test_invoice_no_anchor.pdf"), C);
@@ -103,6 +131,31 @@ fs.writeFileSync(path.join(OUT, "otto_test_zupruefen.zip"), makeZip([
   { name: "Otto GmbH Co. KGaA - 1001EO26990003 Purchase Otto Hanseatic.pdf", data: C },
   { name: "readme.txt", data: Buffer.from("kein pdf") },
 ]));
+// CID-Beleg: identischer Inhalt, aber komplett in einem Type0/Identity-H-Font mit ToUnicode-CMap —
+// so bettet Otto Mailverlaeufe und Artikel-Aufstellungen ein. Ohne CMap-Dekodierung ist dieser Beleg unlesbar.
+const cidLines = [
+  "Otto GmbH & Co. KGaA \u2022 Werner-Otto-Strasse 1-7 \u2022 22179 Hamburg \u2022 www.otto.com",
+  "Hamburg, 15. September 2026",
+  "Rechnungsnummer: 1001EO26990004",
+  "Plombe 4473126 1",
+  "Zwischensumme (netto) 2.100,84 EUR",
+  "Umsatzsteuer (19%) 399,16 EUR",
+  " Gesamt Rechnungsbetrag (brutto) 2.500,00 EUR",
+];
+const cidTab = buildCidTable(cidLines);
+const D = makePdf([cidLines.map((t, i) => ({ x: 40, y: 800 - i * 22, size: 9, cid: true, text: t }))], cidTab);
+fs.writeFileSync(path.join(OUT, "otto_test_invoice_cid.pdf"), D);
+// Zwei Rechnungen in einer Datei -> muss abgewiesen werden (sonst zaehlt nur eine mit)
+const E = makePdf([
+  ...[["1001EO26990007", "3.000,00", "2.521,01", "478,99"], ["1001EO26990008", "4.000,00", "3.361,34", "638,66"]].map(([nr, br, ne, us]) => ([
+    { x: 40, y: 800, size: 8, text: "Otto GmbH & Co. KGaA \x95 Werner-Otto-Stra\xDFe 1-7 \x95 22179 Hamburg" },
+    { x: 40, y: 770, size: 9, text: "Hamburg, 16. September 2026" },
+    { x: 300, y: 740, size: 9, tj: ["Rechnungsnummer:", -400, nr] },
+    { x: 300, y: 630, size: 9, text: "Zwischensumme (netto)" }, { x: 470, y: 630, size: 9, text: ne },
+    { x: 300, y: 615, size: 9, text: "Umsatzsteuer (19%)" }, { x: 470, y: 615, size: 9, text: us },
+    { x: 300, y: 600, size: 9, bold: true, text: " Gesamt Rechnungsbetrag (brutto)" }, { x: 470, y: 600, size: 9, bold: true, text: br },
+  ]))]);
+fs.writeFileSync(path.join(OUT, "otto_test_multi_invoice.pdf"), E);
 // Nicht-Otto-PDF (muss abgewiesen werden)
 fs.writeFileSync(path.join(OUT, "fremd_test_invoice.pdf"), makePdf([[{ x: 40, y: 800, text: "Muster AG Rechnung 4711" }, { x: 40, y: 780, text: "Gesamt Rechnungsbetrag (brutto) 99,00 EUR" }]]));
 // Agicap-"Geprüft"-CSV mit derselben Rechnung wie A (Dedup-Test) + einer weiteren

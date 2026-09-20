@@ -1,4 +1,4 @@
-# Otto-Historie auffrischen (1× im Monat) — Stand v2.1 (2026-09-18)
+# Otto-Historie auffrischen (1× im Monat) — Stand v2.2 (2026-09-20)
 
 Die Historie ist **fest ins Cockpit eingebettet** und lädt automatisch beim Öffnen — kein Drag&Drop nötig.
 Damit sie aktuell bleibt, wird der eingebettete Stand **einmal im Monat** neu gebaut. Dauert ~2 Minuten.

@@ -66,7 +66,8 @@ test.describe('Otto-Obligo-Cockpit · PDF-Belege', () => {
         await expect(status(page)).toContainText('Σ 3 offen (11.735 €)');       // 1.234,91 + 10.000,00 + 500,00
         const log = page.locator('#payLog');
         await expect(log).toContainText('1001E026990002 · 10.000,00 €');
-        await expect(log).toContainText('1001E026990003 · 500,00 € ⚠️ Betrag ohne „Gesamt Rechnungsbetrag“-Anker');
+        await expect(log).toContainText('1001E026990003 · 500,00 €');
+        await expect(log).toContainText('⚠️ Brutto aus netto + USt rekonstruiert');
         const plombe = await page.evaluate(() => window.__obligoState.agicap.items.map(i => i.plombe));
         expect(plombe).toEqual([null, '4473125', null]);
     });
@@ -111,6 +112,36 @@ test.describe('Otto-Obligo-Cockpit · PDF-Belege', () => {
         await payInput(page).setInputFiles({ name: 'kaputt.pdf', mimeType: 'application/pdf', buffer: Buffer.from('das ist kein pdf') });
         await expect(page.locator('#loaderr .warn.bad')).toContainText('ist keine PDF-Datei');
         await expect(status(page)).toContainText('Σ 1 offen (1.235 €)');
+    });
+
+    test('CID-Beleg (Type0/Identity-H mit ToUnicode) wird gelesen — Betrag, Rechnungsnr, Datum, Plombe', async ({ page }) => {
+        // Otto bettet Mailverläufe und Artikel-Aufstellungen in CID-Fonts ein; ohne CMap-Dekodierung ist so ein Beleg unlesbar.
+        const errors = await open(page);
+        await payInput(page).setInputFiles(fx('otto_test_invoice_cid.pdf'));
+        await expect(status(page)).toContainText('Σ 1 offen (2.500 €)');
+        await expect(page.locator('#payLog')).toContainText('1001E026990004 · 2.500,00 €');
+        await expect(page.locator('#payLog')).toContainText('Gegenprobe ✓ netto 2.100,84 € + USt 399,16 €');
+        const it = await page.evaluate(() => { const i = window.__obligoState.agicap.items[0];
+            return { ref: i.ref, brutto: i.brutto, rd: i.rd?.toISOString().slice(0, 10), plombe: i.plombe, via: i.via, check: i.check }; });
+        expect(it).toEqual({ ref: '1001E026990004', brutto: 2500, rd: '2026-09-15', plombe: '4473126', via: 'anker', check: 'ok' });
+        expect(errors).toEqual([]);
+    });
+
+    test('Rückfall ohne Anker nimmt NICHT den letzten Betrag des Dokuments (Anlage-Seite mit höherem Betrag)', async ({ page }) => {
+        // Die Anlage endet mit 767.003,48 € — ein dokumentweiter "letzter Betrag" wäre um Faktor 1500 daneben.
+        await open(page);
+        await payInput(page).setInputFiles(fx('otto_test_invoice_no_anchor.pdf'));
+        await expect(status(page)).toContainText('Σ 1 offen (500 €)');
+        const it = await page.evaluate(() => { const i = window.__obligoState.agicap.items[0]; return { brutto: i.brutto, via: i.via, check: i.check }; });
+        expect(it).toEqual({ brutto: 500, via: 'summe', check: 'ok' });
+    });
+
+    test('mehrere Rechnungen in einer Datei werden abgewiesen statt still nur eine zu zählen', async ({ page }) => {
+        await open(page);
+        await payInput(page).setInputFiles(fx('otto_test_multi_invoice.pdf'));
+        await expect(page.locator('#loaderr .warn.bad')).toContainText('enthält mehrere Otto-Rechnungen');
+        await expect(page.locator('#loaderr .warn.bad')).toContainText('1001E026990007, 1001E026990008');
+        expect(await page.evaluate(() => window.__obligoState.agicap)).toBeNull();
     });
 
     test('PDF-Auswertung (jsPDF) läuft nach PDF-Import ohne Fehler', async ({ page }) => {

@@ -1,6 +1,6 @@
 # Otto-Obligo-Cockpit — START HIER
 
-**Version:** v2.1 · **Stand:** 2026-09-18 (Neu: einzelne Rechnungs-PDFs direkt einlesen)
+**Version:** v2.2 · **Stand:** 2026-09-20 (Neu: einzelne Rechnungs-PDFs direkt einlesen, inkl. Belege mit Mailverlauf und Artikel-Aufstellung)
 
 **Zweck:** Zeigt jederzeit das **tatsächliche Obligo** gegenüber Otto vs. dem **500.000 €-Kreditlimit** — als reine **Ist-Aufnahme** (keine Prognose):
 
@@ -44,14 +44,18 @@ Danach die Rohexporte des Tages nach `03_Archiv_Rohdaten_vertraulich/JJJJ-MM-TT/
 
 | Feld | Woher | Hinweis |
 |---|---|---|
-| **Brutto-Betrag** | erster Betrag nach **„Gesamt Rechnungsbetrag"** im Beleg | Rückfall: letzter Betrag im PDF → dann steht **⚠️ „bitte prüfen"** im Protokoll (z. B. wenn Otto das Layout ändert). Bei Belegen mit angehängter Artikel-Aufstellung ist der Anker entscheidend — der letzte Betrag wäre dort ein Artikelpreis. |
+| **Brutto-Betrag** | erster Betrag nach **„Gesamt Rechnungsbetrag"** im Beleg | Findet das Tool den Anker nicht, rechnet es **netto + Umsatzsteuer**; erst danach nimmt es den letzten Betrag **auf Seite 1**. Beide Rückfälle stehen mit **⚠️ „bitte prüfen"** im Protokoll. Beträge aus der Artikel-Aufstellung werden nie verwendet. |
+| **Gegenprobe** | Nettobetrag + Umsatzsteuer aus dem Summenblock | Stimmt die Summe mit dem Brutto-Betrag überein, steht **„Gegenprobe ✓"** im Protokoll. Weicht sie ab, erscheint **🚨** — dann Beleg von Hand prüfen. |
+| **Retourenvergütung** | Zeile „Retourenvergütung (x %)" | Wird mit Satz, Betrag und Zwischensumme im Protokoll angezeigt. Ins Obligo geht immer der **ausgewiesene Rechnungsbetrag (brutto)** — die Vergütung ist darin schon abgezogen. |
 | **Rechnungsnummer** | „Rechnungsnummer: 1001EO…" im Text, sonst aus dem Dateinamen | Grundlage der Entdopplung. Ohne Nummer wird über Betrag + Datum entdoppelt. |
 | **Rechnungsdatum** | „Hamburg, TT. Monat JJJJ" | nur intern für den Fälligkeits-Zeitstrahl (+30 Tage); wird nicht angezeigt |
 | **Plombe** | 7 Ziffern nach „Plombe" (nur auf LKW-Belegen) | Plombe-Abgleich gegen die Bestellungen wie bisher |
 | **Warenart** | nur aus dem Agicap-Dateinamen („… Purchase Otto Mix.pdf") | bei einem selbst gespeicherten PDF meist „—"; hat keinen Einfluss auf das Obligo |
 
-**Abgewiesen werden** (mit Meldung, ohne die anderen Dateien zu stören): PDFs ohne „Otto GmbH" im Text (Fremdbelege), Scans/Bilder ohne Textebene, Dateien, die keine PDF sind.
-**Gutschriften/Retourenvergütungen:** Es zählt immer der ausgewiesene **Rechnungsbetrag (brutto)** des Belegs — Vergütungen, die Otto bereits auf dem Beleg verrechnet hat, sind darin schon abgezogen.
+**Abgewiesen werden** (mit Meldung, ohne die anderen Dateien zu stören): PDFs ohne „Otto GmbH" im Text (Fremdbelege), Scans/Bilder ohne Textebene, Dateien, die keine PDF sind, und **PDFs mit mehreren Otto-Rechnungen** — die bitte je Rechnung einzeln speichern, sonst würde nur eine mitzählen.
+
+**Belege mit Mailverlauf und Artikel-Aufstellung** (z. B. Retouren-Abholungen aus Ohrdruf) werden vollständig gelesen: Das Tool löst auch den Text auf, den Otto in eingebetteten Schriften ablegt.
+**Gutschriften/Retourenvergütungen:** Es zählt immer der ausgewiesene **Rechnungsbetrag (brutto)** des Belegs — Vergütungen, die Otto bereits auf dem Beleg verrechnet hat, sind darin schon abgezogen. Beispiel: Zwischensumme 61.003,48 € minus 81,50 % Retourenvergütung ergibt 11.285,64 € netto, plus 19 % Umsatzsteuer 13.429,91 € brutto — dieser Betrag geht ins Obligo.
 
 ---
 

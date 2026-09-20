@@ -96,7 +96,7 @@ body.unlocked .cfg{display:block}
 </head>
 <body>
 <div class="wrap">
-  <header class="top no-print"><h1>Otto-Obligo-Cockpit</h1><span class="badge">v2.1 · intern</span>
+  <header class="top no-print"><h1>Otto-Obligo-Cockpit</h1><span class="badge">v2.2 · intern</span>
     <span class="topbtns"><button class="btn primary" id="btnPdf">📄 PDF-Auswertung</button><button class="btn" id="btnCfg">🔒 Einstellungen</button></span>
   </header>
   <p class="tagline no-print">Tatsächliches Obligo gegenüber Otto vs. Kreditlimit 500.000 € (brutto) = <b>berechnete offene Rechnungen (Agicap)</b> + <b>LKW mit Lieferschein, deren Rechnung noch aussteht</b> · elvinci.de GmbH</p>
@@ -235,12 +235,104 @@ function parseAgicap(rows){
 }
 
 // ---------- Otto-Rechnungs-PDFs: einzeln (Drop) oder als Agicap-"Zu prüfen"-ZIP ----------
-// Brutto je Beleg = erster Betrag NACH "Gesamt Rechnungsbetrag" (Anker); Rückfall = LETZTER Geldbetrag im PDF
-// (Regel gegen alle Otto-Belege verifiziert). ZIP-Eintrag deflated -> pako.inflateRaw; PDF-Streams FlateDecode -> pako.inflate.
+// Textextraktion in zwei Stufen:
+//   A) SEITENWEISE über den Objektbaum, mit ToUnicode-CMap je Font -> liest auch CID-/Identity-H-Text
+//      (Otto bettet Mailverläufe und Artikel-Aufstellungen so ein; ohne CMap sind das unlesbare Hex-Codes).
+//   B) Rückfall: flacher Scan aller Streams, nur Literal-Strings — falls die Objektstruktur nicht lesbar ist.
+// Brutto je Beleg: 1. Betrag nach "Gesamt Rechnungsbetrag", 2. anderer Brutto-Anker, 3. netto + USt,
+// 4. letzter Betrag AUF SEITE 1 (⚠️). Nie der letzte Betrag des ganzen Dokuments — in einem Beleg mit
+// Artikel-Anlage wäre das ein Artikelpreis oder eine Zwischensumme (Faktor 50+ daneben).
+function pdfUnesc(x){
+  return x.replace(/\\(\d{1,3}|\r\n|\r|\n|[nrtbf()\\])/g,(m,g)=>{
+    if(/^\d/.test(g))return String.fromCharCode(parseInt(g,8)&255);
+    return ({n:"\n",r:"\r",t:"\t",b:"\b",f:"\f","(":"(",")":")","\\":"\\"})[g]||""; });
+}
+// ToUnicode-CMap eines Fonts: bfchar <code> <uni> und bfrange <lo> <hi> <uni>
+function pdfCMap(t){
+  const map={}, hx=h=>{ let s=""; for(let i=0;i+4<=h.length;i+=4)s+=String.fromCharCode(parseInt(h.substr(i,4),16)); return s; };
+  for(const blk of t.match(/beginbfchar([\s\S]*?)endbfchar/g)||[])
+    for(const p of blk.match(/<([0-9A-Fa-f]+)>\s*<([0-9A-Fa-f]+)>/g)||[]){
+      const g=/<([0-9A-Fa-f]+)>\s*<([0-9A-Fa-f]+)>/.exec(p); map[parseInt(g[1],16)]=hx(g[2]); }
+  for(const blk of t.match(/beginbfrange([\s\S]*?)endbfrange/g)||[])
+    for(const p of blk.match(/<([0-9A-Fa-f]+)>\s*<([0-9A-Fa-f]+)>\s*<([0-9A-Fa-f]+)>/g)||[]){
+      const g=/<([0-9A-Fa-f]+)>\s*<([0-9A-Fa-f]+)>\s*<([0-9A-Fa-f]+)>/.exec(p);
+      const lo=parseInt(g[1],16), hi=parseInt(g[2],16), dst=parseInt(g[3],16);
+      for(let c=lo;c<=hi&&c-lo<4096;c++)map[c]=String.fromCharCode(dst+(c-lo)); }
+  return map;
+}
+// Einen Content-Stream in Text wandeln. cmaps = {Fontname:{map,hex}} der Seite; Hex ohne CMap wird verworfen (nie geraten).
+// hex = Hex-Ziffern je Zeichencode: 4 bei Identity-H (2 Byte), sonst 2. Die Breite kommt aus dem Font, NICHT aus den
+// Code-Werten — subgesetzte Identity-H-Fonts haben oft nur Codes < 256 und würden sonst byteweise falsch dekodiert.
+function pdfDecodeContent(cs,cmaps){
+  let cur=null, out="";
+  const decHex=h=>{
+    h=h.replace(/\s/g,""); const f=cmaps[cur]; if(!f)return "";
+    const st=f.hex, cm=f.map; let s="";
+    for(let i=0;i+st<=h.length;i+=st){ const c=cm[parseInt(h.substr(i,st),16)]; if(c!==undefined)s+=c; }
+    return s; };
+  const re=/\/([A-Za-z0-9_+.\-]+)\s+[\d.\-]+\s+Tf|<([0-9A-Fa-f\s]+)>\s*T[jJ]|\(((?:[^()\\]|\\[\s\S])*)\)\s*(?:Tj|'|")|\[((?:[^\][\\]|\\[\s\S])*)\]\s*TJ/g;
+  let m;
+  while((m=re.exec(cs))){
+    if(m[1]!==undefined){ cur=m[1]; continue; }
+    if(m[2]!==undefined) out+=decHex(m[2]);
+    else if(m[3]!==undefined) out+=pdfUnesc(m[3]);
+    else if(m[4]!==undefined) for(const tok of m[4].match(/<[0-9A-Fa-f\s]+>|\((?:[^()\\]|\\[\s\S])*\)/g)||[])
+      out+= tok[0]==="<" ? decHex(tok.slice(1,-1)) : pdfUnesc(tok.slice(1,-1));
+  }
+  return out;
+}
+// Seitenweise Extraktion über den Objektbaum. Gibt [] zurück, wenn die Struktur nicht lesbar ist.
+function pdfPagesText(u8,raw,dec){
+  const objs={}; const reObj=/(\d+)\s+(\d+)\s+obj\b/g; let m;
+  while((m=reObj.exec(raw))){ const s=m.index+m[0].length, e=raw.indexOf("endobj",s);
+    if(e<0)continue; objs[+m[1]]={s,e}; }                       // spätere Definition gewinnt (inkrementelle Updates)
+  const body=n=>objs[n]?raw.slice(objs[n].s,objs[n].e):"";
+  function stream(n){
+    const o=objs[n]; if(!o)return null;
+    const b=raw.slice(o.s,o.e), si=b.indexOf("stream"); if(si<0)return null;
+    let ds=si+6; if(b.charCodeAt(ds)===13)ds++; if(b.charCodeAt(ds)===10)ds++;
+    const e=b.indexOf("endstream",ds); if(e<0)return null;
+    let end=e; if(b.charCodeAt(end-1)===10)end--; if(b.charCodeAt(end-1)===13)end--;
+    const A=o.s+ds, B=o.s+end; if(B<=A)return "";
+    if(/\/Filter\s*\/FlateDecode/.test(b.slice(0,si))){ try{ return dec.decode(pako.inflate(u8.subarray(A,B))); }catch(_){ return null; } }
+    return raw.slice(A,B);
+  }
+  const isPage=n=>/\/Type\s*\/Page(?![a-zA-Z])/.test(body(n));
+  // Reihenfolge über den /Pages-Baum; Rückfall: aufsteigende Objektnummer
+  const order=[]; const seen={};
+  (function walk(n,d){
+    if(d>32||seen[n])return; seen[n]=1;
+    if(isPage(n)){ order.push(n); return; }
+    const kids=(body(n).match(/\/Kids\s*\[([^\]]*)\]/)||[])[1];
+    if(kids)for(const r of kids.match(/(\d+)\s+\d+\s+R/g)||[])walk(+/(\d+)/.exec(r)[1],d+1);
+  })(+(Object.keys(objs).find(k=>/\/Type\s*\/Pages\b/.test(body(+k))&&!/\/Parent\b/.test(body(+k)))||-1),0);
+  if(!order.length)for(const k of Object.keys(objs).map(Number).sort((a,b)=>a-b))if(isPage(k))order.push(k);
+  const out=[];
+  for(const pn of order){
+    const pb=body(pn);
+    const fonts={}, fd=pb.match(/\/Font\s*<<([\s\S]*?)>>/);
+    if(fd)for(const f of fd[1].match(/\/([A-Za-z0-9_+.\-]+)\s+(\d+)\s+\d+\s+R/g)||[]){
+      const g=/\/([A-Za-z0-9_+.\-]+)\s+(\d+)/.exec(f); fonts[g[1]]=+g[2]; }
+    const cmaps={};
+    for(const nm in fonts){ const fb=body(fonts[nm]), tu=fb.match(/\/ToUnicode\s+(\d+)\s+\d+\s+R/);
+      if(tu){ const t=stream(+tu[1]);
+        if(t&&/beginbf/.test(t))cmaps[nm]={map:pdfCMap(t), hex:(/\/Encoding\s*\/Identity-[HV]/.test(fb)||/\/Subtype\s*\/Type0/.test(fb))?4:2}; } }
+    const cr=pb.match(/\/Contents\s*\[([^\]]*)\]/)||pb.match(/\/Contents\s+(\d+\s+\d+\s+R)/);
+    let cs=""; if(cr)for(const r of (cr[1].match(/(\d+)\s+\d+\s+R/g)||[])){ const t=stream(+/(\d+)/.exec(r)[1]); if(t)cs+=t+"\n"; }
+    if(cs)out.push(pdfDecodeContent(cs,cmaps));
+  }
+  return out;
+}
 function pdfText(u8){
   // Positions-Suche über latin1-String (1 Byte = 1 Zeichen), aber INFLATE über die ECHTEN Bytes aus u8
   // (TextDecoder("latin1") = windows-1252 und verfälscht Bytes 0x80–0x9F -> String-Bytes NICHT für zlib nutzen!)
   const dec=new TextDecoder("latin1"), raw=dec.decode(u8);
+  let pages=[]; try{ pages=pdfPagesText(u8,raw,dec); }catch(e){ console.warn("PDF: Seitenbaum nicht lesbar",e); pages=[]; }
+  if(pages.join("").trim().length){
+    const all=pages.join("\n");
+    return {pages, all, p1:pages[0]||"", tj:all, spaced:all, raw:all, pieces:all.length, mode:"pages"};
+  }
+  // Rückfall: flacher Scan aller Streams, nur Literal-Strings (CID-Text bleibt hier unlesbar)
   let text="", i=0;
   while(true){
     let s=raw.indexOf("stream",i); if(s<0)break;
@@ -253,43 +345,53 @@ function pdfText(u8){
     if(t&&/\bBT\b|\bT[jJ]\b/.test(t))text+=t+"\n";           // nur Inhalts-Streams mit Textoperatoren (keine Bilder/Fonts)
     i=e+9;
   }
-  // Textstücke aus (…)Tj / (…)' / (…)" / [(…)…]TJ einsammeln — Escapes \( \) \\ \ddd und Zeilenfortsetzung auflösen.
-  // Hex-Strings <…> (CID-Fonts, z. B. eingebettete Mails) sind ohne CMap nicht lesbar und werden ignoriert.
-  const unesc=x=>x.replace(/\\(\d{1,3}|\r\n|\r|\n|[nrtbf()\\])/g,(m,g)=>{
-    if(/^\d/.test(g))return String.fromCharCode(parseInt(g,8)&255);
-    return ({n:"\n",r:"\r",t:"\t",b:"\b",f:"\f","(":"(",")":")","\\":"\\"})[g]||""; });
-  const LIT="\\(((?:[^()\\\\]|\\\\[\\s\\S])*)\\)";
-  const reOp=new RegExp(LIT+"\\s*(?:Tj|'|\")|\\[((?:[^\\]\\\\]|\\\\[\\s\\S])*)\\]\\s*TJ","g"), reLit=new RegExp(LIT,"g");
-  const pieces=[]; let m;
-  while((m=reOp.exec(text))){
-    if(m[1]!=null)pieces.push(unesc(m[1]));
-    else { let a=m[2], mm, part=""; reLit.lastIndex=0; while((mm=reLit.exec(a)))part+=unesc(mm[1]); pieces.push(part); }
-  }
-  return {raw:text, tj:pieces.join(""), spaced:pieces.join(" "), pieces:pieces.length};
+  const flat=pdfDecodeContent(text,{});
+  return {pages:flat?[flat]:[], all:flat, p1:flat, tj:flat, spaced:flat, raw:text, pieces:flat.length, mode:"flat"};
 }
+const AMT="-?\\d{1,3}(?:\\.\\d{3})*,\\d{2}";
 function pdfInvoice(u8,name){
-  const T=pdfText(u8), text=T.raw, tj=T.tj, sp=T.spaced;
-  const re=/-?\d{1,3}(?:\.\d{3})*,\d{2}/g;
-  let brutto=null, via=null;
-  const gi=text.search(/Gesamt\s*Rechnungsbetrag/i);        // Brutto = erster Betrag NACH "Gesamt Rechnungsbetrag"
-  if(gi>=0){ const m=text.slice(gi).match(re); if(m&&m.length){brutto=num(m[0]);via="anker";} }
-  if(brutto==null){ const gs=sp.search(/Gesamt\s*Rechnungsbetrag/i); if(gs>=0){ const m=sp.slice(gs).match(re); if(m&&m.length){brutto=num(m[0]);via="anker";} } }
-  if(brutto==null){ const all=text.match(re); if(all&&all.length){brutto=num(all[all.length-1]);via="letzter";} }
-  // Rechnungsdatum: aus den Tj-Textstücken "DD. Monat YYYY" (fürs Fälligkeits-Diagramm; NICHT angezeigt)
+  const T=pdfText(u8), all=T.all, p1=T.p1||all;
+  const reAmt=new RegExp(AMT,"g");
+  const after=(txt,anchor)=>{ const i=txt.search(anchor); if(i<0)return null;
+    const m=txt.slice(i).match(reAmt); return (m&&m.length)?num(m[0]):null; };
+  const field=re=>{ const m=all.match(re); return m?num(m[m.length-1]):null; };
+  // Summenblock des Otto-Belegs (Zwischensumme / Retourenvergütung / netto / USt / brutto)
+  const zwischen=field(new RegExp("Zwischensumme\\s*(?:\\([^)]*\\))?\\s*:?\\s*("+AMT+")","i"));
+  const vergM=all.match(new RegExp("Retourenverg[üu]tung\\s*(?:\\(\\s*([\\d.,]+)\\s*%\\s*\\))?\\s*:?\\s*("+AMT+")","i"));
+  const verg=vergM?num(vergM[2]):null, vergPct=vergM?vergM[1]||null:null;
+  const netto=field(new RegExp("Rechnungsbetrag\\s*\\(\\s*netto\\s*\\)\\s*:?\\s*("+AMT+")","i"));
+  const ust=field(new RegExp("Umsatzsteuer\\s*(?:\\(\\s*[\\d.,]+\\s*%\\s*\\))?\\s*:?\\s*("+AMT+")","i"));
+  const nettoRek = netto!=null ? netto : (verg==null ? zwischen : null);
+  let brutto=null, via=null, v;
+  v=after(all,/Gesamt\s*Rechnungsbetrag/i);                         if(v)  {brutto=v; via="anker";}
+  if(brutto==null){ v=after(all,/Rechnungsbetrag\s*\(\s*brutto\s*\)|Gesamtbetrag|Rechnungsendbetrag/i); if(v){brutto=v; via="anker";} }
+  if(brutto==null&&nettoRek!=null&&ust!=null){ brutto=Math.round((nettoRek+ust)*100)/100; via="summe"; }
+  if(brutto==null){ const m=p1.match(reAmt); if(m&&m.length){ brutto=num(m[m.length-1]); via="letzter"; } }
+  // Gegenprobe: netto + USt muss den Brutto-Betrag ergeben. Ohne Retourenvergütung ist die Zwischensumme der Nettobetrag.
+  const nettoBasis = nettoRek;
+  const check=(brutto!=null&&nettoBasis!=null&&ust!=null) ? (Math.abs(nettoBasis+ust-brutto)<0.015?"ok":"diff") : null;
+  // Mehrere Rechnungen in einer Datei (zusammengefasstes Mail-PDF) -> nicht raten, sondern melden
+  const nrs=[...new Set((all.match(/1001E[O0]\d{6,}/gi)||[]).map(x=>refKey(x)).filter(Boolean))];
+  const anchors=(all.match(/Gesamt\s*Rechnungsbetrag/gi)||[]).length;
+  const multi=(anchors>1&&nrs.length>1)?{anchors,nrs}:null;
+  // Rechnungsdatum: bevorzugt der Ort-Datum-Kopf ("Hamburg, 08. September 2026"), sonst Seite 1.
+  // Ohne diesen Anker gewinnt sonst ein Datum aus einem eingebetteten Mailverlauf.
   const MON={januar:1,februar:2,"märz":3,maerz:3,april:4,mai:5,juni:6,juli:7,august:8,september:9,oktober:10,november:11,dezember:12};
-  let rd=null; const dm=tj.match(/(\d{1,2})\.?\s*(Januar|Februar|März|Maerz|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember)\s*(\d{4})/i);
-  if(dm){ const mo=MON[dm[2].toLowerCase()]; if(mo)rd=new Date(+dm[3],mo-1,+dm[1]); }
+  const DS="(\\d{1,2})\\.?\\s*(Januar|Februar|M[äa]rz|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember)\\s*(\\d{4})";
+  const dm=all.match(new RegExp("Hamburg,\\s*"+DS,"i"))||p1.match(new RegExp(DS,"i"))||all.match(new RegExp(DS,"i"));
+  let rd=null; if(dm){ const mo=MON[dm[2].toLowerCase().replace("ae","ä")]||MON[dm[2].toLowerCase()]; if(mo)rd=new Date(+dm[3],mo-1,+dm[1]); }
   // Plombe (= Lieferantenreferenz der Bestellung) — genau 7 Ziffern nach "Plombe" (die angeklebte Menge-"1" wird so ignoriert)
-  const pm=tj.match(/Plombe[\s:]*(\d{7})/i)||text.match(/Plombe[\s:]*(\d{7})/i);
+  const pm=all.match(/Plombe[\s:]*(\d{7})/i);
   const plombe=pm?pm[1]:null;
-  // Rechnungsnummer: 1. aus dem Beleg-Text ("Rechnungsnummer: 1001EO…"), 2. irgendeine 1001E…-Nummer im Text, 3. aus dem Dateinamen
-  const rn=sp.match(/Rechnungsnummer[\s:]*(1001E[O0]?\d{6,})/i)||tj.match(/Rechnungsnummer[\s:]*(1001E[O0]?\d{6,})/i)
-         ||sp.match(/\b(1001E[O0]?\d{6,})\b/i)||String(name||"").match(/(1001E[O0]?\d{6,})/i);
+  // Rechnungsnummer: 1. aus dem Beleg-Text ("Rechnungsnummer: 1001EO…"), 2. irgendeine 1001E…-Nummer, 3. aus dem Dateinamen
+  const rn=all.match(/Rechnungsnummer[\s:]*(1001E[O0]?\d{6,})/i)||all.match(/\b(1001E[O0]?\d{6,})\b/i)
+         ||String(name||"").match(/(1001E[O0]?\d{6,})/i);
   const ref=rn?refKey(rn[1]):null;
-  const isOtto=/Otto\s*GmbH|otto\.com|ottogroup|Otto\s*\(GmbH/i.test(sp+" "+tj+" "+text.slice(0,20000));
+  const isOtto=/Otto\s*GmbH|otto\.com|ottogroup|Otto\s*\(GmbH/i.test(all);
   const artM=String(name||"").match(/Otto[\s_]+([A-Za-zÄÖÜäöüß-]+)\.pdf$/i);      // Warenart nur aus dem Agicap-Dateinamen ("… Purchase Otto Mix.pdf")
   let art=warenartFrom(artM?artM[1]:""); if(!art||art==="OTTO_?")art="—";
-  return {brutto, via, rd, plombe, ref, art, isOtto, hasText:T.pieces>0};
+  return {brutto, via, check, netto, nettoBasis, ust, zwischen, verg, vergPct, multi, rd, plombe, ref, art, isOtto,
+          hasText:T.pieces>0, pages:T.pages.length, mode:T.mode};
 }
 function pdfBrutto(u8){ const p=pdfInvoice(u8,""); return {brutto:p.brutto, rd:p.rd, plombe:p.plombe}; }   // Kompatibilität
 // Einzelnes Otto-Rechnungs-PDF (z. B. direkt aus dem Posteingang) -> gleiche Struktur wie ein ZIP-Beleg
@@ -300,10 +402,12 @@ function parsePdfInvoice(buf,name){
   const pi=pdfInvoice(u8,name);
   if(!pi.hasText)throw new Error("PDF: „"+name+"“ enthält keinen lesbaren Text (Scan/Bild?) — Betrag nicht bestimmbar.");
   if(!pi.isOtto)throw new Error("PDF: „"+name+"“ ist kein Otto-Beleg (kein „Otto GmbH“ im Text) — übersprungen.");
+  if(pi.multi)throw new Error("PDF: „"+name+"“ enthält mehrere Otto-Rechnungen ("+pi.multi.nrs.join(", ")+") — bitte je Rechnung eine Datei speichern, sonst zählt nur eine mit.");
   if(!(pi.brutto>0))throw new Error("PDF: „"+name+"“ — kein Rechnungsbetrag gefunden.");
   const item={ref:pi.ref, brutto:pi.brutto, rd:pi.rd, plombe:pi.plombe,
     faellig: pi.rd?addDays(pi.rd,30):null, zd:null, paid:false,    // Fälligkeit = Rechnungsdatum + Frist (intern, nie als Paar angezeigt)
-    art:pi.art, src:"pdf", file:name, via:pi.via};
+    art:pi.art, src:"pdf", file:name, via:pi.via, check:pi.check,
+    netto:pi.netto, nettoBasis:pi.nettoBasis, ust:pi.ust, zwischen:pi.zwischen, verg:pi.verg, vergPct:pi.vergPct};
   return {items:[item], openSum:item.brutto, maxRD:null, n:1, openN:1};
 }
 function parseZipInvoices(buf){
@@ -329,7 +433,8 @@ function parseZipInvoices(buf){
     const pi=pdfInvoice(pdf,name); if(!(pi.brutto>0))continue;
     items.push({ref:pi.ref, brutto:pi.brutto, rd:pi.rd, plombe:pi.plombe,
       faellig: pi.rd?addDays(pi.rd,30):null, zd:null, paid:false,    // Fälligkeit = Rechnungsdatum + Frist (intern, nie als Paar angezeigt)
-      art:pi.art, src:"zip", file:name, via:pi.via});
+      art:pi.art, src:"zip", file:name, via:pi.via, check:pi.check,
+      netto:pi.netto, nettoBasis:pi.nettoBasis, ust:pi.ust, zwischen:pi.zwischen, verg:pi.verg, vergPct:pi.vergPct});
   }
   if(!items.length)throw new Error("ZIP: keine lesbaren Otto-Rechnungen ("+pdfN+" PDFs, Betrag nicht gefunden).");
   return {items, openSum:items.reduce((s,x)=>s+x.brutto,0), maxRD:null, n:items.length, openN:items.length};
@@ -681,7 +786,13 @@ async function handleFiles(kind,files,el){
       const added=state.agicap.openN-before; okN++;
       const it=parsed.items[0];
       if(/\.pdf$/i.test(file.name)&&it){
-        okMsgs.push(file.name+": "+(it.ref||"ohne Rechnungsnr")+" · "+EUR(it.brutto)+(added===0?" (bereits geladen — nicht doppelt gezählt)":"")+(it.via==="letzter"?" ⚠️ Betrag ohne „Gesamt Rechnungsbetrag“-Anker (letzter Betrag im PDF) — bitte prüfen":""));
+        const hinw=[];
+        if(it.check==="ok")hinw.push("Gegenprobe ✓ netto "+EUR(it.nettoBasis)+" + USt "+EUR(it.ust));
+        else if(it.check==="diff")hinw.push("🚨 netto "+EUR(it.nettoBasis)+" + USt "+EUR(it.ust)+" ≠ Brutto — Beleg prüfen");
+        if(it.verg!=null)hinw.push("Retourenvergütung"+(it.vergPct?" "+it.vergPct+"%":"")+" "+EUR(it.verg)+(it.zwischen!=null?" auf Zwischensumme "+EUR(it.zwischen):""));
+        if(it.via==="summe")hinw.push("⚠️ Brutto aus netto + USt rekonstruiert (kein „Gesamt Rechnungsbetrag“-Anker)");
+        if(it.via==="letzter")hinw.push("⚠️ Betrag ohne „Gesamt Rechnungsbetrag“-Anker (letzter Betrag auf Seite 1) — bitte prüfen");
+        okMsgs.push(file.name+": "+(it.ref||"ohne Rechnungsnr")+" · "+EUR(it.brutto)+(added===0?" (bereits geladen — nicht doppelt gezählt)":"")+(hinw.length?" · "+hinw.join(" · "):""));
       } else okMsgs.push(file.name+": "+parsed.openN+" offen ("+EUR0(parsed.openSum)+")"+(added<parsed.openN?" · "+(parsed.openN-added)+" bereits geladen":""));
     }catch(e){ errs.push(e.message); console.error("handleFiles",kind,file.name,e); }
   }
