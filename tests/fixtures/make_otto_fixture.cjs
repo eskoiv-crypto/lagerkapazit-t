@@ -70,7 +70,9 @@ function makePdf(pages, cidTab) {
 }
 
 // Layout wie ein Otto-Beleg: Kopf, Datum, Rechnungsnummer, Positionen, Summenblock mit "Gesamt Rechnungsbetrag (brutto)".
-function ottoInvoice({ nr, datum, netto, brutto, ust, plombe, extraPages = 0, anchor = true, bigTail = false }) {
+// retoure: { label, pct, abzug, nettoRech } bildet den echten Otto-Summenblock einer Retourenrechnung ab.
+// Otto benutzt dafuer ZWEI Bezeichnungen: "Retourenverguetung" und "Retourenabschlag" (beide 81,50 %).
+function ottoInvoice({ nr, datum, netto, brutto, ust, plombe, extraPages = 0, anchor = true, bigTail = false, retoure = null }) {
   const p1 = [
     { x: 40, y: 800, size: 7, text: "Otto GmbH & Co. KGaA \x95 Werner-Otto-Stra\xDFe 1-7 \x95 22179 Hamburg \x95 A member of the otto group \x95 www.otto.com" },
     { x: 40, y: 760, size: 9, text: "Hamburg, " + datum },
@@ -83,6 +85,10 @@ function ottoInvoice({ nr, datum, netto, brutto, ust, plombe, extraPages = 0, an
     { x: 300, y: 665, size: 9, text: "1,00 St\xFCck" },
     { x: 400, y: 665, size: 9, text: netto }, { x: 470, y: 665, size: 9, text: netto }, { x: 540, y: 665, size: 9, text: "EUR" },
     { x: 300, y: 630, size: 9, text: "Zwischensumme (netto)" }, { x: 470, y: 630, size: 9, text: netto }, { x: 540, y: 630, size: 9, text: "EUR" },
+    ...(retoure ? [
+      { x: 300, y: 624, size: 9, text: retoure.label + " (" + retoure.pct + "%)" }, { x: 470, y: 624, size: 9, text: retoure.abzug }, { x: 540, y: 624, size: 9, text: "EUR" },
+      { x: 300, y: 620, size: 9, text: "Rechnungsbetrag (netto)" }, { x: 470, y: 620, size: 9, text: retoure.nettoRech }, { x: 540, y: 620, size: 9, text: "EUR" },
+    ] : []),
     { x: 300, y: 615, size: 9, text: "Umsatzsteuer (19%)" }, { x: 470, y: 615, size: 9, text: ust }, { x: 540, y: 615, size: 9, text: "EUR" },
     { x: 300, y: 600, size: 9, bold: true, text: anchor ? " Gesamt Rechnungsbetrag (brutto)" : " Endsumme" },
     { x: 470, y: 600, size: 9, bold: true, text: brutto }, { x: 540, y: 600, size: 9, text: "EUR" },
@@ -157,6 +163,15 @@ const E = makePdf([
   ]))]);
 fs.writeFileSync(path.join(OUT, "otto_test_multi_invoice.pdf"), E);
 // Nicht-Otto-PDF (muss abgewiesen werden)
+// Retourenrechnung in beiden Schreibweisen. Zahlen rein synthetisch (KEINE echten Otto-Konditionen):
+// Zwischensumme 10.000,00 - 75 % = 2.500,00 netto + 475,00 USt = 2.975,00 brutto.
+for (const [suf, label] of [["verguetung", "Retourenverg\xFCtung"], ["abschlag", "Retourenabschlag"]]) {
+  fs.writeFileSync(path.join(OUT, "otto_test_invoice_retoure_" + suf + ".pdf"), ottoInvoice({
+    nr: "1001E02699001" + (suf === "verguetung" ? "1" : "2"), datum: "25. September 2026",
+    netto: "10.000,00", brutto: "2.975,00", ust: "475,00", plombe: "4473126",
+    retoure: { label, pct: "75,00", abzug: "-7.500,00", nettoRech: "2.500,00" },
+  }));
+}
 fs.writeFileSync(path.join(OUT, "fremd_test_invoice.pdf"), makePdf([[{ x: 40, y: 800, text: "Muster AG Rechnung 4711" }, { x: 40, y: 780, text: "Gesamt Rechnungsbetrag (brutto) 99,00 EUR" }]]));
 // Agicap-"Geprüft"-CSV mit derselben Rechnung wie A (Dedup-Test) + einer weiteren
 fs.writeFileSync(path.join(OUT, "otto_test_agicap_geprueft.csv"), [

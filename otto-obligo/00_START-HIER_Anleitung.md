@@ -1,6 +1,6 @@
 # Otto-Obligo-Cockpit — START HIER
 
-**Version:** v2.2 · **Stand:** 2026-09-20 (Neu: einzelne Rechnungs-PDFs direkt einlesen, inkl. Belege mit Mailverlauf und Artikel-Aufstellung)
+**Version:** v2.3 · **Stand:** 2026-09-25 (Neu: Kontinuitätsprüfung — meldet, wenn sich das Obligo stärker ändert als durch Anlieferungen und Zahlungen erklärbar; plus 45-Tage-Verlaufskurve)
 
 **Zweck:** Zeigt jederzeit das **tatsächliche Obligo** gegenüber Otto vs. dem **500.000 €-Kreditlimit** — als reine **Ist-Aufnahme** (keine Prognose):
 

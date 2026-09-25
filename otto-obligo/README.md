@@ -1,15 +1,79 @@
 # Otto-Obligo-Cockpit · Build-Kit (Repo-Kopie)
 
-**Stand:** 2026-09-20 · **Version:** v2.2 (PDF-Import + CID-Text + Betrags-Gegenprobe) · Sprache: Deutsch
+**Stand:** 2026-09-25 · **Version:** v2.3 (Kontinuitätsprüfung + Obligo-Verlauf) · Sprache: Deutsch
 
 Das Otto-Obligo-Cockpit ist eine Single-File-HTML-App (offline, keine Server), die das tatsächliche
 Obligo gegenüber Otto gegen das Kreditlimit zeigt. **Quelle der Wahrheit für den Betrieb** bleibt SharePoint:
 `PlattformenTeams › Tools und Automatisieren › KI-Tools › Otto_Obligo_View` (Cockpit + `_build-kit`).
 Dieses Verzeichnis ist die versionierte Kopie des Build-Kits, damit Änderungen nachvollziehbar und getestet sind.
 
+## Was ist neu in v2.3 (2026-09-25)
+
+Anlass: Das Obligo sprang von einem Tag auf den anderen deutlich stärker, als es durch die Anlieferungen
+erklärbar war. Beide Tageswerte waren *für sich* korrekt — nur war am Vortag nichts zu sehen, was den Sprung
+angekündigt hätte.
+
+### Kontinuitätsprüfung (die eigentliche Neuerung)
+Zwischen zwei Auswertungen darf sich das Obligo **nur** aus zwei Gründen ändern:
+
+| | |
+|---|---|
+| neue LKW angeliefert | Obligo steigt |
+| Rechnungen bezahlt | Obligo sinkt |
+
+Der Wechsel eines LKW von „warten auf Rechnung“ nach Agicap ist **neutral** — derselbe LKW, anderer Topf.
+Weicht die tatsächliche Änderung davon ab, fehlten Belege. Das Tool rechnet das beim Öffnen gegen den zuletzt
+gespeicherten Stand und meldet die Abweichung im Klartext, inklusive Anzahl und Summe der neuen LKW, der
+verbuchten Zahlungen und des erwarteten Werts.
+
+Ursache solcher Lücken in der Praxis: Odoo setzt einen LKW auf „Validiert“, sobald die Ware klassifiziert ist —
+die Rechnung von Otto kommt aber oft erst Tage später in Agicap an. In diesem Fenster steckt der LKW in
+**keinem** der beiden Töpfe und fehlt im Obligo. Tauchen die Rechnungen dann gebündelt auf, springt die Zahl.
+
+Der Stand liegt **lokal im Browser** (`localStorage`, nur Summen + Auftragsnummern, keine Beträge je Rechnung).
+Fortgeschrieben wird nur eine **vollständige** Auswertung (Agicap **und** Bestellungen) — ein Stand ohne
+Bestellungen enthält die „warten“-LKW nicht und wäre als Vergleichsbasis systematisch zu niedrig.
+
+### Obligo-Verlauf, 45 Tage rückgerechnet
+Der Agicap-Export trägt zu jeder Rechnung Rechnungs- und Zahlungsdatum. Damit ist der offene Betrag für jeden
+vergangenen Tag **exakt** rekonstruierbar — keine Schätzung, keine Prognose. Die Kurve zeigt den Anstieg und
+markiert den Tag, an dem das Limit gerissen wurde. Warnt zusätzlich, wenn seit ≥ 7 Tagen **kein
+Zahlungseingang** verbucht ist: dann wächst das Obligo mit jedem LKW ungebremst.
+
+Die „warten“-LKW sind in der Kurve **nicht** enthalten (rückwirkend nicht bestimmbar) — sie liegt also eher
+etwas zu tief. Das steht auch unter der Grafik.
+
+### Zahlungsziel 28 statt 30 Tage
+Für Belege ohne Agicap-Fälligkeitsdatum (PDF-/ZIP-Pfad) galt bisher „Rechnungsdatum + 30“. Das tatsächliche
+Zahlungsziel liegt bei **28** Tagen — in einem Referenz-Export tragen 20 von 24 Zeilen genau 28 Tage, drei 29,
+eine 30. Betraf nur die Fälligkeits-Darstellung im Zahlungsplan, nie die Obligo-Summe.
+
+### Zweite Bezeichnung für den Retouren-Abzug
+Derselbe prozentuale Abzug wird auf den Belegen mal als „Retourenvergütung“, mal als „Retourenabschlag“
+geführt. Nur die erste Variante wurde erkannt; bei der zweiten wäre die Gegenprobe auf die Zwischensumme
+zurückgefallen und hätte fälschlich Alarm geschlagen. Jetzt greifen beide Schreibweisen.
+
+### Plombe-Abdeckung sichtbar
+Nur Rechnungen **mit Plombe** lassen sich zweifelsfrei einem LKW zuordnen. Die Agicap-CSV trägt sie selten, die
+PDF-Belege fast immer. Das Tool zeigt die Quote und sagt, wie man sie erhöht (PDFs bzw. „Zu prüfen“-ZIP
+zusätzlich laden).
+
+### Bewusst NICHT umgesetzt: automatische Korrektur des Obligos
+Naheliegend wäre: „zähle jeden gelieferten LKW, bis seine Rechnung in Agicap gefunden ist“. Gegen echte Daten
+getestet **produziert das Doppelzählungen** und wurde deshalb verworfen:
+
+* Eine Rechnung kann **älter** sein als der Odoo-Datensatz des LKW — „Erstellt am“ ist kein Lieferdatum. Belegt
+  an einem Fall mit centgenau gleichem Betrag, bei dem die Rechnung drei Tage vor der Bestellung datiert.
+* Ohne Plombe bleibt als Merkmal nur der Betrag. Der weicht zwischen Bestellung und Rechnung um bis zu einige
+  hundert Euro ab, während die LKW-Werte eng beieinanderliegen — jeder Fehlgriff zählt LKW **und** Rechnung.
+
+Ein zu hohes Obligo ist gefährlicher als ein zu niedriges, weil daran Zahlungsentscheidungen hängen. Das Obligo
+bleibt deshalb konstruktionsgemäß doppelzählungsfrei (jeder LKW in genau einem Topf); die Kontinuitätsprüfung
+macht die Lücke **sichtbar**, statt sie stillschweigend wegzurechnen.
+
 ## Was ist neu in v2.2 (2026-09-20)
 
-Ausgelöst durch die Otto-Retourenrechnung `1001EO26005148` (11 Seiten: Rechnung + Mailverlauf + Artikel-Aufstellung):
+Ausgelöst durch die Otto-Retourenrechnung `<Otto-Rechnungsnummer>` (11 Seiten: Rechnung + Mailverlauf + Artikel-Aufstellung):
 
 - **CID-/Identity-H-Text wird gelesen.** In diesem Beleg liegen **1695 von 1764 Textstücken** in CID-Fonts —
   bisher konnte das Tool nur die erste Seite lesen. Der Extraktor löst jetzt je Seite die **ToUnicode-CMap** jedes
@@ -19,10 +83,10 @@ Ausgelöst durch die Otto-Retourenrechnung `1001EO26005148` (11 Seiten: Rechnung
   Retourenvergütung, Nettobetrag und Umsatzsteuer und prüft `netto + USt = brutto`. Ergebnis steht im Lade-Protokoll
   (`Gegenprobe ✓` bzw. 🚨 bei Abweichung).
 - **Retourenvergütung wird ausgewiesen.** Bei Retourenbelegen zeigt das Protokoll Satz und Betrag der Vergütung
-  sowie die Zwischensumme — so ist nachvollziehbar, warum aus 61.003,48 € Zwischensumme 13.429,91 € Rechnungsbetrag werden.
+  sowie die Zwischensumme — so ist nachvollziehbar, warum aus <Betrag> Zwischensumme <Betrag> Rechnungsbetrag werden.
 - **Rückfall entschärft.** Ohne Anker wird der Brutto-Betrag aus netto + USt rekonstruiert; erst danach greift
   „letzter Betrag“ — und zwar **nur auf Seite 1**. Der letzte Betrag des ganzen Dokuments wäre in diesem Beleg
-  **767.003,48 €** statt 13.429,91 € gewesen.
+  **<Betrag>** statt <Betrag> gewesen.
 - **Mehrere Rechnungen in einer Datei** (zusammengefasstes Mail-PDF) werden erkannt und **abgewiesen**, statt still
   nur die erste zu zählen.
 - **Rechnungsdatum** kommt bevorzugt aus dem Ort-Datum-Kopf („Hamburg, 08. September 2026“); sonst gewönne ein

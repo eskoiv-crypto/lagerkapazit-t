@@ -56,7 +56,10 @@ test.describe('Otto-Obligo-Cockpit · PDF-Belege', () => {
             ref: window.__obligoState.agicap.items[0].ref, rd: window.__obligoState.agicap.items[0].rd?.toISOString().slice(0, 10),
             fa: window.__obligoState.agicap.items[0].faellig?.toISOString().slice(0, 10), src: window.__obligoState.agicap.items[0].src, plombe: window.__obligoState.agicap.items[0].plombe,
         });
-        expect(it).toEqual({ ref: '1001E026990001', rd: '2026-09-08', fa: '2026-10-08', src: 'pdf', plombe: null });
+        // Fälligkeit aus dem PDF-Pfad = Rechnungsdatum + ZAHLZIEL (28 Tage, Otto-Standard).
+        // Belegt am Agicap-Export: von 24 Zeilen tragen 20 genau 28 Tage Zahlungsziel, 3 haben 29, eine 30.
+        // Vorher galt pauschal +30 -> Belege ohne Agicap-Fälligkeitsdatum landeten 2 Tage zu spät im Zahlungsplan.
+        expect(it).toEqual({ ref: '1001E026990001', rd: '2026-09-08', fa: '2026-10-06', src: 'pdf', plombe: null });
         expect(errors).toEqual([]);
     });
 
@@ -136,12 +139,64 @@ test.describe('Otto-Obligo-Cockpit · PDF-Belege', () => {
         expect(it).toEqual({ brutto: 500, via: 'summe', check: 'ok' });
     });
 
+    test('Retouren-Abzug wird in BEIDEN Otto-Schreibweisen erkannt — Vergütung und Abschlag', async ({ page }) => {
+        // Derselbe prozentuale Abzug steht auf den Belegen mal als "Retourenvergütung", mal als "Retourenabschlag".
+        // Wird eine Variante nicht erkannt, fällt die Gegenprobe auf die Zwischensumme zurück (hier 10.000,00
+        // statt 2.500,00) und meldet fälschlich eine Abweichung. Fixture-Zahlen sind synthetisch.
+        for (const suf of ['verguetung', 'abschlag']) {
+            const errors = await open(page);
+            await payInput(page).setInputFiles(fx(`otto_test_invoice_retoure_${suf}.pdf`));
+            await expect(status(page)).toContainText('Σ 1 offen (2.975 €)');
+            const it = await page.evaluate(() => { const i = window.__obligoState.agicap.items[0];
+                return { brutto: i.brutto, verg: i.verg, vergPct: i.vergPct, zwischen: i.zwischen, nettoBasis: i.nettoBasis, check: i.check }; });
+            expect(it, `Schreibweise ${suf}`).toEqual({ brutto: 2975, verg: -7500, vergPct: '75,00',
+                zwischen: 10000, nettoBasis: 2500, check: 'ok' });
+            expect(errors).toEqual([]);
+        }
+    });
+
     test('mehrere Rechnungen in einer Datei werden abgewiesen statt still nur eine zu zählen', async ({ page }) => {
         await open(page);
         await payInput(page).setInputFiles(fx('otto_test_multi_invoice.pdf'));
         await expect(page.locator('#loaderr .warn.bad')).toContainText('enthält mehrere Otto-Rechnungen');
         await expect(page.locator('#loaderr .warn.bad')).toContainText('1001E026990007, 1001E026990008');
         expect(await page.evaluate(() => window.__obligoState.agicap)).toBeNull();
+    });
+
+    test('Kontinuitätsprüfung: Topfwechsel ist neutral, nur echter Zulauf und Zahlungen zählen', async ({ page }) => {
+        // Zwischen zwei Auswertungen darf sich das Obligo NUR durch neue Anlieferungen (+) und Zahlungen (−) ändern.
+        // Wandert ein LKW von "warten" nach Agicap, ist das derselbe LKW in einem anderen Topf -> muss neutral sein.
+        // Genau diese Prüfung hätte den Sprung von 444.839 € auf 518.197 € am 25.09.2026 sofort als 40.000 €
+        // unerklärt ausgewiesen, statt ihn unkommentiert stehen zu lassen.
+        await open(page);
+        const r = await page.evaluate(() => {
+            const tag = 86400000, heute = midnight(new Date()), gestern = new Date(heute.getTime() - tag);
+            localStorage.setItem('ottoObligo.snapshot.v2', JSON.stringify({
+                iso: gestern.toISOString().slice(0, 10), obligo: 100000, agiOpen: 80000, wartenSum: 20000,
+                hasBe: true, refs: ['P1', 'P2'],
+            }));
+            return null;
+        });
+        await page.reload();                                   // PREV_SNAP wird beim Laden einmalig eingelesen
+        const out = await page.evaluate(() => {
+            const tag = 86400000, heute = midnight(new Date());
+            const mkR = obligo => ({
+                asof: heute, obligo,
+                agi: { items: [
+                    { brutto: 5000, rd: new Date(heute.getTime() - 10 * tag), zd: heute, paid: true },   // heute bezahlt -> Abfluss
+                    { brutto: 30000, rd: new Date(heute.getTime() - 3 * tag), zd: null, paid: false },
+                ] },
+                be: { orders: [ { ref: 'P1', gross: 10000, stat: 'Bestellung' }, { ref: 'P2', gross: 10000, stat: 'Bestellung' },
+                                { ref: 'P3', gross: 20000, stat: 'Bestellung' } ] },   // P3 ist neu
+            });
+            const sauber = kontinuitaet(mkR(115000));          // 100.000 + 20.000 neu − 5.000 bezahlt = 115.000
+            const luecke = kontinuitaet(mkR(155000));          // 40.000 mehr als erklärbar
+            const pick = k => ({ neuN: k.neuN, neuSum: k.neuSum, zahlung: k.zahlung, erwartet: k.erwartet,
+                                 diff: Math.round(k.diff), ok: k.ok });
+            return { sauber: pick(sauber), luecke: pick(luecke) };
+        });
+        expect(out.sauber).toEqual({ neuN: 1, neuSum: 20000, zahlung: 5000, erwartet: 115000, diff: 0, ok: true });
+        expect(out.luecke).toEqual({ neuN: 1, neuSum: 20000, zahlung: 5000, erwartet: 115000, diff: 40000, ok: false });
     });
 
     test('PDF-Auswertung (jsPDF) läuft nach PDF-Import ohne Fehler', async ({ page }) => {
