@@ -665,11 +665,15 @@ function histCard(hist){
 }
 
 // ---------- Rückgerechneter Obligo-Verlauf + Kontinuitätsprüfung ----------
-// Der Agicap-Export trägt zu JEDER Rechnung das Rechnungsdatum und (falls bezahlt) das Zahlungsdatum.
-// Damit lässt sich der offene Betrag für jeden vergangenen Tag EXAKT rekonstruieren:
-//     offen(t) = Σ brutto aller Rechnungen mit Rechnungsdatum ≤ t, die an t noch nicht bezahlt waren.
-// Das ist keine Schätzung und keine Prognose — es steht vollständig im Export. Rekonstruiert wird NUR der
-// Agicap-Teil; die „warten“-LKW lassen sich rückwirkend nicht bestimmen und bleiben bewusst außen vor.
+// ACHTUNG, Aussagekraft hängt am Export:
+// Enthält der Agicap-Export auch BEZAHLTE Rechnungen (mit Zahlungsdatum), ist
+//     offen(t) = Σ brutto aller Rechnungen mit Rechnungsdatum ≤ t, die an t noch nicht bezahlt waren
+// der echte historische Verlauf des offenen Betrags.
+// Enthält er — wie beim Standard-Export „Ausstehende Rechnungen“ — NUR offene Rechnungen, dann fehlen alle
+// inzwischen bezahlten Belege. Die Kurve startet dann zwangsläufig bei 0, kann nie fallen und zeigt NICHT
+// das damalige Obligo, sondern nur, wie sich der HEUTIGE Bestand nach Rechnungsdatum aufgebaut hat.
+// Beides ist nützlich, aber es sind zwei verschiedene Aussagen -> verlaufCard() beschriftet entsprechend.
+// Die „warten“-LKW sind in keinem Fall enthalten (rückwirkend nicht bestimmbar).
 function obligoVerlauf(agi,tage){
   const bis=midnight(new Date()), von=addDays(bis,-tage), pts=[];
   for(let i=0;i<=tage;i++){
@@ -690,6 +694,9 @@ const SNAPKEY="ottoObligo.snapshot.v2";
 // render() läuft bei JEDEM Datei-Drop erneut und schreibt den Snapshot fort. Ohne diese Kopie würde die
 // Prüfung ab dem zweiten Drop gegen den eigenen, gerade geschriebenen Stand vergleichen — und weil die
 // Bestellungen-Datei typischerweise als zweite kommt, käme sie nie zum Zug.
+// Stabiler Schlüssel je offener Rechnung: Rechnungsnummer, ersatzweise der Cent-Betrag (PDF ohne lesbare Nummer).
+function offeneKeys(agi){ return agi.items.filter(x=>!x.paid).map(x=>x.ref||("§"+Math.round((x.brutto||0)*100))); }
+function offeneKeyPaare(agi){ return agi.items.filter(x=>!x.paid).map(x=>[x.ref||("§"+Math.round((x.brutto||0)*100)), x.brutto]); }
 const PREV_SNAP=(()=>{ try{const r=localStorage.getItem(SNAPKEY);return r?JSON.parse(r):null;}catch(e){return null;} })();
 function snapSave(o){ try{localStorage.setItem(SNAPKEY,JSON.stringify(o));}catch(e){} }
 
@@ -707,9 +714,15 @@ function kontinuitaet(R){
   const vorher=midnight(new Date(prev.iso+"T00:00:00"));
   if(!(vorher<R.asof))return null;
 
-  // Zahlungen seit dem letzten Stand — steht exakt im heutigen Export (Zahlungsdatum).
+  // ABFLUSS seit dem letzten Stand. NICHT über das Zahlungsdatum rechnen: der Agicap-Export enthält
+  // typischerweise nur OFFENE Rechnungen ("Zu zahlen"). Eine bezahlte Rechnung bekommt darin kein
+  // Zahlungsdatum — sie verschwindet schlicht aus dem Export. Über zd wäre der Abfluss immer 0 und die
+  // Prüfung würde an jedem Zahltag falschen Alarm schlagen.
+  // Robust für beide Exportarten: als abgeflossen gilt, was gestern offen war und heute nicht mehr offen ist.
   let zahlung=0,zahlN=0;
-  for(const it of R.agi.items){ if(it.zd&&it.zd>vorher&&it.zd<=R.asof){ zahlung+=it.brutto; zahlN++; } }
+  if(!Array.isArray(prev.invKeys))return null;              // Vortagesstand ohne Rechnungsliste -> nicht prüfbar
+  const heuteOffen=new Set(offeneKeys(R.agi));
+  for(const e of prev.invKeys){ if(!heuteOffen.has(e[0])){ zahlung+=e[1]; zahlN++; } }
 
   // Neue LKW seit dem letzten Stand — Auftragsreferenzen, die vorher noch nicht im Export standen.
   let neuSum=null,neuN=null,neuRefs=[];
@@ -729,7 +742,7 @@ function kontinuitaet(R){
 }
 
 // ---------- Grafik: Obligo-Verlauf ----------
-function verlaufChart(pts,limit){
+function verlaufChart(pts,limit,echterVerlauf){
   if(pts.length<2)return "";
   const W=1100,Hh=230,L=64,Rr=16,T=16,B=26, iw=W-L-Rr, ih=Hh-T-B;
   const mx=Math.max(limit*1.08,...pts.map(p=>p.v),1);
@@ -740,7 +753,8 @@ function verlaufChart(pts,limit){
   const lim=`<line x1="${L}" y1="${Y(limit).toFixed(1)}" x2="${W-Rr}" y2="${Y(limit).toFixed(1)}" stroke="#d84a4a" stroke-width="2" stroke-dasharray="6 4"/>`+
             `<text x="${W-Rr}" y="${(Y(limit)-7).toFixed(1)}" text-anchor="end" font-size="12" font-weight="700" fill="#d84a4a">Kreditlimit ${EUR0(limit)}</text>`;
   // erster Tag, an dem das Limit gerissen wurde
-  const ri=pts.findIndex(p=>p.v>limit);
+  // Nur bei echtem Verlauf aussagekräftig: bei reinem Bestandsaufbau ist der "Riss" ein Artefakt der Kurve.
+  const ri=echterVerlauf?pts.findIndex(p=>p.v>limit):-1;
   const riss=ri>0?`<line x1="${X(ri).toFixed(1)}" y1="${T}" x2="${X(ri).toFixed(1)}" y2="${(T+ih).toFixed(1)}" stroke="#d84a4a" stroke-width="1" stroke-dasharray="3 3"/>`+
       `<text x="${(X(ri)+5).toFixed(1)}" y="${(T+12)}" font-size="11" font-weight="700" fill="#d84a4a">Limit gerissen ${fmtD(pts[ri].d)}</text>`:"";
   const sk=Math.ceil(pts.length/9);
@@ -755,7 +769,8 @@ function verlaufChart(pts,limit){
 function verlaufCard(R){
   const pts=obligoVerlauf(R.agi,45); if(pts.length<2)return "";
   const last=pts[pts.length-1], first=pts[0];
-  // längste Strecke ohne Zahlungseingang, die bis heute reicht
+  // Trägt der Export bezahlte Rechnungen? Nur dann ist die Kurve ein echter Obligo-Verlauf.
+  const echterVerlauf=R.agi.items.some(it=>it.zd||it.paid);
   let letzteZahlung=null;
   for(const it of R.agi.items){ if(it.zd&&(!letzteZahlung||it.zd>letzteZahlung))letzteZahlung=it.zd; }
   const tageOhne=letzteZahlung?Math.round((R.asof-letzteZahlung)/86400000):null;
@@ -765,26 +780,39 @@ function verlaufCard(R){
   const kBlock=k?(k.ok
     ? `<div class="warn" style="background:#eef7f0;border-color:#57a55f;color:#276b30;font-weight:600">✓ <b>Kontinuitätsprüfung</b> gegen den Stand vom ${fmtD(k.vorher)}: erwartet <b>${EUR0(k.erwartet)}</b>, tatsächlich <b>${EUR0(R.obligo)}</b> — Abweichung ${EUR0(k.diff)} liegt im Rahmen. Nichts Unerklärtes.</div>`
     : `<div class="warn bad" style="font-size:15px;font-weight:700;border-width:2px">🚨 <b>Kontinuitätsprüfung: ${EUR0(Math.abs(k.diff))} unerklärt.</b><br>
-       <span style="font-weight:500">Seit dem Stand vom ${fmtD(k.vorher)} (${EUR0(k.prev.obligo)}) sind <b>${k.neuN} LKW neu angeliefert</b> (${EUR0(k.neuSum)}) und <b>${k.zahlN} Rechnungen bezahlt</b> (${EUR0(k.zahlung)}).
+       <span style="font-weight:500">Seit dem Stand vom ${fmtD(k.vorher)} (${EUR0(k.prev.obligo)}) sind <b>${k.neuN} LKW neu angeliefert</b> (${EUR0(k.neuSum)}) und <b>${k.zahlN} Rechnungen abgeflossen</b> (${EUR0(k.zahlung)} — bezahlt oder storniert, sie sind nicht mehr im Export).
        Das Obligo dürfte damit heute bei <b>${EUR0(k.erwartet)}</b> stehen, es steht aber bei <b>${EUR0(R.obligo)}</b>.<br>
        ${k.diff>0?`Der Mehrbetrag stammt fast immer von LKW, die schon länger geliefert waren, deren <b>Rechnung aber erst jetzt in Agicap aufgetaucht</b> ist — sie haben vorher in keinem der beiden Töpfe gesteckt. Das heißt: die Auswertung vom ${fmtD(k.vorher)} war um rund diesen Betrag <b>zu niedrig</b>.`:`Das Obligo ist stärker gesunken als durch Zahlungen erklärbar — prüfen, ob Rechnungen aus dem Agicap-Export verschwunden sind.`}</span></div>`):"";
   return `
   <div class="card">
-    <h2>Obligo-Verlauf · die letzten ${pts.length-1} Tage</h2>
+    <h2>${echterVerlauf?"Obligo-Verlauf":"Aufbau des offenen Bestands"} · die letzten ${pts.length-1} Tage</h2>
     ${kBlock}
-    ${verlaufChart(pts,R.limit)}
-    <div class="hint">Rückgerechnet aus dem Agicap-Export: für jeden Tag die Summe der Rechnungen, die an diesem Tag
-      <b>berechnet und noch nicht bezahlt</b> waren. Keine Prognose — jeder Punkt steht so im Export.
-      Die „warten auf Rechnung“-LKW sind hier <b>nicht</b> enthalten (rückwirkend nicht bestimmbar), die Kurve liegt also
-      eher etwas zu tief.</div>
+    ${verlaufChart(pts,R.limit,echterVerlauf)}
+    ${echterVerlauf
+      ? `<div class="hint">Rückgerechnet aus dem Agicap-Export: für jeden Tag die Summe der Rechnungen, die an
+          diesem Tag <b>berechnet und noch nicht bezahlt</b> waren. Keine Prognose — jeder Punkt steht so im Export.
+          Die „warten auf Rechnung“-LKW sind <b>nicht</b> enthalten (rückwirkend nicht bestimmbar), die Kurve liegt
+          also eher etwas zu tief.</div>`
+      : `<div class="warn">ℹ️ <b>Das ist kein historisches Obligo — bitte nicht so lesen.</b> Der geladene Export
+          enthält <b>nur offene Rechnungen</b> („Zu zahlen“). Bereits bezahlte Belege stehen nicht darin, also fehlen
+          sie auch in der Rückrechnung. Die Kurve beginnt deshalb zwangsläufig bei 0 und kann nie fallen.<br>
+          Was sie <b>tatsächlich</b> zeigt: wie sich der <b>heutige</b> offene Bestand von ${EUR0(last.v)} nach
+          Rechnungsdatum aufgebaut hat — und damit, in welchen Schüben Otto abrechnet. Genau diese Schübe sind der
+          Grund, warum das Obligo tagelang stillsteht und dann sprunghaft steigt.<br>
+          Für den echten Verlauf braucht es einen Agicap-Export, der <b>auch bezahlte</b> Rechnungen enthält
+          (mit Zahlungsdatum). Dann rechnet diese Kurve automatisch richtig.</div>`}
     <div class="recon">
-      <div class="recon-row"><span>Offene Rechnungen vor ${pts.length-1} Tagen (${fmtD(first.d)})</span><b>${EUR0(first.v)}</b></div>
-      <div class="recon-row"><span>Offene Rechnungen heute</span><b>${EUR0(last.v)}</b></div>
-      <div class="recon-row tot"><span>= Anstieg im Zeitraum</span><b>${EUR0(stieg)} · ø ${EUR0(proTag)}/Tag</b></div>
+      <div class="recon-row"><span>${echterVerlauf?`Offene Rechnungen vor ${pts.length-1} Tagen (${fmtD(first.d)})`:`Ältester noch offener Beleg`}</span><b>${echterVerlauf?EUR0(first.v):(()=>{let m=null;for(const it of R.agi.items){if(!it.paid&&it.rd&&(!m||it.rd<m))m=it.rd;}return m?fmtD(m):"—";})()}</b></div>
+      <div class="recon-row"><span>Offene Rechnungen heute (${last.n} Stück)</span><b>${EUR0(last.v)}</b></div>
+      <div class="recon-row tot"><span>${echterVerlauf?"= Anstieg im Zeitraum":"= Zulauf im Zeitraum"}</span><b>${EUR0(last.v-first.v)} · ø ${EUR0((last.v-first.v)/(pts.length-1))}/Tag</b></div>
     </div>
-    ${tageOhne!==null&&tageOhne>=7?`<div class="warn bad">⚠️ <b>Seit ${tageOhne} Tagen kein Zahlungseingang an Otto</b> (letzte Zahlung ${fmtD(letzteZahlung)}). Solange nichts abfließt, wächst das Obligo mit jedem LKW ungebremst weiter.</div>`
-      :(letzteZahlung?`<div class="hint">Letzte Zahlung an Otto: ${fmtD(letzteZahlung)}.</div>`
-        :`<div class="warn bad">⚠️ <b>Im Export ist keine einzige bezahlte Rechnung enthalten.</b> Das Obligo kann dadurch nur steigen — die Kurve zeigt reinen Zulauf. Für den echten Verlauf den Agicap-Export mit bezahlten Rechnungen ziehen.</div>`)}
+    ${echterVerlauf
+      ? (tageOhne!==null&&tageOhne>=7
+          ? `<div class="warn bad">⚠️ <b>Seit ${tageOhne} Tagen kein Zahlungseingang an Otto</b> (letzte Zahlung ${fmtD(letzteZahlung)}). Solange nichts abfließt, wächst das Obligo mit jedem LKW ungebremst weiter.</div>`
+          : (letzteZahlung?`<div class="hint">Letzte Zahlung an Otto: ${fmtD(letzteZahlung)}.</div>`:""))
+      : `<div class="hint">Ob und wann zuletzt an Otto gezahlt wurde, lässt sich aus diesem Export <b>nicht</b> ablesen —
+          er führt nur Offenes. Die Kontinuitätsprüfung oben erkennt Zahlungen trotzdem: als Rechnungen, die gestern
+          offen waren und heute nicht mehr im Export stehen.</div>`}
   </div>`;
 }
 
@@ -886,7 +914,7 @@ function render(){
     // Nur VOLLSTÄNDIGE Auswertungen (Agicap + Bestellungen) fortschreiben. Ein Stand ohne Bestellungen
     // enthält die „warten“-LKW nicht und wäre als Vergleichsbasis morgen systematisch zu niedrig.
     if(R.be&&!R.klMissing)snapSave({iso:R.asof.toISOString().slice(0,10),obligo:R.obligo,agiOpen:R.agiOpen,
-              wartenSum:R.wartenSum,hasBe:true,refs:R.be.orders.map(o=>o.ref)});
+              wartenSum:R.wartenSum,hasBe:true,refs:R.be.orders.map(o=>o.ref),invKeys:offeneKeyPaare(R.agi)});
   }
   if(state.hist) html += histCard(state.hist);
   out.innerHTML=html;

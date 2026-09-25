@@ -163,40 +163,52 @@ test.describe('Otto-Obligo-Cockpit · PDF-Belege', () => {
         expect(await page.evaluate(() => window.__obligoState.agicap)).toBeNull();
     });
 
-    test('Kontinuitätsprüfung: Topfwechsel ist neutral, nur echter Zulauf und Zahlungen zählen', async ({ page }) => {
-        // Zwischen zwei Auswertungen darf sich das Obligo NUR durch neue Anlieferungen (+) und Zahlungen (−) ändern.
+    test('Kontinuitätsprüfung: Abfluss über verschwundene Rechnungen, Topfwechsel bleibt neutral', async ({ page }) => {
+        // Zwischen zwei Auswertungen darf sich das Obligo NUR durch neue Anlieferungen (+) und Abfluss (−) ändern.
         // Wandert ein LKW von "warten" nach Agicap, ist das derselbe LKW in einem anderen Topf -> muss neutral sein.
-        // Genau diese Prüfung hätte den Sprung von 444.839 € auf 518.197 € am 25.09.2026 sofort als 40.000 €
-        // unerklärt ausgewiesen, statt ihn unkommentiert stehen zu lassen.
+        // Der Abfluss wird NICHT aus dem Zahlungsdatum gelesen: der Agicap-Export führt nur offene Rechnungen,
+        // eine bezahlte verschwindet daraus schlicht. Über das Zahlungsdatum wäre der Abfluss immer 0 und die
+        // Prüfung schlüge an jedem Zahltag falschen Alarm.
         await open(page);
-        const r = await page.evaluate(() => {
-            const tag = 86400000, heute = midnight(new Date()), gestern = new Date(heute.getTime() - tag);
+        await page.evaluate(() => {
+            const tag = 86400000, gestern = new Date(midnight(new Date()).getTime() - tag);
             localStorage.setItem('ottoObligo.snapshot.v2', JSON.stringify({
                 iso: gestern.toISOString().slice(0, 10), obligo: 100000, agiOpen: 80000, wartenSum: 20000,
                 hasBe: true, refs: ['P1', 'P2'],
+                invKeys: [['1001E026990101', 5000], ['1001E026990102', 30000]],   // gestern offen
             }));
-            return null;
         });
         await page.reload();                                   // PREV_SNAP wird beim Laden einmalig eingelesen
         const out = await page.evaluate(() => {
-            const tag = 86400000, heute = midnight(new Date());
+            const heute = midnight(new Date());
             const mkR = obligo => ({
                 asof: heute, obligo,
-                agi: { items: [
-                    { brutto: 5000, rd: new Date(heute.getTime() - 10 * tag), zd: heute, paid: true },   // heute bezahlt -> Abfluss
-                    { brutto: 30000, rd: new Date(heute.getTime() - 3 * tag), zd: null, paid: false },
-                ] },
+                // 1001E026990101 ist heute NICHT mehr offen -> 5.000 abgeflossen (bezahlt oder storniert)
+                agi: { items: [{ ref: '1001E026990102', brutto: 30000, rd: heute, zd: null, paid: false }] },
                 be: { orders: [ { ref: 'P1', gross: 10000, stat: 'Bestellung' }, { ref: 'P2', gross: 10000, stat: 'Bestellung' },
                                 { ref: 'P3', gross: 20000, stat: 'Bestellung' } ] },   // P3 ist neu
             });
-            const sauber = kontinuitaet(mkR(115000));          // 100.000 + 20.000 neu − 5.000 bezahlt = 115.000
-            const luecke = kontinuitaet(mkR(155000));          // 40.000 mehr als erklärbar
-            const pick = k => ({ neuN: k.neuN, neuSum: k.neuSum, zahlung: k.zahlung, erwartet: k.erwartet,
-                                 diff: Math.round(k.diff), ok: k.ok });
-            return { sauber: pick(sauber), luecke: pick(luecke) };
+            const pick = k => ({ neuN: k.neuN, neuSum: k.neuSum, abfluss: k.zahlung, abflussN: k.zahlN,
+                                 erwartet: k.erwartet, diff: Math.round(k.diff), ok: k.ok });
+            return { sauber: pick(kontinuitaet(mkR(115000))),   // 100.000 + 20.000 neu − 5.000 Abfluss
+                     luecke: pick(kontinuitaet(mkR(155000))) }; // 40.000 mehr als erklärbar
         });
-        expect(out.sauber).toEqual({ neuN: 1, neuSum: 20000, zahlung: 5000, erwartet: 115000, diff: 0, ok: true });
-        expect(out.luecke).toEqual({ neuN: 1, neuSum: 20000, zahlung: 5000, erwartet: 115000, diff: 40000, ok: false });
+        expect(out.sauber).toEqual({ neuN: 1, neuSum: 20000, abfluss: 5000, abflussN: 1, erwartet: 115000, diff: 0, ok: true });
+        expect(out.luecke).toEqual({ neuN: 1, neuSum: 20000, abfluss: 5000, abflussN: 1, erwartet: 115000, diff: 40000, ok: false });
+    });
+
+    test('Verlaufskurve wird nicht als Obligo-Historie ausgegeben, wenn der Export nur Offenes enthält', async ({ page }) => {
+        // Der Standard-Agicap-Export ("Ausstehende Rechnungen") führt ausschließlich Rechnungen mit Status
+        // "Zu zahlen". Bezahlte verschwinden daraus. Eine Rückrechnung über solche Daten startet zwangsläufig
+        // bei 0, kann nie fallen und ist KEIN historisches Obligo — das muss die Karte auch so sagen.
+        const errors = await open(page);
+        await payInput(page).setInputFiles(fx('otto_test_agicap_geprueft.csv'));
+        const karte = page.locator('.card').filter({ hasText: 'Aufbau des offenen Bestands' });
+        await expect(karte).toBeVisible();
+        await expect(karte).toContainText('kein historisches Obligo');
+        await expect(karte).toContainText('nur offene Rechnungen');
+        await expect(page.locator('.card').filter({ hasText: 'Limit gerissen' })).toHaveCount(0);
+        expect(errors).toEqual([]);
     });
 
     test('PDF-Auswertung (jsPDF) läuft nach PDF-Import ohne Fehler', async ({ page }) => {
