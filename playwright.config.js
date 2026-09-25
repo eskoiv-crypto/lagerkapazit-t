@@ -26,6 +26,9 @@ export default defineConfig({
         actionTimeout: 10_000,
         screenshot: 'only-on-failure',
         trace: 'retain-on-failure',
+        // Optional: vorinstalliertes Chromium nutzen statt Download (z. B. Cloud-Sandbox):
+        //   PW_CHROMIUM_PATH=/opt/pw-browsers/chromium npx playwright test
+        ...(process.env.PW_CHROMIUM_PATH ? { launchOptions: { executablePath: process.env.PW_CHROMIUM_PATH } } : {}),
     },
     projects: [
         {

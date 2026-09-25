@@ -1,0 +1,4 @@
+Typ,Raten-ID,Rechnungs-ID,Rechnungs-/Ratenbezeichnung,Rechnungsnummer,Status,Begünstigter,Rechnungsdatum,Fälligkeitsdatum,Zahlungsdatum,Rechnungsbetrag exkl. Steuern,Rechnungsbetrag inkl. Steuern,Ratenbetrag inkl. Steuern,Währung,Zahlungsmethode,Bestellnummer,IBAN,Abteilung,Ausgabenarten
+Rechnung,r1,i1,"Otto GmbH & Co. KGaA Test",1001EO26990001,Zu bezahlen,"Otto GmbH & Co. KGaA",08-09-2026,08-10-2026,,1037.74,1234.91,1234.91,EUR,Überweisung,,,,"Wareneinkauf|OTTO_Mix"
+Rechnung,r2,i2,"Otto GmbH & Co. KGaA Test",1001EO26990009,Zu bezahlen,"Otto GmbH & Co. KGaA",05-09-2026,05-10-2026,,4201.68,5000.00,5000.00,EUR,Überweisung,,,,"Wareneinkauf|OTTO_Mix"
+Rechnung,r3,i3,"AEG Test",AEG-1,Zu bezahlen,"AEG Hausgeräte",05-09-2026,05-10-2026,,100.00,119.00,119.00,EUR,Überweisung,,,,"Wareneinkauf|AEG"
