@@ -7,6 +7,36 @@ Obligo gegenüber Otto gegen das Kreditlimit zeigt. **Quelle der Wahrheit für d
 `PlattformenTeams › Tools und Automatisieren › KI-Tools › Otto_Obligo_View` (Cockpit + `_build-kit`).
 Dieses Verzeichnis ist die versionierte Kopie des Build-Kits, damit Änderungen nachvollziehbar und getestet sind.
 
+## Austausch der Live-Datei (`deploy.ps1`)
+
+```powershell
+# 1) bauen - Passwort bewusst als Platzhalter, deploy.ps1 holt das echte aus der alten Datei
+OTTO_CFG_PW='__UEBERNAHME_AUS_ALTER_DATEI__' node otto-obligo/_build-kit/build.cjs `
+  --out OttoObligoCockpit.new.html --no-hist
+
+# 2) austauschen
+.\deploy.ps1 -WhatIf
+.\deploy.ps1
+```
+
+`deploy.ps1` sichert die alte Datei mit Zeitstempel, überträgt **Historie und Einstellungs-Passwort**
+aus ihr in die neue, prüft Marken und Platzhalter und ersetzt erst dann.
+
+> ⚠️ **Die frisch gebaute `.new.html` niemals direkt über die Live-Datei kopieren.** Sie trägt nur den
+> Platzhalter als Passwort und keine Historie — beides wäre danach verloren und das gewohnte Passwort
+> würde abgewiesen. `deploy.ps1` erkennt diesen Zustand und bricht mit Hinweis auf den
+> OneDrive-Versionsverlauf ab. Ging es trotzdem schief: `historie-uebernehmen.ps1` holt die Historie
+> aus einer alten Kopie zurück.
+
+Zwei Fallstricke, die in `deploy.ps1` bewusst vermieden sind:
+
+* `[regex]::Replace` mit vier Argumenten trifft in PowerShell die Überladung
+  `(..., MatchEvaluator, RegexOptions)` — das vierte Argument ist **keine** Trefferanzahl.
+* Ein Scriptblock als `MatchEvaluator` kann je nach PowerShell-Version in einem Scope laufen, in dem
+  die Variablen von außen fehlen — die Ersetzung wäre dann still leer.
+
+Beide Skripte lesen deshalb nur per Regex und ersetzen über `String.Replace` mit festen Zeichenketten.
+
 ## Was ist neu in v2.3 (2026-09-25)
 
 Anlass: Das Obligo sprang von einem Tag auf den anderen deutlich stärker, als es durch die Anlieferungen
