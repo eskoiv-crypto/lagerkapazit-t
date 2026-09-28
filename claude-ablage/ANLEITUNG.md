@@ -1,6 +1,6 @@
 # Claude-Ablage „Eskofier“ · Anleitung
 
-**Version 1.0 · 2026-09-28** · für Dustin Eskofier, Backoffice & Fulfillment
+**Version 1.1 · 2026-09-28** · für Dustin Eskofier, Backoffice & Fulfillment
 
 ---
 
@@ -84,10 +84,13 @@ PowerShell öffnen, dann:
 |---|---|---|
 | `*Otto-Obligo*`, `*OttoObligo*` | FIN-001 | Otto-Obligo_2026-07-xx.pdf, 2026-07-01_Otto-Obligo-Forecast_v6.xlsx, Otto-Obligo-Cockpit.html / _Ordnerstruktur.zip |
 | `*Frachtkostenrechner*`, `Frachtangebot_El-vinci*` | LOG-001 | Frachtkostenrechner_v1 … _2026_v3_FINAL.html, Frachtkostenrechner.zip |
-| `*Warenwert*`, `*Bestandsstatus*`, `*Bestandsbewertung*`, `*Bestandsverifikation*` | BES-001 **[PRÜFEN]** | Warenwert-PDFs 30.06./31.08.2026, „Warenwert zum Monatsende“, Bestandsstatus 31.08.2025 v1–v4 |
+| `*Lagerwert*`, `*Warenwert*`, `Warenbestand_EK*` | BES-001 | Lagerwert_29-05-2026.pdf / Lagerwert zum 31.05.2026.pdf, Warenwert_30-06-2026.pdf, 2026-08-31_Warenwert.pdf, „Warenwert zum Monatsende“, Warenbestand_EK_…_Herleitung_IT.md |
+| `*Bestandsstatus*`, `*Bestandsbewertung*`, `*Bestandsverifikation*` | BES-001 **[PRÜFEN]** | Bestandsstatus 31.08.2025 v1–v4, Bestandsbewertung Verpackungsmaterial: gehören sie zum Stichtags-Chat? |
 
-> ⚠️ **Bei BES-001 bitte prüfen:** Ein Tool namens „Bestandsrechner“ habe ich nicht gefunden, nur Berichte (PDF/Excel).
-> Wenn der Rechner anders heißt, ergänze eine Zeile in `%LOCALAPPDATA%\ClaudeAblage\migration-regeln.csv`.
+**BES-001 ist der wiederkehrende Claude-Chat „Lagerwert zum Stichtag“.** In `_Projekt.md` stehen eine Stichtags-Tabelle
+(29.05., 30.06., 31.08.2026, Monatsenden) und der Ablauf für den nächsten Stichtag. Bitte trage dort den **Link zum Chat** ein.
+Die Dateien `Lagerwert_29-05-2026_GF-Brief.pdf`, `lagerwert_facts.json` und `lagerwert_pdf.py` liegen im GitHub-Repo, nicht in OneDrive.
+Die Migration findet sie daher nicht. Sie sind in `_Projekt.md` verlinkt.
 
 **PlattformenTeams (Live-Tools):** Obligo-Cockpit v2.3 und Frachtkostenrechner v6 liegen in
 *PlattformenTeams › Tools und Automatisieren › KI-Tools* und werden dort von Kollegen genutzt.
@@ -116,6 +119,8 @@ liegt sie in `FIN-001_Otto-Obligo\02_Arbeitsstand`, und rechts unten erscheint e
 ### Dateinamen
 
 `KENNUNG_JJJJ-MM-TT_Beschreibung_vN.ext`, z. B. `FIN-001_2026-09-28_Obligo-Status_v1.pdf`
+
+Bei Stichtagsauswertungen (BES-001) steht statt des Erstelldatums der **Stichtag** im Namen: `BES-001_2026-09-30_Warenwert_v1.pdf`
 
 | Zusatz im Namen | landet in |
 |---|---|

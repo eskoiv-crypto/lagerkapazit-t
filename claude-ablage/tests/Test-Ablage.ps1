@@ -51,6 +51,8 @@ try {
     Pruefe 'Bestandsprojekt LOG-001_Frachtkostenrechner' (Test-Path $log)
     Pruefe 'Bestandsprojekt BES-001_Warenwert-Bestandsrechner' (Test-Path $bes)
     $md = [IO.File]::ReadAllText((Join-Path $fin '_Projekt.md'))
+    $mdBes = [IO.File]::ReadAllText((Join-Path $bes '_Projekt.md'))
+    Pruefe 'BES-001: Stichtags-Tabelle + Ablauf angehängt' ($mdBes -match '## Stichtage' -and $mdBes -match '30\.06\.2026' -and $mdBes -match 'Neuer Stichtag' -and $mdBes -notmatch '\{\{')
     Pruefe '_Projekt.md ausgefüllt (Kennung, Live-Ort)' ($md -match '\| Kennung \| FIN-001 \|' -and $md -match 'Otto_Obligo_View' -and $md -notmatch '\{\{')
 
     # ------------------------------------------------------------ Idempotenz + Nummernvergabe
@@ -147,6 +149,7 @@ try {
     [IO.File]::WriteAllText((Join-Path $q1 '2026-07-01_Otto-Obligo-Forecast_v6.xlsx'), 'fc')
     [IO.File]::WriteAllText((Join-Path $q3 'Frachtkostenrechner_2026_v3_FINAL.html'), 'fk')
     [IO.File]::WriteAllText((Join-Path $q2 'Warenwert_30-06-2026.pdf'), 'ww')
+    [IO.File]::WriteAllText((Join-Path $q1 'Lagerwert zum 31.05.2026.pdf'), 'lw')
     [IO.File]::WriteAllText((Join-Path $q1 'Urlaubsantrag.pdf'), 'privat')
     $mig = Join-Path $env:CLAUDE_ABLAGE_HOME 'Migration-Kopieren.ps1'
     & $mig -Quelle $onedrive 6>$null | Out-Null
@@ -158,6 +161,7 @@ try {
     Pruefe 'Duplikat nur einmal kopiert' (-not (Test-Path (Join-Path $alt 'Microsoft Teams-Chatdateien\Otto-Obligo_2026-07-20.pdf')))
     Pruefe 'Frachtkostenrechner -> LOG-001' (Test-Path (Join-Path $log '09_Altbestand\OneDrive-elvinci.de-GmbH\Dokumente\Zeug bis 16.06.2026\Frachtkostenrechner_2026_v3_FINAL.html'))
     Pruefe 'Warenwert -> BES-001' (Test-Path (Join-Path $bes '09_Altbestand\OneDrive-elvinci.de-GmbH\Microsoft Teams-Chatdateien\Warenwert_30-06-2026.pdf'))
+    Pruefe 'Lagerwert-Brief -> BES-001' (Test-Path (Join-Path $bes '09_Altbestand\OneDrive-elvinci.de-GmbH\Dokumente\Lagerwert zum 31.05.2026.pdf'))
     Pruefe 'Nicht passende Datei nicht kopiert' (@(Get-ChildItem $ablage -Recurse -Filter 'Urlaubsantrag.pdf').Count -eq 0)
     Pruefe 'Originale unverändert vorhanden' ((Test-Path (Join-Path $q1 'Otto-Obligo_2026-07-20.pdf')) -and (Test-Path (Join-Path $q2 'Warenwert_30-06-2026.pdf')))
     & $mig -Quelle $onedrive -Ausfuehren 6>$null | Out-Null

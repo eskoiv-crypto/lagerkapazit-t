@@ -361,7 +361,8 @@ function New-AblageProjekt {
         [Parameter(Mandatory)][string]$Kuerzel,
         [Parameter(Mandatory)][string]$Titel,
         [string]$Beschreibung = '',
-        [string]$LiveOrt = ''
+        [string]$LiveOrt = '',
+        [string]$Zusatz = ''          # optionaler Markdown-Abschnitt, wird an _Projekt.md angehängt
     )
     $bereich = Get-Bereich -Konfig $Konfig -Kuerzel $Kuerzel
     if (-not $bereich) { throw "Unbekannter Bereich '$Kuerzel'. Erlaubt: " + (($Konfig.Bereiche | ForEach-Object { $_.Kuerzel }) -join ', ') }
@@ -396,6 +397,7 @@ function New-AblageProjekt {
     $text = $text.Replace('{{DATUM}}', (Get-Date -Format 'yyyy-MM-dd'))
     $text = $text.Replace('{{BESCHREIBUNG}}', $Beschreibung)
     $text = $text.Replace('{{LIVEORT}}', $LiveOrt)
+    if ($Zusatz) { $text = $text.TrimEnd() + "`r`n`r`n" + ($Zusatz.Trim() -replace '\r?\n', "`r`n") + "`r`n" }
     [IO.File]::WriteAllText($md, $text, $script:Utf8MitBom)
 
     Write-AblageLog -Meldung "Projekt angelegt: $kennung ($ziel)"

@@ -117,15 +117,40 @@ $konfig.Bereiche | ForEach-Object { Write-Host ('  {0}  {1}' -f $_.Kuerzel, $_.O
 
 if (-not $OhneBestandsprojekte) {
     Schritt 'Bestandsprojekte anlegen'
+    $zusatzBes = @'
+## Stichtage
+Abgrenzungen laut den bisherigen Ergebnis-Dateien (Suche 2026-09-28). Beträge stehen in den Dateien selbst.
+
+| Stichtag | Abgrenzung | Ergebnis (im Altbestand) |
+|---|---|---|
+| 29.05.2026 | Buchwert EK der verkaufsbereiten Bestände | Lagerwert_29-05-2026.pdf (GF-Brief) |
+| 30.06.2026 | nur NICHT verkaufte Ware, physisch im Lager (AMM-Status QE) | Warenwert_30-06-2026.pdf |
+| 31.08.2026 | alles physisch im Lager, inkl. bereits verkaufter Ware (QE + VS + AA) | 2026-08-31_Warenwert.pdf |
+| Monatsenden 08/2025–07/2026 | reiner EK-Wert netto, physisch im Lager | Warenwert zum Monatsende Sep25-Jul26.xlsx, Warenbestand_EK_Aug25-Jul26_Werte+Herleitung_IT.md |
+
+> ⚠️ Die Abgrenzung ist nicht an allen Stichtagen gleich (30.06. ohne, 31.08. mit verkaufter Ware). Vor Monatsvergleichen prüfen.
+
+## Neuer Stichtag – Ablauf
+1. Im BES-001-Chat den Stichtag und die gewünschte Abgrenzung nennen (siehe Tabelle).
+2. AMM-/Odoo-Exporte mit `_INPUT` benennen → 01_Input.
+3. Dateiname der Auswertung: `BES-001_<STICHTAG JJJJ-MM-TT>_Warenwert_vN.pdf` – hier steht der **Stichtag** im Namen, nicht das Erstelldatum.
+4. Freigegebene Version mit `_FINAL` → 03_Ergebnis. Zeile oben in der Tabelle ergänzen.
+
+## Bisherige Quellen
+- Claude-Chat: (Link bitte eintragen)
+- Repo eskoiv-crypto/lagerkapazit-t: Lagerwert_29-05-2026_GF-Brief.pdf, lagerwert_facts.json, lagerwert_pdf.py
+'@
     $bestand = @(
         @{ K = 'FIN'; T = 'Otto-Obligo'; B = 'Obligo gegenüber Otto vs. Kreditlimit: Status-PDFs, Forecast, Obligo-Cockpit'
            L = 'https://elvinci.sharepoint.com/sites/PlattformenTeams/Freigegebene Dokumente/Tools und Automatisieren/KI-Tools/Otto_Obligo_View' }
         @{ K = 'LOG'; T = 'Frachtkostenrechner'; B = 'Frachtkostenrechner auf Basis der AMM-Tarife (v6 gültig ab 01.07.2026)'
            L = 'https://elvinci.sharepoint.com/sites/PlattformenTeams/Freigegebene Dokumente/Tools und Automatisieren/KI-Tools/Frachtkostenrechner' }
-        @{ K = 'BES'; T = 'Warenwert-Bestandsrechner'; B = 'Warenwert/Bestandsbewertung zum Monatsende'; L = '' }
+        @{ K = 'BES'; T = 'Warenwert-Bestandsrechner'; L = ''
+           B = 'Wiederkehrender Claude-Chat: Lagerwert/Warenwert (EK) zu einem Stichtag bestimmen und als Brief ausgeben'
+           Z = $zusatzBes }
     )
     foreach ($p in $bestand) {
-        $r = New-AblageProjekt -Konfig $konfig -Kuerzel $p.K -Titel $p.T -Beschreibung $p.B -LiveOrt $p.L
+        $r = New-AblageProjekt -Konfig $konfig -Kuerzel $p.K -Titel $p.T -Beschreibung $p.B -LiveOrt $p.L -Zusatz $(if ($p.ContainsKey('Z')) { $p.Z } else { '' })
         Write-Host ('  {0}  {1}{2}' -f $r.Kennung, $r.Titel, $(if ($r.Neu) { '' } else { '  (war schon da)' }))
     }
 }
