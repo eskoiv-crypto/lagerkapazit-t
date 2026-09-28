@@ -27,6 +27,9 @@ Damit gilt die Regel in jeder neuen Claude-Session, auch in Claude Code.
 - Stichtagsauswertungen (z. B. BES-001 Lagerwert/Warenwert): im Namen steht der **Stichtag**, nicht das
   Erstelldatum – `BES-001_2026-09-30_Warenwert_v1.pdf`. Vor jeder Auswertung die Abgrenzung bestätigen lassen
   (nur unverkauft QE, oder inkl. verkaufter Ware QE+VS+AA) und im Dokument ausweisen.
+- Aktuelle Fassung: die gültige Fassung des Hauptergebnisses zusätzlich als `KENNUNG_Beschreibung_AKTUELL.ext`
+  (fester Name, ohne Datum/Version) → liegt direkt im Projektordner, ersetzt die vorige. Jede Fassung auch mit
+  Datum/Version im Verlauf ablegen.
 - Zusätze im Namen steuern den Zielordner:
   `_FINAL` → 03_Ergebnis · `_INPUT` → 01_Input · `_MAIL` → 04_Kommunikation · ohne Zusatz → 02_Arbeitsstand.
 - Am Ende jeder Session: Liste der erzeugten Dateien + Links (Session, Artefakte, Repo, PR) als Block zum

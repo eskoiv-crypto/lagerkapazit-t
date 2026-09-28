@@ -1,6 +1,6 @@
 # Claude-Ablage „Eskofier“ · Anleitung
 
-**Version 1.1 · 2026-09-28** · für Dustin Eskofier, Backoffice & Fulfillment
+**Version 1.2 · 2026-09-28** · für Dustin Eskofier, Backoffice & Fulfillment
 
 ---
 
@@ -124,6 +124,7 @@ Bei Stichtagsauswertungen (BES-001) steht statt des Erstelldatums der **Stichtag
 
 | Zusatz im Namen | landet in |
 |---|---|
+| `_AKTUELL` (fester Name, ohne Datum) | **Projektordner selbst**, ersetzt die vorige Fassung (alte im SharePoint-Versionsverlauf) |
 | (keiner) | 02_Arbeitsstand |
 | `_FINAL` | 03_Ergebnis |
 | `_INPUT` | 01_Input |

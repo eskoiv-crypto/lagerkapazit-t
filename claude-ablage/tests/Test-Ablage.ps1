@@ -128,6 +128,21 @@ try {
     Invoke-DownloadSortierung -Konfig $k | Out-Null
     Pruefe 'DuplikatAktion=Behalten lässt Datei liegen' (Test-Path (Join-Path $downloads 'FIN-001_2026-09-28_Test_v1 (3).txt'))
 
+    Write-Host "`n[4b] Aktuelle Fassung (_AKTUELL)" -ForegroundColor Cyan
+    $k.DuplikatAktion = 'Papierkorb'
+    Neu 'FIN-001_Otto-Obligo-Cockpit_AKTUELL.html' 'v2.2' | Out-Null
+    Invoke-DownloadSortierung -Konfig $k | Out-Null
+    $aktuell = Join-Path $fin 'FIN-001_Otto-Obligo-Cockpit_AKTUELL.html'
+    Pruefe '_AKTUELL -> Projektordner (oberste Ebene)' (Test-Path -LiteralPath $aktuell)
+    Neu 'FIN-001_Otto-Obligo-Cockpit_AKTUELL (1).html' 'v2.3' | Out-Null
+    $erg = @(Invoke-DownloadSortierung -Konfig $k)
+    Pruefe 'Neue AKTUELL-Fassung ersetzt die vorige' (([IO.File]::ReadAllText($aktuell) -eq 'v2.3') -and ($erg[0].Aktion -eq 'Aktuelle Fassung ersetzt'))
+    Pruefe 'Nur eine AKTUELL-Datei im Projektordner' (@(Get-ChildItem -LiteralPath $fin -File -Filter '*_AKTUELL*').Count -eq 1)
+    $kAlt = Read-AblageKonfig
+    $kAlt.Unterordner = @($kAlt.Unterordner | Where-Object { $_.Marker -ne '_AKTUELL' })
+    Save-AblageKonfig -Konfig $kAlt
+    Pruefe 'Alte Konfiguration bekommt _AKTUELL-Regel ergänzt' ((Read-AblageKonfig).Unterordner[0].Marker -eq '_AKTUELL')
+
     Write-Host "`n[5] Abschließen & Archiv" -ForegroundColor Cyan
     & (Join-Path $env:CLAUDE_ABLAGE_HOME 'Projekt-Abschliessen.ps1') -Kennung FIN-002 -OhneRueckfrage 6>$null
     $arch = Join-Path $ablage '30_Finanzen-Kosten\_Archiv\FIN-002_Rechnungsprüfung-AMM-Q3-2026'

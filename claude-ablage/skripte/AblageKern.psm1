@@ -58,6 +58,8 @@ function Get-StandardKonfig {
         Bereiche              = @(Get-StandardBereiche)
         StandardUnterordner   = '02_Arbeitsstand'
         Unterordner           = @(
+            # '.' = Projektordner selbst: aktuelle Fassung unter festem Namen, ersetzt die vorige (SharePoint-Versionsverlauf behält sie)
+            [pscustomobject]@{ Marker = '_AKTUELL'; Ordner = '.' }
             [pscustomobject]@{ Marker = '_FINAL'; Ordner = '03_Ergebnis' }
             [pscustomobject]@{ Marker = '_INPUT'; Ordner = '01_Input' }
             [pscustomobject]@{ Marker = '_MAIL';  Ordner = '04_Kommunikation' }
@@ -81,6 +83,10 @@ function Read-AblageKonfig {
         if (-not $gelesen.PSObject.Properties[$eigenschaft.Name]) {
             $gelesen | Add-Member -NotePropertyName $eigenschaft.Name -NotePropertyValue $eigenschaft.Value
         }
+    }
+    # Ältere Konfigurationen: _AKTUELL-Regel ergänzen (muss vor allen anderen Regeln stehen)
+    if (-not (@($gelesen.Unterordner) | Where-Object { $_.Marker -eq '_AKTUELL' })) {
+        $gelesen.Unterordner = @([pscustomobject]@{ Marker = '_AKTUELL'; Ordner = '.' }) + @($gelesen.Unterordner)
     }
     return $gelesen
 }
@@ -321,6 +327,7 @@ Alle Dateien: `{{KENNUNG}}_JJJJ-MM-TT_Beschreibung_vN.ext`
 
 | Zusatz im Namen | Ablage |
 |---|---|
+| `_AKTUELL` | **Projektordner selbst** – immer die aktuell gültige Fassung, fester Name ohne Datum/Version (z. B. `{{KENNUNG}}_Cockpit_AKTUELL.html`); ersetzt die vorige, die im SharePoint-Versionsverlauf bleibt. Jede Fassung zusätzlich mit Datum/Version im Verlauf (02/03) ablegen. |
 | (keiner) | 02_Arbeitsstand |
 | `_FINAL` | 03_Ergebnis |
 | `_INPUT` | 01_Input |
@@ -553,8 +560,11 @@ function Invoke-DownloadSortierung {
             $name = Get-BereinigterDateiname -Name $d.Name
             $projekt = Find-AblageProjekt -Konfig $Konfig -Kennung $kennung -Projekte $projekte
             $hinweis = ''
+            $istAktuell = $false
             if ($projekt) {
-                $zielOrdner = Join-Path $projekt.Pfad (Get-Zielunterordner -Konfig $Konfig -Dateiname $name)
+                $unter = Get-Zielunterordner -Konfig $Konfig -Dateiname $name
+                if ($unter -eq '.') { $zielOrdner = $projekt.Pfad; $istAktuell = $true }
+                else { $zielOrdner = Join-Path $projekt.Pfad $unter }
                 if ($projekt.Archiviert) { $hinweis = 'Projekt ist archiviert' }
             } else {
                 $zielOrdner = Join-Path $Konfig.Ablage $script:EingangOrdner
@@ -572,14 +582,19 @@ function Invoke-DownloadSortierung {
                         $aktion = 'Duplikat belassen'
                     }
                     $hinweis = (@($hinweis, 'identische Datei liegt bereits im Projekt') | Where-Object { $_ }) -join '; '
+                } elseif ($istAktuell) {
+                    # Gewollte Ausnahme vom Nicht-Überschreiben: die AKTUELL-Datei wird ersetzt.
+                    # SharePoint/OneDrive behält die vorige Fassung im Versionsverlauf.
+                    $aktion = 'Aktuelle Fassung ersetzt'
+                    $hinweis = (@($hinweis, 'vorige Fassung im SharePoint-Versionsverlauf') | Where-Object { $_ }) -join '; '
                 } else {
                     $zielPfad = Get-FreierPfad -Ordner $zielOrdner -Name $name
                     $hinweis = (@($hinweis, 'Name existierte – neue Datei umbenannt') | Where-Object { $_ }) -join '; '
                 }
             }
-            if ($aktion -eq 'Verschoben' -and -not $Testlauf) {
+            if ($aktion -in @('Verschoben', 'Aktuelle Fassung ersetzt') -and -not $Testlauf) {
                 if (-not (Test-Path -LiteralPath $zielOrdner)) { New-Item -ItemType Directory -Path $zielOrdner -Force | Out-Null }
-                Move-Item -LiteralPath $d.FullName -Destination $zielPfad
+                Move-Item -LiteralPath $d.FullName -Destination $zielPfad -Force:($aktion -eq 'Aktuelle Fassung ersetzt')
             }
             if ($Testlauf) { $aktion = "[TEST] $aktion" }
 
