@@ -1,0 +1,11 @@
+﻿Muster;Kennung;Hinweis
+# Erste passende Zeile gilt. Muster: * = beliebige Zeichen. Zeilen mit # werden ignoriert.
+# Grundlage: SharePoint-/OneDrive-Suche vom 2026-09-28.
+*Otto-Obligo*;FIN-001;Obligo-Status-PDFs, Forecast-Excel, Cockpit-HTML/ZIP
+*OttoObligo*;FIN-001;OttoObligoCockpit*.html (Live-Version liegt in PlattformenTeams › KI-Tools › Otto_Obligo_View)
+*Frachtkostenrechner*;LOG-001;Alle Versionen v1–v6 (Live-Version in PlattformenTeams › KI-Tools › Frachtkostenrechner)
+Frachtangebot_El-vinci*;LOG-001;AMM-Tarifdatei (Input für den Rechner)
+*Warenwert*;BES-001;[PRÜFEN] Monats-Warenwert-PDFs + Excel „Warenwert zum Monatsende“
+*Bestandsstatus*;BES-001;[PRÜFEN] Bestandsstatus 31.08.2025 gebunden/frei v1–v4
+*Bestandsbewertung*;BES-001;[PRÜFEN] Bestandsbewertung Verpackungsmaterial 31.08.2026
+*Bestandsverifikation*;BES-001;[PRÜFEN] Briefing Bestandsverifikation

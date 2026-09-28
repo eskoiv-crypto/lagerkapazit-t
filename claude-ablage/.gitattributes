@@ -1,0 +1,4 @@
+*.ps1 -text
+*.psm1 -text
+*.cmd -text
+*.csv -text
