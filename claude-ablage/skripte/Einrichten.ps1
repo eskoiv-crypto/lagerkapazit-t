@@ -66,7 +66,9 @@ if (-not $Ablage) {
         $basis = (Read-Host '  Pfad').Trim('"', ' ')
     }
     if (-not (Test-Path -LiteralPath $basis)) { throw "Pfad existiert nicht: $basis" }
-    foreach ($kanal in @('Allgemein', 'General')) {
+    # Kanalordner: 'Allgemein'/'General' oder – wie bei Eskofier – ein Ordner mit dem Seitennamen ('Eskofier - Dokumente' -> 'Eskofier')
+    $seitenName = ((Split-Path -Leaf $basis) -split ' - ')[0]
+    foreach ($kanal in @('Allgemein', 'General', $seitenName)) {
         if (Test-Path -LiteralPath (Join-Path $basis $kanal)) { $basis = Join-Path $basis $kanal; break }
     }
     $Ablage = Join-Path $basis 'Claude-Projekte'
