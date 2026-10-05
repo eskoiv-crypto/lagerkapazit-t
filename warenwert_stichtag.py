@@ -178,6 +178,9 @@ class Ergebnis:
     n_korrektur: int = 0
     ek_korrektur: float = 0.0
     n_korrektur_nicht_im_bestand: int = 0
+    n_korrektur_ueberholt: int = 0   # Korrektur verworfen, weil Odoo inzwischen echten Preis hat
+    n_aeg_satz: int = 0              # AEG-Lose ohne EK, per --aeg-ohne-ek-satz bewertet
+    aeg_satz: float | None = None
     korrektur_gruende: dict = field(default_factory=dict)   # Grund -> {n, ek, ek_vorher}
     # Pauschale Korrekturen ohne Los-Bezug (--pauschal-korrektur), z. B. eine
     # vom Backoffice benannte Summe; werden getrennt ausgewiesen
@@ -207,6 +210,8 @@ def lade_bestand(pfad: Path) -> pd.DataFrame:
         "bezeichner": [str(r[BESTAND_SPALTEN["bezeichner"]]).strip() for r in zeilen],
         "menge":      [int(zu_zahl(r[BESTAND_SPALTEN["menge"]]) or 1) for r in zeilen],
         "status":     [str(r[BESTAND_SPALTEN["status"]]).strip().upper() for r in zeilen],
+        "bestellnr":  [str(r[BESTAND_SPALTEN["bestellnr"]]).strip() for r in zeilen],
+        "we":         [str(r[BESTAND_SPALTEN["we"]]).strip() for r in zeilen],
     })
     # Für Sammelpaletten steht die Lager-Nr nicht in "Charge" -> Palette als Ersatz
     ohne = ~df["lagernr"].str.fullmatch(r"\d{6,}")
@@ -214,9 +219,13 @@ def lade_bestand(pfad: Path) -> pd.DataFrame:
     return df
 
 
-def lade_odoo_preise(pfad: Path) -> tuple[dict, dict, dict, dict]:
-    """-> ek_map, kategorie_map, marke_map, schrott_map (je Lager-Nr)"""
-    df = pd.read_excel(pfad, engine="openpyxl")
+def lade_odoo_preise(pfad: Path) -> tuple[dict, dict, dict, dict, dict]:
+    """-> ek_map, kategorie_map, marke_map, schrott_map, info_map (je Lager-Nr);
+    info_map[nr] = (Lieferant, Lieferantentyp, Produkt) fuer die AEG-Erkennung"""
+    # dtype=str: Lager-Codes mit 18 Stellen (SSCC-Paletten) duerfen nicht als
+    # float gelesen werden, sonst geht die Lager-Nr in Exponentialschreibweise
+    # verloren und das Los findet keinen AMM-Treffer.
+    df = pd.read_excel(pfad, engine="openpyxl", dtype=str)
     col = {k: finde_spalte(df, v) for k, v in ODOO_SPALTEN.items()}
     if col["lagernr"] is None or col["ek"] is None:
         raise SystemExit(f"FEHLER: In {pfad.name} fehlt 'Lager-Code' oder 'Einkaufspreis'. "
@@ -226,7 +235,7 @@ def lade_odoo_preise(pfad: Path) -> tuple[dict, dict, dict, dict]:
         s = df[col["los"]].astype(str).str.strip()
         df = df[~(s.str.match(r"^.*\(\d+\)$") | s.isin(["", "nan", "None"]))]
 
-    ek, kat, marke, schrott = {}, {}, {}, {}
+    ek, kat, marke, schrott, info = {}, {}, {}, {}, {}
     for _, r in df.iterrows():
         nr = lagernr(r[col["lagernr"]])
         if not nr:
@@ -242,20 +251,35 @@ def lade_odoo_preise(pfad: Path) -> tuple[dict, dict, dict, dict]:
         txt = " ".join(str(r[col[k]] or "") for k in ("lieferant", "liefertyp", "kategorie", "produkt")
                        if col[k])
         schrott[nr] = txt
-    return ek, kat, marke, schrott
+        info[nr] = tuple(str(r[col[k]]) if col[k] else "nan" for k in ("lieferant", "liefertyp", "produkt"))
+    return ek, kat, marke, schrott, info
 
 
 KORREKTUR_SPALTEN = {
     "lagernr": ["Lager-Nr", "Lager-Nr.", "Lager Nr.", "Lager-Code", "Lagernummer", "lagernr"],
     "ek":      ["EK", "Einkaufspreis", "EK neu", "EK_neu"],
     "grund":   ["Grund", "Kommentar", "Bemerkung", "Quelle"],
+    "ref":     ["EK Odoo bei Korrektur", "EK_Odoo_bei_Korrektur"],
 }
+AEG_GRUND = "AEG Electrolux: Einkaufspreis, vorher EK 0 im System"
+RX_AEG = re.compile(r"electrolux|aeg", re.IGNORECASE)
 
 
-def lade_korrekturen(pfad: Path) -> dict[str, tuple[float, str]]:
+def ist_aeg(lieferant: str, liefertyp: str, produkt: str, bestellnr: str) -> bool:
+    """AEG-Electrolux-Ware wie im September 2026 erkannt: Odoo-Lieferant oder
+    -Lieferantentyp AEG/Electrolux, AMM-Bestellnummer mit 'AEG', oder ein als
+    'Migration Altbestand' gefuehrtes Los mit AEG/Electrolux im Produktnamen."""
+    if RX_AEG.search(f"{lieferant} {liefertyp}") or re.search("aeg", bestellnr or "", re.IGNORECASE):
+        return True
+    return lieferant.strip().lower() == "migration altbestand" and bool(RX_AEG.search(produkt or ""))
+
+
+def lade_korrekturen(pfad: Path) -> dict[str, tuple[float, str, float | None]]:
     """Lot-genaue EK-Korrekturen: CSV (Semikolon oder Komma) oder XLSX mit den
-    Spalten Lager-Nr;EK;Grund. -> {lagernr: (ek, grund)}. Der EK darf 0 sein
-    (echter EK 0, z. B. Schrott) - dann wird NICHT mit dem Durchschnitt gefuellt."""
+    Spalten Lager-Nr;EK;Grund[;EK Odoo bei Korrektur]. -> {lagernr: (ek, grund, ref)}.
+    Der EK darf 0 sein (echter EK 0, z. B. Schrott) - dann wird NICHT mit dem
+    Durchschnitt gefuellt. 'ref' ist der Odoo-EK zum Zeitpunkt der Korrektur;
+    hat sich Odoo seitdem auf einen echten Preis geaendert, gewinnt Odoo."""
     if pfad.suffix.lower() in {".xlsx", ".xls"}:
         df = pd.read_excel(pfad, engine="openpyxl")
     else:
@@ -266,7 +290,7 @@ def lade_korrekturen(pfad: Path) -> dict[str, tuple[float, str]]:
     if col["lagernr"] is None or col["ek"] is None:
         raise SystemExit(f"FEHLER: In {pfad.name} fehlt 'Lager-Nr' oder 'EK'. "
                          f"Gefunden: {list(df.columns)}")
-    out: dict[str, tuple[float, str]] = {}
+    out: dict[str, tuple[float, str, float | None]] = {}
     for _, r in df.iterrows():
         nr = lagernr(r[col["lagernr"]])
         if not nr or nr.lower() in {"nan", "none"}:
@@ -275,7 +299,10 @@ def lade_korrekturen(pfad: Path) -> dict[str, tuple[float, str]]:
         if nr in out:
             raise SystemExit(f"FEHLER: Lager-Nr {nr} steht doppelt in {pfad.name} - "
                              f"bitte bereinigen, sonst ist die Korrektur nicht eindeutig.")
-        out[nr] = (zu_zahl(r[col["ek"]]), grund)
+        ref = None
+        if col["ref"] and str(r[col["ref"]]).strip() not in {"", "nan", "None"}:
+            ref = zu_zahl(r[col["ref"]])
+        out[nr] = (zu_zahl(r[col["ek"]]), grund, ref)
     return out
 
 
@@ -339,10 +366,10 @@ def berechne(args) -> Ergebnis:
     erg.menge = int(lager["menge"].sum())
 
     # ---------------- Preisquellen ----------------
-    ek_odoo, kat_map, marke_map, schrott_txt = {}, {}, {}, {}
+    ek_odoo, kat_map, marke_map, schrott_txt, info_map = {}, {}, {}, {}, {}
     if args.odoo:
         print(f"→ Odoo-Export: {Path(args.odoo).name}")
-        ek_odoo, kat_map, marke_map, schrott_txt = lade_odoo_preise(Path(args.odoo))
+        ek_odoo, kat_map, marke_map, schrott_txt, info_map = lade_odoo_preise(Path(args.odoo))
         erg.quelle_odoo = Path(args.odoo).name
     ek_portal = {}
     if args.stock_analysis:
@@ -352,7 +379,7 @@ def berechne(args) -> Ergebnis:
     if not ek_odoo and not ek_portal:
         raise SystemExit("FEHLER: Keine Preisquelle angegeben (--odoo und/oder --stock-analysis).")
 
-    korr: dict[str, tuple[float, str]] = {}
+    korr: dict[str, tuple[float, str, float | None]] = {}
     if args.ek_korrektur:
         print(f"→ EK-Korrekturen: {Path(args.ek_korrektur).name}")
         korr = lade_korrekturen(Path(args.ek_korrektur))
@@ -364,10 +391,27 @@ def berechne(args) -> Ergebnis:
     preis: dict[str, float] = {}
     quelle: dict[str, str] = {}
     offen: list[str] = []
+    angewandt: dict[str, tuple[float, str]] = {}   # tatsaechlich angewandte Korrekturen
     im_bestand = set(lager["lagernr"])
+    bez_map = dict(zip(lager["lagernr"], lager["bezeichner"]))
+    best_map = dict(zip(lager["lagernr"], lager["bestellnr"]))
     for nr in lager["lagernr"]:
-        if nr in korr:                     # 1. nachtraegliche Korrektur = echter EK
-            w, grund = korr[nr]
+        k = korr.get(nr)
+        if k is not None and k[2] is not None:
+            odoo_jetzt = ek_odoo.get(nr, 0.0)
+            if odoo_jetzt > 0 and abs(odoo_jetzt - k[2]) > 0.01:
+                erg.n_korrektur_ueberholt += 1     # Odoo hat inzwischen einen echten Preis
+                k = None
+        if k is None and args.aeg_ohne_ek_satz is not None \
+                and ek_odoo.get(nr, 0.0) <= 0 and ek_portal.get(nr, 0.0) <= 0:
+            lf, lt, pr = info_map.get(nr, ("nan", "nan", "nan"))
+            schrott_hit = rx_schrott and rx_schrott.search(schrott_txt.get(nr, "") + " " + bez_map.get(nr, ""))
+            if not schrott_hit and ist_aeg(lf, lt, pr, best_map.get(nr, "")):
+                k = (float(args.aeg_ohne_ek_satz), AEG_GRUND, None)
+                erg.n_aeg_satz += 1
+        if k is not None:                  # 1. nachtraegliche Korrektur = echter EK
+            w, grund = k[0], k[1]
+            angewandt[nr] = (w, grund)
             preis[nr], quelle[nr] = w, "korrektur"
             g = erg.korrektur_gruende.setdefault(grund, {"n": 0, "ek": 0.0, "ek_vorher_odoo": 0.0,
                                                           "n_vorher_ohne_ek": 0})
@@ -388,6 +432,16 @@ def berechne(args) -> Ergebnis:
             continue
         offen.append(nr)                   # 4. Durchschnitts-Fill / Schrott
 
+    if erg.n_korrektur_ueberholt:
+        erg.warnungen.append(
+            f"{erg.n_korrektur_ueberholt} Lose aus der Korrekturliste haben inzwischen einen geaenderten "
+            f"Einkaufspreis in Odoo; der Odoo-Preis wurde uebernommen.")
+    if erg.n_aeg_satz:
+        erg.aeg_satz = float(args.aeg_ohne_ek_satz)
+        erg.warnungen.append(
+            f"{erg.n_aeg_satz} AEG-Electrolux-Lose ohne Einkaufspreis in Odoo mit festem Satz "
+            f"{erg.aeg_satz:.2f}".replace(".", ",") +
+            f" € je Geraet bewertet (Σ {eur(erg.n_aeg_satz * erg.aeg_satz)}).")
     erg.n_korrektur_nicht_im_bestand = sum(1 for nr in korr if nr not in im_bestand)
     if erg.n_korrektur_nicht_im_bestand:
         erg.warnungen.append(
@@ -408,7 +462,6 @@ def berechne(args) -> Ergebnis:
             f"Odoo-Preis bzw. Durchschnittswert.")
 
     # ---------------- Durchschnitts-Fill ----------------
-    bez_map = dict(zip(lager["lagernr"], lager["bezeichner"]))
 
     def mittelwerte(keymap: dict) -> dict:
         summe: dict[str, list[float]] = {}
@@ -476,14 +529,26 @@ def berechne(args) -> Ergebnis:
                 "Produktkategorie (Odoo)": kat_map.get(nr, ""), "Marke (Odoo)": marke_map.get(nr, ""),
                 "Lieferant/-typ (Odoo)": schrott_txt.get(nr, ""),
                 "EK Odoo": ek_odoo.get(nr, ""), "EK Portal": ek_portal.get(nr, ""),
-                "EK Korrektur": korr[nr][0] if nr in korr else "",
-                "Korrektur-Grund": korr[nr][1] if nr in korr else "",
+                "EK Korrektur": angewandt[nr][0] if nr in angewandt else "",
+                "Korrektur-Grund": angewandt[nr][1] if nr in angewandt else "",
                 "Preisquelle": quelle.get(nr, "ohne"), "Fill-Regel": fill_quelle.get(nr, ""),
                 "EK bewertet": preis.get(nr, 0.0),
+                "AMM-Bestellnummer": r["bestellnr"], "WE-Datum": r["we"],
             })
         out = Path(args.geraete_liste)
         pd.DataFrame(zeilen).to_excel(out, index=False)
         print(f"  → {out} (Geraeteliste, {len(zeilen)} Zeilen)")
+
+    # ---------------- Korrekturliste fuer den Folgemonat ----------------
+    if args.korrektur_ausgabe:
+        out = Path(args.korrektur_ausgabe)
+        with open(out, "w", encoding="utf-8", newline="") as fh:
+            wr = csv.writer(fh, delimiter=";", lineterminator="\n")
+            wr.writerow(["Lager-Nr", "EK", "Grund", "EK Odoo bei Korrektur"])
+            for nr in lager["lagernr"]:
+                if nr in angewandt:
+                    wr.writerow([nr, f"{angewandt[nr][0]:.2f}", angewandt[nr][1], f"{ek_odoo.get(nr, 0.0):.2f}"])
+        print(f"  → {out} (Korrekturliste fuer den Folgemonat, {len(angewandt)} Lose)")
 
     # ---------------- Bruecke zu einer frueheren Fassung ----------------
     if args.vergleich:
@@ -609,6 +674,12 @@ def main(argv=None) -> int:
     p.add_argument("--fassung", help="Kennung der Fassung, z. B. '2 (korrigiert 18.09.2026)'")
     p.add_argument("--vergleich",
                    help="Faktendatei einer frueheren Fassung desselben Stichtags -> Bruecke alt/neu")
+    p.add_argument("--aeg-ohne-ek-satz", type=float,
+                   help="AEG-Electrolux-Lose ohne EK in Odoo (nicht in der Korrekturliste) mit diesem "
+                        "Satz je Geraet bewerten, z. B. 216.61 (Vorgehen ab September 2026)")
+    p.add_argument("--korrektur-ausgabe",
+                   help="CSV: alle angewandten Korrekturen (inkl. AEG-Satz) als Korrekturliste fuer den "
+                        "Folgemonat, mit Spalte 'EK Odoo bei Korrektur'")
     p.add_argument("--geraete-liste",
                    help="XLSX mit einer Zeile je Lager-Nr (Preisquelle, EK, Korrektur) als Pruefpfad")
     p.add_argument("--erlaube-abweichenden-stand", action="store_true",

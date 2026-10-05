@@ -82,6 +82,11 @@ C:\Users\DustinEskofier\Projekt\lagerkapazität
   `python3 tests/test_warenwert_stichtag.py`
 - `warenwert_monatsende.csv` — bestätigte Historie Sep-2025 … Jul-2026
 - `WARENWERT_31-08-2026.md` — Methodik, Datenlage und offene Punkte zum Stichtag 31.08.2026
+- `lagerwert_tool.html` — **Lagerwert-Rechner** für die Vertretung: Einzeldatei, läuft offline im
+  Browser, rechnet 1:1 wie `warenwert_stichtag.py` und erzeugt denselben Einseiter.
+  Gebaut aus `lagerwert_tool.template.html` + `lagerwert_core.js` + `vendor/` mit
+  `python3 build_lagerwert_tool.py`. Selbsttest inkl. Abgleich gegen Python:
+  `node tests/test_lagerwert_core.cjs`
 
 ## Project Documents
 

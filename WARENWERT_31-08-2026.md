@@ -228,6 +228,35 @@ Bestand vom Stichtag stehen; kein Ø-Fill mehr für Lose, die einen echten EK
 bekommen haben. Die Erstfassung selbst muss mit dem Export vom 01.09.2026
 reproduzierbar sein, bevor die Brücke gezogen wird.
 
+## 4b. Lagerwert-Rechner (ab 05.10.2026)
+
+Für Monatsabschlüsse ohne Python (Urlaubsvertretung) gibt es `lagerwert_tool.html`:
+eine Einzeldatei, die im Browser offline läuft und keine Daten hochlädt.
+
+* **Gleicher Rechenweg.** Der Rechenkern `lagerwert_core.js` bildet
+  `warenwert_stichtag.py` nach: Mengengerüst, Preisquellen-Reihenfolge,
+  Ø-Kaskade, Schrott-Regel, Dubletten, Stichtags-Wächter. `node
+  tests/test_lagerwert_core.cjs` rechnet August und September mit den echten
+  Dateien nach und verlangt Gleichheit auf den Cent mit den Faktendateien.
+* **Gleicher Einseiter.** Das PDF entsteht mit jsPDF in der Geometrie des
+  reportlab-Layouts (`warenwert_pdf.py --darstellung belegt`); Textpositionen
+  weichen höchstens 0,2 mm ab. Einziger Textunterschied: „erzeugt mit
+  Lagerwert-Rechner" statt „warenwert_stichtag.py".
+* **AEG-Satz.** Option „AEG-Electrolux-Lose ohne EK mit festem Satz" (Vorgabe
+  216,61 € je Gerät), identisch zu `--aeg-ohne-ek-satz`. Erkennung siehe
+  `ist_aeg()`: Odoo-Lieferant/-typ, AMM-Bestellnummer, oder „Migration
+  Altbestand" mit AEG im Produkt.
+* **Korrekturliste mit Referenz.** Die Ausgabe für den Folgemonat trägt die
+  Spalte „EK Odoo bei Korrektur". Hat Odoo für ein Los später einen anderen
+  echten Preis, gilt Odoo (`n_korrektur_ueberholt`).
+
+Korrektur 05.10.2026: Der Odoo-Export wurde bis dahin mit numerischen
+Spaltentypen gelesen; 18-stellige Lager-Codes (SSCC-Paletten) verloren dabei
+Stellen und fanden keinen AMM-Treffer. Seit `dtype=str` werden sie korrekt
+zugeordnet. Wirkung: 31.08.2026 +15 € (612.845 € statt 612.830 €), 30.09.2026
++5 € (472.936 € statt 472.931 €). Die Monatsreihe führt den 31.08. mit dem
+gemeldeten Wert.
+
 ## 5. Offen
 
 1. **Tägliche AMM-Zustellung wieder in Gang bringen** (siehe 3.3) — ohne sie

@@ -213,6 +213,28 @@ def main() -> int:
         if r7.returncode == 0:
             fehler.append("Pauschalkorrektur ohne Grund wurde nicht abgelehnt")
 
+        # --- Odoo gewinnt bei geänderter Referenz + AEG-Satz + Korrektur-Ausgabe ---
+        korr_ref = ordner / "korr_ref.csv"
+        korr_ref.write_text("Lager-Nr;EK;Grund;EK Odoo bei Korrektur\n900000002;350;Neu;300\n"
+                            "900000004;999;Alt;400\n", encoding="utf-8")
+        j8, aus8 = ordner / "ref.json", ordner / "korr_aus.csv"
+        r8 = subprocess.run(
+            [sys.executable, str(SKRIPT), "--stichtag", STICHTAG, "--bestand", str(bestand),
+             "--odoo", str(odoo), "--ek-korrektur", str(korr_ref), "--aeg-ohne-ek-satz", "216.61",
+             "--korrektur-ausgabe", str(aus8), "--json", str(j8)], capture_output=True, text=True)
+        if r8.returncode != 0:
+            print(r8.stdout); print(r8.stderr, file=sys.stderr)
+            return 1
+        f8 = json.loads(j8.read_text(encoding="utf-8"))
+        if f8["n_korrektur_ueberholt"] != 1:
+            fehler.append(f"Odoo-gewinnt: n_korrektur_ueberholt {f8['n_korrektur_ueberholt']} != 1")
+        # 005 (Bosch/OTTO, EK 0) ist keine AEG-Ware; 003/007 nicht in Odoo, Bestellnr ohne AEG -> 0 AEG-Lose
+        if f8["n_aeg_satz"] != 0:
+            fehler.append(f"AEG-Satz: n_aeg_satz {f8['n_aeg_satz']} != 0")
+        zeilen8 = aus8.read_text(encoding="utf-8").splitlines()
+        if zeilen8[0] != "Lager-Nr;EK;Grund;EK Odoo bei Korrektur" or zeilen8[1:] != ["900000002;350.00;Neu;300.00"]:
+            fehler.append(f"Korrektur-Ausgabe falsch: {zeilen8}")
+
         # falscher Stichtag im Vergleich muss abbrechen
         j_falsch = ordner / "falsch.json"
         j_falsch.write_text(json.dumps({"stichtag": "2026-07-31", "umfang": "gesamt", "ek_gesamt": 1}),
@@ -231,7 +253,7 @@ def main() -> int:
     print(f"✓ Alle Prüfungen bestanden "
           f"(gesamt: {SOLL_GESAMT['geraete']} Geräte / {SOLL_GESAMT['ek_gesamt']:.2f} € · "
           f"freiverkäuflich: {SOLL_FREI['geraete']} / {SOLL_FREI['ek_gesamt']:.2f} € · "
-          f"Dublette, Schrott, Ø-Fill, Reihe, Wächter, Korrekturliste, Brücke, Geräteliste, Pauschal ok)")
+          f"Dublette, Schrott, Ø-Fill, Reihe, Wächter, Korrekturliste, Brücke, Geräteliste, Pauschal, Odoo-gewinnt, AEG-Satz ok)")
     return 0
 
 
