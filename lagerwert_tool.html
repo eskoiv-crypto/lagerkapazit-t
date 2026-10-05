@@ -55,6 +55,12 @@
   code{background:var(--card);padding:1px 5px;border-radius:5px;font-size:13px}
   .hint{color:var(--subtle);font-size:13px}
   .hidden{display:none}
+  input[type=date]#stichtag{font-size:18px;font-weight:600;padding:8px 12px}
+  .pick td:first-child{width:34%;color:var(--ink)}
+  .pick td.f{font-family:"Courier New",monospace;font-size:13px;word-break:break-all}
+  .pick td.miss{color:var(--red);font-weight:600}
+  .pick td.man{color:var(--blue)}
+  .ordner{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
   footer{color:var(--subtle);font-size:12px;padding:30px 0 40px}
 </style>
 </head>
@@ -67,19 +73,25 @@
   <div class="grid">
     <div class="card">
       <h2>1 · Stichtag</h2>
-      <label class="row">Monatsletzter <input type="date" id="stichtag"></label>
-      <p class="hint">Wird aus dem Dateinamen der Bestandsliste übernommen. Weicht die Liste vom Stichtag ab, bricht die Rechnung ab, es sei denn, du bestätigst es unten ausdrücklich.</p>
-      <label class="row"><input type="checkbox" id="abweichung"> Bestandsliste mit abweichendem Datum trotzdem verwenden</label>
+      <label class="row">Stichtag <input type="date" id="stichtag"></label>
+      <p class="hint">Beliebiger Tag, für den eine AMM-Bestandsliste vorliegt. Für den Monatsabschluss immer der Monatsletzte. Das Tool sucht die passenden Dateien im Datenordner selbst und rechnet sofort.</p>
+      <label class="row"><input type="checkbox" id="abweichung"> Liegt keine Bestandsliste vom Stichtag vor: die letzte davor verwenden</label>
     </div>
     <div class="card">
-      <h2>2 · Dateien</h2>
-      <div class="drop" id="dBestand"><span class="req">Pflicht</span> · AMM-Bestandsliste<small>BESTAND134_JJJJMMTT_HHMM.CSV vom Stichtag abends</small><input type="file" accept=".csv,.CSV"></div>
-      <div style="height:8px"></div>
-      <div class="drop" id="dOdoo"><span class="req">Pflicht</span> · Odoo-Export LosSerie (stock.lot)<small>Excel mit Spalte „Einkaufspreis", gezogen am 1. des Folgemonats</small><input type="file" accept=".xlsx,.xls"></div>
-      <div style="height:8px"></div>
-      <div class="drop" id="dKorr"><span class="opt">Optional</span> · Korrekturliste des Vormonats<small>korrekturen_JJJJ-MM-TT_AEG.csv – Lose, die noch im Lager stehen, behalten ihren Wert; hat Odoo inzwischen einen neuen Preis, gilt Odoo</small><input type="file" accept=".csv,.CSV,.xlsx"></div>
-      <div style="height:8px"></div>
-      <div class="drop" id="dSerie"><span class="opt">Optional</span> · Monatsreihe<small>warenwert_monatsende.csv (Monatsende;Stück;EK-Wert) – wird fortgeschrieben</small><input type="file" accept=".csv,.CSV"></div>
+      <h2>2 · Datenordner</h2>
+      <div class="ordner"><button id="btnOrdner">Datenordner wählen</button><input type="file" id="inOrdner" webkitdirectory directory multiple class="hidden"><span class="hint" id="ordnerInfo">Ordner „Daten“ aus dem Teams-Ordner Lagerwert wählen (einmal pro Sitzung).</span></div>
+      <table class="pick" id="tAuswahl"></table>
+      <details>
+        <summary class="hint">Dateien einzeln auswählen (ersetzt die Auswahl aus dem Ordner)</summary>
+        <div style="height:8px"></div>
+        <div class="drop" id="dBestand">AMM-Bestandsliste<small>BESTAND134_JJJJMMTT_HHMM.CSV vom Stichtag</small><input type="file" accept=".csv,.CSV"></div>
+        <div style="height:8px"></div>
+        <div class="drop" id="dOdoo">Odoo-Export LosSerie (stock.lot)<small>Excel mit Spalte „Einkaufspreis“</small><input type="file" accept=".xlsx,.xls"></div>
+        <div style="height:8px"></div>
+        <div class="drop" id="dKorr">Korrekturliste<small>korrekturen_JJJJ-MM-TT_AEG.csv</small><input type="file" accept=".csv,.CSV,.xlsx"></div>
+        <div style="height:8px"></div>
+        <div class="drop" id="dSerie">Monatsreihe<small>warenwert_monatsende.csv</small><input type="file" accept=".csv,.CSV"></div>
+      </details>
     </div>
   </div>
 
@@ -87,7 +99,7 @@
     <h2>3 · AEG-Electrolux-Ware ohne Einkaufspreis</h2>
     <label class="row"><input type="checkbox" id="aegAn" checked> AEG-Electrolux-Lose ohne EK in Odoo (und nicht in der Korrekturliste) mit festem Satz bewerten:
       <input type="number" id="aegSatz" value="216.61" step="0.01" min="0"> € je Gerät</label>
-    <p class="hint">So wurde im August und September 2026 verfahren (Satz 216,61 € = 60.000 € ÷ 277 Geräte, Vorgabe Backoffice). Erkennung: Odoo-Lieferant AEG/Electrolux oder AMM-Bestellnummer mit „AEG". Die betroffenen Lose erscheinen im Einseiter in der Zeile „AEG Electrolux: Einkaufspreis, vorher EK 0 im System" und landen in der Korrekturliste für den Folgemonat. Haken raus = diese Lose laufen in die Gruppenbewertung.</p>
+    <p class="hint">Gilt ab Stichtag 30.09.2026 und wird für frühere Stichtage automatisch abgeschaltet, damit alte Monate so gerechnet werden wie damals (Satz 216,61 € = 60.000 € ÷ 277 Geräte, Vorgabe Backoffice). Erkennung: Odoo-Lieferant AEG/Electrolux oder AMM-Bestellnummer mit „AEG". Die betroffenen Lose erscheinen im Einseiter in der Zeile „AEG Electrolux: Einkaufspreis, vorher EK 0 im System" und landen in der Korrekturliste für den Folgemonat. Haken raus = diese Lose laufen in die Gruppenbewertung.</p>
   </div>
 
   <div class="actions">
@@ -110,6 +122,7 @@
       </div>
     </div>
 
+    <div id="ergMeld"></div>
     <div class="actions">
       <button id="btnPdf">Einseiter als PDF</button>
       <button class="sec" id="btnGeraete">Geräteliste (CSV)</button>
@@ -118,6 +131,7 @@
       <button class="sec" id="btnKorr">Korrekturliste für Folgemonat (CSV)</button>
       <button class="sec" id="btnFacts">Faktendatei (JSON)</button>
     </div>
+    <p class="hint" id="ablage"></p>
 
     <div class="card">
       <h2>Prüfhinweise (intern, nicht im Einseiter)</h2>
@@ -128,12 +142,12 @@
   <details>
     <summary>Anleitung für die Vertretung</summary>
     <ol class="steps">
-      <li><b>Bestandsliste besorgen.</b> AMM schickt normalerweise täglich gegen 21:30 Uhr die Mail „Bestand (Elvinci.de GmbH) im Lager AMM vom …" von <code>proWMS@amm-spedition.de</code> mit der Datei <code>BESTAND134_JJJJMMTT_HHMM.CSV</code>. Kommt sie nicht, bei AMM (Logistik, elvinci@amm-spedition.de) die Liste zum Monatsletzten anfordern. Es muss die Liste <b>vom Monatsletzten</b> sein.</li>
-      <li><b>Odoo-Export ziehen.</b> In Odoo: Lager → Los-/Seriennummern → Listenansicht → alle auswählen → Export. Die Exportvorlage „LosSerie (stock.lot)" verwenden und darauf achten, dass die Spalte <b>Einkaufspreis</b> enthalten ist (die Tagesexporte fürs Cockpit haben sie nicht). Am 1. des Folgemonats ziehen.</li>
-      <li><b>Korrekturliste des Vormonats</b> aus der Ablage dazulegen (Datei <code>korrekturen_JJJJ-MM-TT_AEG.csv</code>). Lose, die inzwischen raus sind, ignoriert das Tool. Hat Odoo für ein Los inzwischen einen neuen Einkaufspreis, gilt der Odoo-Preis.</li>
-      <li><b>Monatsreihe</b> <code>warenwert_monatsende.csv</code> dazulegen, damit der Einseiter die letzten sieben Monate zeigt und die Reihe fortgeschrieben wird.</li>
-      <li><b>Berechnen</b>, Ergebnis prüfen: Gerätezahl plausibel zur Bestandsliste, Anteil Gruppenbewertung im einstelligen Prozentbereich (August 2026: 5,8 %, September 2026: 7,3 %), Hinweise lesen.</li>
-      <li><b>Dateien ablegen:</b> Einseiter (PDF), Geräteliste, Status-Aufteilung, Monatsreihe und die neue Korrekturliste in Teams/OneDrive unter dem Stichtag speichern. Die neue Korrekturliste ist im Folgemonat die Eingabe unter Punkt 3.</li>
+      <li><b>Ordner holen.</b> Den Teams-Ordner <code>Lagerwert</code> mit OneDrive synchronisieren (Teams → Dateien → „Synchronisieren“ bzw. „Verknüpfung zu OneDrive hinzufügen“) oder herunterladen. Dieses Tool lokal per Doppelklick öffnen. Direkt in Teams angeklickt öffnet es nicht.</li>
+      <li><b>Bestandsliste ablegen.</b> AMM schickt täglich gegen 21:30 Uhr die Mail „Bestand (Elvinci.de GmbH) im Lager AMM vom …“ von <code>proWMS@amm-spedition.de</code> mit <code>BESTAND134_JJJJMMTT_HHMM.CSV</code>. Die Datei unverändert nach <code>Daten/AMM</code> legen. Fehlt sie, bei AMM (elvinci@amm-spedition.de) die Liste zum Stichtag anfordern.</li>
+      <li><b>Odoo-Export ablegen.</b> In Odoo: Lager → Los-/Seriennummern → Listenansicht → alle auswählen → Export, mindestens mit den Spalten Los-/Seriennummer, Produkt, Marke, Produktkategorie, Lieferant, Lieferantentyp, Lager-Code und <b>Einkaufspreis</b>. Am Tag nach dem Stichtag ziehen und als <code>LosSerie (stock.lot)_JJJJ-MM-TT.xlsx</code> (Exportdatum) nach <code>Daten/Odoo</code> legen. Keine Kundenspalten mit exportieren.</li>
+      <li><b>Stichtag eingeben, Datenordner wählen.</b> Das Tool nimmt automatisch die Bestandsliste vom Stichtag, den ersten Odoo-Export ab dem Stichtag, die jüngste Korrekturliste bis zum Stichtag und die Monatsreihe. Was es verwendet, steht in der Tabelle unter „Datenordner“. Der Browser fragt evtl. „Dateien hochladen?“: Das bleibt auf dem Rechner, es wird nichts gesendet.</li>
+      <li><b>Ergebnis prüfen:</b> Gerätezahl plausibel zur Bestandsliste, Anteil Gruppenbewertung im einstelligen Prozentbereich (August 2026: 5,8 %, September 2026: 7,3 %), Prüfhinweise lesen.</li>
+      <li><b>Ablegen (nur Monatsabschluss):</b> Einseiter, Geräteliste und Status-Aufteilung nach <code>Ergebnisse/JJJJ-MM-TT</code>. Die neue Korrekturliste nach <code>Daten/Korrekturlisten</code>, die neue Monatsreihe ersetzt <code>Daten/warenwert_monatsende.csv</code>. Einseiter an Konstantinos.</li>
       <li><b>Bei Auffälligkeiten nicht weitergeben,</b> sondern liegen lassen und nach dem Urlaub klären: Gerätezahl weicht stark vom Vormonat ab, Gruppenbewertung über 15 %, Fehlermeldung beim Einlesen, oder Odoo-Export ohne Spalte Einkaufspreis.</li>
     </ol>
     <p class="hint">Rechenweg, identisch mit <code>warenwert_stichtag.py</code>: Mengengerüst ist die AMM-Bestandsliste (alle Lose QE+VS+AA, Lager-Nr = Charge, bei Sammelpaletten die Palette). Preis je Lager-Nr: Korrekturliste vor Odoo-Einkaufspreis. Ohne Preis: Durchschnitts-EK der Odoo-Produktkategorie, ersatzweise Marke, AMM-Bezeichner, Gesamtdurchschnitt. Lose mit „Schrott" im Lieferanten-/Produkttext: EK 0.</p>
@@ -589,7 +603,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
 })(typeof self !== "undefined" ? self : this, function () {
   "use strict";
 
-  var VERSION = "1.0 (05.10.2026)";
+  var VERSION = "1.1 (05.10.2026)";
   var UMFANG_STATUS = ["QE", "VS", "AA"];
 
   var ODOO_SPALTEN = {
@@ -723,6 +737,106 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     var dt = new Date(Date.UTC(+y, +mo - 1, +d));
     if (isNaN(dt.getTime()) || dt.getUTCMonth() !== +mo - 1) return null;
     return y + "-" + mo + "-" + d;
+  }
+
+  // ------------------------------------------------------------ Datenordner
+  // Wählt aus einer Dateiliste (Ordner-Auswahl im Browser) die Eingaben für
+  // einen Stichtag. liste: [{name, pfad, lastModified}], stichtag: JJJJ-MM-TT.
+  //   Bestand:  BESTAND134_JJJJMMTT_HHMM.CSV vom Stichtag (bei mehreren die spätere Uhrzeit)
+  //   Odoo:     LosSerie (stock.lot)*.xlsx – der erste Export am/nach dem Stichtag,
+  //             sonst der jüngste davor (mit Warnung). Datum aus dem Namen, sonst Änderungsdatum.
+  //   Korrektur: korrekturen_JJJJ-MM-TT*.csv|xlsx – die jüngste mit Datum <= Stichtag
+  //   Reihe:    warenwert_monatsende*.csv – bei mehreren die zuletzt geänderte
+  function isoAusMs(ms) {
+    var d = new Date(ms);
+    return d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2);
+  }
+  function gueltigIso(y, m, d) {
+    var dt = new Date(Date.UTC(+y, +m - 1, +d));
+    return (!isNaN(dt.getTime()) && dt.getUTCMonth() === +m - 1 && dt.getUTCDate() === +d) ? y + "-" + m + "-" + d : null;
+  }
+  function datumImNamen(name) {
+    var m;
+    if ((m = /(\d{4})-(\d{2})-(\d{2})/.exec(name))) return gueltigIso(m[1], m[2], m[3]);
+    if ((m = /(\d{2})\.(\d{2})\.(\d{4})/.exec(name))) return gueltigIso(m[3], m[2], m[1]);
+    if ((m = /(\d{4})(\d{2})(\d{2})/.exec(name))) return gueltigIso(m[1], m[2], m[3]);
+    return null;
+  }
+  function istMonatsende(iso) {
+    var d = new Date(Date.UTC(+iso.slice(0, 4), +iso.slice(5, 7) - 1, +iso.slice(8, 10) + 1));
+    return d.getUTCDate() === 1;
+  }
+  function letzterMonatsletzter(heuteIso) {
+    var d = new Date(Date.UTC(+heuteIso.slice(0, 4), +heuteIso.slice(5, 7) - 1, 0));
+    return d.toISOString().slice(0, 10);
+  }
+  function waehleDateien(liste, stichtag, opts) {
+    opts = opts || {};
+    var out = { bestand: null, odoo: null, korr: null, serie: null, fehler: [], hinweise: [], abweichung: false };
+    var best = [], odoo = [], korr = [], serie = [];
+    (liste || []).forEach(function (f) {
+      var n = f.name || "";
+      if (/^[~.]/.test(n)) return;                       // Excel-Sperrdateien, versteckte Dateien
+      var m;
+      if ((m = /^BESTAND\d*_(\d{8})(?:_(\d{4}))?.*\.csv$/i.exec(n))) {
+        var t = stichtagAusDateiname(m[1]); if (t) best.push({ f: f, tag: t, zeit: m[2] || "0000" });
+      } else if (/^LosSerie|stock\.lot/i.test(n) && /\.xlsx?$/i.test(n)) {
+        var od = datumImNamen(n.replace(/stock\.lot/i, "")), quelle = "Dateiname";
+        if (!od && f.lastModified) { od = isoAusMs(f.lastModified); quelle = "Änderungsdatum"; }
+        if (od) odoo.push({ f: f, tag: od, quelle: quelle });
+      } else if ((m = /^korrekturen_(\d{4})-(\d{2})-(\d{2}).*\.(csv|xlsx)$/i.exec(n))) {
+        var kt = gueltigIso(m[1], m[2], m[3]); if (kt) korr.push({ f: f, tag: kt });
+      } else if (/^warenwert_monatsende.*\.csv$/i.test(n)) {
+        serie.push({ f: f });
+      }
+    });
+    function neuer(a, b) { return (b.f.lastModified || 0) - (a.f.lastModified || 0); }
+
+    // Bestand
+    var exakt = best.filter(function (b) { return b.tag === stichtag; })
+      .sort(function (a, b) { return a.zeit < b.zeit ? 1 : a.zeit > b.zeit ? -1 : neuer(a, b); });
+    if (exakt.length) {
+      out.bestand = exakt[0].f;
+      if (exakt.length > 1) out.hinweise.push("Mehrere Bestandslisten vom " + tagDE(stichtag) + ": verwendet wird die spätere (" + exakt[0].f.name + ").");
+    } else {
+      var davor = best.filter(function (b) { return b.tag < stichtag; }).sort(function (a, b) { return a.tag < b.tag ? 1 : a.tag > b.tag ? -1 : (a.zeit < b.zeit ? 1 : -1); });
+      var tage = best.map(function (b) { return b.tag; }).filter(function (t, i, a) { return a.indexOf(t) === i; }).sort();
+      if (opts.erlaubeAbweichung && davor.length) {
+        out.bestand = davor[0].f; out.abweichung = true;
+        out.hinweise.push("Keine Bestandsliste vom " + tagDE(stichtag) + ". Verwendet wird die letzte davor: " + davor[0].f.name + " (bewusst bestätigt).");
+      } else {
+        out.fehler.push("Im Ordner liegt keine AMM-Bestandsliste vom " + tagDE(stichtag) +
+          " (BESTAND134_" + stichtag.replace(/-/g, "") + "_HHMM.CSV)." +
+          (tage.length ? " Vorhanden: " + tage.map(tagDE).join(", ") + "." : " Es wurde gar keine Bestandsliste gefunden."));
+      }
+    }
+
+    // Odoo
+    var nach = odoo.filter(function (o) { return o.tag >= stichtag; }).sort(function (a, b) { return a.tag < b.tag ? -1 : a.tag > b.tag ? 1 : neuer(a, b); });
+    var vor = odoo.filter(function (o) { return o.tag < stichtag; }).sort(function (a, b) { return a.tag < b.tag ? 1 : a.tag > b.tag ? -1 : neuer(a, b); });
+    if (nach.length) out.odoo = nach[0].f;
+    else if (vor.length) {
+      out.odoo = vor[0].f;
+      out.hinweise.push("Kein Odoo-Export vom " + tagDE(stichtag) + " oder später. Verwendet wird der Export vom " + tagDE(vor[0].tag) +
+        ". Geräte, die danach eingegangen sind, haben dort noch keinen Einkaufspreis.");
+    } else out.fehler.push("Im Ordner liegt kein Odoo-Export „LosSerie (stock.lot)…xlsx“.");
+    var oSel = nach.length ? nach[0] : (vor.length ? vor[0] : null);
+    if (oSel && oSel.quelle === "Änderungsdatum")
+      out.hinweise.push("Datum des Odoo-Exports " + oSel.f.name + " aus dem Änderungsdatum der Datei (" + tagDE(oSel.tag) + "). Besser das Datum in den Dateinamen schreiben: LosSerie (stock.lot)_JJJJ-MM-TT.xlsx.");
+
+    // Korrekturliste
+    var k = korr.filter(function (x) { return x.tag <= stichtag; }).sort(function (a, b) { return a.tag < b.tag ? 1 : a.tag > b.tag ? -1 : neuer(a, b); });
+    if (k.length) {
+      out.korr = k[0].f;
+      if (k.length > 1 && k[1].tag === k[0].tag) out.hinweise.push("Mehrere Korrekturlisten vom " + tagDE(k[0].tag) + ": verwendet wird die zuletzt geänderte (" + k[0].f.name + ").");
+    } else out.hinweise.push("Keine Korrekturliste vom " + tagDE(stichtag) + " oder früher gefunden. Gerechnet wird nur mit Odoo-Preisen" + (korr.length ? "." : " (im Ordner liegt keine korrekturen_…csv)."));
+
+    // Monatsreihe
+    if (serie.length) {
+      serie.sort(neuer); out.serie = serie[0].f;
+      if (serie.length > 1) out.hinweise.push("Mehrere Monatsreihen im Ordner: verwendet wird die zuletzt geänderte (" + (serie[0].f.pfad || serie[0].f.name) + ").");
+    } else out.hinweise.push("Keine Monatsreihe warenwert_monatsende.csv im Ordner. Der Einseiter zeigt dann nur diesen Stichtag.");
+    return out;
   }
 
   // ------------------------------------------------------------ Odoo
@@ -1124,14 +1238,15 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   }
 
   return {
-    VERSION: VERSION, lagernr: lagernr, zuZahl: zuZahl, rund0: rund0, eur: eur, de: de, tagDE: tagDE,
+    VERSION: VERSION, lagernr: lagernr, zuZahl: zuZahl, rund0: rund0, eur: eur, de: de, tagDE: tagDE, tausender: tausender,
     csvZeilen: csvZeilen, findeSpalte: findeSpalte,
     parseBestand: parseBestand, stichtagAusDateiname: stichtagAusDateiname,
     parseOdoo: parseOdoo, parseKorrekturen: parseKorrekturen, korrekturenAusCsv: korrekturenAusCsv,
     berechne: berechne, statusAufteilung: statusAufteilung, istAeg: istAeg, AEG_GRUND: AEG_GRUND,
     serieLesen: serieLesen, serieFortschreiben: serieFortschreiben,
     csvGeraete: csvGeraete, csvKorrekturen: csvKorrekturen, csvStatusAufteilung: csvStatusAufteilung,
-    bauPdf: bauPdf
+    bauPdf: bauPdf, waehleDateien: waehleDateien, datumImNamen: datumImNamen,
+    istMonatsende: istMonatsende, letzterMonatsletzter: letzterMonatsletzter
   };
 });
 </script>
@@ -1139,18 +1254,55 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
 (function(){
   var C = window.LagerwertCore, jsPDF = window.jspdf.jsPDF;
   document.getElementById("ver").textContent = "v" + C.VERSION; document.getElementById("ver2").textContent = "Version " + C.VERSION;
-  var dateien = {bestand:null, odoo:null, korr:null, serie:null}, state = null;
+  var manuell = {bestand:null, odoo:null, korr:null, serie:null}, ordner = [], auswahl = null, state = null;
   var $ = function(id){ return document.getElementById(id); };
+  var AEG_AB = "2026-09-30";
 
-  function meld(txt, art){ var d=document.createElement("div"); d.className="msg "+(art||"warn"); d.textContent=txt; $("meldungen").appendChild(d); }
+  function meld(txt, art, ziel){ var d=document.createElement("div"); d.className="msg "+(art||"warn"); d.textContent=txt; $(ziel||"meldungen").appendChild(d); }
   function leeren(){ $("meldungen").innerHTML=""; }
-  function pruefeBereit(){ $("btnRechnen").disabled = !(dateien.bestand && dateien.odoo); }
+  function heuteIso(){ var d=new Date(); return d.getFullYear()+"-"+("0"+(d.getMonth()+1)).slice(-2)+"-"+("0"+d.getDate()).slice(-2); }
+  $("stichtag").value = C.letzterMonatsletzter(heuteIso());
+
+  function waehle(){
+    var st=$("stichtag").value, w={bestand:null,odoo:null,korr:null,serie:null,fehler:[],hinweise:[],abweichung:false};
+    if(st && ordner.length) w=C.waehleDateien(ordner, st, {erlaubeAbweichung:$("abweichung").checked});
+    var quelle={};
+    ["bestand","odoo","korr","serie"].forEach(function(k){ quelle[k]= manuell[k] ? "manuell" : (w[k] ? "ordner" : null); if(manuell[k]) w[k]=manuell[k]; });
+    if(manuell.bestand) w.fehler=w.fehler.filter(function(t){ return t.indexOf("Bestandsliste")<0; });
+    if(manuell.odoo) w.fehler=w.fehler.filter(function(t){ return t.indexOf("Odoo-Export")<0; });
+    w.quelle=quelle; auswahl=w; zeigeAuswahl(); return w;
+  }
+  function zeigeAuswahl(){
+    var w=auswahl, lab={bestand:"AMM-Bestandsliste",odoo:"Odoo-Export",korr:"Korrekturliste",serie:"Monatsreihe"}, pflicht={bestand:1,odoo:1};
+    var h="";
+    if(ordner.length || manuell.bestand || manuell.odoo){
+      ["bestand","odoo","korr","serie"].forEach(function(k){
+        var f=w[k], cls=f?(w.quelle[k]==="manuell"?"f man":"f"):(pflicht[k]?"miss":"f");
+        h+="<tr><td>"+lab[k]+"</td><td class='"+cls+"'>"+(f?esc(f.webkitRelativePath||f.name)+(w.quelle[k]==="manuell"?" (einzeln gewählt)":""):(pflicht[k]?"fehlt":"—"))+"</td></tr>"; });
+    }
+    $("tAuswahl").innerHTML=h;
+    $("btnRechnen").disabled = !(w.bestand && w.odoo);
+  }
+  function esc(t){ return String(t).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];}); }
+  function aegVorgabe(){ var st=$("stichtag").value; $("aegAn").checked = !!st && st >= AEG_AB; }
+
+  $("btnOrdner").addEventListener("click", function(){ $("inOrdner").click(); });
+  $("inOrdner").addEventListener("change", function(){
+    ordner = Array.prototype.slice.call($("inOrdner").files).map(function(f){ return f; });
+    var wurzel = ordner.length ? String(ordner[0].webkitRelativePath||"").split("/")[0] : "";
+    $("ordnerInfo").textContent = ordner.length ? "Ordner „"+wurzel+"“ · "+ordner.length+" Dateien" : "Keine Dateien im Ordner.";
+    neuRechnen();
+  });
+  function neuRechnen(){ leeren(); $("ergebnis").classList.add("hidden"); state=null; window.__lagerwert=null; $("status").textContent=""; var w=waehle();
+    w.fehler.forEach(function(t){ meld(t,"err"); });
+    if(w.bestand && w.odoo) rechne(w); }
+  $("stichtag").addEventListener("change", function(){ aegVorgabe(); neuRechnen(); });
+  $("abweichung").addEventListener("change", neuRechnen);
+  aegVorgabe();
 
   function drop(id, key){
     var el=$(id), inp=el.querySelector("input");
-    function setze(f){ dateien[key]=f; el.classList.add("ok"); el.querySelector("small").textContent=f.name+" · "+Math.round(f.size/1024)+" KB";
-      if(key==="bestand"){ var st=C.stichtagAusDateiname(f.name); if(st) $("stichtag").value=st; }
-      pruefeBereit(); }
+    function setze(f){ manuell[key]=f; el.classList.add("ok"); el.querySelector("small").textContent=f.name+" · "+Math.round(f.size/1024)+" KB"; neuRechnen(); }
     el.addEventListener("click", function(){ inp.click(); });
     inp.addEventListener("change", function(){ if(inp.files[0]) setze(inp.files[0]); });
     ["dragenter","dragover"].forEach(function(ev){ el.addEventListener(ev,function(e){ e.preventDefault(); el.classList.add("over"); }); });
@@ -1158,6 +1310,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     el.addEventListener("drop", function(e){ if(e.dataTransfer.files[0]) setze(e.dataTransfer.files[0]); });
   }
   drop("dBestand","bestand"); drop("dOdoo","odoo"); drop("dKorr","korr"); drop("dSerie","serie");
+  waehle();
 
   function lesen(f, art){ return new Promise(function(res,rej){ var r=new FileReader(); r.onerror=function(){rej(new Error("Datei konnte nicht gelesen werden: "+f.name));};
     r.onload=function(){ res(r.result); }; if(art==="buffer") r.readAsArrayBuffer(f); else r.readAsText(f, art||"utf-8"); }); }
@@ -1165,37 +1318,44 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   function heute(){ var d=new Date(); return ("0"+d.getDate()).slice(-2)+"."+("0"+(d.getMonth()+1)).slice(-2)+"."+d.getFullYear(); }
   function datumKompakt(iso){ return iso.slice(8,10)+iso.slice(5,7)+iso.slice(0,4); }
 
-  $("btnRechnen").addEventListener("click", async function(){
-    leeren(); $("ergebnis").classList.add("hidden"); $("status").textContent="Rechne …"; $("btnRechnen").disabled=true;
+  $("btnRechnen").addEventListener("click", function(){ neuRechnen(); });
+  var laeuft=0;
+  async function rechne(w){
+    var lauf=++laeuft;
+    $("status").textContent="Rechne …"; $("btnRechnen").disabled=true;
     try {
-      var stichtag=$("stichtag").value; if(!stichtag) throw new Error("Bitte den Stichtag setzen.");
-      var dateiTag=C.stichtagAusDateiname(dateien.bestand.name);
+      var stichtag=$("stichtag").value; if(!stichtag) throw new Error("Bitte den Stichtag eingeben.");
+      var dateiTag=C.stichtagAusDateiname(w.bestand.name);
       if(dateiTag && dateiTag!==stichtag && !$("abweichung").checked)
         throw new Error("ABBRUCH: Die Bestandsliste ist vom "+C.tagDE(dateiTag)+", der Stichtag ist der "+C.tagDE(stichtag)+". Der Warenwert wäre damit nicht stichtagsrein. Bitte die Liste vom Stichtag verwenden oder die Abweichung oben ausdrücklich bestätigen.");
       if(dateiTag && dateiTag!==stichtag) meld("Achtung: Bestandsliste vom "+C.tagDE(dateiTag)+" für Stichtag "+C.tagDE(stichtag)+" verwendet (bewusst bestätigt).","warn");
+      w.hinweise.forEach(function(t){ meld(t,"warn"); });
 
-      var bestand=C.parseBestand(new TextDecoder("iso-8859-1").decode(await lesen(dateien.bestand,"buffer")));
-      var wb=XLSX.read(await lesen(dateien.odoo,"buffer"),{type:"array"});
+      var bestand=C.parseBestand(new TextDecoder("iso-8859-1").decode(await lesen(w.bestand,"buffer")));
+      var wb=XLSX.read(await lesen(w.odoo,"buffer"),{type:"array"});
       var rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,defval:null,raw:true});
       var odoo=C.parseOdoo(rows);
       var korr={}, korrName=null;
-      if(dateien.korr){ korrName=dateien.korr.name;
-        if(/\.xlsx?$/i.test(korrName)){ var kw=XLSX.read(await lesen(dateien.korr,"buffer"),{type:"array"}); korr=C.parseKorrekturen(XLSX.utils.sheet_to_json(kw.Sheets[kw.SheetNames[0]],{header:1,defval:null,raw:true})); }
-        else korr=C.korrekturenAusCsv(await lesen(dateien.korr,"utf-8")); }
-      var serieText = dateien.serie ? await lesen(dateien.serie,"utf-8") : "";
+      if(w.korr){ korrName=w.korr.name;
+        if(/\.xlsx?$/i.test(korrName)){ var kw=XLSX.read(await lesen(w.korr,"buffer"),{type:"array"}); korr=C.parseKorrekturen(XLSX.utils.sheet_to_json(kw.Sheets[kw.SheetNames[0]],{header:1,defval:null,raw:true})); }
+        else korr=C.korrekturenAusCsv(await lesen(w.korr,"utf-8")); }
+      var serieText = w.serie ? await lesen(w.serie,"utf-8") : "";
+      if(lauf!==laeuft) return;   // Stichtag inzwischen geändert
 
       var satz=null;
       if($("aegAn").checked){ satz=parseFloat(String($("aegSatz").value).replace(",",".")); if(!(satz>=0)) throw new Error("Satz für AEG-Lose ungültig."); }
-      var r=C.berechne({stichtag:stichtag, bestand:bestand, bestandName:dateien.bestand.name, odoo:odoo, odooName:dateien.odoo.name,
+      var r=C.berechne({stichtag:stichtag, bestand:bestand, bestandName:w.bestand.name, odoo:odoo, odooName:w.odoo.name,
                         korr:korr, korrName:korrName, aegSatz:satz});
       var split=C.statusAufteilung(r.geraete);
-      state={erg:r.erg, geraete:r.geraete, split:split, korrAusgabe:r.korrAusgabe, serieNeu:C.serieFortschreiben(serieText, r.erg)};
+      var gemeldet=C.serieLesen(serieText).filter(function(z){ return z.tag===C.tagDE(stichtag); })[0]||null;
+      state={erg:r.erg, geraete:r.geraete, split:split, korrAusgabe:r.korrAusgabe, serieNeu:C.serieFortschreiben(serieText, r.erg),
+             gemeldet:gemeldet, monatsende:C.istMonatsende(stichtag), auswahl:{bestand:w.bestand.name, odoo:w.odoo.name, korr:korrName, serie:w.serie?w.serie.name:null}};
       window.__lagerwert = state;   // für automatisierte Prüfung
       zeige(state);
       $("status").textContent="Fertig.";
-    } catch(e){ meld(String(e.message||e),"err"); $("status").textContent=""; }
-    $("btnRechnen").disabled=false;
-  });
+    } catch(e){ if(lauf===laeuft){ meld(String(e.message||e),"err"); $("status").textContent=""; } }
+    $("btnRechnen").disabled=!(auswahl && auswahl.bestand && auswahl.odoo);
+  }
 
   function zeige(s){
     var e=s.erg, sp=s.split;
@@ -1218,6 +1378,18 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     hin.unshift("AMM-Bestand "+C.de(e.bestand_zeilen_gesamt)+" Zeilen ("+Object.keys(e.status_verteilung).sort().map(function(k){return k+" "+C.de(e.status_verteilung[k]);}).join(", ")+"), Σ Menge "+C.de(e.menge)+".");
     if(!e.n_aeg_satz && $("aegAn").checked) hin.push("Keine neuen AEG-Electrolux-Lose ohne Einkaufspreis gefunden.");
     hin.forEach(function(t){ var li=document.createElement("li"); li.textContent=t; ul.appendChild(li); });
+    var em=$("ergMeld"); em.innerHTML="";
+    var abschluss = s.monatsende && !s.gemeldet;
+    if(s.gemeldet){
+      var diff=C.rund0(e.ek_gesamt)-s.gemeldet.wert;
+      meld("Dieser Stichtag ist bereits abgeschlossen. Gemeldet laut Monatsreihe: "+C.eur(s.gemeldet.wert)+" bei "+C.de(s.gemeldet.stk)+" Geräten."+
+        (diff||s.gemeldet.stk!==e.geraete ? " Die Neuberechnung weicht um "+(diff>0?"+":"")+C.tausender(diff)+" € ab. Maßgeblich bleibt der gemeldete Einseiter in Ergebnisse/"+e.stichtag+"." : " Die Neuberechnung bestätigt den Wert."),
+        diff||s.gemeldet.stk!==e.geraete ? "warn" : "ok", "ergMeld");
+    } else if(!s.monatsende){
+      meld("Stichtag ist kein Monatsletzter: Ergebnis zur Information. Monatsreihe und Korrekturliste werden dafür nicht fortgeschrieben.","warn","ergMeld");
+    }
+    $("btnSerie").disabled = !abschluss; $("btnKorr").disabled = !abschluss;
+    $("ablage").textContent = abschluss ? "Ablage: Einseiter, Geräteliste und Status-Aufteilung nach Ergebnisse/"+e.stichtag+". Korrekturliste nach Daten/Korrekturlisten. Monatsreihe ersetzt Daten/warenwert_monatsende.csv." : "";
     $("ergebnis").classList.remove("hidden");
   }
 

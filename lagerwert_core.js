@@ -23,7 +23,7 @@
 })(typeof self !== "undefined" ? self : this, function () {
   "use strict";
 
-  var VERSION = "1.0 (05.10.2026)";
+  var VERSION = "1.1 (05.10.2026)";
   var UMFANG_STATUS = ["QE", "VS", "AA"];
 
   var ODOO_SPALTEN = {
@@ -157,6 +157,106 @@
     var dt = new Date(Date.UTC(+y, +mo - 1, +d));
     if (isNaN(dt.getTime()) || dt.getUTCMonth() !== +mo - 1) return null;
     return y + "-" + mo + "-" + d;
+  }
+
+  // ------------------------------------------------------------ Datenordner
+  // Wählt aus einer Dateiliste (Ordner-Auswahl im Browser) die Eingaben für
+  // einen Stichtag. liste: [{name, pfad, lastModified}], stichtag: JJJJ-MM-TT.
+  //   Bestand:  BESTAND134_JJJJMMTT_HHMM.CSV vom Stichtag (bei mehreren die spätere Uhrzeit)
+  //   Odoo:     LosSerie (stock.lot)*.xlsx – der erste Export am/nach dem Stichtag,
+  //             sonst der jüngste davor (mit Warnung). Datum aus dem Namen, sonst Änderungsdatum.
+  //   Korrektur: korrekturen_JJJJ-MM-TT*.csv|xlsx – die jüngste mit Datum <= Stichtag
+  //   Reihe:    warenwert_monatsende*.csv – bei mehreren die zuletzt geänderte
+  function isoAusMs(ms) {
+    var d = new Date(ms);
+    return d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2);
+  }
+  function gueltigIso(y, m, d) {
+    var dt = new Date(Date.UTC(+y, +m - 1, +d));
+    return (!isNaN(dt.getTime()) && dt.getUTCMonth() === +m - 1 && dt.getUTCDate() === +d) ? y + "-" + m + "-" + d : null;
+  }
+  function datumImNamen(name) {
+    var m;
+    if ((m = /(\d{4})-(\d{2})-(\d{2})/.exec(name))) return gueltigIso(m[1], m[2], m[3]);
+    if ((m = /(\d{2})\.(\d{2})\.(\d{4})/.exec(name))) return gueltigIso(m[3], m[2], m[1]);
+    if ((m = /(\d{4})(\d{2})(\d{2})/.exec(name))) return gueltigIso(m[1], m[2], m[3]);
+    return null;
+  }
+  function istMonatsende(iso) {
+    var d = new Date(Date.UTC(+iso.slice(0, 4), +iso.slice(5, 7) - 1, +iso.slice(8, 10) + 1));
+    return d.getUTCDate() === 1;
+  }
+  function letzterMonatsletzter(heuteIso) {
+    var d = new Date(Date.UTC(+heuteIso.slice(0, 4), +heuteIso.slice(5, 7) - 1, 0));
+    return d.toISOString().slice(0, 10);
+  }
+  function waehleDateien(liste, stichtag, opts) {
+    opts = opts || {};
+    var out = { bestand: null, odoo: null, korr: null, serie: null, fehler: [], hinweise: [], abweichung: false };
+    var best = [], odoo = [], korr = [], serie = [];
+    (liste || []).forEach(function (f) {
+      var n = f.name || "";
+      if (/^[~.]/.test(n)) return;                       // Excel-Sperrdateien, versteckte Dateien
+      var m;
+      if ((m = /^BESTAND\d*_(\d{8})(?:_(\d{4}))?.*\.csv$/i.exec(n))) {
+        var t = stichtagAusDateiname(m[1]); if (t) best.push({ f: f, tag: t, zeit: m[2] || "0000" });
+      } else if (/^LosSerie|stock\.lot/i.test(n) && /\.xlsx?$/i.test(n)) {
+        var od = datumImNamen(n.replace(/stock\.lot/i, "")), quelle = "Dateiname";
+        if (!od && f.lastModified) { od = isoAusMs(f.lastModified); quelle = "Änderungsdatum"; }
+        if (od) odoo.push({ f: f, tag: od, quelle: quelle });
+      } else if ((m = /^korrekturen_(\d{4})-(\d{2})-(\d{2}).*\.(csv|xlsx)$/i.exec(n))) {
+        var kt = gueltigIso(m[1], m[2], m[3]); if (kt) korr.push({ f: f, tag: kt });
+      } else if (/^warenwert_monatsende.*\.csv$/i.test(n)) {
+        serie.push({ f: f });
+      }
+    });
+    function neuer(a, b) { return (b.f.lastModified || 0) - (a.f.lastModified || 0); }
+
+    // Bestand
+    var exakt = best.filter(function (b) { return b.tag === stichtag; })
+      .sort(function (a, b) { return a.zeit < b.zeit ? 1 : a.zeit > b.zeit ? -1 : neuer(a, b); });
+    if (exakt.length) {
+      out.bestand = exakt[0].f;
+      if (exakt.length > 1) out.hinweise.push("Mehrere Bestandslisten vom " + tagDE(stichtag) + ": verwendet wird die spätere (" + exakt[0].f.name + ").");
+    } else {
+      var davor = best.filter(function (b) { return b.tag < stichtag; }).sort(function (a, b) { return a.tag < b.tag ? 1 : a.tag > b.tag ? -1 : (a.zeit < b.zeit ? 1 : -1); });
+      var tage = best.map(function (b) { return b.tag; }).filter(function (t, i, a) { return a.indexOf(t) === i; }).sort();
+      if (opts.erlaubeAbweichung && davor.length) {
+        out.bestand = davor[0].f; out.abweichung = true;
+        out.hinweise.push("Keine Bestandsliste vom " + tagDE(stichtag) + ". Verwendet wird die letzte davor: " + davor[0].f.name + " (bewusst bestätigt).");
+      } else {
+        out.fehler.push("Im Ordner liegt keine AMM-Bestandsliste vom " + tagDE(stichtag) +
+          " (BESTAND134_" + stichtag.replace(/-/g, "") + "_HHMM.CSV)." +
+          (tage.length ? " Vorhanden: " + tage.map(tagDE).join(", ") + "." : " Es wurde gar keine Bestandsliste gefunden."));
+      }
+    }
+
+    // Odoo
+    var nach = odoo.filter(function (o) { return o.tag >= stichtag; }).sort(function (a, b) { return a.tag < b.tag ? -1 : a.tag > b.tag ? 1 : neuer(a, b); });
+    var vor = odoo.filter(function (o) { return o.tag < stichtag; }).sort(function (a, b) { return a.tag < b.tag ? 1 : a.tag > b.tag ? -1 : neuer(a, b); });
+    if (nach.length) out.odoo = nach[0].f;
+    else if (vor.length) {
+      out.odoo = vor[0].f;
+      out.hinweise.push("Kein Odoo-Export vom " + tagDE(stichtag) + " oder später. Verwendet wird der Export vom " + tagDE(vor[0].tag) +
+        ". Geräte, die danach eingegangen sind, haben dort noch keinen Einkaufspreis.");
+    } else out.fehler.push("Im Ordner liegt kein Odoo-Export „LosSerie (stock.lot)…xlsx“.");
+    var oSel = nach.length ? nach[0] : (vor.length ? vor[0] : null);
+    if (oSel && oSel.quelle === "Änderungsdatum")
+      out.hinweise.push("Datum des Odoo-Exports " + oSel.f.name + " aus dem Änderungsdatum der Datei (" + tagDE(oSel.tag) + "). Besser das Datum in den Dateinamen schreiben: LosSerie (stock.lot)_JJJJ-MM-TT.xlsx.");
+
+    // Korrekturliste
+    var k = korr.filter(function (x) { return x.tag <= stichtag; }).sort(function (a, b) { return a.tag < b.tag ? 1 : a.tag > b.tag ? -1 : neuer(a, b); });
+    if (k.length) {
+      out.korr = k[0].f;
+      if (k.length > 1 && k[1].tag === k[0].tag) out.hinweise.push("Mehrere Korrekturlisten vom " + tagDE(k[0].tag) + ": verwendet wird die zuletzt geänderte (" + k[0].f.name + ").");
+    } else out.hinweise.push("Keine Korrekturliste vom " + tagDE(stichtag) + " oder früher gefunden. Gerechnet wird nur mit Odoo-Preisen" + (korr.length ? "." : " (im Ordner liegt keine korrekturen_…csv)."));
+
+    // Monatsreihe
+    if (serie.length) {
+      serie.sort(neuer); out.serie = serie[0].f;
+      if (serie.length > 1) out.hinweise.push("Mehrere Monatsreihen im Ordner: verwendet wird die zuletzt geänderte (" + (serie[0].f.pfad || serie[0].f.name) + ").");
+    } else out.hinweise.push("Keine Monatsreihe warenwert_monatsende.csv im Ordner. Der Einseiter zeigt dann nur diesen Stichtag.");
+    return out;
   }
 
   // ------------------------------------------------------------ Odoo
@@ -558,13 +658,14 @@
   }
 
   return {
-    VERSION: VERSION, lagernr: lagernr, zuZahl: zuZahl, rund0: rund0, eur: eur, de: de, tagDE: tagDE,
+    VERSION: VERSION, lagernr: lagernr, zuZahl: zuZahl, rund0: rund0, eur: eur, de: de, tagDE: tagDE, tausender: tausender,
     csvZeilen: csvZeilen, findeSpalte: findeSpalte,
     parseBestand: parseBestand, stichtagAusDateiname: stichtagAusDateiname,
     parseOdoo: parseOdoo, parseKorrekturen: parseKorrekturen, korrekturenAusCsv: korrekturenAusCsv,
     berechne: berechne, statusAufteilung: statusAufteilung, istAeg: istAeg, AEG_GRUND: AEG_GRUND,
     serieLesen: serieLesen, serieFortschreiben: serieFortschreiben,
     csvGeraete: csvGeraete, csvKorrekturen: csvKorrekturen, csvStatusAufteilung: csvStatusAufteilung,
-    bauPdf: bauPdf
+    bauPdf: bauPdf, waehleDateien: waehleDateien, datumImNamen: datumImNamen,
+    istMonatsende: istMonatsende, letzterMonatsletzter: letzterMonatsletzter
   };
 });

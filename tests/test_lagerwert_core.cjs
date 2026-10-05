@@ -115,6 +115,37 @@ function bestandAusCsv(file) {
   console.log("✓ synthetisch: 7 Geräte / 2000 € · Korrekturliste 1720 € · Odoo-gewinnt · AEG-Satz · Dublette, Schrott, Ø-Fill, Reihe, PDF ok");
 })();
 
+// ------------------------------------------------------------ 1b. Datenordner
+(function datenordner() {
+  const L = [
+    { name: "BESTAND134_20260831_1700.CSV" }, { name: "BESTAND134_20260930_0800.CSV" }, { name: "BESTAND134_20260930_2300.CSV" },
+    { name: "LosSerie (stock.lot)_2026-09-18.xlsx" }, { name: "LosSerie (stock.lot)_2026-10-02.xlsx" },
+    { name: "LosSerie (stock.lot) ohne Datum.xlsx", lastModified: Date.UTC(2026, 9, 20, 12) },
+    { name: "korrekturen_2026-08-31_AEG.csv" }, { name: "korrekturen_2026-09-30_AEG.csv" },
+    { name: "warenwert_monatsende.csv", lastModified: 2 }, { name: "warenwert_monatsende (1).csv", lastModified: 1 },
+    { name: "~$LosSerie (stock.lot)_2026-09-01.xlsx" }, { name: "notizen.txt" }
+  ];
+  let w = C.waehleDateien(L, "2026-08-31");
+  ok(w.bestand.name === "BESTAND134_20260831_1700.CSV" && w.odoo.name === "LosSerie (stock.lot)_2026-09-18.xlsx" &&
+     w.korr.name === "korrekturen_2026-08-31_AEG.csv" && w.serie.name === "warenwert_monatsende.csv" && !w.fehler.length,
+     "Ordner 31.08.: falsche Auswahl");
+  w = C.waehleDateien(L, "2026-09-30");
+  ok(w.bestand.name === "BESTAND134_20260930_2300.CSV", "Ordner 30.09.: spätere Bestandsliste des Tages erwartet");
+  ok(w.odoo.name === "LosSerie (stock.lot)_2026-10-02.xlsx" && w.korr.name === "korrekturen_2026-09-30_AEG.csv", "Ordner 30.09.: Odoo/Korrektur");
+  w = C.waehleDateien(L, "2026-10-15");
+  ok(!w.bestand && w.fehler.length === 1 && /15\.10\.2026/.test(w.fehler[0]), "Ordner 15.10.: fehlende Bestandsliste muss Fehler sein");
+  ok(w.odoo.name === "LosSerie (stock.lot) ohne Datum.xlsx" && w.korr.name === "korrekturen_2026-09-30_AEG.csv", "Ordner 15.10.: Odoo per Änderungsdatum, Korrektur Sep");
+  w = C.waehleDateien(L, "2026-10-15", { erlaubeAbweichung: true });
+  ok(w.bestand.name === "BESTAND134_20260930_2300.CSV" && w.abweichung && !w.fehler.length, "Ordner 15.10. mit Abweichung: letzte Liste davor");
+  w = C.waehleDateien(L, "2026-12-31");
+  ok(w.odoo.name === "LosSerie (stock.lot) ohne Datum.xlsx" && w.hinweise.some(t => /Kein Odoo-Export vom 31\.12\.2026/.test(t)), "Ordner 31.12.: jüngster Odoo-Export davor mit Hinweis");
+  w = C.waehleDateien(L, "2026-08-01");
+  ok(!w.korr && w.odoo.name === "LosSerie (stock.lot)_2026-09-18.xlsx", "Ordner 01.08.: keine Korrekturliste vor dem Stichtag");
+  ok(C.istMonatsende("2026-09-30") && !C.istMonatsende("2026-09-29") && C.istMonatsende("2028-02-29") && C.istMonatsende("2027-02-28"), "Monatsende");
+  ok(C.letzterMonatsletzter("2026-10-05") === "2026-09-30" && C.letzterMonatsletzter("2026-01-03") === "2025-12-31", "letzter Monatsletzter");
+  if (!fehler.length) console.log("✓ Datenordner: Auswahl Bestand/Odoo/Korrektur/Reihe je Stichtag ok");
+})();
+
 // ------------------------------------------------------------ 2. gegen Python
 function vergleich(label, bestandDatei, odooDatei, korrDatei, factsDatei, stichtag) {
   const p = f => path.join(ROOT, f);

@@ -87,6 +87,11 @@ C:\Users\DustinEskofier\Projekt\lagerkapazität
   Gebaut aus `lagerwert_tool.template.html` + `lagerwert_core.js` + `vendor/` mit
   `python3 build_lagerwert_tool.py`. Selbsttest inkl. Abgleich gegen Python:
   `node tests/test_lagerwert_core.cjs`
+  Ab v1.1: Stichtag eingeben, Datenordner wählen (`Daten/AMM`, `Daten/Odoo`,
+  `Daten/Korrekturlisten`, `Daten/warenwert_monatsende.csv`); das Tool wählt
+  Bestandsliste, Odoo-Export, Korrekturliste und Monatsreihe zum Stichtag selbst
+  (`waehleDateien()` in `lagerwert_core.js`) und rechnet sofort. Der Datenordner
+  liegt in Teams, nicht im Repo.
 
 ## Project Documents
 
