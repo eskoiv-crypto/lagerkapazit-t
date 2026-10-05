@@ -75,6 +75,24 @@ Gesamt NH5     = 7781 + 2350 = 10131
 C:\Users\DustinEskofier\Projekt\lagerkapazität
 ```
 
+## Warenwert / Lagerwert (Monatsreihe)
+
+- `warenwert_stichtag.py` — Warenwert (EK) zum Stichtag; schreibt die Reihe
+  "Warenwert zum Monatsende" fort. Selbsttest:
+  `python3 tests/test_warenwert_stichtag.py`
+- `warenwert_monatsende.csv` — bestätigte Historie Sep-2025 … Jul-2026
+- `WARENWERT_31-08-2026.md` — Methodik, Datenlage und offene Punkte zum Stichtag 31.08.2026
+- `lagerwert_tool.html` — **Lagerwert-Rechner** für die Vertretung: Einzeldatei, läuft offline im
+  Browser, rechnet 1:1 wie `warenwert_stichtag.py` und erzeugt denselben Einseiter.
+  Gebaut aus `lagerwert_tool.template.html` + `lagerwert_core.js` + `vendor/` mit
+  `python3 build_lagerwert_tool.py`. Selbsttest inkl. Abgleich gegen Python:
+  `node tests/test_lagerwert_core.cjs`
+  Ab v1.1: Stichtag eingeben, Datenordner wählen (`Daten/AMM`, `Daten/Odoo`,
+  `Daten/Korrekturlisten`, `Daten/warenwert_monatsende.csv`); das Tool wählt
+  Bestandsliste, Odoo-Export, Korrekturliste und Monatsreihe zum Stichtag selbst
+  (`waehleDateien()` in `lagerwert_core.js`) und rechnet sofort. Der Datenordner
+  liegt in Teams, nicht im Repo.
+
 ## Project Documents
 
 - `CLAUDE_CODE_HANDOFF_2026-04-20.md` — full project manifest (architecture, state model, data flow)
