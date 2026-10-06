@@ -32,3 +32,6 @@ blob-report/
 playwright/.cache/
 validation_output.txt
 validation_v2.txt
+
+# Kunden-Scoring Ausgaben (enthalten Kundendaten)
+output/
