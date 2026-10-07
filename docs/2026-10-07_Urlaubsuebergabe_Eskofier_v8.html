@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Urlaubsübergabe Dustin</title>
+<style>
+  :root{
+    --bg:#f5f5f7; --card:#ffffff; --ink:#1d1d1f; --sub:#6e6e73; --line:#e5e5ea;
+    --blue:#0071e3; --warn:#b25000; --warnbg:#fff4e5; --ok:#1d8a3a;
+    --inesa:#0071e3; --cengiz:#248a3d; --siyad:#8944ab; --johannes:#c93400; --alle:#6e6e73;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#000; --card:#1c1c1e; --ink:#f5f5f7; --sub:#98989d; --line:#38383a;
+      --blue:#0a84ff; --warn:#ff9f0a; --warnbg:#2c2110; --ok:#30d158;
+      --inesa:#0a84ff; --cengiz:#30d158; --siyad:#bf5af2; --johannes:#ff6b3d; --alle:#98989d;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#000; --card:#1c1c1e; --ink:#f5f5f7; --sub:#98989d; --line:#38383a;
+    --blue:#0a84ff; --warn:#ff9f0a; --warnbg:#2c2110; --ok:#30d158;
+    --inesa:#0a84ff; --cengiz:#30d158; --siyad:#bf5af2; --johannes:#ff6b3d; --alle:#98989d;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font:15px/1.5 -apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",Arial,sans-serif;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:860px;margin:0 auto;padding:48px 16px 80px}
+  .eyebrow{color:var(--sub);font-size:13px;letter-spacing:.02em}
+  h1{font-size:40px;line-height:1.1;margin:6px 0 8px;font-weight:700;letter-spacing:-.02em}
+  .lead{color:var(--sub);font-size:17px;margin:0 0 28px}
+  .meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-bottom:28px}
+  .meta div{background:var(--card);border-radius:14px;padding:12px 14px}
+  .meta b{display:block;font-size:12px;color:var(--sub);font-weight:500}
+  .people{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 28px}
+  .pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:3px 10px;border-radius:999px;
+    background:color-mix(in srgb,var(--c) 14%,transparent);color:var(--c);white-space:nowrap}
+  .pill::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--c)}
+  .i{--c:var(--inesa)} .c{--c:var(--cengiz)} .s{--c:var(--siyad)} .j{--c:var(--johannes)} .a{--c:var(--alle)}
+  details{background:var(--card);border-radius:16px;margin:0 0 12px;overflow:hidden}
+  summary{list-style:none;cursor:pointer;padding:18px 20px;display:flex;align-items:center;gap:14px}
+  summary::-webkit-details-marker{display:none}
+  .ico{font-size:22px;width:28px;text-align:center;flex:none}
+  .st{flex:1;min-width:0}
+  .st h2{margin:0;font-size:17px;font-weight:600}
+  .st p{margin:2px 0 0;color:var(--sub);font-size:13px}
+  .chev{flex:none;width:10px;height:10px;border-right:2px solid var(--sub);border-bottom:2px solid var(--sub);transform:rotate(45deg);transition:transform .2s;margin-right:4px}
+  details[open] .chev{transform:rotate(225deg)}
+  .body{padding:0 20px 18px 62px}
+  ul{margin:0;padding:0;list-style:none}
+  li{padding:10px 0;border-top:1px solid var(--line);display:flex;gap:10px;align-items:flex-start;justify-content:space-between}
+  li:first-child{border-top:none}
+  li span.t{flex:1}
+  li .pill{margin-top:1px}
+  .k{font-family:"Courier New",Courier,monospace;font-size:14px}
+  .note{background:var(--warnbg);color:var(--warn);border-radius:12px;padding:10px 14px;font-size:13px;margin:10px 0 0}
+  .time{font-variant-numeric:tabular-nums;font-weight:600;min-width:58px;color:var(--blue)}
+  .sub{color:var(--sub);font-size:13px}
+  .crit li span.t b{color:var(--warn)}
+  .grp{font-size:13px;font-weight:600;color:var(--sub);text-transform:uppercase;letter-spacing:.04em;margin:18px 0 8px}
+  .grp:first-child{margin-top:4px}
+  .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px}
+  .card{border:1px solid var(--line);border-radius:12px;padding:12px 14px;font-size:13px}
+  .cn{font-weight:600;font-size:15px}
+  .cr{color:var(--sub);margin-bottom:6px}
+  .cl{display:flex;gap:8px;padding:2px 0;word-break:break-word}
+  .cl > span:first-child{color:var(--sub);min-width:52px;flex:none}
+  .card a{color:var(--blue);text-decoration:none}
+  .ch{margin-top:6px;color:var(--warn);font-size:12px}
+  .ml{display:block;color:inherit;min-width:0}
+  .miss{color:var(--warn)}
+  @media (max-width:560px){ .cards{grid-template-columns:1fr} }
+  footer{color:var(--sub);font-size:12px;margin-top:28px;text-align:center}
+  @media (max-width:560px){ h1{font-size:30px} .body{padding:0 16px 16px 16px} li{flex-direction:column;gap:4px} }
+  @media print{ details{break-inside:avoid} details:not([open]) .body{display:block} body{background:#fff} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="eyebrow">elvinci.de GmbH · Backoffice &amp; Fulfillment</div>
+  <h1>Urlaubsübergabe</h1>
+  <p class="lead">Dustin Eskofier ist ab Freitag, 09.10.2026, für drei Wochen nicht da.</p>
+
+  <div class="meta">
+    <div><b>Abwesend</b>09.10. – 30.10.2026</div>
+    <div><b>Zurück</b>Mo 02.11.2026</div>
+    <div><b>Stand</b>07.10.2026 · v8</div>
+  </div>
+
+  <div class="people">
+    <span class="pill i">Inesa · Dispo, Beschaffung, Rechnungen</span>
+    <span class="pill c">Cengiz · WA-Planung, Kunden, Lager</span>
+    <span class="pill s">Siyad · Notfall, Eskalation</span>
+    <span class="pill j">Johannes · Management, Agicap (bis 20.10.)</span>
+  </div>
+
+  <details>
+    <summary><span class="ico">🧩</span><span class="st"><h2>Wer ist wofür zuständig</h2><p>Zuständigkeiten bei elvinci</p></span><span class="chev"></span></summary>
+    <div class="body"><ul>
+      <li><span class="t"><b>Rechnungsprüfung</b>, <b>Beschaffung</b> und derzeit auch die <b>Ausgangsrechnungen</b>, sobald Ware das Lager verlassen hat. In der Urlaubszeit zusätzlich Dispo und der Check Löhne um 07:00.</span><span class="pill i">Inesa</span></li>
+      <li><span class="t"><b>WA-Planung</b>, <b>Kundenkontakt</b>, <b>LKW-Anmeldung</b> und Kontakt mit dem Lager (AMM)</span><span class="pill c">Cengiz</span></li>
+      <li><span class="t"><b>WA und WE in Odoo</b>, systemtechnisch</span><span class="pill a">Joshua</span></li>
+      <li><span class="t">Zoll (Ausfuhrunterlagen, Weiterleitung an AMM)</span><span class="pill a">Nikoloz</span></li>
+      <li><span class="t">Notfallkontakt zur Spedition (Reidl, Dominko), Eskalation, Rückendeckung für Cengiz</span><span class="pill s">Siyad</span></li>
+      <li><span class="t">Management-Eskalation, Agicap-Freigaben, Otto-Obligo (bis 20.10.)</span><span class="pill j">Johannes</span></li>
+    </ul></div>
+  </details>
+
+  <!-- 1 -->
+  <details open>
+    <summary><span class="ico">☀️</span><span class="st"><h2>Tagesablauf</h2><p>Was jeden Tag passieren muss</p></span><span class="chev"></span></summary>
+    <div class="body"><ul>
+      <li><span class="time">07:00</span><span class="t">Nach <b>Löhne</b> schauen, Telefon und Outlook im Blick: Verspätet sich ein LKW oder fällt er aus? Sofort per <b>Telefon</b> reagieren. <span class="sub">Vertretung, falls Inesa fehlt: Cengiz</span></span><span class="pill i">Inesa</span></li>
+      <li><span class="time">danach</span><span class="t">Beschaffungen organisieren, falls nötig</span><span class="pill i">Inesa</span></li>
+      <li><span class="time">09:00</span><span class="t">9-Uhr-Meeting, danach mit Siyad die anstehenden Aufträge durchgehen</span><span class="pill c">Cengiz</span><span class="pill s">Siyad</span></li>
+      <li><span class="time">2× täglich</span><span class="t">Mit Dima (AMM, <a href="tel:+4917684579500">+49 176 84579500</a>) telefonieren und kurz gemeinsam über die NH5-Liste schauen <span class="sub">[Vorschlag: vormittags + 14 Uhr]</span></span><span class="pill c">Cengiz</span></li>
+      <li><span class="time">laufend</span><span class="t">Jede Änderung sofort in <b>Odoo und NH5</b> nachziehen, nicht nur in einem System</span><span class="pill c">Cengiz</span></li>
+      <li><span class="time">16:00</span><span class="t">5-Minuten-Abgleich: Stimmen die offenen Aufträge in Odoo und NH5 überein?</span><span class="pill c">Cengiz</span></li>
+      <li><span class="time">laufend</span><span class="t">Hermes Löhne fragt Zusatz-LKW an: noch am selben Werktag antworten, sonst geht der LKW an den nächsten Aufkäufer</span><span class="pill i">Inesa</span></li>
+    </ul></div>
+  </details>
+
+  <!-- 2 -->
+  <details>
+    <summary><span class="ico">📞</span><span class="st"><h2>Telefon &amp; Notfallkontakte</h2><p>Wer mit AMM spricht und wen man im Notfall anruft</p></span><span class="chev"></span></summary>
+    <div class="body"><ul>
+      <li><span class="t">Mit AMM telefonieren <b>ausschließlich</b>: Cengiz (Lager), Inesa (Dispo), Siyad (Notfall)</span><span class="pill a">Regel</span></li>
+      <li><span class="t">Bei LKW-Themen <b>immer schnell per Telefon</b> reagieren, nicht per Mail warten</span><span class="pill a">Regel</span></li>
+      <li><span class="t">Notfallkontakte Spedition: <b>Sebastian Reidl</b> für Lager und Prozess (<a href="tel:+491752979534">+49 175 2979534</a>) und <b>Thomas Dominko</b> für Spedition und Transport (<a href="tel:+491622526200">+49 162 2526200</a>)</span><span class="pill s">Siyad</span></li>
+      <li><span class="t">Falls beide nicht erreichbar sind: Anastasiia Gorlovetska, Teamleitung Logistik AMM, +49 911 64258-170 <span class="sub">[Ergänzung]</span></span><span class="pill s">Siyad</span></li>
+      <li><span class="t">Verspätungsfälle von AMM sammeln (geplant / tatsächlich / wann gemeldet) für das Gespräch mit Dominko nach der Rückkehr</span><span class="pill i">Inesa</span></li>
+    </ul></div>
+  </details>
+
+  <details>
+    <summary><span class="ico">👥</span><span class="st"><h2>Kontakte</h2><p>Externe Partner · Nummern aus den eigenen E-Mail-Signaturen geprüft (Stand 07.10.2026)</p></span><span class="chev"></span></summary>
+    <div class="body"><h3 class="grp">Spedition AMM / GBL</h3><div class="cards"><div class="card"><div class="cn">Sebastian Reidl</div><div class="cr">Notfallkontakt · Lager und Prozess</div><div class="cl"><span>E-Mail</span><span class="ml"><a href="mailto:sebastian.reidl@gbl-logistics.de">sebastian.reidl@gbl-logistics.de</a><br><a href="mailto:sebastian.reidl@amm-spedition.de">sebastian.reidl@amm-spedition.de</a></span></div><div class="cl"><span>Telefon</span>–</div><div class="cl"><span>Mobil</span><a href="tel:+491752979534">+49 175 2979534</a></div><div class="ch">Schreibt von beiden Adressen. Seine Signatur nennt AMM.</div></div><div class="card"><div class="cn">Thomas Dominko</div><div class="cr">AMM · Notfallkontakt · Spedition und Transport</div><div class="cl"><span>E-Mail</span><span class="ml"><a href="mailto:thomas.dominko@amm-spedition.de">thomas.dominko@amm-spedition.de</a></span></div><div class="cl"><span>Telefon</span><a href="tel:+49911642582060">+49 911 64258-2060</a></div><div class="cl"><span>Mobil</span><a href="tel:+491622526200">+49 162 2526200</a></div></div><div class="card"><div class="cn">Dimitri Pusankov (Dima)</div><div class="cr">AMM · Logistik, Lager Beuthener Str. 57</div><div class="cl"><span>E-Mail</span><span class="ml"><a href="mailto:dimitri.pusankov@amm-spedition.de">dimitri.pusankov@amm-spedition.de</a><br><a href="mailto:elvinci@amm-spedition.de">elvinci@amm-spedition.de</a></span></div><div class="cl"><span>Telefon</span><a href="tel:+49911642580">+49 911 64258-0 (Zentrale)</a></div><div class="cl"><span>Mobil</span><a href="tel:+4917684579500">+49 176 84579500</a></div></div><div class="card"><div class="cn">Anastasiia Gorlovetska</div><div class="cr">AMM · Teamleitung Logistik</div><div class="cl"><span>E-Mail</span><span class="ml"><a href="mailto:anastasiia.gorlovetska@amm-spedition.de">anastasiia.gorlovetska@amm-spedition.de</a></span></div><div class="cl"><span>Telefon</span><a href="tel:+4991164258170">+49 911 64258-170</a></div><div class="cl"><span>Mobil</span>–</div></div><div class="card"><div class="cn">Florian Bierstädt</div><div class="cr">AMM · Teamleitung Dispo Fernverkehr</div><div class="cl"><span>E-Mail</span><span class="ml"><a href="mailto:florian.bierstaedt@amm-spedition.de">florian.bierstaedt@amm-spedition.de</a><br><a href="mailto:dispo-fernverkehr@amm-spedition.de">dispo-fernverkehr@amm-spedition.de</a></span></div><div class="cl"><span>Telefon</span><a href="tel:+4991164258303">+49 911 64258-303</a></div><div class="cl"><span>Mobil</span>–</div></div><div class="card"><div class="cn">Danika Geissler</div><div class="cr">AMM · Vertrieb (Tagespreise)</div><div class="cl"><span>E-Mail</span><span class="ml"><a href="mailto:danika.geissler@amm-spedition.de">danika.geissler@amm-spedition.de</a><br><a href="mailto:tagespreise@amm-spedition.de">tagespreise@amm-spedition.de</a></span></div><div class="cl"><span>Telefon</span><a href="tel:+49911642582062">+49 911 64258-2062</a></div><div class="cl"><span>Mobil</span>–</div></div><div class="card"><div class="cn">Michaela Kalusch</div><div class="cr">AMM · Service</div><div class="cl"><span>E-Mail</span><span class="ml"><a href="mailto:michaela.kalusch@amm-spedition.de">michaela.kalusch@amm-spedition.de</a><br><a href="mailto:service@amm-spedition.de">service@amm-spedition.de</a></span></div><div class="cl"><span>Telefon</span><a href="tel:+4991164258252">+49 911 64258-252</a></div><div class="cl"><span>Mobil</span>–</div></div></div><h3 class="grp">Kunden & Lieferanten</h3><div class="cards"><div class="card"><div class="cn">Nadine Wegener</div><div class="cr">Hermes Fulfilment · Rücksendestelle Löhne</div><div class="cl"><span>E-Mail</span><span class="ml"><a href="mailto:nadine.wegener@hermes-ws.com">nadine.wegener@hermes-ws.com</a></span></div><div class="cl"><span>Telefon</span><a href="tel:+495732996424">+49 5732 996-424</a></div><div class="cl"><span>Mobil</span>–</div></div><div class="card"><div class="cn">Hans-Jürgen Bonk</div><div class="cr">Ahrbach Süd · Senior Sales Manager</div><div class="cl"><span>E-Mail</span><span class="ml"><a href="mailto:hans-juergen.bonk@ahrbach-sued.de">hans-juergen.bonk@ahrbach-sued.de</a></span></div><div class="cl"><span>Telefon</span><a href="tel:+4979197823807">+49 791 97823807</a></div><div class="cl"><span>Mobil</span><a href="tel:+4915143895134">+49 151 43895134</a></div></div><div class="card"><div class="cn">Cristina-Ioana Iancau</div><div class="cr">Ahrbach Süd · Vertriebsinnendienst</div><div class="cl"><span>E-Mail</span><span class="ml"><a href="mailto:cristina.iancau@ahrbach-sued.de">cristina.iancau@ahrbach-sued.de</a></span></div><div class="cl"><span>Telefon</span><a href="tel:+4979197806628">+49 791 97806628</a></div><div class="cl"><span>Mobil</span>–</div></div><div class="card"><div class="cn">Cristina Vendrame</div><div class="cr">Electrolux Italia · Rechnungen (SAP)</div><div class="cl"><span>E-Mail</span><span class="ml"><a href="mailto:cristina.vendrame@electrolux.com">cristina.vendrame@electrolux.com</a></span></div><div class="cl"><span>Telefon</span><a href="tel:+390434394749">+39 0434 394749</a></div><div class="cl"><span>Mobil</span><a href="tel:+393426520229">+39 342 6520229</a></div></div><div class="card"><div class="cn">Michael Girotto</div><div class="cr">Electrolux Logistics Italy · Warehouse Manager Susegana/Porcia</div><div class="cl"><span>E-Mail</span><span class="ml"><a href="mailto:michael.girotto@electrolux.com">michael.girotto@electrolux.com</a></span></div><div class="cl"><span>Telefon</span><a href="tel:+390438458970">+39 0438 45 8970</a></div><div class="cl"><span>Mobil</span><a href="tel:+393351996411">+39 335 1996411</a></div><div class="ch">Stand: Signatur vom 21.09.2026</div></div><div class="card"><div class="cn">Alessandro Scamperle</div><div class="cr">Electrolux · Logistic Europe PMO</div><div class="cl"><span>E-Mail</span><span class="ml"><a href="mailto:alessandro.scamperle@electrolux.com">alessandro.scamperle@electrolux.com</a></span></div><div class="cl"><span>Telefon</span>–</div><div class="cl"><span>Mobil</span><a href="tel:+393355797629">+39 335 579 76 29</a></div><div class="ch">Stand: Signatur vom 23.09.2026</div></div><div class="card"><div class="cn">Andreas Scholten</div><div class="cr">Zoll- und Speditionskontor Augsburg · Geschäftsführer</div><div class="cl"><span>E-Mail</span><span class="ml"><a href="mailto:andreas.scholten@zollspediteur.com">andreas.scholten@zollspediteur.com</a></span></div><div class="cl"><span>Telefon</span>–</div><div class="cl"><span>Mobil</span><a href="tel:+491791006425">+49 179 100 64 25</a></div></div></div></div>
+  </details>
+
+  <!-- 3 -->
+  <details>
+    <summary><span class="ico">📦</span><span class="st"><h2>Kommissionierung &amp; Versand</h2><p>Planungsregeln</p></span><span class="chev"></span></summary>
+    <div class="body"><ul>
+      <li><span class="t"><b>Keine</b> Abholungen oder Versände am Tag der Kommissionierung einplanen</span><span class="pill c">Cengiz</span></li>
+      <li><span class="t">Sonderwünsche bei der Kommissionierplanung <b>immer zuerst mit Dima</b> besprechen, bevor wir etwas zusagen</span><span class="pill c">Cengiz</span></li>
+      <li><span class="t">Versandanmeldung immer mit Auftragsnummer, Kommissioniertag, Abholtermin, Adresse inkl. Telefon und Warenwert</span><span class="pill c">Cengiz</span></li>
+      <li><span class="t">Rahmen: ca. 300 Geräte/Tag, 2 LKW/Tag palettiert <span class="sub">[Planungsannahme]</span></span><span class="pill a">Info</span></li>
+      <li><span class="t">Zoll wie bisher über <b>Nikoloz</b>. Die Ausfuhrunterlagen leitet er während des Urlaubs selbst per Mail an AMM weiter (1 Klick).</span><span class="pill a">Nikoloz</span></li>
+    </ul></div>
+  </details>
+
+  <!-- 4 -->
+  <details>
+    <summary><span class="ico">🚚</span><span class="st"><h2>Wareneingang &amp; Material</h2><p>Was kommt und was schon erledigt ist</p></span><span class="chev"></span></summary>
+    <div class="body"><ul>
+      <li><span class="t"><b>Wellpappe-Test</b> Ahrbach <span class="k">AU2602250</span> (½ LKW), Ende KW 42. Testtag mit Dima festlegen; <b>keine</b> Preis- oder Mengenzusage an Ahrbach</span><span class="pill i">Inesa</span></li>
+      <li><span class="t">Annahmezeiten an Ahrbach mitgeteilt (telefonisch)</span><span class="pill a">✓ erledigt</span></li>
+      <li><span class="t">Verpackungsmaterial bestellt: Folien, Klebebänder, Pappe</span><span class="pill a">✓ erledigt</span></li>
+      <li><span class="t">Palettenfreigabe bei Zelsen erteilt</span><span class="pill a">✓ erledigt</span></li>
+      <li><span class="t">Fehlende Electrolux-Rechnungen (Italien) <span class="k">400541030</span>, <span class="k">400537340</span>, <span class="k">400537330</span>: Electrolux hat ein IT-Problem, wöchentlich nachhaken</span><span class="pill i">Inesa</span></li>
+    </ul></div>
+  </details>
+
+  <!-- 5 -->
+  <details>
+    <summary><span class="ico">🗂️</span><span class="st"><h2>Systeme</h2><p>NH5, Odoo, Änderungsstopp</p></span><span class="chev"></span></summary>
+    <div class="body"><ul>
+      <li><span class="t"><b>NH5-Excel bleibt</b> während des Urlaubs das führende Werkzeug</span><span class="pill a">Regel</span></li>
+      <li><span class="t">Odoo und NH5 <b>gleich pflegen</b>: Was in einem System geändert wird, wird auch im anderen geändert</span><span class="pill c">Cengiz</span></li>
+      <li><span class="t"><b>Keine Systemänderungen</b> (Prozesse, Felder, Automationen), solange Dustin weg ist</span><span class="pill a">Regel</span></li>
+      <li><span class="t">NH5 in Odoo: Josh arbeitet weiter, nach Dustins Anweisung (inkl. Weiterverrechnung der Lagerkosten und AGBs). Josh arbeitet <b>nur in einer Testumgebung</b>, nichts Produktives. <b>Livegang erst nach der Rückkehr.</b></span><span class="pill a">Josh</span></li>
+    </ul></div>
+  </details>
+
+  <!-- 6 -->
+  <details>
+    <summary><span class="ico">🧭</span><span class="st"><h2>Offene Themen</h2><p>Aus Outlook übernommen</p></span><span class="chev"></span></summary>
+    <div class="body"><ul>
+      <li><span class="t"><b>Otto-Obligo</b>: konnte nicht automatisiert werden, bleibt bei Johannes. Eventuell eine kleine Aufgabe für Abdul; Dustin klärt das vor dem Urlaub. <b>Vor dem 21.10. sauber an Konstantinos übergeben.</b></span><span class="pill j">Johannes</span></li>
+      <li><span class="t">Hermes Löhne: Verladung vom 06.10. storniert, eventuell Neueinplanung in KW 42</span><span class="pill i">Inesa</span></li>
+      <li><span class="t">Agicap-Rechnungsfreigaben (bisher täglich bei Dustin) <span class="sub">[ab 21.10.: wer, wenn Johannes im Urlaub ist?]</span></span><span class="pill j">Johannes</span></li>
+      <li><span class="t">Electrolux Staubsauger-Deal: IT-Problem in Polen, Update folgt</span><span class="pill s">Siyad</span></li>
+    </ul></div>
+  </details>
+
+  <!-- 7 -->
+  <details>
+    <summary><span class="ico">🤝</span><span class="st"><h2>Führung &amp; Team</h2><p>Damit niemand allein dasteht</p></span><span class="chev"></span></summary>
+    <div class="body"><ul>
+      <li><span class="t"><b>Ausprobieren:</b> Lässt sich Inesas Arbeitstag in dieser Zeit sinnvoll strukturieren, damit keine Überlast entsteht?</span><span class="pill a">To-Try</span></li>
+      <li><span class="t">Cengiz auffangen, wenn er Fragen hat. Nikoloz und Nikos <b>nicht</b> allein auf Cengiz loslassen.</span><span class="pill s">Siyad</span></li>
+      <li><span class="t">Management-Eskalation bis 20.10.; ab 21.10. ist Johannes selbst im Urlaub (Vertretung: Konstantinos)</span><span class="pill j">Johannes</span></li>
+    </ul>
+</div>
+  </details>
+
+  <!-- 8 -->
+  <details>
+    <summary><span class="ico">⏸️</span><span class="st"><h2>Bleibt liegen bis zur Rückkehr</h2><p>Bewusst nicht anfassen</p></span><span class="chev"></span></summary>
+    <div class="body"><ul>
+      <li><span class="t">Planung Wörnitz und Ähnliches</span><span class="pill a">ruht</span></li>
+      <li><span class="t">Livegang NH5 in Odoo</span><span class="pill a">ruht</span></li>
+      <li><span class="t">Wellpappe: Jahresmenge und Preis erst nach der Auswertung des Tests</span><span class="pill a">ruht</span></li>
+    </ul></div>
+  </details>
+
+  <!-- 9 -->
+  <details>
+    <summary><span class="ico">✅</span><span class="st"><h2>Dustin – vor Abreise</h2><p>Bis Do 08.10.</p></span><span class="chev"></span></summary>
+    <div class="body"><ul>
+      <li><span class="t">Urlaub in absence.io prüfen: Kein genehmigter Antrag ab 09.10. gefunden</span><span class="pill a">Dustin</span></li>
+      <li><span class="t">AMM (Dominko, Dima) informieren: Wer ab 09.10. anruft und wer angerufen wird</span><span class="pill a">Dustin</span></li>
+      <li><span class="t">Anweisung an Josh (NH5 in Odoo, Lagerkosten, AGBs) und Otto-Obligo mit Abdul klären</span><span class="pill a">Dustin</span></li>
+      <li><span class="t">Nikoloz: Weiterleitung der Zollunterlagen an AMM übergeben</span><span class="pill a">Dustin</span></li>
+      <li><span class="t">Agicap-Freigabe an Johannes einrichten · Odoo-Aktivitäten <span class="k">S02224</span>/<span class="k">S02212</span> an Cengiz umhängen</span><span class="pill a">Dustin</span></li>
+      <li><span class="t">Abwesenheitsnotiz einrichten · verwaiste Kalenderserie „täglicher Abgleich WA“ löschen · ODOO LOGISTIK am 21.10. verschieben</span><span class="pill a">Dustin</span></li>
+    </ul></div>
+  </details>
+
+  <!-- 10 -->
+  <details class="crit">
+    <summary><span class="ico">🔍</span><span class="st"><h2>Kritische Prüfung</h2><p>Noch offene Risiken</p></span><span class="chev"></span></summary>
+    <div class="body"><ul>
+      <li><span class="t"><b>Agicap ab 21.10.:</b> Johannes ist dann im Urlaub. → Vertretung für die Freigaben festlegen (Konstantinos?).</span></li>
+      <li><span class="t"><b>Zoll ohne Kontrolle:</b> Nikoloz leitet weiter, aber niemand prüft, ob AMM es bekommen hat. → Cengiz fragt das im Telefonat mit Dima ab.</span></li>
+      <li><span class="t"><b>Ist Dustin im Notfall erreichbar?</b> → Klar sagen „gar nicht“ oder „nur per SMS bei X“, damit niemand zögert.</span></li>
+    </ul>
+    <div class="note">Umgesetzt aus der Prüfung: Cengiz vertritt den 07-Uhr-Check, täglicher 16-Uhr-Abgleich Odoo/NH5, Josh nur in einer Testumgebung, Obligo-Übergabe vor dem 21.10.</div></div>
+  </details>
+
+  <footer>Urlaubsübergabe D. Eskofier · 07.10.2026 · v8 · Quellen: Dustins Vorgaben vom 07.10., Outlook, Kalender, Teams</footer>
+</div>
+</body>
+</html>
