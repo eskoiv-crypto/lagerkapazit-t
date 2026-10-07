@@ -1,6 +1,6 @@
 # Otto-Obligo-Cockpit · Build-Kit (Repo-Kopie)
 
-**Stand:** 2026-09-25 · **Version:** v2.3 (Kontinuitätsprüfung + Obligo-Verlauf) · Sprache: Deutsch
+**Stand:** 2026-10-07 · **Version:** v2.4 (ohne Passwort) · Sprache: Deutsch
 
 Das Otto-Obligo-Cockpit ist eine Single-File-HTML-App (offline, keine Server), die das tatsächliche
 Obligo gegenüber Otto gegen das Kreditlimit zeigt. **Quelle der Wahrheit für den Betrieb** bleibt SharePoint:
@@ -10,23 +10,24 @@ Dieses Verzeichnis ist die versionierte Kopie des Build-Kits, damit Änderungen 
 ## Austausch der Live-Datei (`deploy.ps1`)
 
 ```powershell
-# 1) bauen - Passwort bewusst als Platzhalter, deploy.ps1 holt das echte aus der alten Datei
-OTTO_CFG_PW='__UEBERNAHME_AUS_ALTER_DATEI__' node otto-obligo/_build-kit/build.cjs `
-  --out OttoObligoCockpit.new.html --no-hist
+# 1) bauen - ohne Historie, deploy.ps1 holt sie aus der alten Datei
+node otto-obligo/_build-kit/build.cjs --out OttoObligoCockpit.new.html --no-hist
 
 # 2) austauschen
 .\deploy.ps1 -WhatIf
 .\deploy.ps1
 ```
 
-`deploy.ps1` sichert die alte Datei mit Zeitstempel, überträgt **Historie und Einstellungs-Passwort**
-aus ihr in die neue, prüft Marken und Platzhalter und ersetzt erst dann.
+`deploy.ps1` sichert die alte Datei mit Zeitstempel, überträgt die **eingebettete Historie** aus ihr
+in die neue, prüft die Marken und ersetzt erst dann.
 
-> ⚠️ **Die frisch gebaute `.new.html` niemals direkt über die Live-Datei kopieren.** Sie trägt nur den
-> Platzhalter als Passwort und keine Historie — beides wäre danach verloren und das gewohnte Passwort
-> würde abgewiesen. `deploy.ps1` erkennt diesen Zustand und bricht mit Hinweis auf den
-> OneDrive-Versionsverlauf ab. Ging es trotzdem schief: `historie-uebernehmen.ps1` holt die Historie
-> aus einer alten Kopie zurück.
+> ⚠️ **Die frisch gebaute `.new.html` nicht direkt über die Live-Datei kopieren** — sie trägt keine
+> Historie, die wäre danach verloren. Ging es trotzdem schief: `historie-uebernehmen.ps1` holt die
+> Historie aus einer alten Kopie (OneDrive-Versionsverlauf) zurück.
+
+**Seit v2.4 gibt es kein Passwort mehr.** „⚙️ Einstellungen & Details" ist ein einfacher Schalter, damit
+die Vertretung ohne Rückfrage arbeiten kann. Der alte Riegel stand im Klartext im Quelltext und war nie
+ein echter Schutz. **Zugriffsschutz ist die Berechtigung auf den SharePoint-Ordner `Otto_Obligo_View`.**
 
 Zwei Fallstricke, die in `deploy.ps1` bewusst vermieden sind:
 
@@ -134,16 +135,15 @@ Ausgelöst durch die Otto-Retourenrechnung `<Otto-Rechnungsnummer>` (11 Seiten: 
   genommen, steht ein ⚠️-Hinweis im Lade-Protokoll („bitte prüfen“).
 - **Fremd-PDFs** (kein „Otto GmbH“ im Text), Scans ohne Text und Nicht-PDFs werden mit klarer Meldung abgewiesen.
 - PDF-Textextraktion robuster: `TJ`-Arrays, Escapes (`\(`, `\)`, `\ddd`), Zeilenfortsetzungen; nur Inhalts-Streams werden gelesen.
-- Passwort der 🔒-Einstellungen ist ein Build-Parameter (siehe unten) statt Klartext im Template.
+- (bis v2.3) Passwort der 🔒-Einstellungen als Build-Parameter — **in v2.4 entfallen**.
 
 ## Dateien
 
 | Datei | Zweck |
 |---|---|
-| `_build-kit/app_template.html` | Quelltemplate der App (Platzhalter `__SHEETJS__`, `__JSPDF__`, `__PAKO__`, `__HISTCSV__`, `__CFGPW__`) |
-| `_build-kit/build.cjs` | Build-Skript: bettet Bibliotheken (aus `node_modules`), optional die Historie und das Passwort ein, prüft die Syntax |
+| `_build-kit/app_template.html` | Quelltemplate der App (Platzhalter `__SHEETJS__`, `__JSPDF__`, `__PAKO__`, `__HISTCSV__`) |
+| `_build-kit/build.cjs` | Build-Skript: bettet Bibliotheken (aus `vendor/` oder `node_modules`) und optional die Historie ein, prüft die Syntax |
 | `_build-kit/hist_register.csv` | **nicht im Repo** (`.gitignore`) — Agicap-Register-Export mit Otto-Konditionen, vertraulich |
-| `_build-kit/local.config.json` | **nicht im Repo** — `{"cfgPw":"…"}` für das Einstellungs-Passwort |
 | `dist/` | **nicht im Repo** — Build-Ausgaben (der Test baut hier `Otto-Obligo-Cockpit.test.html` ohne Historie) |
 | `00_START-HIER_Anleitung.md` | Bedienungsanleitung (aktualisierte Fassung für SharePoint) |
 
@@ -154,9 +154,7 @@ npm install                                   # einmalig: xlsx, jspdf, pako, @pl
 
 # Produktiv-Build für SharePoint (MIT Historie):
 #   1. aktuellen Agicap-Register-Export als otto-obligo/_build-kit/hist_register.csv ablegen (bleibt git-ignoriert)
-#   2. Passwort der 🔒-Einstellungen setzen: OTTO_CFG_PW=… oder otto-obligo/_build-kit/local.config.json {"cfgPw":"…"}
-#      (Pflicht — das Repo ist öffentlich, deshalb steht kein Standard-Passwort im Code)
-OTTO_CFG_PW=… node otto-obligo/_build-kit/build.cjs      # -> otto-obligo/dist/Otto-Obligo-Cockpit.html (git-ignoriert)
+node otto-obligo/_build-kit/build.cjs                   # -> otto-obligo/dist/Otto-Obligo-Cockpit.html (git-ignoriert)
 
 # Build ohne Historie (z. B. zum Testen):  … build.cjs --no-hist --out <pfad>
 ```
@@ -170,7 +168,7 @@ Der fertige Build wird in die bekannten SharePoint-Ablagen kopiert (siehe `REFRE
 
 ```bash
 node tests/fixtures/make_otto_fixture.cjs     # synthetische Otto-PDFs / ZIP / CSV neu erzeugen (bereits eingecheckt)
-npx playwright test tests/otto-obligo.spec.js # baut vorher selbst nach dist/ (ohne Historie, Test-Passwort)
+npx playwright test tests/otto-obligo.spec.js # baut vorher selbst nach dist/ (ohne Historie)
 # Cloud-Sandbox mit vorinstalliertem Chromium: PW_CHROMIUM_PATH=/opt/pw-browsers/chromium npx playwright test …
 ```
 
@@ -189,8 +187,3 @@ Je PDF-Beleg (Kaskade, erste greifende Regel gewinnt):
 
 Dazu Gegenprobe `netto + USt = brutto`, Rechnungsdatum bevorzugt aus dem Ort-Datum-Kopf,
 Fälligkeit intern = Rechnungsdatum + 30 Tage, Plombe = 7 Ziffern nach „Plombe“.
-
-## Übergabe an die IT (Automatisierung)
-
-Zielarchitektur Odoo + Outlook/n8n, Arbeitspakete AP-0 bis AP-7 und Testfälle: `uebergabe-it/00_START-HIER.md`.
-Echte Referenzwerte für die Abnahme liegen nur im internen Übergabe-ZIP, nicht im Repo.

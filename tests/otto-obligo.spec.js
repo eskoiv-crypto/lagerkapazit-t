@@ -12,7 +12,7 @@ const KIT = path.resolve(__dirname, '..', 'otto-obligo', '_build-kit');
 const COCKPIT = path.resolve(__dirname, '..', 'otto-obligo', 'dist', 'Otto-Obligo-Cockpit.test.html');
 test.beforeAll(() => {
     execFileSync(process.execPath, [path.join(KIT, 'build.cjs'), '--out', COCKPIT, '--no-hist'],
-        { env: { ...process.env, OTTO_CFG_PW: 'test-pw' }, stdio: 'inherit' });
+        { env: { ...process.env }, stdio: 'inherit' });
 });
 const FIX = path.resolve(__dirname, 'fixtures');
 const fx = (...n) => n.map(f => path.join(FIX, f));
@@ -31,6 +31,23 @@ const status = page => page.locator('#d_pay .st');
 const openSum = page => page.locator('#out .kpi.flat .val').first();   // Kachel "Offene Rechnungen (Agicap)"
 
 test.describe('Otto-Obligo-Cockpit · PDF-Belege', () => {
+
+    test('Einstellungen & Details öffnen OHNE Passwortabfrage (seit v2.4)', async ({ page }) => {
+        const dialogs = [];
+        page.on('dialog', d => { dialogs.push(d.type() + ': ' + d.message()); d.dismiss(); });
+        const errors = await open(page);
+        await expect(page.locator('.badge')).toHaveText('v2.4 · intern');
+        await expect(page.locator('#cfgCard')).toBeHidden();
+        await page.locator('#btnCfg').click();
+        await expect(page.locator('#cfgCard')).toBeVisible();
+        await expect(page.locator('#limit')).toBeEditable();
+        await page.locator('#btnCfg').click();                       // Schalter: wieder zu
+        await expect(page.locator('#cfgCard')).toBeHidden();
+        expect(dialogs, 'kein prompt/alert mehr').toEqual([]);
+        const quelltext = await page.content();
+        expect(quelltext).not.toContain('CFG_PW');
+        expect(errors).toEqual([]);
+    });
 
     test('Bibliotheken eingebettet, Drop-Zone akzeptiert PDF + Mehrfachauswahl', async ({ page }) => {
         const errors = await open(page);

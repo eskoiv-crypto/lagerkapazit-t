@@ -1,5 +1,5 @@
 <#
-    Holt die eingebettete Otto-Historie aus einer ALTEN Cockpit-Datei in die neue v2.3.
+    Holt die eingebettete Otto-Historie aus einer ALTEN Cockpit-Datei in die neue Fassung (ab v2.3).
 
     Brauchst du nur, wenn die Historie-Kachel in der neuen Datei leer bleibt
     (statt "automatisch geladen (eingebetteter Stand)").
@@ -44,7 +44,7 @@ if (-not $inhaltNeu.Contains($suchen)) { throw "Die neue Datei hat schon eine Hi
 $ersetzen  = 'const HIST_CSV=' + $m.Groups[1].Value + ';'
 $inhaltNeu = $inhaltNeu.Replace($suchen, $ersetzen)
 
-foreach ($marke in @('Otto-Obligo-Cockpit', 'v2.3', 'kontinuitaet', 'obligoVerlauf')) {
+foreach ($marke in @('Otto-Obligo-Cockpit', 'kontinuitaet', 'obligoVerlauf')) {
     if (-not $inhaltNeu.Contains($marke)) { throw "Pruefmarke '$marke' fehlt - abgebrochen, nichts geschrieben." }
 }
 Ok "Pruefmarken vorhanden, Ergebnis $([math]::Round($inhaltNeu.Length/1KB)) KB"

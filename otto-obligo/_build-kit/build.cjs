@@ -1,13 +1,12 @@
 #!/usr/bin/env node
 // Build: SheetJS + jsPDF + pako + (optional) Otto-Historie in app_template.html einbetten -> Otto-Obligo-Cockpit.html
 //
-//   OTTO_CFG_PW=… node otto-obligo/_build-kit/build.cjs                      -> otto-obligo/dist/Otto-Obligo-Cockpit.html
+//   node otto-obligo/_build-kit/build.cjs                                    -> otto-obligo/dist/Otto-Obligo-Cockpit.html
 //   node otto-obligo/_build-kit/build.cjs --out <pfad> [--hist <csv>] [--no-hist]
 //
 // Historie:   _build-kit/hist_register.csv oder --hist <pfad>  (Agicap-Register-Export, VERTRAULICH -> .gitignore, nie committen)
 //             --no-hist erzwingt einen Build ohne Historie (Tests).
-// Passwort:   PFLICHT — Umgebungsvariable OTTO_CFG_PW oder _build-kit/local.config.json {"cfgPw":"…"} (beides nie committen).
-//             Das Repo ist öffentlich: hier steht bewusst kein Standard-Passwort.
+// Passwort:   entfallen seit v2.4 (Einstellungen sind ein einfacher Schalter). OTTO_CFG_PW wird ignoriert.
 "use strict";
 const fs = require("fs"), path = require("path"), vm = require("vm");
 
@@ -26,7 +25,7 @@ function lib(rel) {
   return fs.readFileSync(p, "utf8");
 }
 const T = fs.readFileSync(path.join(KIT, "app_template.html"), "utf8");
-for (const ph of ["__SHEETJS__", "__JSPDF__", "__PAKO__", "__HISTCSV__", "__CFGPW__"])
+for (const ph of ["__SHEETJS__", "__JSPDF__", "__PAKO__", "__HISTCSV__"])
   if (!T.includes(ph)) { console.error("Platzhalter " + ph + " fehlt im Template."); process.exit(1); }
 
 const sheetjs = lib("xlsx/dist/xlsx.full.min.js");
@@ -46,19 +45,12 @@ if (NO_HIST) {
   console.log("Hinweis: keine hist_register.csv -> Build OHNE eingebettete Historie (öffentlich unkritisch).");
 }
 
-// Passwort für 🔒 Einstellungen
-let cfgPw = process.env.OTTO_CFG_PW || null;
-const localCfg = path.join(KIT, "local.config.json");
-if (!cfgPw && fs.existsSync(localCfg)) { try { cfgPw = JSON.parse(fs.readFileSync(localCfg, "utf8")).cfgPw || null; } catch (e) { console.error("local.config.json unlesbar: " + e.message); } }
-if (!cfgPw) { console.error("Passwort für 🔒 Einstellungen fehlt: OTTO_CFG_PW=… setzen oder _build-kit/local.config.json {\"cfgPw\":\"…\"} anlegen."); process.exit(1); }
-
 // Einbetten. Ersetzung über Funktion, damit "$&"/"$1" im Bibliothekscode nicht als Replace-Pattern wirken.
 const put = (src, ph, val) => src.split(ph).join(val);
 let html = put(T, "__SHEETJS__", sheetjs);
 html = put(html, "__JSPDF__", jspdf);
 html = put(html, "__PAKO__", pako);
 html = put(html, "__HISTCSV__", JSON.stringify(hist));
-html = put(html, "__CFGPW__", JSON.stringify(cfgPw));
 if (html.includes("</script>") && /<\/script>/.test(hist)) { console.error("Historie enthält </script> — abgebrochen."); process.exit(1); }
 
 // Syntax-Check des App-Skripts (letzter <script>-Block)

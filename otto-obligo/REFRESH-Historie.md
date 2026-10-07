@@ -1,4 +1,4 @@
-# Otto-Historie auffrischen (1× im Monat) — Stand v2.3 (2026-09-25)
+# Otto-Historie auffrischen (1× im Monat) — Stand v2.4 (2026-10-07)
 
 Die Historie ist **fest ins Cockpit eingebettet** und lädt automatisch beim Öffnen — kein Drag&Drop nötig.
 Damit sie aktuell bleibt, wird der eingebettete Stand **einmal im Monat** neu gebaut. Dauert ~2 Minuten.
@@ -13,8 +13,8 @@ Claude legt sie als `_build-kit/hist_register.csv` ab (bleibt git-ignoriert), ba
 
 ## Was dann intern passiert (zur Nachvollziehbarkeit)
 1. Neue CSV → `_build-kit/hist_register.csv` (überschreibt den alten Snapshot)
-2. `OTTO_CFG_PW=… node _build-kit/build.cjs --out …` — bettet Bibliotheken **und** die Historie ein, prüft die Syntax
-3. Ergebnis in **alle Kopien** kopieren (`deploy.ps1` aus dem Deploy-Paket erledigt das):
+2. `node _build-kit/build.cjs --out …` — bettet Bibliotheken **und** die Historie ein, prüft die Syntax
+3. Ergebnis in **alle Kopien** kopieren (`deploy.ps1` ersetzt nur die Live-Datei — die übrigen Kopien von Hand):
    - `Digital Experience – KI-Tools/Otto_Obligo_View/OttoObligoCockpit.html`  (Live-Datei)
    - `Digital Experience – KI-Tools/Otto_Obligo_View/_build-kit/Otto-Obligo-Cockpit.html`  (Referenz)
    - `Dokumente/Otto-Obligo-Cockpit/Otto-Obligo-Cockpit.html`
@@ -24,13 +24,12 @@ Claude legt sie als `_build-kit/hist_register.csv` ab (bleibt git-ignoriert), ba
 Im `_build-kit`-Ordner auf SharePoint liegen `app_template.html`, `build.cjs` und `vendor/` (SheetJS, jsPDF, pako):
 ```
 # neue Register-CSV als hist_register.csv hier ablegen, dann (PowerShell):
-$env:OTTO_CFG_PW = "<Passwort der 🔒-Einstellungen>"
 node build.cjs --out ..\OttoObligoCockpit.html
-# danach die HTML in die übrigen Zielorte kopieren (deploy.ps1)
+# danach die HTML in die übrigen Zielorte kopieren
 ```
-Ohne `OTTO_CFG_PW` bricht der Build absichtlich ab — das Passwort steht nicht mehr im Code.
+Seit v2.4 braucht der Build **kein Passwort** mehr.
 
 ## Hinweise
 - Der **laufende Monat** (teils auch Vormonat) ist im Diagramm meist **unvollständig** — Rechnungen treffen verzögert ein.
-- Die Historie sitzt hinter dem 🔒-Passwort — sie ist bewusst nicht im teilbaren PDF.
+- Die Historie sitzt unter „⚙️ Einstellungen & Details" — sie ist bewusst nicht im teilbaren PDF.
 - Der eingebettete Stand ändert nichts am Obligo — Historie ist reine Rückschau, unabhängig von den Tages-Uploads.

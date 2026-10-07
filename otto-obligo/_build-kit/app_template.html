@@ -96,8 +96,8 @@ body.unlocked .cfg{display:block}
 </head>
 <body>
 <div class="wrap">
-  <header class="top no-print"><h1>Otto-Obligo-Cockpit</h1><span class="badge">v2.3 · intern</span>
-    <span class="topbtns"><button class="btn primary" id="btnPdf">📄 PDF-Auswertung</button><button class="btn" id="btnCfg">🔒 Einstellungen</button></span>
+  <header class="top no-print"><h1>Otto-Obligo-Cockpit</h1><span class="badge">v2.4 · intern</span>
+    <span class="topbtns"><button class="btn primary" id="btnPdf">📄 PDF-Auswertung</button><button class="btn" id="btnCfg">⚙️ Einstellungen &amp; Details</button></span>
   </header>
   <p class="tagline no-print">Tatsächliches Obligo gegenüber Otto vs. Kreditlimit 500.000 € (brutto) = <b>berechnete offene Rechnungen (Agicap)</b> + <b>LKW mit Lieferschein, deren Rechnung noch aussteht</b> · elvinci.de GmbH</p>
 
@@ -124,7 +124,7 @@ body.unlocked .cfg{display:block}
   </div>
 
   <div class="card no-print cfg" id="cfgCard">
-    <h2>2 · Einstellungen <span class="opt">🔒 geschützt</span></h2>
+    <h2>2 · Einstellungen</h2>
     <div class="ctrls">
       <div class="ctrl"><label>Stichtag</label><div style="font-size:14px;padding:8px 10px;color:var(--sub)">immer heute (<span id="asofShow"></span>) — automatisch</div></div>
       <div class="ctrl"><label>Kreditlimit (€ brutto)</label><input type="number" id="limit" value="500000" step="10000"></div>
@@ -134,7 +134,7 @@ body.unlocked .cfg{display:block}
 
   <div id="out"><div class="card"><div class="empty">Ziehe den <b>Agicap-Export</b> hinein — das Cockpit zeigt sofort den offenen Betrag. Mit der <b>Bestellungen</b>-Datei kommen die bereits gelieferten, noch nicht berechneten LKW dazu.</div></div></div>
 
-  <div class="foot no-print">Master bleibt intern · Otto bekommt nie diese Datei · Einstellungen sind passwortgeschützt (weicher Riegel)</div>
+  <div class="foot no-print">Nur intern · Otto bekommt nie diese Datei und nie diese Zahlen</div>
 </div>
 
 <script>
@@ -559,7 +559,7 @@ function gauge(R){
   </svg>`;
 }
 
-// ---------- Fälligkeits-Zahlungsplan je Woche (INTERN, hinter PW; zeigt WANN fällig, ohne Rechnungsdatum/Zahlungsziel) ----------
+// ---------- Fälligkeits-Zahlungsplan je Woche (INTERN, hinter „Einstellungen & Details"; zeigt WANN fällig, ohne Rechnungsdatum/Zahlungsziel) ----------
 function faelligChart(R){
   const W=1080,H=300,padL=66,padR=26,padT=46,padB=66;
   const asof=R.asof, mode=faelligMode;
@@ -1023,13 +1023,14 @@ document.addEventListener("click",e=>{ const b=e.target.closest("[data-fmode]");
 document.addEventListener("click",e=>{ const b=e.target.closest("[data-histmode]"); if(b){ histMode=b.dataset.histmode; if(state.hist)render(); } });
 document.addEventListener("click",e=>{ const b=e.target.closest("[data-histgran]"); if(b){ histGran=b.dataset.histgran; if(state.hist)render(); } });
 
-// ----- Einstellungen: weicher PW-Riegel -----
-const CFG_PW=__CFGPW__;   // wird von build.js gesetzt (OTTO_CFG_PW bzw. local.config.json) — weicher Schutz
+// ----- Einstellungen & Details: Schalter ohne Passwort (seit v2.4) -----
+// Blendet Limit-Einstellung, Historie und Fälligkeitsplan ein/aus. Bis v2.3 lag hier ein Passwort-Riegel;
+// der war nur kosmetisch (Klartext im Quelltext) und ist entfallen, damit die Vertretung damit arbeiten kann.
+// Zugriffsschutz = Berechtigung auf den SharePoint-Ordner, nicht diese Datei.
 $("#btnCfg").addEventListener("click",()=>{
-  if(document.body.classList.contains("unlocked")){ document.body.classList.remove("unlocked"); $("#btnCfg").textContent="🔒 Einstellungen"; return; }
-  const p=prompt("Passwort für Einstellungen:"); if(p===null)return;
-  if(p===CFG_PW){ document.body.classList.add("unlocked"); $("#btnCfg").textContent="🔓 Einstellungen offen"; const c=$("#cfgCard"); if(c)c.scrollIntoView({behavior:"smooth",block:"center"}); }
-  else alert("Falsches Passwort.");
+  const offen=document.body.classList.toggle("unlocked");
+  $("#btnCfg").textContent=offen?"✕ Einstellungen & Details schließen":"⚙️ Einstellungen & Details";
+  if(offen){ const c=$("#cfgCard"); if(c)c.scrollIntoView({behavior:"smooth",block:"center"}); }
 });
 
 // ----- PDF: echter Datei-Download, nativ mit jsPDF (ohne Fälligkeit/Zahlungsziel) -----

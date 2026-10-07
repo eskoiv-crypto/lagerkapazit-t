@@ -86,13 +86,13 @@ Beides steht transparent im **Validierungs-Panel**.
 **Zeigt:** Obligo heute vs. Limit · Aufteilung (offene Rechnungen / warten auf Rechnung) · Balken · Liste der „warten auf Rechnung"-LKW.
 **Zeigt NICHT:** Fälligkeiten, das 30-Tage-Zahlungsziel, einzelne Rechnungs-Fälligkeiten.
 
-## Historie (fest eingebettet, hinter 🔒 — lädt automatisch)
-Die Otto-Historie ist **fest ins Tool eingebettet** und wird bei **jedem Öffnen automatisch geladen**. Nach dem 🔒-Entsperren zeigt sie „Otto-Volumen" als Balken (Rechnungen / Gezahlt · Tag / Woche / Monat). Frischeren Stand einspielen: Register-Export ins Feld „Historie" ziehen (nur diese Sitzung) oder neu einbetten lassen (siehe `REFRESH-Historie.md`; Build jetzt mit `node build.cjs`).
+## Historie (fest eingebettet, unter „Einstellungen & Details" — lädt automatisch)
+Die Otto-Historie ist **fest ins Tool eingebettet** und wird bei **jedem Öffnen automatisch geladen**. Unter „⚙️ Einstellungen & Details" zeigt sie „Otto-Volumen" als Balken (Rechnungen / Gezahlt · Tag / Woche / Monat). Frischeren Stand einspielen: Register-Export ins Feld „Historie" ziehen (nur diese Sitzung) oder neu einbetten lassen (siehe `REFRESH-Historie.md`; Build jetzt mit `node build.cjs`).
 
-## Fälligkeiten-Zeitstrahl (intern, hinter 🔒)
-Nach dem Entsperren erscheint ein **Fälligkeits-Zeitstrahl** (nächste 30 Tage). **Bewusst OHNE Rechnungsdatum und ohne 30-Tage-Ziel** — und **nicht** im teilbaren PDF.
+## Fälligkeiten-Zeitstrahl (intern, unter „Einstellungen & Details")
+Nach dem Aufklappen erscheint ein **Fälligkeits-Zeitstrahl** (nächste 30 Tage). **Bewusst OHNE Rechnungsdatum und ohne 30-Tage-Ziel** — und **nicht** im teilbaren PDF.
 
 ## Einstellungen
-Hinter „🔒 Einstellungen" (Passwort): Stichtag + Kreditlimit + der Fälligkeiten-Zeitstrahl. **Weicher Schutz** — hält Gelegenheitsblicke ab, keine echte Verschlüsselung. Passwort ändern: beim Bauen über `OTTO_CFG_PW` bzw. `_build-kit/local.config.json` (siehe README) — nicht mehr im Template.
+Hinter „⚙️ Einstellungen & Details" (seit v2.4 **ohne Passwort**): Stichtag + Kreditlimit + Historie + der Fälligkeiten-Zeitstrahl. Der Knopf blendet diese Bereiche nur ein und aus. Wer die Datei öffnen kann, sieht alles — **Zugriffsschutz ist die Berechtigung auf den SharePoint-Ordner**.
 
 *Master bleibt intern · Otto bekommt nie diese Dateien.*
