@@ -9,6 +9,12 @@
 - Urlaubsvertretungen Dustin Eskofier (ab 09.10.2026): Inesa Mkhitarian, Siyad Mutaschar,
   Johannes Heller, Cengiz Yildirim.
 
+## Kapazität (verbindlich, laut Dustin 2026-10-07)
+
+- **Kapazität: 532 pro Tag.** Dieser Wert gilt. Die älteren Annahmen „300 Geräte/Tag,
+  330 Klassifizierung" aus den persönlichen Präferenzen sind veraltet und werden nicht
+  mehr verwendet.
+
 ## Zuständigkeiten (Stand 2026-10-07, laut Dustin)
 
 - **Joshua Kastner:** WA/WE in Odoo, systemtechnisch.
