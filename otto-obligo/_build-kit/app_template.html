@@ -360,8 +360,8 @@ function pdfInvoice(u8,name){
   const field=re=>{ const m=all.match(re); return m?num(m[m.length-1]):null; };
   // Summenblock des Otto-Belegs (Zwischensumme / Retourenvergütung / netto / USt / brutto)
   const zwischen=field(new RegExp("Zwischensumme\\s*(?:\\([^)]*\\))?\\s*:?\\s*("+AMT+")","i"));
-  // Otto benutzt zwei Bezeichnungen fuer denselben Abzug: "Retourenvergütung" (z. B. 1001EO26005619) und
-  // "Retourenabschlag" (z. B. 1001EO26005617). Beide muessen erkannt werden, sonst faellt die Gegenprobe
+  // Otto benutzt zwei Bezeichnungen fuer denselben Abzug: "Retourenvergütung" und
+  // "Retourenabschlag". Beide muessen erkannt werden, sonst faellt die Gegenprobe
   // auf die Zwischensumme zurueck und meldet faelschlich eine Abweichung.
   const vergM=all.match(new RegExp("Retouren(?:verg[üu]tung|abschlag)\\s*(?:\\(\\s*([\\d.,]+)\\s*%\\s*\\))?\\s*:?\\s*("+AMT+")","i"));
   const verg=vergM?num(vergM[2]):null, vergPct=vergM?vergM[1]||null:null;
@@ -469,7 +469,7 @@ function parseBestellung(rows){
     const created=midnight(toDate(r[c.created]));
     const gross=num(r[c.gross]);
     const rechCell=c.rech>=0?String(r[c.rech]||"").trim():"";
-    // Plombe = Lieferantenreferenz (falls Spalte) sonst 7-Ziffer aus "Rechnungen"-Spalte ("Rechnungsentwurf (4473125)")
+    // Plombe = Lieferantenreferenz (falls Spalte) sonst 7-Ziffer aus "Rechnungen"-Spalte ("Rechnungsentwurf (1234567)")
     const plombe=(c.lref>=0&&String(r[c.lref]).match(/\d{7}/)||rechCell.match(/\d{7}/)||[])[0]||null;
     const lref=c.lref>=0?String(r[c.lref]||"").trim():"";   // rohe Lieferantenreferenz (Anzeige) — Plombe ist nur die 7-Ziffer daraus
     orders.push({ref,stat:String(r[c.stat]||"").trim(),log:c.log>=0?String(r[c.log]||"").trim():"",

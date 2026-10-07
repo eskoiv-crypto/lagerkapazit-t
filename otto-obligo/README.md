@@ -189,3 +189,8 @@ Je PDF-Beleg (Kaskade, erste greifende Regel gewinnt):
 
 Dazu Gegenprobe `netto + USt = brutto`, Rechnungsdatum bevorzugt aus dem Ort-Datum-Kopf,
 Fälligkeit intern = Rechnungsdatum + 30 Tage, Plombe = 7 Ziffern nach „Plombe“.
+
+## Übergabe an die IT (Automatisierung)
+
+Zielarchitektur Odoo + Outlook/n8n, Arbeitspakete AP-0 bis AP-7 und Testfälle: `uebergabe-it/00_START-HIER.md`.
+Echte Referenzwerte für die Abnahme liegen nur im internen Übergabe-ZIP, nicht im Repo.
