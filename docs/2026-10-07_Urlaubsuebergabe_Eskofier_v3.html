@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Urlaubsübergabe Dustin</title>
+<style>
+  :root{
+    --bg:#f5f5f7; --card:#ffffff; --ink:#1d1d1f; --sub:#6e6e73; --line:#e5e5ea;
+    --blue:#0071e3; --warn:#b25000; --warnbg:#fff4e5; --ok:#1d8a3a;
+    --inesa:#0071e3; --cengiz:#248a3d; --siyad:#8944ab; --johannes:#c93400; --alle:#6e6e73;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#000; --card:#1c1c1e; --ink:#f5f5f7; --sub:#98989d; --line:#38383a;
+      --blue:#0a84ff; --warn:#ff9f0a; --warnbg:#2c2110; --ok:#30d158;
+      --inesa:#0a84ff; --cengiz:#30d158; --siyad:#bf5af2; --johannes:#ff6b3d; --alle:#98989d;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#000; --card:#1c1c1e; --ink:#f5f5f7; --sub:#98989d; --line:#38383a;
+    --blue:#0a84ff; --warn:#ff9f0a; --warnbg:#2c2110; --ok:#30d158;
+    --inesa:#0a84ff; --cengiz:#30d158; --siyad:#bf5af2; --johannes:#ff6b3d; --alle:#98989d;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font:15px/1.5 -apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",Arial,sans-serif;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:860px;margin:0 auto;padding:48px 16px 80px}
+  .eyebrow{color:var(--sub);font-size:13px;letter-spacing:.02em}
+  h1{font-size:40px;line-height:1.1;margin:6px 0 8px;font-weight:700;letter-spacing:-.02em}
+  .lead{color:var(--sub);font-size:17px;margin:0 0 28px}
+  .meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-bottom:28px}
+  .meta div{background:var(--card);border-radius:14px;padding:12px 14px}
+  .meta b{display:block;font-size:12px;color:var(--sub);font-weight:500}
+  .people{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 28px}
+  .pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:3px 10px;border-radius:999px;
+    background:color-mix(in srgb,var(--c) 14%,transparent);color:var(--c);white-space:nowrap}
+  .pill::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--c)}
+  .i{--c:var(--inesa)} .c{--c:var(--cengiz)} .s{--c:var(--siyad)} .j{--c:var(--johannes)} .a{--c:var(--alle)}
+  details{background:var(--card);border-radius:16px;margin:0 0 12px;overflow:hidden}
+  summary{list-style:none;cursor:pointer;padding:18px 20px;display:flex;align-items:center;gap:14px}
+  summary::-webkit-details-marker{display:none}
+  .ico{font-size:22px;width:28px;text-align:center;flex:none}
+  .st{flex:1;min-width:0}
+  .st h2{margin:0;font-size:17px;font-weight:600}
+  .st p{margin:2px 0 0;color:var(--sub);font-size:13px}
+  .chev{flex:none;width:10px;height:10px;border-right:2px solid var(--sub);border-bottom:2px solid var(--sub);transform:rotate(45deg);transition:transform .2s;margin-right:4px}
+  details[open] .chev{transform:rotate(225deg)}
+  .body{padding:0 20px 18px 62px}
+  ul{margin:0;padding:0;list-style:none}
+  li{padding:10px 0;border-top:1px solid var(--line);display:flex;gap:10px;align-items:flex-start;justify-content:space-between}
+  li:first-child{border-top:none}
+  li span.t{flex:1}
+  li .pill{margin-top:1px}
+  .k{font-family:"Courier New",Courier,monospace;font-size:14px}
+  .note{background:var(--warnbg);color:var(--warn);border-radius:12px;padding:10px 14px;font-size:13px;margin:10px 0 0}
+  .time{font-variant-numeric:tabular-nums;font-weight:600;min-width:58px;color:var(--blue)}
+  .sub{color:var(--sub);font-size:13px}
+  .crit li span.t b{color:var(--warn)}
+  footer{color:var(--sub);font-size:12px;margin-top:28px;text-align:center}
+  @media (max-width:560px){ h1{font-size:30px} .body{padding:0 16px 16px 16px} li{flex-direction:column;gap:4px} }
+  @media print{ details{break-inside:avoid} details:not([open]) .body{display:block} body{background:#fff} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="eyebrow">elvinci.de GmbH · Backoffice &amp; Fulfillment</div>
+  <h1>Urlaubsübergabe</h1>
+  <p class="lead">Dustin Eskofier ist ab Freitag, 09.10.2026, für drei Wochen nicht da.</p>
+
+  <div class="meta">
+    <div><b>Abwesend</b>09.10. – 30.10.2026</div>
+    <div><b>Zurück</b>Mo 02.11.2026</div>
+    <div><b>Stand</b>07.10.2026 · v3</div>
+  </div>
+
+  <div class="people">
+    <span class="pill i">Inesa · Dispo, WE, Beschaffung</span>
+    <span class="pill c">Cengiz · Lager, Aufträge, WA</span>
+    <span class="pill s">Siyad · Notfall, Eskalation</span>
+    <span class="pill j">Johannes · Management, Agicap (bis 20.10.)</span>
+  </div>
+
+  <!-- 1 -->
+  <details open>
+    <summary><span class="ico">☀️</span><span class="st"><h2>Tagesablauf</h2><p>Was jeden Tag passieren muss</p></span><span class="chev"></span></summary>
+    <div class="body"><ul>
+      <li><span class="time">07:00</span><span class="t">Nach <b>Löhne</b> schauen, Telefon und Outlook im Blick: Verspätet sich ein LKW oder fällt er aus? Sofort per <b>Telefon</b> reagieren. <span class="sub">Vertretung, falls Inesa fehlt: Cengiz</span></span><span class="pill i">Inesa</span></li>
+      <li><span class="time">danach</span><span class="t">Beschaffungen organisieren, falls nötig</span><span class="pill i">Inesa</span></li>
+      <li><span class="time">09:00</span><span class="t">9-Uhr-Meeting, danach mit Siyad die anstehenden Aufträge durchgehen</span><span class="pill c">Cengiz</span><span class="pill s">Siyad</span></li>
+      <li><span class="time">2× täglich</span><span class="t">Mit Dima (AMM) telefonieren und kurz gemeinsam über die NH5-Liste schauen <span class="sub">[Vorschlag: vormittags + 14 Uhr]</span></span><span class="pill c">Cengiz</span></li>
+      <li><span class="time">laufend</span><span class="t">Jede Änderung sofort in <b>Odoo und NH5</b> nachziehen, nicht nur in einem System</span><span class="pill c">Cengiz</span></li>
+      <li><span class="time">16:00</span><span class="t">5-Minuten-Abgleich: Stimmen die offenen Aufträge in Odoo und NH5 überein?</span><span class="pill c">Cengiz</span></li>
+      <li><span class="time">laufend</span><span class="t">Hermes Löhne fragt Zusatz-LKW an: noch am selben Werktag antworten, sonst geht der LKW an den nächsten Aufkäufer</span><span class="pill i">Inesa</span></li>
+    </ul></div>
+  </details>
+
+  <!-- 2 -->
+  <details>
+    <summary><span class="ico">📞</span><span class="st"><h2>Telefon &amp; Notfallkontakte</h2><p>Wer mit AMM spricht und wen man im Notfall anruft</p></span><span class="chev"></span></summary>
+    <div class="body"><ul>
+      <li><span class="t">Mit AMM telefonieren <b>ausschließlich</b>: Cengiz (Lager), Inesa (Dispo), Siyad (Notfall)</span><span class="pill a">Regel</span></li>
+      <li><span class="t">Bei LKW-Themen <b>immer schnell per Telefon</b> reagieren, nicht per Mail warten</span><span class="pill a">Regel</span></li>
+      <li><span class="t">Notfallkontakte Spedition: <b>Sebastian Reidl</b> (+49 175 2979534) und <b>Thomas Dominko</b> (AMM)</span><span class="pill s">Siyad</span></li>
+      <li><span class="t">Falls beide nicht erreichbar sind: Anastasiia Gorlovetska, Teamleitung Logistik AMM, +49 911 64258-170 <span class="sub">[Ergänzung]</span></span><span class="pill s">Siyad</span></li>
+      <li><span class="t">Verspätungsfälle von AMM sammeln (geplant / tatsächlich / wann gemeldet) für das Gespräch mit Dominko nach der Rückkehr</span><span class="pill i">Inesa</span></li>
+    </ul></div>
+  </details>
+
+  <!-- 3 -->
+  <details>
+    <summary><span class="ico">📦</span><span class="st"><h2>Kommissionierung &amp; Versand</h2><p>Planungsregeln</p></span><span class="chev"></span></summary>
+    <div class="body"><ul>
+      <li><span class="t"><b>Keine</b> Abholungen oder Versände am Tag der Kommissionierung einplanen</span><span class="pill c">Cengiz</span></li>
+      <li><span class="t">Sonderwünsche bei der Kommissionierplanung <b>immer zuerst mit Dima</b> besprechen, bevor wir etwas zusagen</span><span class="pill c">Cengiz</span></li>
+      <li><span class="t">Versandanmeldung immer mit Auftragsnummer, Kommissioniertag, Abholtermin, Adresse inkl. Telefon und Warenwert</span><span class="pill c">Cengiz</span></li>
+      <li><span class="t">Rahmen: ca. 300 Geräte/Tag, 2 LKW/Tag palettiert <span class="sub">[Planungsannahme]</span></span><span class="pill a">Info</span></li>
+      <li><span class="t">Zoll wie bisher über <b>Nikoloz</b>. Die Ausfuhrunterlagen leitet er während des Urlaubs selbst per Mail an AMM weiter (1 Klick).</span><span class="pill a">Nikoloz</span></li>
+    </ul></div>
+  </details>
+
+  <!-- 4 -->
+  <details>
+    <summary><span class="ico">🚚</span><span class="st"><h2>Wareneingang &amp; Material</h2><p>Was kommt und was schon erledigt ist</p></span><span class="chev"></span></summary>
+    <div class="body"><ul>
+      <li><span class="t"><b>Wellpappe-Test</b> Ahrbach <span class="k">AU2602250</span> (½ LKW), Ende KW 42. Testtag mit Dima festlegen; <b>keine</b> Preis- oder Mengenzusage an Ahrbach</span><span class="pill i">Inesa</span></li>
+      <li><span class="t">Annahmezeiten an Ahrbach mitgeteilt (telefonisch)</span><span class="pill a">✓ erledigt</span></li>
+      <li><span class="t">Verpackungsmaterial bestellt: Folien, Klebebänder, Pappe</span><span class="pill a">✓ erledigt</span></li>
+      <li><span class="t">Palettenfreigabe bei Zelsen erteilt</span><span class="pill a">✓ erledigt</span></li>
+      <li><span class="t">Fehlende Electrolux-Rechnungen (Italien) <span class="k">400541030</span>, <span class="k">400537340</span>, <span class="k">400537330</span>: Electrolux hat ein IT-Problem, wöchentlich nachhaken</span><span class="pill i">Inesa</span></li>
+    </ul></div>
+  </details>
+
+  <!-- 5 -->
+  <details>
+    <summary><span class="ico">🗂️</span><span class="st"><h2>Systeme</h2><p>NH5, Odoo, Änderungsstopp</p></span><span class="chev"></span></summary>
+    <div class="body"><ul>
+      <li><span class="t"><b>NH5-Excel bleibt</b> während des Urlaubs das führende Werkzeug</span><span class="pill a">Regel</span></li>
+      <li><span class="t">Odoo und NH5 <b>gleich pflegen</b>: Was in einem System geändert wird, wird auch im anderen geändert</span><span class="pill c">Cengiz</span></li>
+      <li><span class="t"><b>Keine Systemänderungen</b> (Prozesse, Felder, Automationen), solange Dustin weg ist</span><span class="pill a">Regel</span></li>
+      <li><span class="t">NH5 in Odoo: Josh arbeitet weiter, nach Dustins Anweisung (inkl. Weiterverrechnung der Lagerkosten und AGBs). Josh arbeitet <b>nur in einer Testumgebung</b>, nichts Produktives. <b>Livegang erst nach der Rückkehr.</b></span><span class="pill a">Josh</span></li>
+    </ul></div>
+  </details>
+
+  <!-- 6 -->
+  <details>
+    <summary><span class="ico">🧭</span><span class="st"><h2>Offene Themen</h2><p>Aus Outlook übernommen</p></span><span class="chev"></span></summary>
+    <div class="body"><ul>
+      <li><span class="t"><b>Otto-Obligo</b>: konnte nicht automatisiert werden, bleibt bei Johannes. Eventuell eine kleine Aufgabe für Abdul; Dustin klärt das vor dem Urlaub. <b>Vor dem 21.10. sauber an Konstantinos übergeben.</b></span><span class="pill j">Johannes</span></li>
+      <li><span class="t">Hermes Löhne: Verladung vom 06.10. storniert, eventuell Neueinplanung in KW 42</span><span class="pill i">Inesa</span></li>
+      <li><span class="t">Agicap-Rechnungsfreigaben (bisher täglich bei Dustin) <span class="sub">[ab 21.10.: wer, wenn Johannes im Urlaub ist?]</span></span><span class="pill j">Johannes</span></li>
+      <li><span class="t">Electrolux Staubsauger-Deal: IT-Problem in Polen, Update folgt</span><span class="pill s">Siyad</span></li>
+    </ul></div>
+  </details>
+
+  <!-- 7 -->
+  <details>
+    <summary><span class="ico">🤝</span><span class="st"><h2>Führung &amp; Team</h2><p>Damit niemand allein dasteht</p></span><span class="chev"></span></summary>
+    <div class="body"><ul>
+      <li><span class="t"><b>Ausprobieren:</b> Lässt sich Inesas Arbeitstag in dieser Zeit sinnvoll strukturieren, damit keine Überlast entsteht?</span><span class="pill a">To-Try</span></li>
+      <li><span class="t">Cengiz auffangen, wenn er Fragen hat. Nikoloz und Nikos <b>nicht</b> allein auf Cengiz loslassen.</span><span class="pill s">Siyad</span></li>
+      <li><span class="t">Management-Eskalation bis 20.10.; ab 21.10. ist Johannes selbst im Urlaub (Vertretung: Konstantinos)</span><span class="pill j">Johannes</span></li>
+    </ul>
+</div>
+  </details>
+
+  <!-- 8 -->
+  <details>
+    <summary><span class="ico">⏸️</span><span class="st"><h2>Bleibt liegen bis zur Rückkehr</h2><p>Bewusst nicht anfassen</p></span><span class="chev"></span></summary>
+    <div class="body"><ul>
+      <li><span class="t">Planung Wörnitz und Ähnliches</span><span class="pill a">ruht</span></li>
+      <li><span class="t">Livegang NH5 in Odoo</span><span class="pill a">ruht</span></li>
+      <li><span class="t">Wellpappe: Jahresmenge und Preis erst nach der Auswertung des Tests</span><span class="pill a">ruht</span></li>
+    </ul></div>
+  </details>
+
+  <!-- 9 -->
+  <details>
+    <summary><span class="ico">✅</span><span class="st"><h2>Dustin – vor Abreise</h2><p>Bis Do 08.10.</p></span><span class="chev"></span></summary>
+    <div class="body"><ul>
+      <li><span class="t">Urlaub in absence.io prüfen: Kein genehmigter Antrag ab 09.10. gefunden</span><span class="pill a">Dustin</span></li>
+      <li><span class="t">AMM (Dominko, Dima) informieren: Wer ab 09.10. anruft und wer angerufen wird</span><span class="pill a">Dustin</span></li>
+      <li><span class="t">Anweisung an Josh (NH5 in Odoo, Lagerkosten, AGBs) und Otto-Obligo mit Abdul klären</span><span class="pill a">Dustin</span></li>
+      <li><span class="t">Nikoloz: Weiterleitung der Zollunterlagen an AMM übergeben</span><span class="pill a">Dustin</span></li>
+      <li><span class="t">Agicap-Freigabe an Johannes einrichten · Odoo-Aktivitäten <span class="k">S02224</span>/<span class="k">S02212</span> an Cengiz umhängen</span><span class="pill a">Dustin</span></li>
+      <li><span class="t">Abwesenheitsnotiz einrichten · verwaiste Kalenderserie „täglicher Abgleich WA“ löschen · ODOO LOGISTIK am 21.10. verschieben</span><span class="pill a">Dustin</span></li>
+    </ul></div>
+  </details>
+
+  <!-- 10 -->
+  <details class="crit">
+    <summary><span class="ico">🔍</span><span class="st"><h2>Kritische Prüfung</h2><p>Noch offene Risiken</p></span><span class="chev"></span></summary>
+    <div class="body"><ul>
+      <li><span class="t"><b>Agicap ab 21.10.:</b> Johannes ist dann im Urlaub. → Vertretung für die Freigaben festlegen (Konstantinos?).</span></li>
+      <li><span class="t"><b>Zoll ohne Kontrolle:</b> Nikoloz leitet weiter, aber niemand prüft, ob AMM es bekommen hat. → Cengiz fragt das im Telefonat mit Dima ab.</span></li>
+      <li><span class="t"><b>Ist Dustin im Notfall erreichbar?</b> → Klar sagen „gar nicht“ oder „nur per SMS bei X“, damit niemand zögert.</span></li>
+    </ul>
+    <div class="note">Umgesetzt aus der Prüfung: Cengiz vertritt den 07-Uhr-Check, täglicher 16-Uhr-Abgleich Odoo/NH5, Josh nur in einer Testumgebung, Obligo-Übergabe vor dem 21.10.</div></div>
+  </details>
+
+  <footer>Urlaubsübergabe D. Eskofier · 07.10.2026 · v3 · Quellen: Dustins Vorgaben vom 07.10., Outlook, Kalender, Teams</footer>
+</div>
+</body>
+</html>
