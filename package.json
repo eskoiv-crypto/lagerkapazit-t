@@ -11,6 +11,9 @@
     "test:report": "playwright show-report"
   },
   "devDependencies": {
-    "@playwright/test": "^1.48.0"
+    "@playwright/test": "^1.48.0",
+    "jspdf": "^4.2.1",
+    "pako": "^3.0.2",
+    "xlsx": "^0.18.5"
   }
 }
